@@ -1,0 +1,20 @@
+namespace avpn;
+
+enum pkt_type : byte {
+	pt_tcp = 0,
+	pt_udp,
+	pt_ctrl,
+}
+
+table message {
+	type: pkt_type;			// 包类型.
+	pkt_id: ushort;			// 包id, 在组中的id.
+	pkt_group_id: long;		// 组id.
+	data_shards: ushort;	// 数据包数量.
+	parity_shards: ushort;	// 冗余包数量.
+	content: string;		// 内容.
+}
+
+root_type message;
+
+

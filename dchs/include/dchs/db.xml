@@ -1,0 +1,46 @@
+<changelog xmlns="http://www.codesynthesis.com/xmlns/odb/changelog" database="pgsql" version="1">
+  <model version="1">
+    <table name="dchs_config" kind="object">
+      <column name="id" type="BIGINT" null="false"/>
+      <column name="random_seed" type="TEXT" null="false"/>
+      <column name="file_shards" type="BIGINT" null="false"/>
+      <column name="parity_shards" type="BIGINT" null="false"/>
+      <primary-key auto="true">
+        <column name="id"/>
+      </primary-key>
+    </table>
+    <table name="dchs_file_store" kind="object">
+      <column name="id" type="BIGINT" null="false"/>
+      <column name="origin_filename" type="TEXT" null="false"/>
+      <column name="filehash" type="TEXT" null="false"/>
+      <column name="filesize" type="BIGINT" null="false"/>
+      <column name="file_shards" type="BIGINT" null="false"/>
+      <column name="parity_shards" type="BIGINT" null="false"/>
+      <primary-key auto="true">
+        <column name="id"/>
+      </primary-key>
+      <index name="dchs_file_store_origin_filename_i">
+        <column name="origin_filename"/>
+      </index>
+      <index name="dchs_file_store_filehash_i">
+        <column name="filehash"/>
+      </index>
+    </table>
+    <table name="dchs_shards" kind="object">
+      <column name="id" type="BIGINT" null="false"/>
+      <column name="filehash" type="TEXT" null="false"/>
+      <column name="file_index" type="BIGINT" null="false"/>
+      <column name="file_shard_hash" type="TEXT" null="false"/>
+      <column name="storage_path" type="TEXT[]" null="false"/>
+      <primary-key auto="true">
+        <column name="id"/>
+      </primary-key>
+      <index name="dchs_shards_filehash_i">
+        <column name="filehash"/>
+      </index>
+      <index name="dchs_shards_file_index_i">
+        <column name="file_index"/>
+      </index>
+    </table>
+  </model>
+</changelog>

@@ -1,0 +1,17 @@
+[Unit]
+Description=dchs Core Daemon
+After=network.target
+Requires=postgresql.service
+
+[Service]
+ExecStartPre=/bin/mkdir -pv /var/log/dchs
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/dchs
+WorkingDirectory=/var/log/dchs
+
+LimitNOFILE=900000
+Restart=always
+RestartSec=5
+MemoryMax=50G
+
+[Install]
+WantedBy=multi-user.target
