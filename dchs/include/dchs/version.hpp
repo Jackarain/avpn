@@ -25,7 +25,7 @@
 #define DCHS_VERSION "4.1.16"
 
 #ifndef DCHS_GIT_REVISION
-#define DCHS_GIT_REVISION "Git-e3579fe"
+#define DCHS_GIT_REVISION "Git-48f9aa8"
 #endif
 
 #define DCHS_VERSION_MIME "DCHS/" DCHS_VERSION "(" DCHS_GIT_REVISION ")"

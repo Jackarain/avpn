@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (C) 2019 Jack.
 //
 // Author: jack

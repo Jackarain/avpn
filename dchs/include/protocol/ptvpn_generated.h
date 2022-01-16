@@ -16,31 +16,34 @@ enum class pkt_type : int8_t {
   pt_tcp = 0,
   pt_udp = 1,
   pt_ctrl = 2,
+  pt_auth = 3,
   MIN = pt_tcp,
-  MAX = pt_ctrl
+  MAX = pt_auth
 };
 
-inline const pkt_type (&EnumValuespkt_type())[3] {
+inline const pkt_type (&EnumValuespkt_type())[4] {
   static const pkt_type values[] = {
     pkt_type::pt_tcp,
     pkt_type::pt_udp,
-    pkt_type::pt_ctrl
+    pkt_type::pt_ctrl,
+    pkt_type::pt_auth
   };
   return values;
 }
 
 inline const char * const *EnumNamespkt_type() {
-  static const char * const names[4] = {
+  static const char * const names[5] = {
     "pt_tcp",
     "pt_udp",
     "pt_ctrl",
+    "pt_auth",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNamepkt_type(pkt_type e) {
-  if (flatbuffers::IsOutRange(e, pkt_type::pt_tcp, pkt_type::pt_ctrl)) return "";
+  if (flatbuffers::IsOutRange(e, pkt_type::pt_tcp, pkt_type::pt_auth)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamespkt_type()[index];
 }

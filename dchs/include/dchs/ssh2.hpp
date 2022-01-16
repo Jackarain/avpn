@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (C) 2019 Jack.
 //
 // Author: jack
@@ -529,7 +529,7 @@ namespace ssh2
 			return boost::asio::async_initiate<Handler, void(boost::system::error_code, bool)>
 				(initiate_do_sftp_open, handler);
 		}
-		
+
 		template <typename MutableBufferSequence, typename Handler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, ssize_t))
 			async_sftp_read(const MutableBufferSequence& buffers, BOOST_ASIO_MOVE_ARG(Handler) handler)
@@ -762,7 +762,7 @@ namespace ssh2
 				m_event_type = wait_write_available;
 				return -EAGAIN;
 			}
-			
+
 			return sz;
 		}
 

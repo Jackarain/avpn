@@ -4,6 +4,7 @@ enum pkt_type : byte {
 	pt_tcp = 0,
 	pt_udp,
 	pt_ctrl,
+	pt_auth,
 }
 
 table message {

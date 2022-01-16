@@ -41,6 +41,8 @@ namespace dchs {
 		, m_io_context(m_io_context_pool.server_io_context())
 		, m_config(config)
 		, m_tuntap(m_io_context)
+		, m_tuntap_timer(m_io_context)
+		, m_channel(m_io_context)
 	{
 		avpn::dev_config dc = { "10.0.0.1", "255.255.0.0", "10.0.0.0" };
 		dc.dev_name_ = config.ifdev_;
@@ -109,18 +111,7 @@ namespace dchs {
 		// 同时server也将根据client发来的功能数据包, 进行重传lose数据包, 及清理
 		// 释放cache.
 
-		boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
-		[this](boost::asio::yield_context yield) mutable
-		{
-			start_net(yield);
-		});
-
-		boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
-		[this](boost::asio::yield_context yield) mutable
-		{
-			start_tun(yield);
-		});
-
+		start_net();
 	}
 
 	void dchs_service::stop()
@@ -832,34 +823,84 @@ namespace dchs {
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
 			}
-			else
+			else if (m_config.identity_ == dchs_client)
 			{
-				// 作为client时, 使用连接的通道进行透传通信, 如果还未连接, 则跳过.
+				// 未连接状态, 丢弃所有packet.
+				if (m_channel_status != avpn::channel_status::st_connected)
+					return;
+
+				// 透传到channel.
+				m_channel.client_write(std::string((char*)buf, bytes));
 			}
 		}
 	}
 
-	void dchs_service::start_net(boost::asio::yield_context& yield)
+	void dchs_service::start_net()
 	{
-		boost::ignore_unused(yield);
-
 		boost::system::error_code ec;
 
-		avpn::channel ch(m_io_context);
-		ch.start_connect(m_config.upstreams_);
+		m_channel.start_connect(m_config.upstreams_,
+			[this](avpn::channel_status status)
+			{
+				m_channel_status = status;
 
-		timer t(m_io_context);
-		t.expires_from_now(std::chrono::seconds(3));
-		t.async_wait(yield[ec]);
+				if (status == avpn::channel_status::st_connected) // 连接成功, 如果没有启动tun, 则启动tun设备.
+				{
+					if (m_start_tuntap)
+						return;
+					m_start_tuntap = true;
 
-		while (true)
-		{
-			// ch.do_reconnect();
+					boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
+					[this](boost::asio::yield_context yield) mutable
+					{
+						start_tun(yield);
+					});
+				}
 
-			t.expires_from_now(std::chrono::seconds(30));
-			t.async_wait(yield[ec]);
-		}
-
+				if (status == avpn::channel_status::st_disconnect)
+				{
+				}
+			},
+			std::bind(&dchs_service::do_tuntap_write, this, std::placeholders::_1));
 	}
 
+	void dchs_service::start_tuntap_write(boost::asio::yield_context& yield)
+	{
+		boost::system::error_code ec;
+
+		while (!m_abort)
+		{
+			while (!m_abort && !m_tuntap_write_deque.empty())
+			{
+				m_tuntap.async_write_some(boost::asio::buffer(m_tuntap_write_deque.front()), yield[ec]);
+				if (ec)
+				{
+					LOG_ERR << "start_tuntap_write, async_write error: " << ec.message();
+					return;
+				}
+				m_tuntap_write_deque.pop_front();
+			}
+
+			while (!m_abort)
+			{
+				m_tuntap_timer.expires_from_now(std::chrono::seconds(10)); // 每10s发起一次ping以保活.
+				m_tuntap_timer.async_wait(yield[ec]);
+				if (ec == boost::system::errc::operation_canceled
+					|| m_tuntap_write_deque.size() > 0)
+					break;
+			}
+		}
+
+		LOG_DBG << "start_tuntap_write quit..";
+	}
+
+	void dchs_service::do_tuntap_write(std::string&& message)
+	{
+		boost::asio::post(m_io_context.get_executor(), [this, message = std::move(message)]() mutable
+		{
+			m_tuntap_write_deque.emplace_back(std::move(message));
+			boost::system::error_code ignore_ec;
+			m_tuntap_timer.cancel(ignore_ec);
+		});
+	}
 }

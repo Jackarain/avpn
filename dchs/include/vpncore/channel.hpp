@@ -20,6 +20,7 @@
 #include <boost/asio/defer.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/read_until.hpp>
@@ -48,6 +49,7 @@ namespace avpn {
 
 	namespace http = boost::beast::http;			// from <boost/beast/http.hpp>
 	using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
+	using udp = boost::asio::ip::tcp;               // from <boost/asio/ip/udp.hpp>
 	namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 	using ws = websocket::stream<tcp::socket>;		// from <boost/beast/websocket.hpp>
 	namespace net = boost::asio;					// from <boost/asio.hpp>
@@ -81,12 +83,6 @@ namespace avpn {
 	// 每次通过更新ce, 清除queue.
 	// 若queue无限增大, 增大到一定程度, reset all.
 
-
-	//////////////////////////////////////////////////////////////////////////
-
-
-
-
 	//////////////////////////////////////////////////////////////////////////
 
 	struct pkt_group
@@ -119,13 +115,14 @@ namespace avpn {
 		pkt_group(int data_shards, int parity_shards)
 		{
 			BOOST_ASSERT(data_shards + parity_shards < 256 && "dataShards + parityShards >= 255");
+
 			total_ = data_shards + parity_shards;
 			bs_.resize(total_, false);
 			for (int i = 0; i < total_; i++)
 				pkts_.emplace_back(boost::beast::multi_buffer{ max_ptk_size });
 		}
 
-		void update(int64_t gid, int pid, uint8_t* data, size_t size)
+		void update(int64_t gid, uint16_t pid, uint8_t* data, size_t size)
 		{
 			time_ = timer::clock_type::now();
 			gid_ = gid;
@@ -152,7 +149,7 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	struct ptk_cache
+	struct pkt_cache
 	{
 	public:
 		const static size_t max_cache_size = 5 * 1024 * 1024;
@@ -160,7 +157,7 @@ namespace avpn {
 		size_t total_size_ = 0;
 		int64_t start_gid_ = -1;
 
-		void update(int64_t gid, int pid,
+		void update(int64_t gid, uint16_t pid,
 			int data_shards, int parity_shards,
 			uint8_t* data, size_t size)
 		{
@@ -184,15 +181,17 @@ namespace avpn {
 		{
 			std::vector<pkt_group> result;
 
-			for (auto& [gid, pkt] : groups_)
+			for (auto it = groups_.begin(); it != groups_.end();)
 			{
+				auto& [gid, pkt] = *it++;
 				if (pkt.full())
 				{
+					start_gid_ = pkt.gid_ + 1;
 					total_size_ -= pkt.total_size_;
 					result.emplace_back(std::move(pkt));
+					continue;
 				}
 
-				start_gid_ = gid;
 				break;
 			}
 
@@ -220,11 +219,11 @@ namespace avpn {
 			return result;
 		}
 
-		ptk_cache() = default;
+		pkt_cache() = default;
 
 	private:
-		ptk_cache(const ptk_cache&) = delete;
-		ptk_cache& operator=(const ptk_cache&) = delete;
+		pkt_cache(const pkt_cache&) = delete;
+		pkt_cache& operator=(const pkt_cache&) = delete;
 	};
 
 
@@ -245,7 +244,8 @@ namespace avpn {
 
 		ws_connection(ws_connection&& c) noexcept
 			: ws_stream_(std::move(c.ws_stream_))
-			, message_deque_(std::move(c.message_deque_))
+			, ws_msg_deque_(std::move(c.ws_msg_deque_))
+			, udp_msg_deque_(std::move(c.udp_msg_deque_))
 			, ws_timer_(std::move(c.ws_timer_))
 			, reconnect_timer_(std::move(c.reconnect_timer_))
 			, connection_id_(c.connection_id_)
@@ -259,7 +259,8 @@ namespace avpn {
 		}
 
 		ws_stream ws_stream_;
-		std::deque<std::string> message_deque_;
+		std::deque<std::string> ws_msg_deque_;
+		std::deque<std::string> udp_msg_deque_;
 		int identity_{0}; // 0 server, 1 client.
 		timer ws_timer_;
 		timer reconnect_timer_;
@@ -272,18 +273,34 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	class channel
-		: public intrusive_ptr_base<channel>
+	enum channel_status
 	{
+		st_connected,
+		st_disconnect,
+	};
+
+	class channel
+	{
+		using tuntap_writer = std::function<void(std::string&&)>;
+		using notify_status = std::function<void(channel_status)>;
+
+		channel(const channel&) = delete;
+		channel& operator=(const channel&) = delete;
+
 	public:
 		explicit channel(boost::asio::io_context& io)
 			: m_io_context(io)
+			, m_udp_client(io)
 		{}
 
 	public:
-		void start_connect(const std::vector<std::string>& upstreams)
+		void start_connect(const std::vector<std::string>& upstreams,
+			notify_status notify_func, tuntap_writer writer_func)
 		{
 			m_upstreams = upstreams;
+
+			m_tuntap_writer = writer_func;
+			m_status_notify = notify_func;
 
 			if (m_client)
 			{
@@ -316,6 +333,7 @@ namespace avpn {
 					if (m_abort)
 						break;
 
+					LOG_DBG << "channel::start_connect, do connect...";
 					connect(ws, yield);
 				}
 
@@ -328,6 +346,22 @@ namespace avpn {
 
 		void stop()
 		{}
+
+		void client_write(std::string&& message)
+		{
+			auto& connection_ptr = m_client;
+			if (!connection_ptr)
+				return;
+
+			auto& ws = connection_ptr->ws_stream_;
+			boost::asio::post(ws.get_executor(), [this, connection_ptr, message = std::move(message)]() mutable
+			{
+				// TODO: 根据配置来确定使用ws还是udp传输.
+				connection_ptr->ws_msg_deque_.emplace_back(std::move(message));
+				boost::system::error_code ignore_ec;
+				connection_ptr->ws_timer_.cancel(ignore_ec);
+			});
+		}
 
 	private:
 		void connect(ws_stream& ws, boost::asio::yield_context& yield)
@@ -354,6 +388,13 @@ namespace avpn {
 				{
 					LOG_ERR << "channel::connect, async_resolve: " << ec.message();
 					return;
+				}
+
+				if (boost::to_lower_copy(std::string(parser.scheme())) == "udp")
+				{
+					for (auto& endp : results)
+						m_udp_endps.emplace_back(endp.endpoint());
+					continue;
 				}
 
 				asio_util::async_connect(sock, results, yield[ec]);
@@ -396,6 +437,10 @@ namespace avpn {
 				return;
 			}
 
+			// 通知完成连接.
+			if (m_status_notify)
+				m_status_notify(channel_status::st_connected);
+
 			// 发起读写协程.
 			boost::asio::spawn(m_io_context.get_executor(),
 			[this](boost::asio::yield_context yield) mutable
@@ -412,11 +457,6 @@ namespace avpn {
 
 		void start_client_read(boost::asio::yield_context& yield)
 		{
-			boost::ignore_unused(yield);
-
-			// first step, do auth.
-			// second step, read pkt from server.
-
 			auto& ws = m_client->ws_stream_;
 			auto& connection_id = m_client->connection_id_;
 
@@ -454,13 +494,22 @@ namespace avpn {
 					break;
 				}
 
-				auto sv{msg->content()->string_view()};
+				process_packet(msg);
+			}
+
+			if (!m_abort && m_client)
+			{
+				// 通知断开连接.
+				if (m_status_notify)
+					m_status_notify(channel_status::st_disconnect);
+
+				do_reconnect();
 			}
 		}
 
 		void start_client_write(boost::asio::yield_context& yield)
 		{
-			auto& message_deque = m_client->message_deque_;
+			auto& message_deque = m_client->ws_msg_deque_;
 			auto& ws_timer = m_client->ws_timer_;
 			auto& ws = m_client->ws_stream_;
 			auto& connection_id = m_client->connection_id_;
@@ -503,25 +552,6 @@ namespace avpn {
 			LOG_DBG << "start_client_write quit..";
 		}
 
-		void websocket_write(size_t connection_id, std::string&& message)
-		{
-			ws_connection_ptr connection_ptr;
-
-			if (connection_id == 0)
-				connection_ptr = m_client;
-
-			if (!connection_ptr)
-				return;
-
-			auto& ws = connection_ptr->ws_stream_;
-			boost::asio::post(ws.get_executor(), [this, connection_ptr, message = std::move(message)]() mutable
-			{
-				connection_ptr->message_deque_.emplace_back(std::move(message));
-				boost::system::error_code ignore_ec;
-				connection_ptr->ws_timer_.cancel(ignore_ec);
-			});
-		}
-
 		void do_reconnect()
 		{
 			boost::system::error_code ignore_ec;
@@ -531,7 +561,54 @@ namespace avpn {
 				return;
 			}
 
+			LOG_DBG << "channel::do_reconnect, reset reconnect timer.";
 			m_client->reconnect_timer_.cancel_one(ignore_ec);
+		}
+
+		void process_packet(const avpn::message* msg)
+		{
+			auto do_forward = [this]() mutable
+			{
+				auto groups = m_cache.clean();
+				for (auto& pkts : groups)
+				{
+					for (auto& pkt : pkts.pkts_)
+					{
+						if (pkt.size() <= 0)
+							continue;
+
+						m_tuntap_writer(boost::beast::buffers_to_string(pkt.data()));
+					}
+				}
+			};
+
+			auto content_sv{ msg->content()->string_view() };
+
+			switch (msg->type())
+			{
+			case avpn::pkt_type::pt_auth:
+				break;
+			case avpn::pkt_type::pt_ctrl:
+				break;
+			case avpn::pkt_type::pt_udp:
+			{
+				if (!m_tuntap_writer)
+					return;
+
+				m_tuntap_writer(std::string(content_sv));
+			}
+			break;
+			case avpn::pkt_type::pt_tcp:
+			{
+				m_cache.update(msg->pkt_group_id(), msg->pkt_id(),
+					m_data_shards, m_parity_shards,
+					(uint8_t*)content_sv.data(), content_sv.size());
+			}
+			break;
+			}
+
+			// 将从网络接收到的数据包转发到设备.
+			do_forward();
 		}
 
 	private:
@@ -543,6 +620,9 @@ namespace avpn {
 
 		std::vector<tcp::acceptor> m_ws_acceptors;
 
+		tuntap_writer m_tuntap_writer;
+		notify_status m_status_notify;
+
 		// channel for server.
 		std::mutex m_ws_mux;
 		// key's 32bit, use ipv4 address.
@@ -550,11 +630,12 @@ namespace avpn {
 
 		// channel for client.
 		ws_connection_ptr m_client;
+		udp::socket m_udp_client;
+		std::vector<udp::endpoint> m_udp_endps;
 
-// 		std::unique_ptr<ws_stream> m_ws_client;
-// 		timer m_reconnect_timer;
-// 		timer m_write_timer;
-// 		std::deque<std::string> m_message_deque_;
+		int m_data_shards{ 0 };
+		int m_parity_shards{ 0 };
+		pkt_cache m_cache;
 
 		std::atomic_int64_t m_pkt_id{ 0 };
 		std::atomic_bool m_abort{ false };

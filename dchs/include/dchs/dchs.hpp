@@ -128,7 +128,10 @@ namespace dchs {
 
 		//////////////////////////////////////////////////////////////////////////
 		void start_tun(boost::asio::yield_context& yield);
-		void start_net(boost::asio::yield_context& yield);
+		void start_net();
+
+		void start_tuntap_write(boost::asio::yield_context& yield);
+		void do_tuntap_write(std::string&& message);
 
 	private:
 		io_context_pool& m_io_context_pool;
@@ -139,7 +142,12 @@ namespace dchs {
 		std::mutex m_ws_mux;
 		std::unordered_map<size_t, ws_connection_ptr> m_ws_streams;
 
+		bool m_start_tuntap{ false };
+		avpn::channel_status m_channel_status;
 		avpn::tuntap m_tuntap;
+		std::deque<std::string> m_tuntap_write_deque;
+		timer m_tuntap_timer;
+		avpn::channel m_channel;
 
 		std::atomic_bool m_abort{false};
 	};
