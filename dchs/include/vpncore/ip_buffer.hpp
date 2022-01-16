@@ -9,7 +9,7 @@
 #include "vpncore/endpoint_pair.hpp"
 #include "utils/logging.hpp"
 
-namespace avpncore {
+namespace avpn {
 
 	// 定义IP包数据缓存结构, 这个结构允许
 	// 自己管理自己的内存, 使用 boost::local_shared_ptr 来管理

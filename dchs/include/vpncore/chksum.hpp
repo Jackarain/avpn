@@ -11,7 +11,7 @@
 
 #include "vpncore/endpoint_pair.hpp"
 
-namespace avpncore {
+namespace avpn {
 
 	inline uint32_t fold_uint32t(uint32_t c)
 	{

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <functional>
 #include <cstring> // for std::memcpy
+#include <map>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/streambuf.hpp>
@@ -34,6 +35,7 @@
 #include "vpncore/ip_buffer.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
+#include "dchs/bitfield.hpp"
 #include "dchs/url_parser.hpp"
 #include "dchs/async_connect.hpp"
 #include "dchs/time_clock.hpp"
@@ -42,7 +44,7 @@
 
 #include "utils/logging.hpp"
 
-namespace avpncore {
+namespace avpn {
 
 	namespace http = boost::beast::http;			// from <boost/beast/http.hpp>
 	using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
@@ -52,6 +54,8 @@ namespace avpncore {
 
 	using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
 	using ws_stream = websocket::stream<boost::beast::tcp_stream>;
+
+	using namespace util;
 
 	// ce_id
 	// max_id
@@ -77,6 +81,154 @@ namespace avpncore {
 	// 每次通过更新ce, 清除queue.
 	// 若queue无限增大, 增大到一定程度, reset all.
 
+
+	//////////////////////////////////////////////////////////////////////////
+
+
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	struct pkt_group
+	{
+	public:
+		const static size_t max_ptk_size = 512 * 1024;
+
+		int64_t gid_{-1};
+		std::vector<boost::beast::multi_buffer> pkts_;
+		bitfield bs_;
+		int total_;
+		size_t total_size_{0};
+		timer::time_point time_;
+
+		pkt_group(pkt_group&& pg) noexcept
+			: pkts_(std::move(pg.pkts_))
+			, gid_(pg.gid_)
+			, bs_(pg.bs_)
+			, total_(pg.total_)
+			, time_(pg.time_)
+		{
+			pg.gid_ = -1;
+			pg.pkts_.clear();
+			pg.bs_.clear_all();
+			pg.total_ = 0;
+			pg.total_size_ = 0;
+		}
+
+		pkt_group() = delete;
+		pkt_group(int data_shards, int parity_shards)
+		{
+			BOOST_ASSERT(data_shards + parity_shards < 256 && "dataShards + parityShards >= 255");
+			total_ = data_shards + parity_shards;
+			bs_.resize(total_, false);
+			for (int i = 0; i < total_; i++)
+				pkts_.emplace_back(boost::beast::multi_buffer{ max_ptk_size });
+		}
+
+		void update(int64_t gid, int pid, uint8_t* data, size_t size)
+		{
+			time_ = timer::clock_type::now();
+			gid_ = gid;
+
+			auto& pkt = pkts_[pid];
+			auto p = pkt.prepare(size);
+
+			boost::asio::buffer_copy(p, boost::asio::buffer(data, size));
+			pkt.commit(size);
+			bs_.set_bit(pid);
+			total_size_ += size;
+		}
+
+		bool full() noexcept
+		{
+			return bs_.count() == total_;
+		}
+
+	private:
+		pkt_group(const pkt_group&) = delete;
+		pkt_group& operator=(const pkt_group&) = delete;
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	struct ptk_cache
+	{
+	public:
+		const static size_t max_cache_size = 5 * 1024 * 1024;
+		std::map<int64_t, pkt_group> groups_;
+		size_t total_size_ = 0;
+		int64_t start_gid_ = -1;
+
+		void update(int64_t gid, int pid,
+			int data_shards, int parity_shards,
+			uint8_t* data, size_t size)
+		{
+			auto f = groups_.find(gid);
+			if (f == groups_.end())
+			{
+				pkt_group pkt(data_shards, parity_shards);
+				pkt.update(gid, pid, data, size);
+				groups_.emplace(gid, std::move(pkt));
+			}
+			else
+			{
+				auto& pkt = f->second;
+				pkt.update(gid, pid, data, size);
+			}
+
+			total_size_ += size;
+		}
+
+		std::vector<pkt_group> clean()
+		{
+			std::vector<pkt_group> result;
+
+			for (auto& [gid, pkt] : groups_)
+			{
+				if (pkt.full())
+				{
+					total_size_ -= pkt.total_size_;
+					result.emplace_back(std::move(pkt));
+				}
+
+				start_gid_ = gid;
+				break;
+			}
+
+			for (auto& pkt : result)
+				groups_.erase(pkt.gid_);
+
+			// 大于max_cache_size时, 无论是否full, 都将清理并返回.
+			if (total_size_ > max_cache_size)
+			{
+				for (auto it = groups_.begin(); it != groups_.end();)
+				{
+					auto& [gid, pkt] = *it;
+
+					total_size_ -= pkt.total_size_;
+					if (pkt.total_size_ > 0)
+						result.emplace_back(std::move(pkt));
+
+					groups_.erase(it++);
+
+					if (total_size_ <= max_cache_size)
+						break;
+				}
+			}
+
+			return result;
+		}
+
+		ptk_cache() = default;
+
+	private:
+		ptk_cache(const ptk_cache&) = delete;
+		ptk_cache& operator=(const ptk_cache&) = delete;
+	};
+
+
+	//////////////////////////////////////////////////////////////////////////
 
 	struct ws_connection
 	{
@@ -116,6 +268,9 @@ namespace avpncore {
 		bool is_challenge_;
 	};
 	using ws_connection_ptr = std::shared_ptr<ws_connection>;
+
+
+	//////////////////////////////////////////////////////////////////////////
 
 	class channel
 		: public intrusive_ptr_base<channel>
@@ -269,7 +424,7 @@ namespace avpncore {
 
 			while (!m_abort)
 			{
-				boost::beast::multi_buffer buffer{ 4 * 1024 * 1024 }; // max multi_buffer size 4M.
+				boost::beast::multi_buffer buffer{ 512 * 1024 };
 				auto bytes_transferred = ws.async_read(buffer, yield[ec]);
 				boost::ignore_unused(bytes_transferred);
 				if (ec == websocket::error::closed)
@@ -285,10 +440,21 @@ namespace avpncore {
 				}
 
 				auto result = boost::beast::buffers_to_string(buffer.data());
-				// parser result
+				auto msg = flatbuffers::GetRoot<avpn::message>(result.data());
+				if (!msg)
+				{
+					LOG_ERR << "start_client_read, id: " << connection_id << ", get message root is nullptr";
+					break;
+				}
 
+				flatbuffers::Verifier v((const uint8_t*)result.data(), result.size());
+				if (!msg->Verify(v))
+				{
+					LOG_ERR << "start_client_read, id: " << connection_id << ", verify message fail";
+					break;
+				}
 
-
+				auto sv{msg->content()->string_view()};
 			}
 		}
 

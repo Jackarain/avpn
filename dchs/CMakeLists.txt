@@ -27,6 +27,7 @@ file(GLOB dchs_SRCS
 	include/dchs/multipart.hpp
 	include/dchs/fileop.hpp
 	include/dchs/reedsolomon.hpp
+	include/dchs/bitfield.hpp
 
 	include/vpncore/*.hpp
 	include/utils/*.hpp

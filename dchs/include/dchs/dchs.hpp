@@ -139,7 +139,7 @@ namespace dchs {
 		std::mutex m_ws_mux;
 		std::unordered_map<size_t, ws_connection_ptr> m_ws_streams;
 
-		tuntap_service::tuntap m_tuntap;
+		avpn::tuntap m_tuntap;
 
 		std::atomic_bool m_abort{false};
 	};

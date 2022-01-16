@@ -8,7 +8,7 @@
 #pragma once
 #include <string>
 
-namespace tuntap_service {
+namespace avpn {
 
 	enum dev_type {
 		dev_tap,

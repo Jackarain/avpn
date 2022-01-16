@@ -42,7 +42,7 @@ namespace dchs {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 	{
-		tuntap_service::dev_config dc = { "10.0.0.1", "255.255.0.0", "10.0.0.0" };
+		avpn::dev_config dc = { "10.0.0.1", "255.255.0.0", "10.0.0.0" };
 		dc.dev_name_ = config.ifdev_;
 		auto dev_list = m_tuntap.take_device_list();
 		std::string guid;
@@ -58,10 +58,10 @@ namespace dchs {
 #ifdef AVPN_LINUX
 		dc.dev_name_ = "";
 		dc.guid_ = "";
-		dc.dev_type_ = tuntap_service::dev_tun;
+		dc.dev_type_ = avpn::dev_tun;
 		dc.tun_fd_ = -1;
 #else
-		dc.dev_type_ = tuntap_service::dev_tun;
+		dc.dev_type_ = avpn::dev_tun;
 #endif
 
 		if (!m_tuntap.open(dc))
@@ -810,7 +810,7 @@ namespace dchs {
 			buffer.commit(bytes);
 
 			auto buf = boost::asio::buffer_cast<const uint8_t*>(buffer.data());
-			auto endp = avpncore::lookup_endpoint_pair(buf, bytes);
+			auto endp = avpn::lookup_endpoint_pair(buf, bytes);
 
 			// 解析不出来的ip包, 直接跳过...
 			if (endp.empty())
@@ -819,7 +819,7 @@ namespace dchs {
 				continue;
 			}
 
-			if (endp.type_ == avpncore::ip_udp)
+			if (endp.type_ == avpn::ip_udp)
 			{
 				std::string_view sv((char*)buf + 28, bytes - 28);
 				LOG_DBG << sv.size() << " data: " << std::string(sv);
@@ -845,7 +845,7 @@ namespace dchs {
 
 		boost::system::error_code ec;
 
-		avpncore::channel ch(m_io_context);
+		avpn::channel ch(m_io_context);
 		ch.start_connect(m_config.upstreams_);
 
 		timer t(m_io_context);

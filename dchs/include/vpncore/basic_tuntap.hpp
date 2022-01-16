@@ -14,7 +14,7 @@
 
 #include "vpncore/tuntap_config.hpp"
 
-namespace tuntap_service {
+namespace avpn {
 
 	template <typename Service>
 	class basic_tuntap

@@ -23,10 +23,10 @@
 #include "vpncore/tcp_stream.hpp"
 
 #include "vpncore/tuntap.hpp"
-using namespace tuntap_service;
+using namespace avpn;
 
 
-namespace avpncore {
+namespace avpn {
 
 	// 分析ip流, 根据ip流的 endpoint_pair
 	// 转发到对应的tcp流模块.

@@ -9,7 +9,7 @@
 
 #include "utils/logging.hpp"
 
-namespace avpncore {
+namespace avpn {
 
 	// see https://www.iana.org/assignments/protocol-numbers/protocol-numbers.txt
 	enum ip_type
@@ -193,9 +193,9 @@ namespace std
 		}
 	};
 
-	template<> struct hash<avpncore::endpoint_pair>
+	template<> struct hash<avpn::endpoint_pair>
 	{
-		typedef avpncore::endpoint_pair argument_type;
+		typedef avpn::endpoint_pair argument_type;
 		typedef std::size_t result_type;
 		inline result_type operator()(argument_type const& s) const
 		{
@@ -230,7 +230,7 @@ namespace util {
 		return log;
 	}
 
-	inline logger& operator<<(logger& log, const avpncore::endpoint_pair& endp)
+	inline logger& operator<<(logger& log, const avpn::endpoint_pair& endp)
 	{
 		log << endp.to_string();
 		return log;
@@ -242,7 +242,7 @@ namespace util {
 		return log;
 	}
 
-	inline logger& operator<<(logger&& log, const avpncore::endpoint_pair& endp)
+	inline logger& operator<<(logger&& log, const avpn::endpoint_pair& endp)
 	{
 		log << endp.to_string();
 		return log;

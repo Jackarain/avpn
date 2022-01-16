@@ -12,7 +12,7 @@
 #include <boost/intrusive_ptr.hpp>
 #include <boost/assert.hpp>
 
-namespace avpncore
+namespace avpn
 {
 	template<class T>
 	struct intrusive_ptr_base

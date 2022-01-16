@@ -96,7 +96,7 @@ static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 		(struct sockaddr*)&nladdr, sizeof(nladdr));
 }
 
-namespace tuntap_service {
+namespace avpn {
 	namespace posix = boost::asio::posix;
 
 	template <typename ReturnType>

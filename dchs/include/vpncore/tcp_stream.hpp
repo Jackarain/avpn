@@ -20,7 +20,7 @@
 
 #include "utils/logging.hpp"
 
-namespace avpncore {
+namespace avpn {
 
 	// 定义接收到tcp连接请求时的accept handler, 每个tcp连接收到
 	// syn将会触发这个handler的调用, 在这个handler中, 需要确认

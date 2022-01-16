@@ -69,7 +69,7 @@
 #include "vpncore/tuntap_config.hpp"
 #include "utils/logging.hpp"
 
-namespace tuntap_service {
+namespace avpn {
 
 	namespace details {
 		inline void utf8_utf16(const std::string& utf8, std::wstring& utf16)
@@ -420,7 +420,7 @@ namespace tuntap_service {
 			}
 
 			// usage of numeric constants is ugly, but this is really tied to this version of the driver
-			if (cfg.dev_type_ == tuntap_service::dev_tun
+			if (cfg.dev_type_ == avpn::dev_tun
 				&& version.major == 9 && version.minor < 8)
 			{
 				LOG_DBG << "WARNING:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
@@ -428,14 +428,14 @@ namespace tuntap_service {
 			}
 
 			// tap driver 9.8 (2.2.0 and 2.2.1 release) is buggy
-			if (cfg.dev_type_ == tuntap_service::dev_tun
+			if (cfg.dev_type_ == avpn::dev_tun
 				&& version.major == 9 && version.minor == 8)
 			{
 				LOG_DBG << "ERROR:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
 					<< " is buggy regarding small IPv4 packets in TUN mode. Upgrade your Tap-Win32 driver.";
 			}
 
-			if (cfg.dev_type_ == tuntap_service::dev_tun)
+			if (cfg.dev_type_ == avpn::dev_tun)
 			{
 				uint32_t tun_addrs[3];
 

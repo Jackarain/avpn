@@ -19,7 +19,7 @@
 
 #include "vpncore/basic_tuntap.hpp"
 
-namespace tuntap_service {
+namespace avpn {
 
 	// 定义不同平台的tuntap实现.
 #if defined(AVPN_WINDOWS)
