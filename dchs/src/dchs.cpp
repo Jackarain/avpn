@@ -113,7 +113,7 @@ namespace dchs {
 			if (ec)
 			{
 				LOG_WARN << "start_tun, async_read_some: " << ec.message();
-				return;
+				break;
 			}
 
 			// 解析ip相关的信息.
@@ -138,12 +138,14 @@ namespace dchs {
 			{
 				// 未连接状态, 丢弃所有packet.
 				if (m_channel_status != avpn::channel_status::st_connected)
-					return;
+					break;
 
 				// 透传到channel.
 				m_channel.client_write(std::move(msg), endp);
 			}
 		}
+
+		LOG_WARN << "start_tun quit...";
 	}
 
 	void dchs_service::start_vpn()
@@ -179,7 +181,7 @@ namespace dchs {
 					if (m_abort)
 						return;
 
-					LOG_DBG << "vpn disconnect...";
+					LOG_WARN << "vpn disconnect...";
 				}
 			},
 			std::bind(&dchs_service::do_tuntap_write, this, std::placeholders::_1));
@@ -212,7 +214,7 @@ namespace dchs {
 			}
 		}
 
-		LOG_DBG << "start_tuntap_write quit..";
+		LOG_WARN << "start_tuntap_write quit...";
 	}
 
 	void dchs_service::do_tuntap_write(std::string&& message)

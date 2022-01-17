@@ -23,7 +23,6 @@ file(GLOB dchs_SRCS
 	include/dchs/default_cert.hpp
 	include/dchs/io.hpp
 	include/dchs/handler_type_check.hpp
-	include/dchs/ssh2.hpp
 	include/dchs/multipart.hpp
 	include/dchs/fileop.hpp
 	include/dchs/reedsolomon.hpp

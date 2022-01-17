@@ -330,7 +330,8 @@ namespace avpn {
 #ifdef AVPN_LINUX
 			if (m_tuntap_fd != 0)
 			{
-				::close(m_tuntap_fd);
+				boost::system::error_code ignore_ec;
+				m_stream_descriptor.close(ignore_ec);
 				m_tuntap_fd = 0;
 			}
 #endif

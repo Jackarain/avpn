@@ -234,20 +234,8 @@ set(FLATBUFFERS_INCLUDE_DIRS third_party/flatbuffers/include)
 set_target_properties(flatbuffers PROPERTIES FOLDER "third_party")
 set_target_properties(flatbuffers PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-set(BUILD_EXAMPLES OFF CACHE BOOL OFF)
-set(BUILD_TESTING OFF CACHE BOOL OFF)
-add_subdirectory(third_party/libssh2)
-set_target_properties(libssh2 PROPERTIES FOLDER "third_party")
-set_target_properties(libssh2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-set(LIBSSH2_INCLUDE_DIRS
-	${CMAKE_CURRENT_SOURCE_DIR}/third_party/libssh2/include
-	${CMAKE_BINARY_DIR}/third_party/libssh2/src
-)
-
 include_directories(
 	${FLATBUFFERS_INCLUDE_DIRS}
-	${LIBSSH2_INCLUDE_DIRS}
 )
 
 FetchContent_Declare(GSL
@@ -267,7 +255,6 @@ link_libraries(
 		Boost::regex
 		Boost::json
 
-		libssh2
 		GSL
 		fmt
 		flatbuffers

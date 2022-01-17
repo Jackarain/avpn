@@ -506,7 +506,7 @@ namespace avpn {
 					LOG_DBG << "channel::start_connect, do connect...";
 				}
 
-				LOG_DBG << "channel::start_connect, reconnect conroutine quit...";
+				LOG_WARN << "channel::start_connect, reconnect conroutine quit...";
 			});
 		}
 
@@ -772,7 +772,7 @@ namespace avpn {
 				}
 			}
 
-			LOG_DBG << "start_client_write quit..";
+			LOG_WARN << "start_client_write quit..";
 		}
 
 		void do_reconnect()
