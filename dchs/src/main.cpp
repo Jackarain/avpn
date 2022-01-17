@@ -47,7 +47,6 @@ namespace po = boost::program_options;
 #include "dchs/dchs.hpp"
 #include "dchs/simple_http.hpp"
 
-#include "dchs/ssh2.hpp"
 #include "dchs/fileop.hpp"
 
 #include "dchs/reedsolomon.hpp"

@@ -634,6 +634,9 @@ namespace avpn {
 				return;
 			}
 
+			// 设置为2进制模式.
+			stream.binary(true);
+
 			std::string remote_host;
 			auto endp = boost::beast::get_lowest_layer(stream).socket().remote_endpoint(ec);
 			if (!ec)
