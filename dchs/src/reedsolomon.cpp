@@ -1,6 +1,6 @@
 ﻿#include "dchs/reedsolomon.hpp"
 
-namespace rs {
+namespace fec {
 	static const int fieldSize = 256;
 	static const int generatingPolynomial = 29;
 
@@ -829,7 +829,7 @@ namespace rs {
 				m.resize(cols);
 		}
 
-		rs::matrix matrix::vandermonde(size_t rows, size_t cols)
+		fec::matrix matrix::vandermonde(size_t rows, size_t cols)
 		{
 			matrix result(rows, cols);
 			for (size_t r = 0; r < result.size(); r++) {
@@ -857,10 +857,10 @@ namespace rs {
 			return m_matrix.size();
 		}
 
-		rs::matrix matrix::operator*(const matrix& m) const
+		fec::matrix matrix::operator*(const matrix& m) const
 		{
 			if (m_matrix[0].size() != m.size()) {
-				throw std::exception("columns on left is different than rows on right");
+				throw std::runtime_error("columns on left is different than rows on right");
 			}
 
 			matrix result(m_matrix.size(), m[0].size());
@@ -878,10 +878,10 @@ namespace rs {
 			return result;
 		}
 
-		rs::matrix matrix::operator+(const matrix& m) const
+		fec::matrix matrix::operator+(const matrix& m) const
 		{
 			if (m_matrix.size() != m.size()) {
-				throw std::exception("matrices don't have the same number of rows");
+				throw std::runtime_error("matrices don't have the same number of rows");
 			}
 
 			matrix result(m_matrix.size(), m_matrix[0].size() + m[0].size());
@@ -900,7 +900,7 @@ namespace rs {
 			return result;
 		}
 
-		rs::matrix matrix::sub_matrix(size_t rmin, size_t cmin, size_t rmax, size_t cmax) const
+		fec::matrix matrix::sub_matrix(size_t rmin, size_t cmin, size_t rmax, size_t cmax) const
 		{
 			auto rows = rmax - rmin;
 			auto cols = cmax - cmin;
@@ -918,8 +918,8 @@ namespace rs {
 
 		void matrix::swap_rows(size_t r1, size_t r2)
 		{
-			if (r1 < 0 || m_matrix.size() <= r1 || r2 < 0 || m_matrix.size() <= r2) {
-				throw std::exception("row index out of range");
+			if (m_matrix.size() <= r1 || m_matrix.size() <= r2) {
+				throw std::runtime_error("row index out of range");
 			}
 
 			auto tmp = m_matrix[r1];
@@ -932,10 +932,10 @@ namespace rs {
 			return m_matrix.size() == m_matrix[0].size();
 		}
 
-		rs::matrix matrix::invert() const
+		fec::matrix matrix::invert() const
 		{
 			if (!is_square())
-				throw std::exception("only square matrices can be inverted");
+				throw std::runtime_error("only square matrices can be inverted");
 
 			auto size = m_matrix.size();
 			auto work = matrix(size);
@@ -949,10 +949,10 @@ namespace rs {
 		std::string matrix::to_string() const
 		{
 			std::vector<std::string> rowOut;
-			for (int i = 0; i < m_matrix.size(); i++) {
+			for (size_t i = 0; i < m_matrix.size(); i++) {
 				auto& row = m_matrix[i];
 				std::vector<std::string> colOut;
-				for (int j = 0; j < row.size(); j++) {
+				for (size_t j = 0; j < row.size(); j++) {
 					colOut.emplace_back(std::to_string(row[j]));
 				}
 				rowOut.emplace_back("\t[" + boost::algorithm::join(colOut, ",") + "]");
@@ -976,7 +976,7 @@ namespace rs {
 				}
 
 				if (m_matrix[r][r] == 0) {
-					throw std::exception("Matrix is singular");
+					throw std::runtime_error("Matrix is singular");
 				}
 
 				if (m_matrix[r][r] != 1) {
@@ -1018,7 +1018,7 @@ namespace rs {
 			if (a == 0)
 				return 0;
 			if (b == 0)
-				throw std::exception("argument 'divisor' is 0");
+				throw std::runtime_error("argument 'divisor' is 0");
 
 			auto logA = (int)logTable[a];
 			auto logB = (int)logTable[b];
@@ -1057,11 +1057,11 @@ namespace rs {
 
 			const auto& table = mulTable;
 
-			for (int iByte = 0; iByte < byteCount; iByte++) {
-				for (int iOutput = 0; iOutput < checkCount; iOutput++) {
+			for (size_t iByte = 0; iByte < byteCount; iByte++) {
+				for (size_t iOutput = 0; iOutput < checkCount; iOutput++) {
 					const auto& matrixRow = parity_rows[iOutput];
 					int value = 0;
-					for (int iInput = 0; iInput < inputCount; iInput++) {
+					for (size_t iInput = 0; iInput < inputCount; iInput++) {
 						value ^= table[matrixRow[iInput] & 0xFF][inputs[iInput][iByte] & 0xFF];
 					}
 					if (outputs[iOutput][iByte] != (uint8_t)value) {
@@ -1085,7 +1085,7 @@ namespace rs {
 
 			const auto& table = mulTable;
 
-			for (int iOutput = 0; iOutput < outputCount; iOutput++) {
+			for (size_t iOutput = 0; iOutput < outputCount; iOutput++) {
 				auto& outputShard = outputs[iOutput];
 				const auto& matrixRow = parity_rows[iOutput];
 
@@ -1093,15 +1093,15 @@ namespace rs {
 					int iInput = 0;
 					const auto& inputShard = inputs[iInput];
 					const auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (int iByte = 0; iByte < byteCount; iByte++) {
+					for (size_t iByte = 0; iByte < byteCount; iByte++) {
 						outputShard[iByte] = multTableRow[inputShard[iByte] & 0xFF];
 					}
 				}
 
-				for (int iInput = 1; iInput < inputCount; iInput++) {
+				for (size_t iInput = 1; iInput < inputCount; iInput++) {
 					auto& inputShard = inputs[iInput];
 					auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (int iByte = 0; iByte < byteCount; iByte++) {
+					for (size_t iByte = 0; iByte < byteCount; iByte++) {
 						outputShard[iByte] ^= multTableRow[inputShard[iByte] & 0xFF];
 					}
 				}
@@ -1122,7 +1122,7 @@ namespace rs {
 
 			const auto& table = mulTable;
 
-			for (int iOutput = 0; iOutput < checkCount; iOutput++) {
+			for (size_t iOutput = 0; iOutput < checkCount; iOutput++) {
 				const auto& outputShard = target[iOutput];
 				const auto& matrixRow = parity_rows[iOutput];
 
@@ -1130,20 +1130,20 @@ namespace rs {
 					int iInput = 0;
 					const auto& inputShard = inputs[iInput];
 					const auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (int iByte = 0; iByte < byteCount; iByte++) {
+					for (size_t iByte = 0; iByte < byteCount; iByte++) {
 						outputShard[iByte] = multTableRow[inputShard[iByte] & 0xFF];
 					}
 				}
 
-				for (int iInput = 1; iInput < inputCount; iInput++) {
+				for (size_t iInput = 1; iInput < inputCount; iInput++) {
 					auto& inputShard = inputs[iInput];
 					auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (int iByte = 0; iByte < byteCount; iByte++) {
+					for (size_t iByte = 0; iByte < byteCount; iByte++) {
 						outputShard[iByte] ^= multTableRow[inputShard[iByte] & 0xFF];
 					}
 				}
 
-				for (int iByte = 0; iByte < byteCount; iByte++) {
+				for (size_t iByte = 0; iByte < byteCount; iByte++) {
 					if (outputShard[iByte] != outputShard[iByte]) {
 						return false;
 					}
@@ -1159,11 +1159,11 @@ namespace rs {
 			, m_matrix{ buildMatrix(m_shards, m_data_shards) }
 		{
 			if (dataShards <= 0 || parityShards <= 0) {
-				throw std::exception("data shards must > 0");
+				throw std::runtime_error("data shards must > 0");
 			}
 
 			if (dataShards + parityShards > 256) {
-				throw std::exception("too many shards - max is 256");
+				throw std::runtime_error("too many shards - max is 256");
 			}
 
 			m_parity_rows.resize(parityShards);
@@ -1184,7 +1184,7 @@ namespace rs {
 			check_shards(shards);
 
 			std::vector<gsl::span<uint8_t>> outputs;
-			for (size_t i = m_data_shards; i < m_shards; i++) {
+			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
 				outputs.push_back(gsl::span<uint8_t>((uint8_t*)shards[i].data(), shards[i].size()));
 			}
 
@@ -1200,10 +1200,10 @@ namespace rs {
 			auto number_present = 0;
 			auto data_present = 0;
 
-			for (size_t i = 0; i < m_shards; i++) {
+			for (size_t i = 0; i < static_cast<size_t>(m_shards); i++) {
 				if (shards[i].size() != 0) {
 					number_present++;
-					if (i < m_data_shards) {
+					if (i < (size_t)m_data_shards) {
 						data_present++;
 					}
 				}
@@ -1216,7 +1216,7 @@ namespace rs {
 			}
 
 			if (number_present < m_data_shards) {
-				throw std::exception("not enough shards present");
+				throw std::runtime_error("not enough shards present");
 			}
 
 			std::vector<std::string_view> sub_shards;
@@ -1244,7 +1244,7 @@ namespace rs {
 			matrix submatrix{ (size_t)m_data_shards, (size_t)m_data_shards };
 			for (size_t i = 0; i < validIndices.size(); i++) {
 				auto& validIndex = validIndices[i];
-				for (size_t c = 0; c < m_data_shards; c++) {
+				for (size_t c = 0; c < (size_t)m_data_shards; c++) {
 					submatrix[i][c] = m_matrix[validIndex][c];
 				}
 			}
@@ -1258,7 +1258,7 @@ namespace rs {
 			matrixRows.resize(m_parity_shards);
 
 			auto outputCount = 0;
-			for (size_t iShard = 0; iShard < m_data_shards; iShard++) {
+			for (size_t iShard = 0; iShard < (size_t)m_data_shards; iShard++) {
 				if (shards[iShard].size() == 0) {
 					shards[iShard].resize(shard_size);
 					outputs[outputCount] = shards[iShard];
@@ -1272,7 +1272,7 @@ namespace rs {
 
 			outputCount = 0;
 
-			for (size_t iShard = m_data_shards; iShard < m_shards; iShard++) {
+			for (size_t iShard = static_cast<size_t>(m_data_shards); iShard < (size_t)m_shards; iShard++) {
 				if (shards[iShard].size() == 0) {
 					shards[iShard].resize(shard_size);
 					outputs[outputCount] = shards[iShard];
@@ -1286,14 +1286,14 @@ namespace rs {
 			m_codingloop->encode(matrixRows, sub_shards, m_data_shards, outputs);
 		}
 
-		rs::matrix reedsolomon::buildMatrix(int shards, int data_shards)
+		fec::matrix reedsolomon::buildMatrix(int shards, int data_shards)
 		{
 			if (data_shards <= 0 || shards <= 0) {
-				throw std::exception("data shards must > 0");
+				throw std::runtime_error("data shards must > 0");
 			}
 
 			if (shards > 256) {
-				throw std::exception("too many shards - max is 256");
+				throw std::runtime_error("too many shards - max is 256");
 			}
 
 			auto vm = matrix{ 0 }.vandermonde(shards, data_shards);

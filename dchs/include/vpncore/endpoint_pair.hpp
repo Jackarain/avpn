@@ -119,7 +119,7 @@ namespace avpn {
 		if (version == 4) {
 
 			int ihl = ((*(const uint8_t*)(buf)) & 0x0f) * 4;
-			if (len < ihl + 4)
+			if (len < (size_t)ihl + 4)
 				return {};
 
 			uint16_t total = ntohs(*(uint16_t*)(buf + 2));

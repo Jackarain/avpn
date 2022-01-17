@@ -404,7 +404,7 @@ public:
 		auto hours = time / 1000 / 3600;
 		auto last_hours = m_last_time / 1000 / 3600;
 
-		if (m_log_size > LOG_MAXFILE_SIZE && LOG_MAXFILE_SIZE > 0)
+		if (static_cast<int>(m_log_size) > LOG_MAXFILE_SIZE && LOG_MAXFILE_SIZE > 0)
 			condition = true;
 		if (last_hours != hours && LOG_MAXFILE_SIZE < 0)
 			condition = true;
@@ -424,7 +424,7 @@ public:
 			auto logpath = boost::filesystem::path(m_log_path).branch_path();
 			boost::filesystem::path filename;
 
-			if (LOG_MAXFILE_SIZE <= 0) {
+			if constexpr (LOG_MAXFILE_SIZE <= 0) {
 				auto logfile = fmt::format("{:04d}{:02d}{:02d}-{:02d}.log",
 					ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_hour);
 				filename = logpath / logfile;

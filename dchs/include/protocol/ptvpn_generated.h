@@ -8,23 +8,29 @@
 
 namespace avpn {
 
-struct message;
-struct messageBuilder;
-struct messageT;
+struct FecMessage;
+struct FecMessageBuilder;
+struct FecMessageT;
+
+struct Message;
+struct MessageBuilder;
+struct MessageT;
 
 enum class pkt_type : int8_t {
   pt_tcp = 0,
   pt_udp = 1,
-  pt_ctrl = 2,
-  pt_auth = 3,
+  pt_fec = 2,
+  pt_ctrl = 3,
+  pt_auth = 4,
   MIN = pt_tcp,
   MAX = pt_auth
 };
 
-inline const pkt_type (&EnumValuespkt_type())[4] {
+inline const pkt_type (&EnumValuespkt_type())[5] {
   static const pkt_type values[] = {
     pkt_type::pt_tcp,
     pkt_type::pt_udp,
+    pkt_type::pt_fec,
     pkt_type::pt_ctrl,
     pkt_type::pt_auth
   };
@@ -32,9 +38,10 @@ inline const pkt_type (&EnumValuespkt_type())[4] {
 }
 
 inline const char * const *EnumNamespkt_type() {
-  static const char * const names[5] = {
+  static const char * const names[6] = {
     "pt_tcp",
     "pt_udp",
+    "pt_fec",
     "pt_ctrl",
     "pt_auth",
     nullptr
@@ -48,220 +55,313 @@ inline const char *EnumNamepkt_type(pkt_type e) {
   return EnumNamespkt_type()[index];
 }
 
-struct messageT : public flatbuffers::NativeTable {
-  typedef message TableType;
-  avpn::pkt_type type = avpn::pkt_type::pt_tcp;
-  uint16_t pkt_id = 0;
-  int64_t pkt_group_id = 0;
-  uint16_t data_shards = 0;
-  uint16_t parity_shards = 0;
-  std::string content{};
+struct FecMessageT : public flatbuffers::NativeTable {
+  typedef FecMessage TableType;
+  uint8_t pid = 0;
+  int64_t gid = 0;
+  int32_t gsize = 0;
+  uint8_t ds = 0;
+  uint8_t ps = 0;
 };
 
-struct message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef messageT NativeTableType;
-  typedef messageBuilder Builder;
+struct FecMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef FecMessageT NativeTableType;
+  typedef FecMessageBuilder Builder;
   struct Traits;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_TYPE = 4,
-    VT_PKT_ID = 6,
-    VT_PKT_GROUP_ID = 8,
-    VT_DATA_SHARDS = 10,
-    VT_PARITY_SHARDS = 12,
-    VT_CONTENT = 14
+    VT_PID = 4,
+    VT_GID = 6,
+    VT_GSIZE = 8,
+    VT_DS = 10,
+    VT_PS = 12
   };
-  avpn::pkt_type type() const {
-    return static_cast<avpn::pkt_type>(GetField<int8_t>(VT_TYPE, 0));
+  uint8_t pid() const {
+    return GetField<uint8_t>(VT_PID, 0);
   }
-  uint16_t pkt_id() const {
-    return GetField<uint16_t>(VT_PKT_ID, 0);
+  int64_t gid() const {
+    return GetField<int64_t>(VT_GID, 0);
   }
-  int64_t pkt_group_id() const {
-    return GetField<int64_t>(VT_PKT_GROUP_ID, 0);
+  int32_t gsize() const {
+    return GetField<int32_t>(VT_GSIZE, 0);
   }
-  uint16_t data_shards() const {
-    return GetField<uint16_t>(VT_DATA_SHARDS, 0);
+  uint8_t ds() const {
+    return GetField<uint8_t>(VT_DS, 0);
   }
-  uint16_t parity_shards() const {
-    return GetField<uint16_t>(VT_PARITY_SHARDS, 0);
-  }
-  const flatbuffers::String *content() const {
-    return GetPointer<const flatbuffers::String *>(VT_CONTENT);
+  uint8_t ps() const {
+    return GetField<uint8_t>(VT_PS, 0);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<int8_t>(verifier, VT_TYPE) &&
-           VerifyField<uint16_t>(verifier, VT_PKT_ID) &&
-           VerifyField<int64_t>(verifier, VT_PKT_GROUP_ID) &&
-           VerifyField<uint16_t>(verifier, VT_DATA_SHARDS) &&
-           VerifyField<uint16_t>(verifier, VT_PARITY_SHARDS) &&
-           VerifyOffset(verifier, VT_CONTENT) &&
-           verifier.VerifyString(content()) &&
+           VerifyField<uint8_t>(verifier, VT_PID) &&
+           VerifyField<int64_t>(verifier, VT_GID) &&
+           VerifyField<int32_t>(verifier, VT_GSIZE) &&
+           VerifyField<uint8_t>(verifier, VT_DS) &&
+           VerifyField<uint8_t>(verifier, VT_PS) &&
            verifier.EndTable();
   }
-  messageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(messageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<message> Pack(flatbuffers::FlatBufferBuilder &_fbb, const messageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  FecMessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(FecMessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<FecMessage> Pack(flatbuffers::FlatBufferBuilder &_fbb, const FecMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-struct messageBuilder {
-  typedef message Table;
+struct FecMessageBuilder {
+  typedef FecMessage Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_type(avpn::pkt_type type) {
-    fbb_.AddElement<int8_t>(message::VT_TYPE, static_cast<int8_t>(type), 0);
+  void add_pid(uint8_t pid) {
+    fbb_.AddElement<uint8_t>(FecMessage::VT_PID, pid, 0);
   }
-  void add_pkt_id(uint16_t pkt_id) {
-    fbb_.AddElement<uint16_t>(message::VT_PKT_ID, pkt_id, 0);
+  void add_gid(int64_t gid) {
+    fbb_.AddElement<int64_t>(FecMessage::VT_GID, gid, 0);
   }
-  void add_pkt_group_id(int64_t pkt_group_id) {
-    fbb_.AddElement<int64_t>(message::VT_PKT_GROUP_ID, pkt_group_id, 0);
+  void add_gsize(int32_t gsize) {
+    fbb_.AddElement<int32_t>(FecMessage::VT_GSIZE, gsize, 0);
   }
-  void add_data_shards(uint16_t data_shards) {
-    fbb_.AddElement<uint16_t>(message::VT_DATA_SHARDS, data_shards, 0);
+  void add_ds(uint8_t ds) {
+    fbb_.AddElement<uint8_t>(FecMessage::VT_DS, ds, 0);
   }
-  void add_parity_shards(uint16_t parity_shards) {
-    fbb_.AddElement<uint16_t>(message::VT_PARITY_SHARDS, parity_shards, 0);
+  void add_ps(uint8_t ps) {
+    fbb_.AddElement<uint8_t>(FecMessage::VT_PS, ps, 0);
   }
-  void add_content(flatbuffers::Offset<flatbuffers::String> content) {
-    fbb_.AddOffset(message::VT_CONTENT, content);
-  }
-  explicit messageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+  explicit FecMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<message> Finish() {
+  flatbuffers::Offset<FecMessage> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<message>(end);
+    auto o = flatbuffers::Offset<FecMessage>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<message> Createmessage(
+inline flatbuffers::Offset<FecMessage> CreateFecMessage(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint8_t pid = 0,
+    int64_t gid = 0,
+    int32_t gsize = 0,
+    uint8_t ds = 0,
+    uint8_t ps = 0) {
+  FecMessageBuilder builder_(_fbb);
+  builder_.add_gid(gid);
+  builder_.add_gsize(gsize);
+  builder_.add_ps(ps);
+  builder_.add_ds(ds);
+  builder_.add_pid(pid);
+  return builder_.Finish();
+}
+
+struct FecMessage::Traits {
+  using type = FecMessage;
+  static auto constexpr Create = CreateFecMessage;
+};
+
+flatbuffers::Offset<FecMessage> CreateFecMessage(flatbuffers::FlatBufferBuilder &_fbb, const FecMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct MessageT : public flatbuffers::NativeTable {
+  typedef Message TableType;
+  avpn::pkt_type type = avpn::pkt_type::pt_tcp;
+  std::unique_ptr<avpn::FecMessageT> fec_pkt{};
+  std::vector<uint8_t> content{};
+};
+
+struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef MessageT NativeTableType;
+  typedef MessageBuilder Builder;
+  struct Traits;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_TYPE = 4,
+    VT_FEC_PKT = 6,
+    VT_CONTENT = 8
+  };
+  avpn::pkt_type type() const {
+    return static_cast<avpn::pkt_type>(GetField<int8_t>(VT_TYPE, 0));
+  }
+  const avpn::FecMessage *fec_pkt() const {
+    return GetPointer<const avpn::FecMessage *>(VT_FEC_PKT);
+  }
+  const flatbuffers::Vector<uint8_t> *content() const {
+    return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_CONTENT);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_TYPE) &&
+           VerifyOffset(verifier, VT_FEC_PKT) &&
+           verifier.VerifyTable(fec_pkt()) &&
+           VerifyOffset(verifier, VT_CONTENT) &&
+           verifier.VerifyVector(content()) &&
+           verifier.EndTable();
+  }
+  MessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(MessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Message> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct MessageBuilder {
+  typedef Message Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_type(avpn::pkt_type type) {
+    fbb_.AddElement<int8_t>(Message::VT_TYPE, static_cast<int8_t>(type), 0);
+  }
+  void add_fec_pkt(flatbuffers::Offset<avpn::FecMessage> fec_pkt) {
+    fbb_.AddOffset(Message::VT_FEC_PKT, fec_pkt);
+  }
+  void add_content(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content) {
+    fbb_.AddOffset(Message::VT_CONTENT, content);
+  }
+  explicit MessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<Message> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<Message>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<Message> CreateMessage(
     flatbuffers::FlatBufferBuilder &_fbb,
     avpn::pkt_type type = avpn::pkt_type::pt_tcp,
-    uint16_t pkt_id = 0,
-    int64_t pkt_group_id = 0,
-    uint16_t data_shards = 0,
-    uint16_t parity_shards = 0,
-    flatbuffers::Offset<flatbuffers::String> content = 0) {
-  messageBuilder builder_(_fbb);
-  builder_.add_pkt_group_id(pkt_group_id);
+    flatbuffers::Offset<avpn::FecMessage> fec_pkt = 0,
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content = 0) {
+  MessageBuilder builder_(_fbb);
   builder_.add_content(content);
-  builder_.add_parity_shards(parity_shards);
-  builder_.add_data_shards(data_shards);
-  builder_.add_pkt_id(pkt_id);
+  builder_.add_fec_pkt(fec_pkt);
   builder_.add_type(type);
   return builder_.Finish();
 }
 
-struct message::Traits {
-  using type = message;
-  static auto constexpr Create = Createmessage;
+struct Message::Traits {
+  using type = Message;
+  static auto constexpr Create = CreateMessage;
 };
 
-inline flatbuffers::Offset<message> CreatemessageDirect(
+inline flatbuffers::Offset<Message> CreateMessageDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     avpn::pkt_type type = avpn::pkt_type::pt_tcp,
-    uint16_t pkt_id = 0,
-    int64_t pkt_group_id = 0,
-    uint16_t data_shards = 0,
-    uint16_t parity_shards = 0,
-    const char *content = nullptr) {
-  auto content__ = content ? _fbb.CreateString(content) : 0;
-  return avpn::Createmessage(
+    flatbuffers::Offset<avpn::FecMessage> fec_pkt = 0,
+    const std::vector<uint8_t> *content = nullptr) {
+  auto content__ = content ? _fbb.CreateVector<uint8_t>(*content) : 0;
+  return avpn::CreateMessage(
       _fbb,
       type,
-      pkt_id,
-      pkt_group_id,
-      data_shards,
-      parity_shards,
+      fec_pkt,
       content__);
 }
 
-flatbuffers::Offset<message> Createmessage(flatbuffers::FlatBufferBuilder &_fbb, const messageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline messageT *message::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::make_unique<messageT>();
+inline FecMessageT *FecMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::make_unique<FecMessageT>();
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void message::UnPackTo(messageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void FecMessage::UnPackTo(FecMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = pid(); _o->pid = _e; }
+  { auto _e = gid(); _o->gid = _e; }
+  { auto _e = gsize(); _o->gsize = _e; }
+  { auto _e = ds(); _o->ds = _e; }
+  { auto _e = ps(); _o->ps = _e; }
+}
+
+inline flatbuffers::Offset<FecMessage> FecMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const FecMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateFecMessage(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<FecMessage> CreateFecMessage(flatbuffers::FlatBufferBuilder &_fbb, const FecMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const FecMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _pid = _o->pid;
+  auto _gid = _o->gid;
+  auto _gsize = _o->gsize;
+  auto _ds = _o->ds;
+  auto _ps = _o->ps;
+  return avpn::CreateFecMessage(
+      _fbb,
+      _pid,
+      _gid,
+      _gsize,
+      _ds,
+      _ps);
+}
+
+inline MessageT *Message::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::make_unique<MessageT>();
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void Message::UnPackTo(MessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   { auto _e = type(); _o->type = _e; }
-  { auto _e = pkt_id(); _o->pkt_id = _e; }
-  { auto _e = pkt_group_id(); _o->pkt_group_id = _e; }
-  { auto _e = data_shards(); _o->data_shards = _e; }
-  { auto _e = parity_shards(); _o->parity_shards = _e; }
-  { auto _e = content(); if (_e) _o->content = _e->str(); }
+  { auto _e = fec_pkt(); if (_e) _o->fec_pkt = std::unique_ptr<avpn::FecMessageT>(_e->UnPack(_resolver)); }
+  { auto _e = content(); if (_e) { _o->content.resize(_e->size()); std::copy(_e->begin(), _e->end(), _o->content.begin()); } }
 }
 
-inline flatbuffers::Offset<message> message::Pack(flatbuffers::FlatBufferBuilder &_fbb, const messageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
-  return Createmessage(_fbb, _o, _rehasher);
+inline flatbuffers::Offset<Message> Message::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateMessage(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<message> Createmessage(flatbuffers::FlatBufferBuilder &_fbb, const messageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
-  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const messageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const MessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _type = _o->type;
-  auto _pkt_id = _o->pkt_id;
-  auto _pkt_group_id = _o->pkt_group_id;
-  auto _data_shards = _o->data_shards;
-  auto _parity_shards = _o->parity_shards;
-  auto _content = _o->content.empty() ? 0 : _fbb.CreateString(_o->content);
-  return avpn::Createmessage(
+  auto _fec_pkt = _o->fec_pkt ? CreateFecMessage(_fbb, _o->fec_pkt.get(), _rehasher) : 0;
+  auto _content = _o->content.size() ? _fbb.CreateVector(_o->content) : 0;
+  return avpn::CreateMessage(
       _fbb,
       _type,
-      _pkt_id,
-      _pkt_group_id,
-      _data_shards,
-      _parity_shards,
+      _fec_pkt,
       _content);
 }
 
-inline const avpn::message *Getmessage(const void *buf) {
-  return flatbuffers::GetRoot<avpn::message>(buf);
+inline const avpn::Message *GetMessage(const void *buf) {
+  return flatbuffers::GetRoot<avpn::Message>(buf);
 }
 
-inline const avpn::message *GetSizePrefixedmessage(const void *buf) {
-  return flatbuffers::GetSizePrefixedRoot<avpn::message>(buf);
+inline const avpn::Message *GetSizePrefixedMessage(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<avpn::Message>(buf);
 }
 
-inline bool VerifymessageBuffer(
+inline bool VerifyMessageBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifyBuffer<avpn::message>(nullptr);
+  return verifier.VerifyBuffer<avpn::Message>(nullptr);
 }
 
-inline bool VerifySizePrefixedmessageBuffer(
+inline bool VerifySizePrefixedMessageBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifySizePrefixedBuffer<avpn::message>(nullptr);
+  return verifier.VerifySizePrefixedBuffer<avpn::Message>(nullptr);
 }
 
-inline void FinishmessageBuffer(
+inline void FinishMessageBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<avpn::message> root) {
+    flatbuffers::Offset<avpn::Message> root) {
   fbb.Finish(root);
 }
 
-inline void FinishSizePrefixedmessageBuffer(
+inline void FinishSizePrefixedMessageBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<avpn::message> root) {
+    flatbuffers::Offset<avpn::Message> root) {
   fbb.FinishSizePrefixed(root);
 }
 
-inline std::unique_ptr<avpn::messageT> UnPackmessage(
+inline std::unique_ptr<avpn::MessageT> UnPackMessage(
     const void *buf,
     const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<avpn::messageT>(Getmessage(buf)->UnPack(res));
+  return std::unique_ptr<avpn::MessageT>(GetMessage(buf)->UnPack(res));
 }
 
-inline std::unique_ptr<avpn::messageT> UnPackSizePrefixedmessage(
+inline std::unique_ptr<avpn::MessageT> UnPackSizePrefixedMessage(
     const void *buf,
     const flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<avpn::messageT>(GetSizePrefixedmessage(buf)->UnPack(res));
+  return std::unique_ptr<avpn::MessageT>(GetSizePrefixedMessage(buf)->UnPack(res));
 }
 
 }  // namespace avpn

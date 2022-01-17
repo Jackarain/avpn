@@ -27,7 +27,10 @@ namespace dchs {
 		std::vector<std::string> udp_listens_;
 
 		std::string ifdev_;
-		std::string reedsolomon_;
+
+		int data_shards_;
+		int parity_shards_;
+
 		std::string doc_path_;
 		int identity_;
 	};
@@ -103,32 +106,8 @@ namespace dchs {
 		void stop();
 
 	private:
-		//////////////////////////////////////////////////////////////////////////
-		bool init_ws_acceptors();
-		void start_ws_listen(tcp::acceptor& a, boost::asio::yield_context& yield);
-		void start_ws_connect(size_t connection_id,
-			boost::beast::tcp_stream stream, boost::asio::yield_context& yield);
-
-		void do_ws_read(size_t connection_id, boost::asio::yield_context& yield);
-		void do_ws_write(size_t connection_id, boost::asio::yield_context& yield);
-
-		ws_connection_ptr lookup_ws(size_t connection_id);
-		void remove_ws(size_t connection_id);
-		void add_ws(size_t connection_id, const std::string& remote_host, ws_stream&& ws);
-		void close_all_ws();
-		void ws_expires_after(size_t connection_id, int seconds);
-
-		void on_http_root(const http_params& params);
-		void on_getfile(const http_params& params, std::string filename = "");
-		void on_putfile(const http_params& params);
-		void on_version(const http_params& params);
-		void do_http_response(const http_params& params,
-			std::string response = "Illegal request",
-			http_status status = http_status::ok);
-
-		//////////////////////////////////////////////////////////////////////////
 		void start_tun(boost::asio::yield_context& yield);
-		void start_net();
+		void start_vpn();
 
 		void start_tuntap_write(boost::asio::yield_context& yield);
 		void do_tuntap_write(std::string&& message);
@@ -136,12 +115,7 @@ namespace dchs {
 	private:
 		io_context_pool& m_io_context_pool;
 		boost::asio::io_context& m_io_context;
-
 		server_config m_config;
-		std::vector<tcp::acceptor> m_ws_acceptors;
-		std::mutex m_ws_mux;
-		std::unordered_map<size_t, ws_connection_ptr> m_ws_streams;
-
 		bool m_start_tuntap{ false };
 		avpn::channel_status m_channel_status;
 		avpn::tuntap m_tuntap;

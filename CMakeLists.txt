@@ -285,6 +285,8 @@ if (WIN32)
 		Winmm.lib
 		Mswsock.lib
 	)
+else()
+	link_libraries(mnl netlink)
 endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)

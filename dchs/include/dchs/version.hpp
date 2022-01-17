@@ -16,16 +16,16 @@
 #endif //DCHS_VERSION_MINOR
 
 #ifndef DCHS_VERSION_TINY
-#define DCHS_VERSION_TINY 16
+#define DCHS_VERSION_TINY 17
 #endif //DCHS_VERSION_TINY
 
 // the format of this version is: MMmmtt
 // M = Major version, m = minor version, t = tiny version
 #define DCHS_VERSION_NUM ((DCHS_VERSION_MAJOR * 10000) + (DCHS_VERSION_MINOR * 100) + DCHS_VERSION_TINY)
-#define DCHS_VERSION "4.1.16"
+#define DCHS_VERSION "4.1.17"
 
 #ifndef DCHS_GIT_REVISION
-#define DCHS_GIT_REVISION "Git-48f9aa8"
+#define DCHS_GIT_REVISION "Git-a1b0e18"
 #endif
 
 #define DCHS_VERSION_MIME "DCHS/" DCHS_VERSION "(" DCHS_GIT_REVISION ")"

@@ -63,6 +63,7 @@ static const char			drv_name[] = "tun";
 #endif
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 
 #include <boost/smart_ptr/scoped_ptr.hpp>
@@ -120,7 +121,7 @@ namespace avpn {
 			ret = snprintf(fname, sizeof(fname), "/sys/class/net/%s/%s",
 				dev, prop);
 
-			if (ret <= 0 || ret >= sizeof(fname)) {
+			if (ret <= 0 || (size_t)ret >= sizeof(fname)) {
 				LOG_ERR << "could not build pathname for property";
 				return -1;
 			}
@@ -170,8 +171,8 @@ namespace avpn {
 
 		explicit tuntap_fd_service(boost::asio::io_context& io_context)
 			: boost::asio::detail::service_base<tuntap_fd_service>(io_context)
-			, m_tuntap_fd(0)
 			, m_stream_descriptor(io_context)
+			, m_tuntap_fd(0)
 		{
 			// 程序开始时获取tuntap列表.
 			fetch_tuntap();
@@ -206,6 +207,7 @@ namespace avpn {
 
 		bool open(impl_type& impl, const dev_config& cfg)
 		{
+			BOOST_ASSERT("impl == this" && impl == this);
 #ifdef AVPN_LINUX
 			struct ifreq ifr;
 			int fd;
@@ -449,7 +451,7 @@ namespace avpn {
 			struct rtattr *tb[IFLA_MAX + 1];
 			struct rtattr *linkinfo[IFLA_INFO_MAX + 1];
 			const char *name, *kind;
-			long flags, owner = -1, group = -1;
+			long flags/*, owner = -1, group = -1 */;
 
 			if (n->nlmsg_type != RTM_NEWLINK && n->nlmsg_type != RTM_DELLINK)
 				return 0;

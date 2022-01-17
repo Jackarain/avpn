@@ -91,11 +91,6 @@ std::string to_hexstring(T const& data, std::streamsize digits = 64, std::string
 			return "-" + prefixed + to_hexstring_impl(0 - data, digits);
 		return prefixed + to_hexstring_impl(data, digits);
 	}
-	else if constexpr (std::is_same_v<std::decay_t<T>, hash256>)
-	{
-		// hash256转换为16进制数字字符串.
-		return to_hexstring(to_string(data), digits, prefixed);
-	}
 	else
 	{
 		static_assert(always_false<T>, "only string or std::vector<uint8_t>");

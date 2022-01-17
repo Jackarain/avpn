@@ -12,12 +12,13 @@
 #include <vector>
 #include <string_view>
 #include <filesystem>
+#include <stdexcept>
 
 #include <gsl/span>
 
 #include <boost/algorithm/string/join.hpp>
 
-namespace rs {
+namespace fec {
 
 	// rs专用的matrix.
 	class matrix
@@ -122,17 +123,17 @@ namespace rs {
 		template<class T>
 		void check_shards(const T& shards, bool nilok = false)
 		{
-			if (shards.size() != m_shards)
-				throw std::exception("wrong number of shards");
+			if (shards.size() != (size_t)m_shards)
+				throw std::runtime_error("wrong number of shards");
 
 			size_t shard_length = get_shard_size(shards);
 			if (shard_length == 0)
-				throw std::exception("wrong shard no data");
+				throw std::runtime_error("wrong shard no data");
 
 			for (size_t i = 1; i < shards.size(); i++) {
 				if (shards[i].size() != shard_length) {
 					if (shards[i].size() != 0 || !nilok) {
-						throw std::exception("shards are different sizes");
+						throw std::runtime_error("shards are different sizes");
 					}
 				}
 			}

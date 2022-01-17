@@ -206,6 +206,8 @@ namespace ssh2
 	};
 
 	std::atomic_bool ssh2_init::init_ = false;
+	ssize_t session_send(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract);
+	ssize_t session_recv(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract);
 
 	class ssh2_handle
 	{
@@ -218,6 +220,9 @@ namespace ssh2
 			wait_read_available,
 			wait_write_available,
 		};
+
+		friend ssize_t session_send(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract);
+		friend ssize_t session_recv(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract);
 
 	public:
 		ssh2_handle(ssh2_handle&& h) noexcept
@@ -239,10 +244,12 @@ namespace ssh2
 			auto abstract = libssh2_session_abstract(m_session);
 			*abstract = (void*)this;
 
-			auto session_send_func = &session_send;
-			libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND, (void*)session_send_func);
-			auto session_recv_func = &session_recv;
-			libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV, (void*)session_recv_func);
+			// auto session_send_func = &session_send;
+			typedef ssize_t(*ssh2_callback_type)(libssh2_socket_t, void*, size_t, int, void**);
+			ssh2_callback_type sfunc = &session_send;
+			libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_SEND, (void*)sfunc);
+			ssh2_callback_type rfunc = &session_recv;
+			libssh2_session_callback_set(m_session, LIBSSH2_CALLBACK_RECV, (void*)rfunc);
 
 			libssh2_session_set_blocking(m_session, 0);
 			m_socket.non_blocking(true);
@@ -417,7 +424,7 @@ namespace ssh2
 							break;
 
 						result = libssh2_userauth_publickey_fromfile_ex(m_session,
-							username.c_str(), username.size(), publickey, privatekey, passphrase.c_str());
+							username.c_str(), username.size(), publickey.c_str(), privatekey.c_str(), passphrase.c_str());
 						if (result == LIBSSH2_ERROR_EAGAIN)
 							continue;
 
@@ -730,25 +737,9 @@ namespace ssh2
 			case wait_write_available:
 				m_socket.async_wait(tcp::socket::wait_write, yield[ec]);
 				break;
+			case wait_none:
+				break;
 			}
-		}
-
-		friend static ssize_t session_send(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract)
-		{
-			boost::ignore_unused(socket);
-			boost::ignore_unused(flags);
-
-			ssh2_handle* pt = (ssh2_handle*)*abstract;
-			return pt->wirte_handle(buffer, length);
-		}
-
-		friend static ssize_t session_recv(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract)
-		{
-			boost::ignore_unused(socket);
-			boost::ignore_unused(flags);
-
-			ssh2_handle* pt = (ssh2_handle*)*abstract;
-			return pt->read_handle(buffer, length);
 		}
 
 		ssize_t wirte_handle(void* buffer, size_t length)
@@ -788,4 +779,24 @@ namespace ssh2
 		LIBSSH2_SFTP_HANDLE* m_sftp_handle = nullptr;
 		event_type m_event_type = wait_none;
 	};
+
+		ssize_t session_send(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract)
+		{
+			boost::ignore_unused(socket);
+			boost::ignore_unused(flags);
+
+			ssh2_handle* pt = (ssh2_handle*)*abstract;
+			return pt->wirte_handle(buffer, length);
+		}
+
+		ssize_t session_recv(libssh2_socket_t socket, void* buffer, size_t length, int flags, void** abstract)
+		{
+			boost::ignore_unused(socket);
+			boost::ignore_unused(flags);
+
+			ssh2_handle* pt = (ssh2_handle*)*abstract;
+			return pt->read_handle(buffer, length);
+		}
+
+
 }

@@ -164,7 +164,8 @@ int main(int argc, char** argv)
 	std::vector<std::string> ws_listens;
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
-	std::string reedsolomon;
+	int data_shards;
+	int parity_shards;
 	std::string doc_path;
 	std::string ifdev;
 	std::string identity;
@@ -184,7 +185,9 @@ int main(int argc, char** argv)
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
 
-		("reedsolomon", po::value<std::string>(&reedsolomon)->default_value("reedsolomon"), "Reedsolomon encoder and decoder.")
+		("data_shards", po::value<int>(&data_shards)->default_value(20), "Reedsolomon params of data shards.")
+		("parity_shards", po::value<int>(&parity_shards)->default_value(10), "Reedsolomon params of parity shards.")
+
 		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
 
 		("doc", po::value<std::string>(&doc_path)->default_value("."), "Http server doc file path.")
@@ -235,7 +238,13 @@ int main(int argc, char** argv)
 	cfg.udp_listens_ = udp_listens;
 
 	cfg.ifdev_ = ifdev;
-	cfg.reedsolomon_ = reedsolomon;
+	cfg.data_shards_ = data_shards;
+	cfg.parity_shards_ = parity_shards;
+	if (data_shards + parity_shards > 256)
+	{
+		LOG_ERR << "sum of data and parity shards cannot exceed 256";
+		return EXIT_FAILURE;
+	}
 	cfg.doc_path_ = doc_path;
 	if (identity == "server")
 		cfg.identity_ = dchs::dchs_server;

@@ -47,7 +47,9 @@ namespace util {
 		~bitfield() { dealloc(); }
 		void assign(char const* b, int bits)
 		{
-			resize(bits); std::memcpy(m_bytes, b, (bits + 7) / 8); clear_trailing_bits();
+			resize(bits);
+			std::memcpy(m_bytes, b, (bits + 7) / 8);
+			clear_trailing_bits();
 		}
 
 		bool operator[](int index) const
@@ -150,7 +152,9 @@ namespace util {
 
 			const_iterator& operator+(boost::uint64_t rhs)
 			{
-				for (uint64_t i = 0; i < rhs; i++)inc(); return *this;
+				for (uint64_t i = 0; i < rhs; i++)
+					inc();
+				return *this;
 			}
 
 		private:
@@ -253,11 +257,19 @@ namespace util {
 
 	private:
 
+#ifndef _MSC_VER
+#	pragma GCC diagnostic push
+#	pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 		void clear_trailing_bits()
 		{
 			// clear the tail bits in the last byte.
-			if (m_size & 7) m_bytes[(m_size + 7) / 8 - 1] &= 0xff << (8 - (m_size & 7));
+			if (m_size & 7)
+				m_bytes[(m_size + 7) / 8 - 1] &= 0xff << (8 - (m_size & 7));
 		}
+#ifndef _MSC_VER
+#	pragma GCC diagnostic pop
+#endif
 
 		void dealloc() { if (m_own) std::free(m_bytes); m_bytes = 0; }
 		unsigned char* m_bytes;
