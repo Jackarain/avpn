@@ -101,15 +101,17 @@ namespace dchs {
 			// 保存数据包类型.
 			if (endp.type_ == avpn::ip_type::ip_tcp)
 				msg.type = avpn::pkt_type::pt_tcp;
-			else if (endp.type_ == avpn::ip_type::ip_udp || endp.type_ == avpn::ip_type::ip_icmp)
+			else if (endp.type_ == avpn::ip_type::ip_udp)
 				msg.type = avpn::pkt_type::pt_udp;
+			else if (endp.type_ == avpn::ip_type::ip_icmp)
+				msg.type = avpn::pkt_type::pt_icmp;
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == dchs_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
 				if (m_channel_status != avpn::channel_status::st_listen)
-					break;
+					continue;
 
 				// 透传到channel.
 				m_channel.server_write(std::move(msg), endp);
@@ -118,7 +120,7 @@ namespace dchs {
 			{
 				// 未连接状态, 丢弃所有packet.
 				if (m_channel_status != avpn::channel_status::st_connected)
-					break;
+					continue;
 
 				// 透传到channel.
 				m_channel.client_write(std::move(msg), endp);
@@ -169,6 +171,8 @@ namespace dchs {
 					// 断开状态.
 					if (status == avpn::channel_status::st_disconnect)
 					{
+						m_start_tuntap = false;
+
 						if (m_abort)
 							return;
 

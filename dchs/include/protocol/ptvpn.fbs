@@ -3,6 +3,7 @@ namespace avpn;
 enum pkt_type : byte {
 	pt_tcp = 0,			// 原始的tcp ip包.
 	pt_udp,				// 原始的udp ip包.
+	pt_icmp,			// 原始的icmp ip包.
 	pt_fec,				// Fec数据包, 指示包为FecMessageParity.
 	pt_ctrl,			// 控制数据包.
 

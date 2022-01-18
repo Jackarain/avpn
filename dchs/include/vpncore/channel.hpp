@@ -608,7 +608,18 @@ namespace avpn {
 
 		void client_write(avpn::MessageT&& msg, avpn::endpoint_pair endp)
 		{
-			LOG_DBG << "client_write: " << endp;
+			switch (endp.type_)
+			{
+			case avpn::ip_tcp:
+				LOG_DBG << "client_write, tcp: " << endp;
+				break;
+			case avpn::ip_udp:
+				LOG_DBG << "client_write, udp: " << endp;
+				break;
+			case avpn::ip_icmp:
+				LOG_DBG << "client_write, icmp: " << endp;
+				break;
+			}
 
 			auto& connection_ptr = m_client;
 			if (!connection_ptr)
@@ -624,7 +635,18 @@ namespace avpn {
 
 		void server_write(avpn::MessageT&& msg, avpn::endpoint_pair endp)
 		{
-			LOG_DBG << "server_write: " << endp;
+			switch (endp.type_)
+			{
+			case avpn::ip_tcp:
+				LOG_DBG << "server_write, tcp: " << endp;
+				break;
+			case avpn::ip_udp:
+				LOG_DBG << "server_write, udp: " << endp;
+				break;
+			case avpn::ip_icmp:
+				LOG_DBG << "server_write, icmp: " << endp;
+				break;
+			}
 
 			auto connection_ptr = lookup_ws(endp.dst_.address().to_v4().to_uint());
 			if (!connection_ptr)
@@ -748,8 +770,15 @@ namespace avpn {
 					continue;
 				}
 
-				boost::asio::socket_base::keep_alive option(true);
-				socket.set_option(option, error);
+				{
+					boost::asio::socket_base::keep_alive option(true);
+					socket.set_option(option, error);
+				}
+
+				{
+					boost::asio::ip::tcp::no_delay option(true);
+					socket.set_option(option);
+				}
 
 				boost::beast::tcp_stream stream(std::move(socket));
 
@@ -1121,6 +1150,9 @@ namespace avpn {
 					continue;
 				}
 
+				boost::asio::ip::tcp::no_delay option(true);
+				sock.set_option(option);
+
 				ok = true;
 				if (ok)
 					break;
@@ -1352,6 +1384,8 @@ namespace avpn {
 			break;
 			case avpn::pkt_type::pt_ctrl:
 				break;
+			case avpn::pkt_type::pt_icmp:
+				[[fallthrough]];
 			case avpn::pkt_type::pt_udp:
 			{
 				if (!m_tuntap_writer)

@@ -27,17 +27,19 @@ struct MessageT;
 enum class pkt_type : int8_t {
   pt_tcp = 0,
   pt_udp = 1,
-  pt_fec = 2,
-  pt_ctrl = 3,
-  pt_auth = 4,
+  pt_icmp = 2,
+  pt_fec = 3,
+  pt_ctrl = 4,
+  pt_auth = 5,
   MIN = pt_tcp,
   MAX = pt_auth
 };
 
-inline const pkt_type (&EnumValuespkt_type())[5] {
+inline const pkt_type (&EnumValuespkt_type())[6] {
   static const pkt_type values[] = {
     pkt_type::pt_tcp,
     pkt_type::pt_udp,
+    pkt_type::pt_icmp,
     pkt_type::pt_fec,
     pkt_type::pt_ctrl,
     pkt_type::pt_auth
@@ -46,9 +48,10 @@ inline const pkt_type (&EnumValuespkt_type())[5] {
 }
 
 inline const char * const *EnumNamespkt_type() {
-  static const char * const names[6] = {
+  static const char * const names[7] = {
     "pt_tcp",
     "pt_udp",
+    "pt_icmp",
     "pt_fec",
     "pt_ctrl",
     "pt_auth",
