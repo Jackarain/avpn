@@ -140,6 +140,103 @@ std::string gen_uuid()
 	return uuid_to_string(guid);
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+
+std::string google_code_to_string(int google_code)
+{
+	boost::format f("%06d");
+	f% google_code;
+	return f.str();
+}
+
+int google_auth_code(const std::string& secret, unsigned long tm /*= 0*/, unsigned long duration/* = 30*/)
+{
+	int lookup[256];
+	const CryptoPP::byte ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+	CryptoPP::Base32Decoder::InitializeDecodingLookupArray(lookup, ALPHABET, 32, true /*insensitive*/);
+	CryptoPP::Base32Decoder decoder;
+	CryptoPP::AlgorithmParameters params = CryptoPP::MakeParameters(CryptoPP::Name::DecodingLookupArray(), (const int*)lookup);
+	decoder.IsolatedInitialize(params);
+
+	std::string key;
+
+	decoder.Put((CryptoPP::byte*)secret.data(), secret.size());
+	decoder.MessageEnd();
+	auto size = decoder.MaxRetrievable();
+	if (size && size <= std::numeric_limits<decltype(size)>::max())
+	{
+		key.resize(size);
+		decoder.Get((CryptoPP::byte*)&key[0], key.size());
+	}
+	else
+	{
+		return -1;
+	}
+
+	if (tm == 0)
+		tm = static_cast<unsigned long>(std::time(nullptr) / duration);
+	else
+		tm = tm / duration;
+
+	uint8_t challenge[8];
+	for (int i = 8; i--; tm >>= 8)
+		challenge[i] = static_cast<uint8_t>(tm);
+
+	std::string output(EVP_MAX_MD_SIZE, '\0');
+	unsigned int output_length = 0;
+
+	CryptoPP::HMAC<CryptoPP::SHA1> hmac((const CryptoPP::byte*)key.data(), key.size());
+	hmac.Update((const CryptoPP::byte*)challenge, 8);
+	hmac.Final((CryptoPP::byte*)output.data());
+	output_length = hmac.DigestSize();
+
+	output.resize(output_length);
+	const int offset = output[output_length - 1] & 0x0F;
+
+	uint8_t* u8parts = (uint8_t*)&output[offset];
+	u8parts[0] = u8parts[0] & 0x7F;
+
+	uint32_t number = (uint32_t(u8parts[0]) << 24) + (uint32_t(u8parts[1]) << 16) +
+		(uint32_t(u8parts[2]) << 8) + uint32_t(u8parts[3]);
+
+	return number % 1000000;
+}
+
+std::string google_generate_secret()
+{
+	const CryptoPP::byte ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+	CryptoPP::AlgorithmParameters params = CryptoPP::MakeParameters(CryptoPP::Name::EncodingLookupArray(), (const CryptoPP::byte*)ALPHABET);
+	CryptoPP::Base32Encoder encoder;
+	encoder.IsolatedInitialize(params);
+
+	static thread_local std::default_random_engine g =
+		std::default_random_engine(std::random_device()());
+	std::uniform_int_distribution<int> uid(0, 255);
+
+	const int GOOGLE_SECRET_BITS = 128;
+	const int buf_size = GOOGLE_SECRET_BITS / 8;
+	std::vector<CryptoPP::byte> buf(buf_size, 0);
+	for (int i = 0; i < buf_size; i++)
+		buf[i] = static_cast<CryptoPP::byte>(uid(g));
+
+	encoder.Put(buf.data(), GOOGLE_SECRET_BITS / 8);
+	encoder.MessageEnd();
+
+	std::string result;
+	auto size = encoder.MaxRetrievable();
+	if (size)
+	{
+		result.resize(size);
+		encoder.Get((CryptoPP::byte*)&result[0], result.size());
+	}
+
+	return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+
 bool parse_endpoint_string(const std::string& str, std::string& host, std::string& port, bool& ipv6only)
 {
 	ipv6only = false;
@@ -459,3 +556,5 @@ boost::posix_time::ptime make_localtime(std::string_view time) noexcept
 	catch (...) {}
 	return {};
 }
+
+

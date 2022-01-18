@@ -5,7 +5,22 @@ enum pkt_type : byte {
 	pt_udp,				// 原始的udp ip包.
 	pt_fec,				// Fec数据包, 指示包为FecMessageParity.
 	pt_ctrl,			// 控制数据包.
-	pt_auth,			// 认证数据包.
+
+	// 认证数据包, 认证方法: google auth code, client配置secret和对
+	// 应的client id, 生成auth code及client id并发送到server, server
+	// 根据client id找到 secret 并生成 google auth code 进行比对并
+	// 返回成功或失败消息.
+	pt_auth,
+}
+
+table AuthMessage {
+	cliend_id: string;	// 客户端id.
+	auth_code: int;		// google auth code.
+}
+
+table AuthMessageReply {
+	virtual_ipaddr: string;	// server分配的虚拟ip.
+	error: string;	// 错误, 出错时将提示详细的错误信息.
 }
 
 table FecMessage {
@@ -18,8 +33,12 @@ table FecMessage {
 
 table Message {
 	type: pkt_type;			// 包类型.
+	content: [ubyte];		// 用于包含大量数据的字段, 如ip包.
+
 	fec_pkt: FecMessage;		// fec包.
-	content: [ubyte];		// pt_tcp, pt_udp, pt_ctrl, pt_auth, shard 包.
+
+	auth: AuthMessage;		// 认证数据包.
+	auth_reply: AuthMessageReply;	// 认证回复数据包.
 }
 
 root_type Message;

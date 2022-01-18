@@ -8,6 +8,14 @@
 
 namespace avpn {
 
+struct AuthMessage;
+struct AuthMessageBuilder;
+struct AuthMessageT;
+
+struct AuthMessageReply;
+struct AuthMessageReplyBuilder;
+struct AuthMessageReplyT;
+
 struct FecMessage;
 struct FecMessageBuilder;
 struct FecMessageT;
@@ -54,6 +62,170 @@ inline const char *EnumNamepkt_type(pkt_type e) {
   const size_t index = static_cast<size_t>(e);
   return EnumNamespkt_type()[index];
 }
+
+struct AuthMessageT : public flatbuffers::NativeTable {
+  typedef AuthMessage TableType;
+  std::string cliend_id{};
+  int32_t auth_code = 0;
+};
+
+struct AuthMessage FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef AuthMessageT NativeTableType;
+  typedef AuthMessageBuilder Builder;
+  struct Traits;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CLIEND_ID = 4,
+    VT_AUTH_CODE = 6
+  };
+  const flatbuffers::String *cliend_id() const {
+    return GetPointer<const flatbuffers::String *>(VT_CLIEND_ID);
+  }
+  int32_t auth_code() const {
+    return GetField<int32_t>(VT_AUTH_CODE, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_CLIEND_ID) &&
+           verifier.VerifyString(cliend_id()) &&
+           VerifyField<int32_t>(verifier, VT_AUTH_CODE) &&
+           verifier.EndTable();
+  }
+  AuthMessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(AuthMessageT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<AuthMessage> Pack(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct AuthMessageBuilder {
+  typedef AuthMessage Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_cliend_id(flatbuffers::Offset<flatbuffers::String> cliend_id) {
+    fbb_.AddOffset(AuthMessage::VT_CLIEND_ID, cliend_id);
+  }
+  void add_auth_code(int32_t auth_code) {
+    fbb_.AddElement<int32_t>(AuthMessage::VT_AUTH_CODE, auth_code, 0);
+  }
+  explicit AuthMessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<AuthMessage> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<AuthMessage>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<AuthMessage> CreateAuthMessage(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> cliend_id = 0,
+    int32_t auth_code = 0) {
+  AuthMessageBuilder builder_(_fbb);
+  builder_.add_auth_code(auth_code);
+  builder_.add_cliend_id(cliend_id);
+  return builder_.Finish();
+}
+
+struct AuthMessage::Traits {
+  using type = AuthMessage;
+  static auto constexpr Create = CreateAuthMessage;
+};
+
+inline flatbuffers::Offset<AuthMessage> CreateAuthMessageDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *cliend_id = nullptr,
+    int32_t auth_code = 0) {
+  auto cliend_id__ = cliend_id ? _fbb.CreateString(cliend_id) : 0;
+  return avpn::CreateAuthMessage(
+      _fbb,
+      cliend_id__,
+      auth_code);
+}
+
+flatbuffers::Offset<AuthMessage> CreateAuthMessage(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct AuthMessageReplyT : public flatbuffers::NativeTable {
+  typedef AuthMessageReply TableType;
+  std::string virtual_ipaddr{};
+  std::string error{};
+};
+
+struct AuthMessageReply FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef AuthMessageReplyT NativeTableType;
+  typedef AuthMessageReplyBuilder Builder;
+  struct Traits;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VIRTUAL_IPADDR = 4,
+    VT_ERROR = 6
+  };
+  const flatbuffers::String *virtual_ipaddr() const {
+    return GetPointer<const flatbuffers::String *>(VT_VIRTUAL_IPADDR);
+  }
+  const flatbuffers::String *error() const {
+    return GetPointer<const flatbuffers::String *>(VT_ERROR);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_VIRTUAL_IPADDR) &&
+           verifier.VerifyString(virtual_ipaddr()) &&
+           VerifyOffset(verifier, VT_ERROR) &&
+           verifier.VerifyString(error()) &&
+           verifier.EndTable();
+  }
+  AuthMessageReplyT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(AuthMessageReplyT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<AuthMessageReply> Pack(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageReplyT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct AuthMessageReplyBuilder {
+  typedef AuthMessageReply Table;
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_virtual_ipaddr(flatbuffers::Offset<flatbuffers::String> virtual_ipaddr) {
+    fbb_.AddOffset(AuthMessageReply::VT_VIRTUAL_IPADDR, virtual_ipaddr);
+  }
+  void add_error(flatbuffers::Offset<flatbuffers::String> error) {
+    fbb_.AddOffset(AuthMessageReply::VT_ERROR, error);
+  }
+  explicit AuthMessageReplyBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<AuthMessageReply> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<AuthMessageReply>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<AuthMessageReply> CreateAuthMessageReply(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> virtual_ipaddr = 0,
+    flatbuffers::Offset<flatbuffers::String> error = 0) {
+  AuthMessageReplyBuilder builder_(_fbb);
+  builder_.add_error(error);
+  builder_.add_virtual_ipaddr(virtual_ipaddr);
+  return builder_.Finish();
+}
+
+struct AuthMessageReply::Traits {
+  using type = AuthMessageReply;
+  static auto constexpr Create = CreateAuthMessageReply;
+};
+
+inline flatbuffers::Offset<AuthMessageReply> CreateAuthMessageReplyDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *virtual_ipaddr = nullptr,
+    const char *error = nullptr) {
+  auto virtual_ipaddr__ = virtual_ipaddr ? _fbb.CreateString(virtual_ipaddr) : 0;
+  auto error__ = error ? _fbb.CreateString(error) : 0;
+  return avpn::CreateAuthMessageReply(
+      _fbb,
+      virtual_ipaddr__,
+      error__);
+}
+
+flatbuffers::Offset<AuthMessageReply> CreateAuthMessageReply(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageReplyT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct FecMessageT : public flatbuffers::NativeTable {
   typedef FecMessage TableType;
@@ -160,8 +332,10 @@ flatbuffers::Offset<FecMessage> CreateFecMessage(flatbuffers::FlatBufferBuilder 
 struct MessageT : public flatbuffers::NativeTable {
   typedef Message TableType;
   avpn::pkt_type type = avpn::pkt_type::pt_tcp;
-  std::unique_ptr<avpn::FecMessageT> fec_pkt{};
   std::vector<uint8_t> content{};
+  std::unique_ptr<avpn::FecMessageT> fec_pkt{};
+  std::unique_ptr<avpn::AuthMessageT> auth{};
+  std::unique_ptr<avpn::AuthMessageReplyT> auth_reply{};
 };
 
 struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -170,25 +344,37 @@ struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   struct Traits;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_TYPE = 4,
-    VT_FEC_PKT = 6,
-    VT_CONTENT = 8
+    VT_CONTENT = 6,
+    VT_FEC_PKT = 8,
+    VT_AUTH = 10,
+    VT_AUTH_REPLY = 12
   };
   avpn::pkt_type type() const {
     return static_cast<avpn::pkt_type>(GetField<int8_t>(VT_TYPE, 0));
   }
+  const flatbuffers::Vector<uint8_t> *content() const {
+    return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_CONTENT);
+  }
   const avpn::FecMessage *fec_pkt() const {
     return GetPointer<const avpn::FecMessage *>(VT_FEC_PKT);
   }
-  const flatbuffers::Vector<uint8_t> *content() const {
-    return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_CONTENT);
+  const avpn::AuthMessage *auth() const {
+    return GetPointer<const avpn::AuthMessage *>(VT_AUTH);
+  }
+  const avpn::AuthMessageReply *auth_reply() const {
+    return GetPointer<const avpn::AuthMessageReply *>(VT_AUTH_REPLY);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_TYPE) &&
-           VerifyOffset(verifier, VT_FEC_PKT) &&
-           verifier.VerifyTable(fec_pkt()) &&
            VerifyOffset(verifier, VT_CONTENT) &&
            verifier.VerifyVector(content()) &&
+           VerifyOffset(verifier, VT_FEC_PKT) &&
+           verifier.VerifyTable(fec_pkt()) &&
+           VerifyOffset(verifier, VT_AUTH) &&
+           verifier.VerifyTable(auth()) &&
+           VerifyOffset(verifier, VT_AUTH_REPLY) &&
+           verifier.VerifyTable(auth_reply()) &&
            verifier.EndTable();
   }
   MessageT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -203,11 +389,17 @@ struct MessageBuilder {
   void add_type(avpn::pkt_type type) {
     fbb_.AddElement<int8_t>(Message::VT_TYPE, static_cast<int8_t>(type), 0);
   }
+  void add_content(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content) {
+    fbb_.AddOffset(Message::VT_CONTENT, content);
+  }
   void add_fec_pkt(flatbuffers::Offset<avpn::FecMessage> fec_pkt) {
     fbb_.AddOffset(Message::VT_FEC_PKT, fec_pkt);
   }
-  void add_content(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content) {
-    fbb_.AddOffset(Message::VT_CONTENT, content);
+  void add_auth(flatbuffers::Offset<avpn::AuthMessage> auth) {
+    fbb_.AddOffset(Message::VT_AUTH, auth);
+  }
+  void add_auth_reply(flatbuffers::Offset<avpn::AuthMessageReply> auth_reply) {
+    fbb_.AddOffset(Message::VT_AUTH_REPLY, auth_reply);
   }
   explicit MessageBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -223,11 +415,15 @@ struct MessageBuilder {
 inline flatbuffers::Offset<Message> CreateMessage(
     flatbuffers::FlatBufferBuilder &_fbb,
     avpn::pkt_type type = avpn::pkt_type::pt_tcp,
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content = 0,
     flatbuffers::Offset<avpn::FecMessage> fec_pkt = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> content = 0) {
+    flatbuffers::Offset<avpn::AuthMessage> auth = 0,
+    flatbuffers::Offset<avpn::AuthMessageReply> auth_reply = 0) {
   MessageBuilder builder_(_fbb);
-  builder_.add_content(content);
+  builder_.add_auth_reply(auth_reply);
+  builder_.add_auth(auth);
   builder_.add_fec_pkt(fec_pkt);
+  builder_.add_content(content);
   builder_.add_type(type);
   return builder_.Finish();
 }
@@ -240,17 +436,79 @@ struct Message::Traits {
 inline flatbuffers::Offset<Message> CreateMessageDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     avpn::pkt_type type = avpn::pkt_type::pt_tcp,
+    const std::vector<uint8_t> *content = nullptr,
     flatbuffers::Offset<avpn::FecMessage> fec_pkt = 0,
-    const std::vector<uint8_t> *content = nullptr) {
+    flatbuffers::Offset<avpn::AuthMessage> auth = 0,
+    flatbuffers::Offset<avpn::AuthMessageReply> auth_reply = 0) {
   auto content__ = content ? _fbb.CreateVector<uint8_t>(*content) : 0;
   return avpn::CreateMessage(
       _fbb,
       type,
+      content__,
       fec_pkt,
-      content__);
+      auth,
+      auth_reply);
 }
 
 flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder &_fbb, const MessageT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline AuthMessageT *AuthMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::make_unique<AuthMessageT>();
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void AuthMessage::UnPackTo(AuthMessageT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = cliend_id(); if (_e) _o->cliend_id = _e->str(); }
+  { auto _e = auth_code(); _o->auth_code = _e; }
+}
+
+inline flatbuffers::Offset<AuthMessage> AuthMessage::Pack(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateAuthMessage(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<AuthMessage> CreateAuthMessage(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const AuthMessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _cliend_id = _o->cliend_id.empty() ? 0 : _fbb.CreateString(_o->cliend_id);
+  auto _auth_code = _o->auth_code;
+  return avpn::CreateAuthMessage(
+      _fbb,
+      _cliend_id,
+      _auth_code);
+}
+
+inline AuthMessageReplyT *AuthMessageReply::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::make_unique<AuthMessageReplyT>();
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void AuthMessageReply::UnPackTo(AuthMessageReplyT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = virtual_ipaddr(); if (_e) _o->virtual_ipaddr = _e->str(); }
+  { auto _e = error(); if (_e) _o->error = _e->str(); }
+}
+
+inline flatbuffers::Offset<AuthMessageReply> AuthMessageReply::Pack(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageReplyT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateAuthMessageReply(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<AuthMessageReply> CreateAuthMessageReply(flatbuffers::FlatBufferBuilder &_fbb, const AuthMessageReplyT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const AuthMessageReplyT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _virtual_ipaddr = _o->virtual_ipaddr.empty() ? 0 : _fbb.CreateString(_o->virtual_ipaddr);
+  auto _error = _o->error.empty() ? 0 : _fbb.CreateString(_o->error);
+  return avpn::CreateAuthMessageReply(
+      _fbb,
+      _virtual_ipaddr,
+      _error);
+}
 
 inline FecMessageT *FecMessage::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = std::make_unique<FecMessageT>();
@@ -300,8 +558,10 @@ inline void Message::UnPackTo(MessageT *_o, const flatbuffers::resolver_function
   (void)_o;
   (void)_resolver;
   { auto _e = type(); _o->type = _e; }
-  { auto _e = fec_pkt(); if (_e) _o->fec_pkt = std::unique_ptr<avpn::FecMessageT>(_e->UnPack(_resolver)); }
   { auto _e = content(); if (_e) { _o->content.resize(_e->size()); std::copy(_e->begin(), _e->end(), _o->content.begin()); } }
+  { auto _e = fec_pkt(); if (_e) { if(_o->fec_pkt) { _e->UnPackTo(_o->fec_pkt.get(), _resolver); } else { _o->fec_pkt = std::unique_ptr<avpn::FecMessageT>(_e->UnPack(_resolver)); } } }
+  { auto _e = auth(); if (_e) { if(_o->auth) { _e->UnPackTo(_o->auth.get(), _resolver); } else { _o->auth = std::unique_ptr<avpn::AuthMessageT>(_e->UnPack(_resolver)); } } }
+  { auto _e = auth_reply(); if (_e) { if(_o->auth_reply) { _e->UnPackTo(_o->auth_reply.get(), _resolver); } else { _o->auth_reply = std::unique_ptr<avpn::AuthMessageReplyT>(_e->UnPack(_resolver)); } } }
 }
 
 inline flatbuffers::Offset<Message> Message::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MessageT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -313,13 +573,17 @@ inline flatbuffers::Offset<Message> CreateMessage(flatbuffers::FlatBufferBuilder
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const MessageT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _type = _o->type;
-  auto _fec_pkt = _o->fec_pkt ? CreateFecMessage(_fbb, _o->fec_pkt.get(), _rehasher) : 0;
   auto _content = _o->content.size() ? _fbb.CreateVector(_o->content) : 0;
+  auto _fec_pkt = _o->fec_pkt ? CreateFecMessage(_fbb, _o->fec_pkt.get(), _rehasher) : 0;
+  auto _auth = _o->auth ? CreateAuthMessage(_fbb, _o->auth.get(), _rehasher) : 0;
+  auto _auth_reply = _o->auth_reply ? CreateAuthMessageReply(_fbb, _o->auth_reply.get(), _rehasher) : 0;
   return avpn::CreateMessage(
       _fbb,
       _type,
+      _content,
       _fec_pkt,
-      _content);
+      _auth,
+      _auth_reply);
 }
 
 inline const avpn::Message *GetMessage(const void *buf) {

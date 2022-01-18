@@ -13,6 +13,11 @@ void set_thread_name(const char* name);
 void set_thread_name(boost::thread* thread, const char* name);
 
 std::string gen_uuid();
+
+int google_auth_code(const std::string& secret, unsigned long tm = 0, unsigned long duration = 30);
+std::string google_code_to_string(int google_code);
+std::string google_generate_secret();
+
 bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost::system::error_code& ec);
 
 std::string base64_encode(std::string_view input);

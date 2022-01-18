@@ -42,36 +42,8 @@ namespace dchs {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context)
+		, m_channel(m_io_context, m_io_context_pool)
 	{
-		avpn::dev_config dc = { "10.0.0.1", "255.255.0.0", "10.0.0.0", "", "", "", 0, avpn::dev_tun, 0};
-		dc.dev_name_ = config.ifdev_;
-		auto dev_list = m_tuntap.take_device_list();
-		std::string guid;
-		for (auto& i : dev_list)
-		{
-			if (i.name_ == dc.dev_name_)
-			{
-				dc.guid_ = i.guid_;
-				break;
-			}
-		}
-
-#ifdef AVPN_LINUX
-		dc.dev_name_ = "";
-		dc.guid_ = "";
-		dc.dev_type_ = avpn::dev_tun;
-		dc.tun_fd_ = -1;
-#else
-		dc.dev_type_ = avpn::dev_tun;
-#endif
-
-		if (!m_tuntap.open(dc))
-		{
-			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
-			return;
-		}
-
 	}
 
 	dchs_service::~dchs_service()
@@ -152,39 +124,58 @@ namespace dchs {
 	{
 		boost::system::error_code ec;
 
-		m_channel.start_connect(m_config.upstreams_,
-			[this](avpn::channel_status status)
-			{
-				m_channel_status = status;
-
-				// 连接成功, 如果没有启动tun, 则启动tun设备.
-				if (status == avpn::channel_status::st_connected)
+		// 客户端启动客户端通信通道.
+		if (m_config.identity_ == dchs::dchs_client)
+			m_channel.start_connect(m_config.upstreams_,
+				[this](avpn::channel_status status)
 				{
-					LOG_DBG << "vpn connected";
+					m_channel_status = status;
 
-					if (m_start_tuntap)
-						return;
-					m_start_tuntap = true;
-
-					LOG_DBG << "vpn device start...";
-
-					boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
-					[this](boost::asio::yield_context yield) mutable
+					// 连接成功, 如果没有启动tun, 则启动tun设备.
+					if (status == avpn::channel_status::st_connected)
 					{
-						start_tun(yield);
-					});
-				}
+						LOG_DBG << "vpn connected";
 
-				// 断开状态.
-				if (status == avpn::channel_status::st_disconnect)
-				{
-					if (m_abort)
-						return;
+						if (m_start_tuntap)
+							return;
+						m_start_tuntap = true;
 
-					LOG_WARN << "vpn disconnect...";
-				}
-			},
-			std::bind(&dchs_service::do_tuntap_write, this, std::placeholders::_1));
+						std::string ipaddr = m_channel.virtual_ipaddr();
+						if (ipaddr.empty())
+						{
+							LOG_ERR << "vpn virtual ip address is empty!";
+							return;
+						}
+
+						setup_tun(ipaddr);
+
+						LOG_DBG << "vpn device start...";
+
+						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
+						[this](boost::asio::yield_context yield) mutable
+						{
+							start_tun(yield);
+						});
+					}
+
+					// 断开状态.
+					if (status == avpn::channel_status::st_disconnect)
+					{
+						if (m_abort)
+							return;
+
+						LOG_WARN << "vpn disconnect...";
+					}
+				},
+				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
+			);
+
+		// 服务器则将启动服务器通信通道.
+		if (m_config.identity_ == dchs::dchs_server)
+			m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
+				[this](avpn::channel_status status) { boost::ignore_unused(status); },
+				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
+			);
 	}
 
 	void dchs_service::start_tuntap_write(boost::asio::yield_context& yield)
@@ -226,4 +217,40 @@ namespace dchs {
 			m_tuntap_timer.cancel(ignore_ec);
 		});
 	}
+
+	void dchs_service::setup_tun(const std::string& ipaddr)
+	{
+		// 先关闭设备.
+		m_tuntap.close();
+
+		// 获取相关信息并配置网卡.
+		avpn::dev_config dc = { ipaddr, "255.255.0.0", "10.0.0.0", "", "", "", 0, avpn::dev_tun, 0 };
+		dc.dev_name_ = m_config.ifdev_;
+		auto dev_list = m_tuntap.take_device_list();
+		std::string guid;
+		for (auto& i : dev_list)
+		{
+			if (i.name_ == dc.dev_name_)
+			{
+				dc.guid_ = i.guid_;
+				break;
+			}
+		}
+
+#ifdef AVPN_LINUX
+		dc.dev_name_ = "";
+		dc.guid_ = "";
+		dc.dev_type_ = avpn::dev_tun;
+		dc.tun_fd_ = -1;
+#else
+		dc.dev_type_ = avpn::dev_tun;
+#endif
+
+		if (!m_tuntap.open(dc))
+		{
+			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
+			return;
+		}
+	}
+
 }

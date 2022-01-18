@@ -21,6 +21,7 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/read_until.hpp>
@@ -32,7 +33,6 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
 
-#include "vpncore/intrusive_ptr_base.hpp"
 #include "vpncore/ip_buffer.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
@@ -414,6 +414,7 @@ namespace avpn {
 			, ws_timer_(std::move(c.ws_timer_))
 			, reconnect_timer_(std::move(c.reconnect_timer_))
 			, connection_id_(c.connection_id_)
+			, virtual_ipaddr_(c.virtual_ipaddr_)
 			, remote_host_(c.remote_host_)
 			, quit_(!!c.quit_)
 			, is_challenge_(c.is_challenge_)
@@ -434,11 +435,36 @@ namespace avpn {
 		timer ws_timer_;
 		timer reconnect_timer_;
 		int64_t connection_id_;
+		uint32_t virtual_ipaddr_{0};
 		std::string remote_host_;
 		std::atomic_bool quit_{false};
 		bool is_challenge_;
 	};
 	using ws_connection_ptr = std::shared_ptr<ws_connection>;
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	using string_body = boost::beast::http::string_body;
+	using string_response = boost::beast::http::response<string_body>;
+
+	using dynamic_body = boost::beast::http::dynamic_body;
+	using dynamic_request = boost::beast::http::request<dynamic_body>;
+	using request_parser = boost::beast::http::request_parser<dynamic_request::body_type>;
+
+	using http_status = boost::beast::http::status;
+	using fields = boost::beast::http::fields;
+
+	struct http_params
+	{
+		std::vector<std::string> command_;
+		size_t connection_id_;
+		boost::beast::tcp_stream& stream_;
+		dynamic_request& request_;
+		request_parser& parser_;
+		boost::beast::flat_buffer& buffer_;
+		boost::asio::yield_context& yield_;
+	};
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -458,8 +484,9 @@ namespace avpn {
 		channel& operator=(const channel&) = delete;
 
 	public:
-		explicit channel(boost::asio::io_context& io)
+		channel(boost::asio::io_context& io, dchs::io_context_pool& ios)
 			: m_io_context(io)
+			, m_io_pool(ios)
 			, m_udp_client(io)
 		{}
 
@@ -471,6 +498,9 @@ namespace avpn {
 
 			m_tuntap_writer = writer_func;
 			m_status_notify = notify_func;
+
+			// 客户端身份.
+			m_identity = 1;
 
 			if (m_client)
 			{
@@ -510,8 +540,33 @@ namespace avpn {
 			});
 		}
 
-		void start_listen()
-		{}
+		void start_listen(std::vector<std::string> tcp_listens,
+			std::vector<std::string> udp_listens, notify_status notify_func, tuntap_writer writer_func)
+		{
+			m_tcp_listens = tcp_listens;
+			m_udp_listens = udp_listens;
+
+			m_tuntap_writer = writer_func;
+			m_status_notify = notify_func;
+
+			// 服务器身份.
+			m_identity = 0;
+
+			// 开始启动tcp客户端, 即ws服务器.
+			init_ws_acceptors();
+
+			int pool_size = static_cast<int>(m_io_pool.pool_size());
+			for (int i = 0; i < pool_size; i++)
+			{
+				for (auto& a : m_ws_acceptors)
+				{
+					boost::asio::spawn(m_io_pool.get_io_context().get_executor(),
+						[this, &a](boost::asio::yield_context yield) mutable {
+							start_ws_listen(a, yield);
+						});
+				}
+			}
+		}
 
 		void close()
 		{
@@ -531,22 +586,432 @@ namespace avpn {
 			if (!connection_ptr)
 				return;
 
-			auto& ws = connection_ptr->ws_stream_;
-			boost::asio::post(ws.get_executor(), [this, connection_ptr, msg = std::move(msg), endp]() mutable
+			auto& stream = connection_ptr->ws_stream_;
+			boost::asio::post(stream.get_executor(), [this, connection_ptr, msg = std::move(msg), endp]() mutable
 			{
 				auto& connection = *connection_ptr;
-
-				on_client_write(connection, msg, endp);
+				on_channel_write(connection, msg, endp);
 			});
 		}
 
-	private:
-		void on_client_write(avpn::ws_connection& connection, avpn::MessageT& msg, avpn::endpoint_pair& endp)
+		void server_write(avpn::MessageT&& msg, avpn::endpoint_pair endp)
 		{
-			// TODO: 根据配置来确定使用ws还是udp传输
+			auto connection_ptr = lookup_ws(endp.dst_.address().to_v4().to_uint());
+			if (!connection_ptr)
+				return;
+
+			auto& stream = connection_ptr->ws_stream_;
+			boost::asio::post(stream.get_executor(), [this, connection_ptr, msg = std::move(msg), endp]() mutable
+			{
+				auto& connection = *connection_ptr;
+				on_channel_write(connection, msg, endp);
+			});
+		}
+
+		std::string virtual_ipaddr() const
+		{
+			return m_virtual_ipaddr;
+		}
+
+	private:
+		bool init_ws_acceptors()
+		{
+			if (m_tcp_listens.empty())
+				return false;
+
+			boost::system::error_code ec;
+
+			for (const auto& wsd : m_tcp_listens)
+			{
+				tcp::endpoint endp;
+				bool ipv6only = make_listen_endpoint(wsd, endp, ec);
+				if (ec)
+				{
+					LOG_ERR << "WS server listen error: " << wsd << ", ec: " << ec.message();
+					return false;
+				}
+
+				tcp::acceptor a{ m_io_context };
+
+				a.open(endp.protocol(), ec);
+				if (ec)
+				{
+					LOG_ERR << "WS server open accept error: " << ec.message();
+					return false;
+				}
+
+				a.set_option(boost::asio::socket_base::reuse_address(true), ec);
+				if (ec)
+				{
+					LOG_ERR << "WS server accept set option failed: " << ec.message();
+					return false;
+				}
+
+#if __linux__
+				if (ipv6only)
+				{
+					int on = 1;
+					if (::setsockopt(a.native_handle(), IPPROTO_IPV6, IPV6_V6ONLY, (char*)&on, sizeof(on)) == -1)
+					{
+						LOG_ERR << "WS server setsockopt IPV6_V6ONLY";
+						return false;
+					}
+				}
+#else
+				boost::ignore_unused(ipv6only);
+#endif
+				a.bind(endp, ec);
+				if (ec)
+				{
+					LOG_ERR << "WS server bind failed: "
+						<< ec.message() << ", address: " << endp.address().to_string() << ", port: " << endp.port();
+					return false;
+				}
+
+				a.listen(boost::asio::socket_base::max_listen_connections, ec);
+				if (ec)
+				{
+					LOG_ERR << "WS server listen failed: " << ec.message();
+					return false;
+				}
+
+				m_ws_acceptors.emplace_back(std::move(a));
+			}
+
+			return true;
+		}
+
+		void start_ws_listen(tcp::acceptor& a, boost::asio::yield_context& yield)
+		{
+			boost::system::error_code error;
+			while (!m_abort)
+			{
+				tcp::socket socket(m_io_pool.get_io_context());
+				a.async_accept(socket, yield[error]);
+				if (error)
+				{
+					LOG_ERR << "WS server, async_accept: " << error.message();
+
+					if (error == boost::asio::error::operation_aborted ||
+						error == boost::asio::error::bad_descriptor)
+					{
+						return;
+					}
+
+					if (!a.is_open())
+						return;
+
+					continue;
+				}
+
+				boost::asio::socket_base::keep_alive option(true);
+				socket.set_option(option, error);
+
+				boost::beast::tcp_stream stream(std::move(socket));
+
+				static std::atomic_size_t id{ 0 };
+				size_t connection_id = id++;
+
+				auto executor = stream.get_executor();
+				boost::asio::spawn(executor,
+					[this, connection_id, stream = std::move(stream)](boost::asio::yield_context yield) mutable
+				{
+					start_ws_connect(connection_id, std::move(stream), yield);
+				}, boost::coroutines::attributes(5 * 1024 * 1024));
+			}
+
+			LOG_DBG << "start_ws_listen exit...";
+		}
+
+		void start_ws_connect(size_t connection_id,
+			boost::beast::tcp_stream stream, boost::asio::yield_context& yield)
+		{
+			using namespace boost::beast;
+			const auto httpd_receive_buffer_size = 5 * 1024 * 1024;
+			boost::system::error_code ec;
+			boost::beast::flat_buffer buffer;
+			buffer.reserve(httpd_receive_buffer_size);
+
+			for (; !m_abort;)
+			{
+				request_parser parser;
+				parser.body_limit(std::numeric_limits<uint64_t>::max());
+
+				http::async_read_header(stream, buffer, parser, yield[ec]);
+				if (ec)
+				{
+					LOG_DBG << "start_ws_connect, id: " << connection_id << ", async_read_header: " << ec.message();
+					return;
+				}
+
+				if (parser.get()[http::field::expect] == "100-continue")
+				{
+					http::response<http::empty_body> res;
+					res.version(11);
+					res.result(http::status::continue_);
+					http::async_write(stream, res, yield[ec]);
+					if (ec)
+					{
+						LOG_DBG << "start_ws_connect, id: " << connection_id << ", expect async_write: " << ec.message();
+						return;
+					}
+				}
+
+				auto req = parser.release();
+
+				std::string target = req.target().to_string();
+				if (!boost::beast::websocket::is_upgrade(req) ||
+					target != "/ws/channel")
+				{
+					http_params params{ {}, connection_id, stream, req, parser, buffer, yield };
+					return do_http_response(params, "Illegal request", http_status::bad_request);
+				}
+
+				std::string remote_host;
+				auto endp = stream.socket().remote_endpoint(ec);
+				if (!ec)
+				{
+					if (endp.address().is_v6())
+					{
+						remote_host = "[" + endp.address().to_string()
+							+ "]:" + std::to_string(endp.port());
+					}
+					else
+					{
+						remote_host = endp.address().to_string()
+							+ ":" + std::to_string(endp.port());
+					}
+				}
+
+				stream.expires_never();
+
+				ws_stream ws{ std::move(stream) };
+				ws.async_accept(req, yield[ec]);
+				if (ec)
+				{
+					LOG_DBG << "start_ws_connect, " << connection_id << ", async_accept: " << ec.message();
+					break;
+				}
+
+				ws_connection_ptr connection_ptr =
+					std::make_shared<ws_connection>(std::forward<ws_stream>(ws), connection_id, remote_host);
+				ws_expires_after(*connection_ptr, 60);
+
+				// 设置为2进制模式.
+				connection_ptr->ws_stream_.binary(true);
+				connection_ptr->ws_stream_.control_callback(
+				[this, wsptr = connection_ptr.get()]
+				(boost::beast::websocket::frame_type ft, boost::beast::string_view)
+				{
+					if (ft == boost::beast::websocket::frame_type::pong)
+					{
+						if (wsptr && wsptr->virtual_ipaddr_ != 0)
+							ws_expires_after(wsptr->virtual_ipaddr_, 60);
+					}
+				});
+
+				// 启动读写协程.
+				auto executor = connection_ptr->ws_stream_.get_executor();
+				boost::asio::spawn(executor,
+				[this, connection_ptr](boost::asio::yield_context yield) mutable
+				{
+					start_server_read(connection_ptr, yield);
+
+					// 移除virtual_ipaddr指定的ws.
+					if (connection_ptr->virtual_ipaddr_ != 0)
+						remove_ws(connection_ptr->virtual_ipaddr_);
+				}, boost::coroutines::attributes(20 * 1024 * 1024));
+
+				boost::asio::spawn(executor,
+				[this, connection_ptr](boost::asio::yield_context yield) mutable
+				{
+					start_server_write(connection_ptr, yield);
+
+					// 移除virtual_ipaddr指定的ws.
+					if (connection_ptr->virtual_ipaddr_ != 0)
+						remove_ws(connection_ptr->virtual_ipaddr_);
+				});
+
+				return;
+			}
+		}
+
+		void start_server_read(ws_connection_ptr connection_ptr, boost::asio::yield_context& yield)
+		{
+			if (!connection_ptr)
+				return;
+			auto& connection = *connection_ptr;
+			auto connection_id = connection.connection_id_;
+			auto& stream = connection.ws_stream_;
+
+			boost::beast::error_code ec;
+
+			while (!m_abort)
+			{
+				boost::beast::multi_buffer buffer{ 4 * 1024 * 1024 }; // max multi_buffer size 4M.
+				stream.async_read(buffer, yield[ec]);
+				if (ec == websocket::error::closed)
+				{
+					LOG_DBG << "start_server_read, id: " << connection_id << ", session was closed";
+					break;
+				}
+
+				if (ec)
+				{
+					LOG_ERR << "start_server_read, id: " << connection_id << ", async_read error: " << ec.message();
+					break;
+				}
+
+				auto result = boost::beast::buffers_to_string(buffer.data());
+				boost::ignore_unused(result);
+
+				ws_expires_after(connection, 60);
+
+				// 处理数据包.
+				auto msg = flatbuffers::GetRoot<avpn::Message>(result.data());
+				if (!msg)
+				{
+					LOG_ERR << "start_server_read, id: " << connection_id << ", get message root is nullptr";
+					break;
+				}
+
+				flatbuffers::Verifier v((const uint8_t*)result.data(), result.size());
+				if (!msg->Verify(v))
+				{
+					LOG_ERR << "start_server_read, id: " << connection_id << ", verify message fail";
+					break;
+				}
+
+				process_net_packet(msg, connection);
+			}
+
+			LOG_WARN << "start_server_read quit..";
+		}
+
+		void start_server_write(ws_connection_ptr connection_ptr, boost::asio::yield_context& yield)
+		{
+			auto& message_deque = connection_ptr->ws_msg_deque_;
+			auto& ws_timer = connection_ptr->ws_timer_;
+			auto& stream = connection_ptr->ws_stream_;
+			auto& connection_id = connection_ptr->connection_id_;
+
+			boost::system::error_code ec;
+
+			while (!m_abort && !connection_ptr->quit_)
+			{
+				while (!m_abort && !message_deque.empty())
+				{
+					stream.async_write(boost::asio::buffer(message_deque.front()), yield[ec]);
+					if (ec)
+					{
+						LOG_ERR << "start_server_write, " << connection_id << " async_write error: " << ec.message();
+						return;
+					}
+					message_deque.pop_front();
+				}
+
+				while (!m_abort)
+				{
+					ws_timer.expires_from_now(std::chrono::seconds(10)); // 每10s发起一次ping以保活.
+					ws_timer.async_wait(yield[ec]);
+					if (ec == boost::system::errc::operation_canceled || message_deque.size() > 0)
+						break;
+					if (ec)
+					{
+						LOG_ERR << "start_server_write, " << connection_id << " async_wait, error: " << ec.message();
+						continue;
+					}
+					stream.async_ping("", yield[ec]);
+					if (ec)
+					{
+						LOG_ERR << "start_server_write, " << connection_id << " async_ping, error: " << ec.message();
+						return;
+					}
+				}
+			}
+
+			LOG_WARN << "start_server_write quit..";
+		}
+
+		void add_ws(uint32_t virtual_ipaddr, ws_connection_ptr connection_ptr)
+		{
+			std::lock_guard<std::mutex> lock(m_ws_mux);
+			m_ws_streams.emplace(virtual_ipaddr, std::move(connection_ptr));
+		}
+
+		ws_connection_ptr lookup_ws(uint32_t virtual_ipaddr)
+		{
+			std::lock_guard<std::mutex> lock(m_ws_mux);
+			auto it = m_ws_streams.find(virtual_ipaddr);
+			if (it != m_ws_streams.end())
+				return it->second;
+
+			return {};
+		}
+
+		void remove_ws(uint32_t virtual_ipaddr)
+		{
+			std::lock_guard<std::mutex> lock(m_ws_mux);
+			m_ws_streams.erase(virtual_ipaddr);
+		}
+
+		void ws_expires_after(uint32_t virtual_ipaddr, int seconds)
+		{
+			auto wsp = lookup_ws(virtual_ipaddr);
+			if (!wsp)
+				return;
+
+			// 设置超时.
+			auto& stream = wsp->ws_stream_;
+			boost::beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(seconds));
+		}
+
+		void ws_expires_after(ws_connection& connection, int seconds)
+		{
+			// 设置超时.
+			auto& stream = connection.ws_stream_;
+			boost::beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(seconds));
+		}
+
+		void do_http_response(const http_params& params, std::string response, http_status status)
+		{
+			auto& connection_id = params.connection_id_;
+			auto& stream = params.stream_;
+			auto& request = params.request_;
+			auto& yield = params.yield_;
+
+			boost::system::error_code ec;
+			string_response res{ status, request.version() };
+			res.set(boost::beast::http::field::server, HTTPD_VERSION_STRING);
+			res.set(boost::beast::http::field::content_type, "text/html");
+			res.keep_alive(request.keep_alive());
+			res.body() = response;
+			res.prepare_payload();
+
+			boost::beast::http::serializer<false, string_body, fields> sr{ res };
+			boost::beast::http::async_write(stream, sr, yield[ec]);
+			if (ec)
+			{
+				LOG_WARN << "do_http_response, id: " << connection_id << ", err: " << ec.message();
+				return;
+			}
+		}
+
+		void on_channel_write(avpn::ws_connection& connection, avpn::MessageT& msg, avpn::endpoint_pair& endp)
+		{
+			// TODO: 根据配置来确定使用ws还是udp传输.
 			boost::ignore_unused(endp);
 
+			bool use_tcp_protocol = true;
+
+			// pt_auth协议直接走tcp传输.
+			if (msg.type == pkt_type::pt_auth)
+				use_tcp_protocol = true;
+			else
+				use_tcp_protocol = !!use_tcp_protocol; // TODO: 根据配置来确定使用ws还是udp传输.
+
 			// 确定使用ws协议传输, 直接序列化后丢入ws发送队列进行发送.
+			if (use_tcp_protocol)
 			{
 				// 先更新协议中的id, 确保每个group在ws中不超过data shards份数据.
 				flatbuffers::FlatBufferBuilder flatbuilder;
@@ -557,6 +1022,17 @@ namespace avpn {
 
 				connection.ws_msg_deque_.emplace_back(std::string{ bufptr, bufsize });
 			}
+		}
+
+		void channel_write(avpn::ws_connection& connection, avpn::MessageT& msg)
+		{
+			flatbuffers::FlatBufferBuilder flatbuilder;
+			flatbuilder.Finish(avpn::Message::Pack(flatbuilder, &msg));
+
+			auto bufptr = reinterpret_cast<const char*>(flatbuilder.GetBufferPointer());
+			auto bufsize = flatbuilder.GetSize();
+
+			connection.ws_msg_deque_.emplace_back(std::string{ bufptr, bufsize });
 		}
 
 		void connect(ws_stream& stream, boost::asio::yield_context& yield)
@@ -656,9 +1132,14 @@ namespace avpn {
 			m_client->remote_host_ = remote_host;
 			LOG_DBG << "ws client connected: " << m_client->connection_id_ << ", remote: " << remote_host;
 
-			// 通知完成连接.
-			if (m_status_notify)
-				m_status_notify(channel_status::st_connected);
+			// 发起认证请求.
+			avpn::MessageT msg;
+			msg.type = pkt_type::pt_auth;
+			msg.auth = std::make_unique<avpn::AuthMessageT>();
+			// TODO: 做google auth, test key: VLTATWJGVH5W7V7DX6V436FG74
+			msg.auth->auth_code = static_cast<int32_t>(google_auth_code("VLTATWJGVH5W7V7DX6V436FG74"));
+			msg.auth->cliend_id = "test";
+			channel_write(*m_client, msg);
 
 			// 发起读写协程.
 			boost::asio::spawn(m_io_context.get_executor(),
@@ -677,8 +1158,11 @@ namespace avpn {
 		void start_client_read(boost::asio::yield_context& yield)
 		{
 			auto connection_ptr = m_client;
-			auto& stream = connection_ptr->ws_stream_;
-			auto& connection_id = connection_ptr->connection_id_;
+			BOOST_ASSERT(connection_ptr);
+
+			auto& connection = *connection_ptr;
+			auto& stream = connection.ws_stream_;
+			auto& connection_id = connection.connection_id_;
 
 			boost::system::error_code ec;
 
@@ -714,14 +1198,14 @@ namespace avpn {
 					break;
 				}
 
-				process_net_packet(msg);
+				process_net_packet(msg, connection);
 			}
 
 			if (!m_abort && m_client)
 			{
-				connection_ptr->ws_stream_.async_close(boost::beast::websocket::close_code::none, yield[ec]);
-				connection_ptr->ws_timer_.cancel_one(ec);
-				connection_ptr->quit_ = true;
+				connection.ws_stream_.async_close(boost::beast::websocket::close_code::none, yield[ec]);
+				connection.ws_timer_.cancel_one(ec);
+				connection.quit_ = true;
 
 				// 通知断开连接.
 				if (m_status_notify)
@@ -791,7 +1275,7 @@ namespace avpn {
 			m_client->reconnect_timer_.cancel_one(ignore_ec);
 		}
 
-		void process_net_packet(const avpn::Message* msg)
+		void process_net_packet(const avpn::Message* msg, avpn::ws_connection& connection)
 		{
 			auto do_forward = [this]() mutable
 			{
@@ -811,7 +1295,57 @@ namespace avpn {
 			switch (msg->type())
 			{
 			case avpn::pkt_type::pt_auth:
-				break;
+			{
+				if (m_identity == 0) // 作为 server.
+				{
+					auto auth = msg->auth();
+					if (!auth)
+						return;
+
+					// TODO: 作认证操作.
+
+					// 返回获取的ip地址.
+					avpn::MessageT reply;
+					reply.type = msg->type();
+
+					reply.auth_reply = std::make_unique<avpn::AuthMessageReplyT>();
+					reply.auth_reply->virtual_ipaddr = boost::asio::ip::make_address_v4(m_ip_assigned++).to_string();
+
+					LOG_DBG << "Server assign virtual ip: "
+						<< reply.auth_reply->virtual_ipaddr << " to id: " << connection.connection_id_;
+
+					// 返回数据.
+					channel_write(connection, reply);
+
+					return;
+				}
+
+				if (m_identity == 1) // 作为 client.
+				{
+					auto auth_reply = msg->auth_reply();
+					if (!auth_reply)
+						return;
+
+					avpn::AuthMessageReplyT auth;
+					auth_reply->UnPackTo(&auth);
+
+					if (!auth.error.empty())
+					{
+						LOG_WARN << "Client assign virtual ip error: " << auth.error;
+						return;
+					}
+
+					// 保存获得的虚拟ip.
+					m_virtual_ipaddr = auth.virtual_ipaddr;
+
+					// 通知完成连接.
+					if (m_status_notify)
+						m_status_notify(channel_status::st_connected);
+
+					return;
+				}
+			}
+			break;
 			case avpn::pkt_type::pt_ctrl:
 				break;
 			case avpn::pkt_type::pt_udp:
@@ -838,6 +1372,7 @@ namespace avpn {
 
 	private:
 		boost::asio::io_context& m_io_context;
+		dchs::io_context_pool& m_io_pool;
 
 		std::vector<std::string> m_upstreams;
 		std::vector<std::string> m_tcp_listens;
@@ -848,15 +1383,21 @@ namespace avpn {
 		tuntap_writer m_tuntap_writer;
 		notify_status m_status_notify;
 
+		// 运行的身份.
+		int m_identity{-1};
+
 		// channel for server.
 		std::mutex m_ws_mux;
-		// key's 32bit, use ipv4 address.
+		// key's 32bit, use ipv4 address, virtual ipaddr.
 		std::unordered_map<uint32_t, ws_connection_ptr> m_ws_streams;
+		// 虚拟 ip 分配器.
+		std::atomic_uint32_t m_ip_assigned{ 0x0a00000a };
 
 		// channel for client.
 		ws_connection_ptr m_client;
 		udp::socket m_udp_client;
 		std::vector<udp::endpoint> m_udp_endps;
+		std::string m_virtual_ipaddr;
 
 		int m_data_shards{ 0 };
 		int m_parity_shards{ 0 };

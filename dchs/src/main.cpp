@@ -160,7 +160,6 @@ std::string version_info()
 int main(int argc, char** argv)
 {
 	std::vector<std::string> upstreams;
-	std::vector<std::string> ws_listens;
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
 	int data_shards;
@@ -179,7 +178,6 @@ int main(int argc, char** argv)
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
 		("tun", po::value<std::string>(&ifdev)->default_value(""), "Tun device.")
-		("ws", po::value<std::vector<std::string>>(&ws_listens)->multitoken(), "For websocket api server listen.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
@@ -232,7 +230,6 @@ int main(int argc, char** argv)
 
 	cfg.upstreams_ = upstreams;
 
-	cfg.ws_listens_ = ws_listens;
 	cfg.tcp_listens_ = tcp_listens;
 	cfg.udp_listens_ = udp_listens;
 

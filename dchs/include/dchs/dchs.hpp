@@ -21,7 +21,6 @@ namespace dchs {
 	struct server_config
 	{
 		std::vector<std::string> upstreams_;
-		std::vector<std::string> ws_listens_;
 
 		std::vector<std::string> tcp_listens_;
 		std::vector<std::string> udp_listens_;
@@ -111,6 +110,8 @@ namespace dchs {
 
 		void start_tuntap_write(boost::asio::yield_context& yield);
 		void do_tuntap_write(std::string&& message);
+
+		void setup_tun(const std::string& ipaddr);
 
 	private:
 		io_context_pool& m_io_context_pool;
