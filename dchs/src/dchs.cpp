@@ -66,7 +66,10 @@ namespace dchs {
 
 		LOG_DBG << "stop tuntap.";
 		if (m_start_tuntap)
+		{
 			m_tuntap.close();
+			m_tuntap_timer.cancel_one(ignore_ec);
+		}
 
 		LOG_DBG << "dchs_service.stop()";
 	}
@@ -98,13 +101,18 @@ namespace dchs {
 			// 保存数据包类型.
 			if (endp.type_ == avpn::ip_type::ip_tcp)
 				msg.type = avpn::pkt_type::pt_tcp;
-			else if (endp.type_ == avpn::ip_type::ip_udp)
+			else if (endp.type_ == avpn::ip_type::ip_udp || endp.type_ == avpn::ip_type::ip_icmp)
 				msg.type = avpn::pkt_type::pt_udp;
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == dchs_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
+				if (m_channel_status != avpn::channel_status::st_listen)
+					break;
+
+				// 透传到channel.
+				m_channel.server_write(std::move(msg), endp);
 			}
 			else if (m_config.identity_ == dchs_client)
 			{
@@ -173,55 +181,65 @@ namespace dchs {
 		// 服务器则将启动服务器通信通道.
 		if (m_config.identity_ == dchs::dchs_server)
 			m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
-				[this](avpn::channel_status status) { boost::ignore_unused(status); },
+				[this](avpn::channel_status status)
+				{
+					if (status == avpn::channel_status::st_listen)
+					{
+						if (m_start_tuntap)
+							return;
+
+						m_start_tuntap = true;
+						m_channel_status = status;
+
+						std::string ipaddr = "10.0.0.1";
+						setup_tun(ipaddr);
+
+						LOG_DBG << "vpn device start...";
+
+						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
+						[this](boost::asio::yield_context yield) mutable
+						{
+							start_tun(yield);
+						});
+					}
+				},
 				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
 			);
 	}
 
-	void dchs_service::start_tuntap_write(boost::asio::yield_context& yield)
-	{
-		boost::system::error_code ec;
-
-		while (!m_abort)
-		{
-			while (!m_abort && !m_tuntap_write_deque.empty())
-			{
-				m_tuntap.async_write_some(boost::asio::buffer(m_tuntap_write_deque.front()), yield[ec]);
-				if (ec)
-				{
-					LOG_ERR << "start_tuntap_write, async_write error: " << ec.message();
-					return;
-				}
-				m_tuntap_write_deque.pop_front();
-			}
-
-			while (!m_abort)
-			{
-				m_tuntap_timer.expires_from_now(std::chrono::seconds(10)); // 每10s发起一次ping以保活.
-				m_tuntap_timer.async_wait(yield[ec]);
-				if (ec == boost::system::errc::operation_canceled
-					|| m_tuntap_write_deque.size() > 0)
-					break;
-			}
-		}
-
-		LOG_WARN << "start_tuntap_write quit...";
-	}
-
 	void dchs_service::do_tuntap_write(std::string&& message)
 	{
-		boost::asio::post(m_io_context.get_executor(), [this, message = std::move(message)]() mutable
-		{
-			m_tuntap_write_deque.emplace_back(std::move(message));
-			boost::system::error_code ignore_ec;
-			m_tuntap_timer.cancel(ignore_ec);
-		});
+		boost::asio::spawn(m_io_context.get_executor(),
+			[this, message = std::move(message)](boost::asio::yield_context yield) mutable
+			{
+				m_tuntap_writing = !m_tuntap_write_deque.empty();
+				m_tuntap_write_deque.emplace_back(std::move(message));
+
+				// 若正在写入, 则直接返回, 而不再作任何处理.
+				if (!m_tuntap_writing)
+				{
+					boost::system::error_code ec;
+
+					while (!m_abort && !m_tuntap_write_deque.empty())
+					{
+						m_tuntap.async_write_some(boost::asio::buffer(m_tuntap_write_deque.front()), yield[ec]);
+						if (ec)
+						{
+							LOG_ERR << "do_tuntap_write, async_write error: " << ec.message();
+							return;
+						}
+						m_tuntap_write_deque.pop_front();
+					}
+				}
+			});
 	}
 
 	void dchs_service::setup_tun(const std::string& ipaddr)
 	{
 		// 先关闭设备.
 		m_tuntap.close();
+
+		LOG_DBG << "setup_tun ip: " << ipaddr << ", tun: " << m_config.ifdev_;
 
 		// 获取相关信息并配置网卡.
 		avpn::dev_config dc = { ipaddr, "255.255.0.0", "10.0.0.0", "", "", "", 0, avpn::dev_tun, 0 };
@@ -238,8 +256,6 @@ namespace dchs {
 		}
 
 #ifdef AVPN_LINUX
-		dc.dev_name_ = "";
-		dc.guid_ = "";
 		dc.dev_type_ = avpn::dev_tun;
 		dc.tun_fd_ = -1;
 #else

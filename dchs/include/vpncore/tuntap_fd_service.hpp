@@ -256,6 +256,16 @@ namespace avpn {
 				return false;
 			}
 
+			// hardcode set mtu size.
+			ifr.ifr_mtu = 1450;
+
+			if (ioctl(sock, SIOCSIFMTU, (void*)&ifr) < 0)
+			{
+				::close(sock);
+				::close(fd);
+				return false;
+			}
+
 			if (cfg.dev_type_ == dev_tun)
 				m_frame_mtu = ifr.ifr_mtu;
 			else

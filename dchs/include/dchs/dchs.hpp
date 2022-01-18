@@ -108,9 +108,7 @@ namespace dchs {
 		void start_tun(boost::asio::yield_context& yield);
 		void start_vpn();
 
-		void start_tuntap_write(boost::asio::yield_context& yield);
 		void do_tuntap_write(std::string&& message);
-
 		void setup_tun(const std::string& ipaddr);
 
 	private:
@@ -121,9 +119,10 @@ namespace dchs {
 		avpn::channel_status m_channel_status;
 		avpn::tuntap m_tuntap;
 		std::deque<std::string> m_tuntap_write_deque;
+		bool m_tuntap_writing{ false };
 		timer m_tuntap_timer;
 		avpn::channel m_channel;
 
-		std::atomic_bool m_abort{false};
+		std::atomic_bool m_abort{ false };
 	};
 }

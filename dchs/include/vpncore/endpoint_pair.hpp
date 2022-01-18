@@ -16,6 +16,7 @@ namespace avpn {
 	{
 		ip_tcp = 0x06,
 		ip_udp = 0x11,
+		ip_icmp = 0x01,
 	};
 
 	// 定义一个源地址和目标地址的结构.
@@ -168,6 +169,13 @@ namespace avpn {
 				// auto chksum = *(uint16_t*)(p + 6);	// skip chksum.
 
 				endpoint_pair endp(src_ip, src_port, dst_ip, dst_port);
+				endp.type_ = type;
+
+				return endp;
+			}
+			else if (type == ip_icmp)
+			{
+				endpoint_pair endp(src_ip, 0, dst_ip, 0);
 				endp.type_ = type;
 
 				return endp;
