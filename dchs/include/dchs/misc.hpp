@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <boost/json.hpp>
-
 void set_thread_name(const char* name);
 void set_thread_name(boost::thread* thread, const char* name);
 
@@ -19,6 +17,7 @@ std::string google_code_to_string(int google_code);
 std::string google_generate_secret();
 
 bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost::system::error_code& ec);
+bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost::system::error_code& ec);
 
 std::string base64_encode(std::string_view input);
 std::string base64_decode(std::string_view input);
@@ -145,6 +144,32 @@ inline std::string add_suffix(float val, char const* suffix = nullptr)
 	return ret;
 }
 
+template <class RandomIt>
+void rand_shuffle(RandomIt first, RandomIt last)
+{
+	static thread_local std::default_random_engine g =
+		std::default_random_engine(std::random_device()());
+	std::shuffle(first, last, g);
+}
+
+template <class Ty>
+Ty rand_int(Ty first, Ty last)
+{
+	static thread_local std::default_random_engine g =
+		std::default_random_engine(std::random_device()());
+	std::uniform_int_distribution<Ty> uid(first, last);
+	return uid(g);
+}
+
+template <class Ty>
+Ty rand_discrete(std::initializer_list<Ty> ilist)
+{
+	static thread_local std::default_random_engine g =
+		std::default_random_engine(std::random_device()());
+	std::discrete_distribution<Ty> dd(ilist.begin(), ilist.end());
+	return dd(g);
+}
+
 inline int gen_random_int(int start, int end)
 {
 	std::random_device rd;
@@ -178,7 +203,7 @@ inline std::string gen_unique_string(const unsigned int max_str_len)
 	return str;
 }
 
-namespace dchs {
+namespace avpn {
 	using namespace boost;
 
 	namespace detail {

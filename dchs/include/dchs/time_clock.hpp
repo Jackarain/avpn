@@ -171,24 +171,9 @@ namespace time_clock {
 		static time_point now(boost::system::error_code & ec)
 		{
 			ec = boost::system::error_code();
-			int64_t time;
-#if defined(BOOST_WINDOWS)
-			time = ::timeGetTime();
-#elif __linux__
-			struct timespec ts;
-			clock_gettime(CLOCK_MONOTONIC, &ts);
-			time = ts.tv_sec * 1000000000LL + ts.tv_nsec;
-			time /= 1000000;
-#elif __MACH__
-			clock_serv_t cclock;
-			mach_timespec_t mts;
-			host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-			clock_get_time(cclock, &mts);
-			mach_port_deallocate(mach_task_self(), cclock);
-			time = mts.tv_sec * 1000000000LL + mts.tv_nsec;
-			time /= 1000000;
-#endif // BOOST_WINDOWS
-			return steady_clock::time_point(steady_clock::duration(static_cast<steady_clock::rep>(time)));
+			return steady_clock::time_point(
+				steady_clock::duration(
+					static_cast<steady_clock::rep>(time_milliseconds())));
 		}
 #endif
 	};

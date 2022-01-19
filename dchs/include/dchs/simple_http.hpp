@@ -41,7 +41,7 @@
 #  define HTTPD_RECEIVE_BUFFER_SIZE    (5 * 1024 * 1024)
 #endif
 
-namespace dchs
+namespace avpn
 {
 	namespace beast = boost::beast;         // from <boost/beast.hpp>
 	namespace http = beast::http;           // from <boost/beast/http.hpp>

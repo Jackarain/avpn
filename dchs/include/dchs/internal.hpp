@@ -46,6 +46,7 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/spawn.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/read_until.hpp>
@@ -82,6 +83,7 @@
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
 
+#include <boost/json.hpp>
 
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -143,13 +145,14 @@ namespace multiprecision = boost::multiprecision;
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
 
 using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
+using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 
 using ws = websocket::stream<tcp::socket>;
 using boost::multiprecision::cpp_int;
 using boost::multiprecision::cpp_dec_float_50;
 using boost::multiprecision::cpp_dec_float_100;
-using dchs::io_context_pool;
+using avpn::io_context_pool;
 using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
 
 template<class ... T> inline constexpr bool always_false = false;

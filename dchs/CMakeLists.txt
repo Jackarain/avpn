@@ -14,7 +14,7 @@ file(GLOB dchs_SRCS
 	include/dchs/io_context_pool.hpp
 	include/dchs/logging.hpp
 	include/dchs/misc.hpp
-	include/dchs/dchs.hpp
+	include/dchs/avpn.hpp
 	include/dchs/async_connect.hpp
 	include/dchs/simple_http.hpp
 	include/dchs/socks_proxy.hpp
@@ -33,7 +33,7 @@ file(GLOB dchs_SRCS
 	include/protocol/*.h
 
 	src/main.cpp
-	src/dchs.cpp
+	src/avpn.cpp
 	src/io_context_pool.cpp
 	src/internal.cpp
 	src/default_cert.cpp

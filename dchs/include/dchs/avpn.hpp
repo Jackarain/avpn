@@ -1,0 +1,72 @@
+﻿//
+// Copyright (C) 2019 Jack.
+//
+// Author: jack
+// Email:  jack.wgm at gmail dot com
+//
+
+#pragma once
+
+#include "dchs/internal.hpp"
+#include "vpncore/tuntap.hpp"
+#include "vpncore/channel.hpp"
+
+namespace avpn {
+
+	enum {
+		avpn_server = 0,
+		avpn_client = 1
+	};
+
+	struct server_config
+	{
+		std::vector<std::string> upstreams_;
+
+		std::vector<std::string> tcp_listens_;
+		std::vector<std::string> udp_listens_;
+
+		std::string ifdev_;
+
+		int data_shards_;
+		int parity_shards_;
+
+		std::string doc_path_;
+		int identity_;
+	};
+
+	class avpn_service
+	{
+		// c++11 noncopyable.
+		avpn_service(const avpn_service&) = delete;
+		avpn_service& operator=(const avpn_service&) = delete;
+
+	public:
+		avpn_service(io_context_pool& ios, const server_config& config);
+		~avpn_service();
+
+	public:
+		void start();
+		void stop();
+
+	private:
+		void start_tun_read_loop(boost::asio::yield_context& yield);
+		void start_vpn();
+
+		void do_tuntap_write(std::string&& message);
+		void setup_tun(const std::string& ipaddr);
+
+	private:
+		io_context_pool& m_io_context_pool;
+		boost::asio::io_context& m_io_context;
+		server_config m_config;
+		bool m_start_tuntap{ false };
+		avpn::channel_status m_channel_status;
+		avpn::tuntap m_tuntap;
+		std::deque<std::string> m_tuntap_write_deque;
+		bool m_tuntap_writing{ false };
+		timer m_tuntap_timer;
+		avpn::channel m_channel;
+
+		std::atomic_bool m_abort{ false };
+	};
+}

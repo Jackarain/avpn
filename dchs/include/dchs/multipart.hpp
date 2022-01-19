@@ -29,7 +29,7 @@
 #endif // WIN32
 
 
-namespace dchs {
+namespace avpn {
 	namespace detail {
 		template<int v1, int v2>
 		struct max { enum { value = v1 > v2 ? v1 : v2 }; };

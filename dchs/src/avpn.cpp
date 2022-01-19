@@ -1,4 +1,4 @@
-﻿#include "dchs/dchs.hpp"
+﻿#include "dchs/avpn.hpp"
 #include "dchs/mainnet_genesis_block.hpp"
 #include "dchs/async_connect.hpp"
 #include "dchs/url_parser.hpp"
@@ -33,30 +33,30 @@
 #endif
 
 
-namespace dchs {
+namespace avpn {
 	using namespace std::chrono_literals;
 
-	dchs_service::dchs_service(io_context_pool& ios, const server_config& config)
+	avpn_service::avpn_service(io_context_pool& ios, const server_config& config)
 		: m_io_context_pool(ios)
 		, m_io_context(m_io_context_pool.server_io_context())
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context, m_io_context_pool)
+		, m_channel(m_io_context, m_io_context_pool, config.data_shards_, config.parity_shards_)
 	{
 	}
 
-	dchs_service::~dchs_service()
+	avpn_service::~avpn_service()
 	{
-		LOG_DBG << "~dchs_service()";
+		LOG_DBG << "~avpn_service()";
 	}
 
-	void dchs_service::start()
+	void avpn_service::start()
 	{
 		start_vpn();
 	}
 
-	void dchs_service::stop()
+	void avpn_service::stop()
 	{
 		boost::system::error_code ignore_ec;
 		m_abort = true;
@@ -65,16 +65,13 @@ namespace dchs {
 		m_channel.close();
 
 		LOG_DBG << "stop tuntap.";
-		if (m_start_tuntap)
-		{
-			m_tuntap.close();
-			m_tuntap_timer.cancel_one(ignore_ec);
-		}
+		m_tuntap.close();
+		m_tuntap_timer.cancel_one(ignore_ec);
 
-		LOG_DBG << "dchs_service.stop()";
+		LOG_DBG << "avpn_service.stop()";
 	}
 
-	void dchs_service::start_tun(boost::asio::yield_context& yield)
+	void avpn_service::start_tun_read_loop(boost::asio::yield_context& yield)
 	{
 		boost::system::error_code ec;
 
@@ -90,6 +87,9 @@ namespace dchs {
 				LOG_WARN << "start_tun, async_read_some: " << ec.message();
 				break;
 			}
+
+			// resize content.
+			content.resize(bytes);
 
 			// 解析ip相关的信息.
 			auto endp = avpn::lookup_endpoint_pair((const uint8_t*)content.data(), bytes);
@@ -107,7 +107,7 @@ namespace dchs {
 				msg.type = avpn::pkt_type::pt_icmp;
 
 			// 根据程序的身份, 准备透传.
-			if (m_config.identity_ == dchs_server)
+			if (m_config.identity_ == avpn_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
 				if (m_channel_status != avpn::channel_status::st_listen)
@@ -116,7 +116,7 @@ namespace dchs {
 				// 透传到channel.
 				m_channel.server_write(std::move(msg), endp);
 			}
-			else if (m_config.identity_ == dchs_client)
+			else if (m_config.identity_ == avpn_client)
 			{
 				// 未连接状态, 丢弃所有packet.
 				if (m_channel_status != avpn::channel_status::st_connected)
@@ -127,15 +127,15 @@ namespace dchs {
 			}
 		}
 
-		LOG_WARN << "start_tun quit...";
+		LOG_WARN << "start_tun_read_loop quit...";
 	}
 
-	void dchs_service::start_vpn()
+	void avpn_service::start_vpn()
 	{
 		boost::system::error_code ec;
 
 		// 客户端启动客户端通信通道.
-		if (m_config.identity_ == dchs::dchs_client)
+		if (m_config.identity_ == avpn::avpn_client)
 			m_channel.start_connect(m_config.upstreams_,
 				[this](avpn::channel_status status)
 				{
@@ -164,7 +164,7 @@ namespace dchs {
 						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
 						[this](boost::asio::yield_context yield) mutable
 						{
-							start_tun(yield);
+							start_tun_read_loop(yield);
 						});
 					}
 
@@ -183,7 +183,7 @@ namespace dchs {
 			);
 
 		// 服务器则将启动服务器通信通道.
-		if (m_config.identity_ == dchs::dchs_server)
+		if (m_config.identity_ == avpn::avpn_server)
 			m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
 				[this](avpn::channel_status status)
 				{
@@ -203,7 +203,7 @@ namespace dchs {
 						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
 						[this](boost::asio::yield_context yield) mutable
 						{
-							start_tun(yield);
+							start_tun_read_loop(yield);
 						});
 					}
 				},
@@ -211,7 +211,7 @@ namespace dchs {
 			);
 	}
 
-	void dchs_service::do_tuntap_write(std::string&& message)
+	void avpn_service::do_tuntap_write(std::string&& message)
 	{
 		boost::asio::spawn(m_io_context.get_executor(),
 			[this, message = std::move(message)](boost::asio::yield_context yield) mutable
@@ -238,7 +238,7 @@ namespace dchs {
 			});
 	}
 
-	void dchs_service::setup_tun(const std::string& ipaddr)
+	void avpn_service::setup_tun(const std::string& ipaddr)
 	{
 		// 先关闭设备.
 		m_tuntap.close();

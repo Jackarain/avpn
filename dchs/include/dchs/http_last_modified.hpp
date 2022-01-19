@@ -8,7 +8,7 @@
 #pragma once
 #include <string>
 
-namespace dchs {
+namespace avpn {
 	std::string http_last_modified(const std::string& file);
 	std::time_t http_parse_last_modified(const std::string& gmttime);
 }

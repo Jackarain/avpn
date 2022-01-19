@@ -2,7 +2,7 @@
 
 #include "dchs/http_last_modified.hpp"
 
-namespace dchs {
+namespace avpn {
 
 	static const char * const my_curl_wkday[] =
 	{ "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };

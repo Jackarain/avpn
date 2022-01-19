@@ -322,6 +322,28 @@ bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost
 	return ipv6only;
 }
 
+bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost::system::error_code& ec)
+{
+	std::string host, port;
+	bool ipv6only = false;
+	if (!parse_endpoint_string(address, host, port, ipv6only))
+	{
+		ec.assign(boost::system::errc::bad_address, boost::system::generic_category());
+		return ipv6only;
+	}
+
+	if (host.empty() || port.empty())
+	{
+		ec.assign(boost::system::errc::bad_address, boost::system::generic_category());
+		return ipv6only;
+	}
+
+	endp.address(boost::asio::ip::address::from_string(host, ec));
+	endp.port(static_cast<unsigned short>(std::atoi(port.data())));
+
+	return ipv6only;
+}
+
 char from_hex_char(char c) noexcept
 {
 	if (c >= '0' && c <= '9')

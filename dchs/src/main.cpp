@@ -44,7 +44,7 @@ namespace po = boost::program_options;
 
 #include "dchs/version.hpp"
 #include "dchs/internal.hpp"
-#include "dchs/dchs.hpp"
+#include "dchs/avpn.hpp"
 #include "dchs/simple_http.hpp"
 
 #include "dchs/fileop.hpp"
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
 	terminator_signal.add(SIGQUIT);
 #endif // defined(SIGQUIT)
 
-	dchs::server_config cfg;
+	avpn::server_config cfg;
 
 	cfg.upstreams_ = upstreams;
 
@@ -243,16 +243,16 @@ int main(int argc, char** argv)
 	}
 	cfg.doc_path_ = doc_path;
 	if (identity == "server")
-		cfg.identity_ = dchs::dchs_server;
+		cfg.identity_ = avpn::avpn_server;
 	else if (identity == "client")
-		cfg.identity_ = dchs::dchs_client;
+		cfg.identity_ = avpn::avpn_client;
 	else
 	{
 		LOG_DBG << "identity not set, default is client.";
-		cfg.identity_ = dchs::dchs_client;
+		cfg.identity_ = avpn::avpn_client;
 	}
 
-	dchs::dchs_service dsrv{ios, cfg};
+	avpn::avpn_service dsrv{ios, cfg};
 
 	dsrv.start();
 
@@ -266,7 +266,7 @@ int main(int argc, char** argv)
 
 	ios.run(5);
 
-	LOG_DBG << "dchs system exiting...";
+	LOG_DBG << "avpn system exiting...";
 	return EXIT_SUCCESS;
 }
 

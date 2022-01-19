@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <boost/asio/async_result.hpp>
 
-namespace dchs {
+namespace avpn {
 	namespace detail {
 
 		template<class R, class C, class ...A>
@@ -38,7 +38,7 @@ namespace dchs {
 			detail::is_invocable<T, Signature>::value>;
 
 #define XPAY_HANDLER_TYPE_CHECK(type, sig) \
-		static_assert(dchs::detail::is_completion_handler< \
+		static_assert(avpn::detail::is_completion_handler< \
 			BOOST_ASIO_HANDLER_TYPE(type, sig), sig>::value, \
 				"CompletionHandler signature requirements not met")
 	}
