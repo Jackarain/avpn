@@ -42,7 +42,8 @@ namespace avpn {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context, m_io_context_pool, config.data_shards_, config.parity_shards_)
+		, m_channel(m_io_context, m_io_context_pool,
+			config.data_shards_, config.parity_shards_, m_config.double_tcp_)
 	{
 	}
 

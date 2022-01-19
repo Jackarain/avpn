@@ -30,7 +30,7 @@ namespace avpn {
 		int data_shards_;
 		int parity_shards_;
 
-		std::string doc_path_;
+		int double_tcp_;
 		int identity_;
 	};
 

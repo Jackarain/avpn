@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> udp_listens;
 	int data_shards;
 	int parity_shards;
-	std::string doc_path;
+	int double_tcp;
 	std::string ifdev;
 	std::string identity;
 
@@ -187,7 +187,7 @@ int main(int argc, char** argv)
 
 		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
 
-		("doc", po::value<std::string>(&doc_path)->default_value("."), "Http server doc file path.")
+		("double", po::value<int>(&double_tcp)->default_value(0), "Double tcp bandwidth traffic.")
 	;
 
 	try
@@ -241,7 +241,7 @@ int main(int argc, char** argv)
 		LOG_ERR << "sum of data and parity shards cannot exceed 256";
 		return EXIT_FAILURE;
 	}
-	cfg.doc_path_ = doc_path;
+	cfg.double_tcp_ = double_tcp;
 	if (identity == "server")
 		cfg.identity_ = avpn::avpn_server;
 	else if (identity == "client")

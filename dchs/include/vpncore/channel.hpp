@@ -509,11 +509,13 @@ namespace avpn {
 		channel& operator=(const channel&) = delete;
 
 	public:
-		channel(boost::asio::io_context& io, avpn::io_context_pool& ios, int data_shards, int parity_shards)
+		channel(boost::asio::io_context& io, avpn::io_context_pool& ios,
+			int data_shards, int parity_shards, int double_tcp)
 			: m_io_context(io)
 			, m_io_pool(ios)
 			, m_data_shards(data_shards)
 			, m_parity_shards(parity_shards)
+			, m_double_tcp(double_tcp)
 		{}
 
 	public:
@@ -528,12 +530,6 @@ namespace avpn {
 			// 客户端身份.
 			m_identity = 1;
 
-			if (m_client)
-			{
-				BOOST_ASSERT("client is exist!" && false);
-				return;
-			}
-
 			// 发起连接协程, 进入异步连接.
 			boost::asio::spawn(m_io_context.get_executor(),
 			[this](boost::asio::yield_context yield) mutable
@@ -547,15 +543,15 @@ namespace avpn {
 				while (!m_abort)
 				{
 					// 创建client对象用于发起向server的连接.
-					m_client = std::make_shared<ws_connection>(ws_stream{m_io_context}, m_connection_id++, "");
-					ws_stream& stream = m_client->ws_stream_;
+					auto client = std::make_shared<ws_connection>(ws_stream{m_io_context}, m_connection_id++, "");
+					ws_stream& stream = client->ws_stream_;
 
-					connect(stream, yield);
+					connect(client, yield);
 
 					if (m_abort)
 						break;
 
-					timer& reconnect_timer = m_client->reconnect_timer_;
+					timer& reconnect_timer = client->reconnect_timer_;
 					reconnect_timer.expires_from_now(never);
 					reconnect_timer.async_wait(yield[ec]);
 
@@ -615,16 +611,21 @@ namespace avpn {
 			m_abort = true;
 
 			boost::system::error_code ignore_ec;
-			if (m_client)
+			if (m_identity == 1)
 			{
-				LOG_WARN << "close channel...";
+				auto conn = m_client.lock();
+				if (conn)
+				{
+					LOG_DBG << "close channel...";
 
-				boost::beast::get_lowest_layer(m_client->ws_stream_).socket().cancel(ignore_ec);
-				boost::beast::get_lowest_layer(m_client->ws_stream_).socket().close(ignore_ec);
-				m_client->reconnect_timer_.cancel_one(ignore_ec);
-				m_client->ws_timer_.cancel_one(ignore_ec);
+					boost::beast::get_lowest_layer(conn->ws_stream_).socket().cancel(ignore_ec);
+					boost::beast::get_lowest_layer(conn->ws_stream_).socket().close(ignore_ec);
+					conn->reconnect_timer_.cancel_one(ignore_ec);
+					conn->ws_timer_.cancel_one(ignore_ec);
+				}
 			}
-			else
+
+			if (m_identity == 0)
 			{
 				LOG_DBG << "close all acceptors...";
 				for (auto& a : m_ws_acceptors)
@@ -657,7 +658,16 @@ namespace avpn {
 				break;
 			}
 
-			auto& connection_ptr = m_client;
+			// 作为客户端时.
+			ws_connection_ptr connection_ptr;
+
+			if (m_identity == 1)
+			{
+				static int pick = 0;
+				std::lock_guard<std::mutex> lock(m_ws_mux);
+				connection_ptr = m_ws_streams[pick++ % m_ws_streams.size()];
+			}
+
 			if (!connection_ptr)
 				return;
 
@@ -1274,10 +1284,12 @@ namespace avpn {
 			LOG_ERR << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
 		}
 
-		void connect(ws_stream& stream, boost::asio::yield_context& yield)
+		void connect(ws_connection_ptr& connection_ptr, boost::asio::yield_context& yield)
 		{
 			if (m_upstreams.empty())
 				return;
+
+			ws_stream& stream = connection_ptr->ws_stream_;
 
 			boost::system::error_code ec;
 			tcp::socket& sock = boost::beast::get_lowest_layer(stream).socket();
@@ -1365,16 +1377,16 @@ namespace avpn {
 
 				// 无论任何原因, 等待15s后再发起连接.
 				boost::asio::spawn(stream.get_executor(),
-				[this](boost::asio::yield_context yield) mutable
+				[this, connection_ptr](boost::asio::yield_context yield) mutable
 				{
-					auto& timer = m_client->ws_timer_;
+					auto& timer = connection_ptr->ws_timer_;
 					boost::system::error_code ec;
 
 					timer.expires_from_now(std::chrono::seconds(15));
 					timer.async_wait(yield[ec]);
 
 					if (!m_abort)
-						do_reconnect();
+						do_reconnect(connection_ptr);
 				});
 
 				return;
@@ -1399,13 +1411,13 @@ namespace avpn {
 				}
 			}
 
-			m_client->quit_ = false;
-			m_client->remote_host_ = remote_host;
-			LOG_DBG << "ws client connected: " << m_client->connection_id_ << ", remote: " << remote_host;
+			connection_ptr->quit_ = false;
+			connection_ptr->remote_host_ = remote_host;
+			LOG_DBG << "ws client connected: " << connection_ptr->connection_id_ << ", remote: " << remote_host;
 
 			// 收到pong消息, 重置超时.
-			ws_connection_weak_ptr wsptr = m_client;
-			m_client->ws_stream_.control_callback(
+			ws_connection_weak_ptr wsptr = connection_ptr;
+			connection_ptr->ws_stream_.control_callback(
 				[this, wsptr = std::move(wsptr)]
 			(boost::beast::websocket::frame_type ft, boost::beast::string_view)
 			{
@@ -1427,22 +1439,21 @@ namespace avpn {
 			// TODO: 做google auth, test key.
 			msg.auth->auth_code = (int32_t)google_auth_code(test_google_key);
 			msg.auth->cliend_id = "test";
-			direct_channel_write(m_client, msg);
+			direct_channel_write(connection_ptr, msg);
 
 			// 发起保活协程.
-			keepalive(m_client);
+			keepalive(connection_ptr);
 
 			// 发起读写协程.
 			boost::asio::spawn(m_io_context.get_executor(),
-			[this](boost::asio::yield_context yield) mutable
+			[this, wsptr = connection_ptr](boost::asio::yield_context yield) mutable
 			{
-				start_client_read(yield);
+				start_client_read(wsptr, yield);
 			});
 		}
 
-		void start_client_read(boost::asio::yield_context& yield)
+		void start_client_read(ws_connection_ptr& connection_ptr, boost::asio::yield_context& yield)
 		{
-			auto connection_ptr = m_client;
 			BOOST_ASSERT(connection_ptr);
 
 			auto& connection = *connection_ptr;
@@ -1492,7 +1503,9 @@ namespace avpn {
 			}
 
 			connection.quit_ = true;
-			if (!m_abort && m_client)
+
+			// 出错后准备重试连接.
+			if (!m_abort && connection_ptr)
 			{
 				connection.ws_stream_.async_close(boost::beast::websocket::close_code::none, yield[ec]);
 				connection.ws_timer_.cancel_one(ec);
@@ -1501,21 +1514,21 @@ namespace avpn {
 				if (m_status_notify)
 					m_status_notify(channel_status::st_disconnect);
 
-				do_reconnect();
+				do_reconnect(connection_ptr);
 			}
 		}
 
-		void do_reconnect()
+		void do_reconnect(ws_connection_ptr& connection_ptr)
 		{
 			boost::system::error_code ignore_ec;
-			if (!m_client)
+			if (!connection_ptr)
 			{
 				BOOST_ASSERT("client object is nullptr!" && false);
 				return;
 			}
 
 			LOG_DBG << "channel::do_reconnect, reset reconnect timer.";
-			m_client->reconnect_timer_.cancel_one(ignore_ec);
+			connection_ptr->reconnect_timer_.cancel_one(ignore_ec);
 		}
 
 		void keepalive(ws_connection_weak_ptr ptr)
@@ -1633,6 +1646,9 @@ namespace avpn {
 
 					// 保存获得的虚拟ip.
 					m_virtual_ipaddr = auth.virtual_ipaddr;
+
+					// 保存连接.
+					m_client = connection_ptr;
 
 					// 通知完成连接.
 					if (m_status_notify)
@@ -1784,6 +1800,9 @@ namespace avpn {
 		int m_data_shards;
 		int m_parity_shards;
 
+		// double tcp.
+		int m_double_tcp;
+
 		// channel for server.
 		std::mutex m_ws_mux;
 		// key's 32bit, use ipv4 address, virtual ipaddr.
@@ -1793,7 +1812,7 @@ namespace avpn {
 		std::atomic_uint32_t m_ip_assigned{ 0x0a00000a };
 
 		// channel for client.
-		ws_connection_ptr m_client;
+		ws_connection_weak_ptr m_client;
 
 		// upstreams 中 udp server 的endpoint.
 		std::set<udp::endpoint> m_udp_servers;
