@@ -164,7 +164,8 @@ int main(int argc, char** argv)
 	std::vector<std::string> udp_listens;
 	int data_shards;
 	int parity_shards;
-	int double_tcp;
+	int direct_tcp;
+	int fec_timeout;
 	std::string ifdev;
 	std::string identity;
 
@@ -187,7 +188,8 @@ int main(int argc, char** argv)
 
 		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
 
-		("double", po::value<int>(&double_tcp)->default_value(0), "Double tcp bandwidth traffic.")
+		("fec_timeout", po::value<int>(&fec_timeout)->default_value(50), "Timeout(milliseconds) for fec.")
+		("direct_tcp", po::value<int>(&direct_tcp)->default_value(0), "Direct tcp, disable use udp.")
 	;
 
 	try
@@ -234,14 +236,17 @@ int main(int argc, char** argv)
 	cfg.udp_listens_ = udp_listens;
 
 	cfg.ifdev_ = ifdev;
-	cfg.data_shards_ = data_shards;
-	cfg.parity_shards_ = parity_shards;
+
+	auto& params = cfg.channel_params_;
+	params.data_shards_ = data_shards;
+	params.parity_shards_ = parity_shards;
+	params.direct_tcp_ = direct_tcp;
+	params.fec_timeout_ = fec_timeout;
 	if (data_shards + parity_shards > 256)
 	{
 		LOG_ERR << "sum of data and parity shards cannot exceed 256";
 		return EXIT_FAILURE;
 	}
-	cfg.double_tcp_ = double_tcp;
 	if (identity == "server")
 		cfg.identity_ = avpn::avpn_server;
 	else if (identity == "client")

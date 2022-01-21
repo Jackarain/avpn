@@ -138,7 +138,7 @@ namespace boost {
 
 namespace socks {
 
-	using namespace endian;
+	using namespace stream_endian;
 	using namespace util;
 	using boost::asio::ip::tcp;
 

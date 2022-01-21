@@ -14,7 +14,7 @@
 #include <string>
 #include <algorithm>
 
-namespace endian {
+namespace stream_endian {
 
 	template <class T> struct type {};
 
@@ -132,5 +132,12 @@ namespace endian {
 	void write_string(std::string const& str, OutIt& start)
 	{
 		std::copy(str.begin(), str.end(), start);
+	}
+
+	template <class OutIt>
+	inline void write_string(std::string_view sv, OutIt& start)
+	{
+		std::memcpy((void*)start, sv.data(), sv.size());
+		start += sv.size();
 	}
 }

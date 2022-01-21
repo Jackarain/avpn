@@ -558,6 +558,8 @@ namespace avpn {
 				boost::system::error_code ignore_ec;
 				m_io_handle.close(ignore_ec);
 			}
+
+			m_handle = INVALID_HANDLE_VALUE;
 		}
 
 		template <typename MutableBufferSequence, typename ReadHandler>

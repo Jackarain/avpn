@@ -30,7 +30,6 @@ file(GLOB dchs_SRCS
 
 	include/vpncore/*.hpp
 	include/utils/*.hpp
-	include/protocol/*.h
 
 	src/main.cpp
 	src/avpn.cpp

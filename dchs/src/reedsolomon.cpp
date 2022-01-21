@@ -1270,7 +1270,9 @@ namespace fec {
 			outputs.resize(outputCount);
 			m_codingloop->encode(matrixRows, sub_shards, m_data_shards, outputs);
 
+#if 0		// 到此, 我们不再需要重建parity部分数据, 以加速解码.
 			outputCount = 0;
+			outputs.resize(m_parity_shards);
 
 			for (size_t iShard = static_cast<size_t>(m_data_shards); iShard < (size_t)m_shards; iShard++) {
 				if (shards[iShard].size() == 0) {
@@ -1284,6 +1286,7 @@ namespace fec {
 			outputs.resize(outputCount);
 			sub_shards.resize(m_data_shards);
 			m_codingloop->encode(matrixRows, sub_shards, m_data_shards, outputs);
+#endif
 		}
 
 		fec::matrix reedsolomon::buildMatrix(int shards, int data_shards)

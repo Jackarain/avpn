@@ -5,6 +5,8 @@
 // Email:  jack.wgm at gmail dot com
 //
 
+#pragma once
+
 #include <type_traits>
 
 template<class T>

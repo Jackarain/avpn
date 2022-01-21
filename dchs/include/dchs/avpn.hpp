@@ -27,11 +27,8 @@ namespace avpn {
 
 		std::string ifdev_;
 
-		int data_shards_;
-		int parity_shards_;
-
-		int double_tcp_;
 		int identity_;
+		avpn::channel_params channel_params_;
 	};
 
 	class avpn_service

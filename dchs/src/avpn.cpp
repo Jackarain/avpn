@@ -42,8 +42,7 @@ namespace avpn {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context, m_io_context_pool,
-			config.data_shards_, config.parity_shards_, m_config.double_tcp_)
+		, m_channel(m_io_context, m_io_context_pool, config.channel_params_)
 	{
 	}
 
@@ -62,10 +61,10 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		LOG_DBG << "close channel.";
+		LOG_DBG << "avpn_service close channel.";
 		m_channel.close();
 
-		LOG_DBG << "stop tuntap.";
+		LOG_DBG << "avpn_service stop tuntap.";
 		m_tuntap.close();
 		m_tuntap_timer.cancel_one(ignore_ec);
 
@@ -101,11 +100,11 @@ namespace avpn {
 
 			// 保存数据包类型.
 			if (endp.type_ == avpn::ip_type::ip_tcp)
-				msg.type = avpn::pkt_type::pt_tcp;
+				msg.type = vpt_tcp;
 			else if (endp.type_ == avpn::ip_type::ip_udp)
-				msg.type = avpn::pkt_type::pt_udp;
+				msg.type = vpt_udp;
 			else if (endp.type_ == avpn::ip_type::ip_icmp)
-				msg.type = avpn::pkt_type::pt_icmp;
+				msg.type = vpt_icmp;
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == avpn_server)
@@ -173,6 +172,7 @@ namespace avpn {
 					if (status == avpn::channel_status::st_disconnect)
 					{
 						m_start_tuntap = false;
+						m_tuntap.close();
 
 						if (m_abort)
 							return;
