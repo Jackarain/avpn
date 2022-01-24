@@ -1,5 +1,4 @@
-xsuperpay/include/xsuperpay/version.hpp
-xsuperpay/include/xsuperpay/db.xml
+avpn/include/avpn/version.hpp
 
 # User-specific files
 *.suo

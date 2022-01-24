@@ -1,0 +1,17 @@
+[Unit]
+Description=avpn Core Daemon
+After=network.target
+Requires=postgresql.service
+
+[Service]
+ExecStartPre=/bin/mkdir -pv /var/log/avpn
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/avpn
+WorkingDirectory=/var/log/avpn
+
+LimitNOFILE=900000
+Restart=always
+RestartSec=5
+MemoryMax=50G
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,31 @@
+下载iproute2
+
+https://kernel.org/pub/linux/utils/net/iproute2/iproute2-5.16.0.tar.xz
+sed -i '/^TARGETS=/s: arpd : :' misc/Makefile
+sed -i 's:/usr/local:/usr:' tc/m_ipt.c include/iptables.h
+sed -i -e 's:=/share:=/usr/share:' -e 's:-Werror::' Makefile
+
+apk add fortify-headers bsd-compat-headers libgphobos libgomp libatomic binutils bash gcc build-base musl-dev make cmake ninja
+
+apk add bison
+apk add elfutils-dev
+apk add libax25-dev
+apk add libcap-dev
+apk add flex
+apk add iptables-dev
+#apk add libmnl-dev
+
+下载libmnl
+https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.4.tar.bz2
+https://git.alpinelinux.org/aports/plain/main/libmnl/musl-fix-headers.patch
+
+./configure --prefix=/usr --enable-static=yes --enable-shared=no
+
+编译好后
+
+install -D -m644 include/libnetlink.h "$pkgdir"/usr/include/libnetlink.h
+install -D -m644 lib/libnetlink.a "$pkgdir"/usr/lib/libnetlink.a
+
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja
+
+

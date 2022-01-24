@@ -1,8 +1,10 @@
 ﻿cmake_minimum_required(VERSION 3.1)
-cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # cmake_policy(SET CMP0077 NEW)
+if (WIN32)
+	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
+endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-project(dchs)
+project(avpn)
 
 string(TIMESTAMP VERSION_YEAR "%Y")
 string(TIMESTAMP VERSION_MONTH_YEAR "%m")
@@ -14,10 +16,10 @@ math(EXPR VERSION_TINY "${VERSION_DAY_YEAR}")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
-include(FetchContent)
 
 # 跨平台性定义.
 if (WIN32)
+	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
 	add_definitions(-DAVPN_USE_WINAPI -DAVPN_WINDOWS)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_definitions(-DAVPN_LINUX)
@@ -27,6 +29,7 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cmake")
 
+option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
 option(ENABLE_SYSTEM_OPENSSL "Build with system openssl support" OFF)
@@ -41,8 +44,8 @@ option(ENABLE_GIT_VERSION "Enable git version" ON)
 
 if (ENABLE_GIT_VERSION)
 	find_package(Git)
-	gitGetVersion(${CMAKE_CURRENT_SOURCE_DIR} dchs)
-	set(VERSION_GIT ${dchs_WC_REVISION_HASH})
+	gitGetVersion(${CMAKE_CURRENT_SOURCE_DIR} avpn)
+	set(VERSION_GIT ${avpn_WC_REVISION_HASH})
 	string(TIMESTAMP PVERSION "%Y%m%d-${VERSION_GIT}-${CMAKE_SYSTEM_NAME}")
 endif()
 
@@ -77,9 +80,9 @@ if (MSVC)
 	)
 
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP")
-	message(status "Using parallel compiling (/MP)")
+	message(STATUS "Using parallel compiling (/MP)")
 	set(CMAKE_CXX_STACK_SIZE "100000000") #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:100000000")
-	message(status "Set stack size: 100000000")
+	message(STATUS "Set stack size: 100000000 bytes")
 
 	if (MSVC_VERSION GREATER_EQUAL "1900")
 		CHECK_CXX_COMPILER_FLAG("/std:c++17" HAS_CPP_LATEST_FLAG)
@@ -188,19 +191,15 @@ endif()
 if (WIN32 OR NOT ENABLE_SYSTEM_ZLIB)
 	add_subdirectory(third_party/zlib EXCLUDE_FROM_ALL)
 	set(ZLIB_LIBRARIES zlibstatic)
-	set(MINIZIP_LIBRARIES minizip)
 	set(ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/contrib/minizip)
 else()
 	find_package(ZLIB REQUIRED)
-	set(MINIZIP_LIBRARIES minizip)
-	#find_package(minizip REQUIRED)
 endif()
 
 add_subdirectory(third_party/fmt)
 
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
-	${MINIZIP_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
 )
 
@@ -218,32 +217,8 @@ else()
 endif()
 include_directories(${OPENSSL_INCLUDE_DIR})
 
-set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "Enable the build of tests and samples.")
-set(FLATBUFFERS_INSTALL OFF CACHE BOOL "Enable the installation of targets." OFF)
-set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "Enable the build of flathash" OFF)
-set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "Enable the build of the flatbuffers compiler" OFF)
-set(FLATBUFFERS_BUILD_CPP17 OFF CACHE BOOL
-       "Enable the build of c++17 test target. \"
-       Requirements: Clang6, GCC7, MSVC2017 (_MSC_VER >= 1914)  or higher."
-	ON)
-set(FLATBUFFERS_LIBCXX_WITH_CLANG OFF CACHE BOOL "Force libc++ when using Clang" OFF)
-set(FLATBUFFERS_INSTALL OFF CACHE BOOL "Enable the installation of targets." OFF)
-
-add_subdirectory(third_party/flatbuffers EXCLUDE_FROM_ALL)
-set(FLATBUFFERS_INCLUDE_DIRS third_party/flatbuffers/include)
-set_target_properties(flatbuffers PROPERTIES FOLDER "third_party")
-set_target_properties(flatbuffers PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-include_directories(
-	${FLATBUFFERS_INCLUDE_DIRS}
-)
-
-FetchContent_Declare(GSL
-    GIT_REPOSITORY "https://github.com/microsoft/GSL"
-    GIT_TAG "v3.1.0"
-)
-
-FetchContent_MakeAvailable(GSL)
+set(GSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gsl/include)
+include_directories(${GSL_INCLUDE_DIRS})
 
 link_libraries(
 		Boost::coroutine
@@ -255,14 +230,11 @@ link_libraries(
 		Boost::regex
 		Boost::json
 
-		GSL
 		fmt
-		flatbuffers
 		cryptopp-static
 
 		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
-		${MINIZIP_LIBRARIES}
 )
 
 if (WIN32)
@@ -273,7 +245,7 @@ if (WIN32)
 		Mswsock.lib
 	)
 else()
-	link_libraries(mnl netlink)
+	link_libraries(netlink mnl)
 endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -285,16 +257,17 @@ if (WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/release)
 endif()
 
-find_package(IOUring)
+if (ENABLE_USE_IO_URING)
+	find_package(IOUring)
 
-if (IOUring_FOUND)
-	message(STATUS "Linux using io_uring...")
-	add_definitions(-DBOOST_ASIO_HAS_IO_URING -DBOOST_ASIO_DISABLE_EPOLL)
-	link_libraries(${IOUring_LIBRARIES})
+	if (IOUring_FOUND)
+		message(STATUS "Linux using io_uring...")
+		add_definitions(-DBOOST_ASIO_HAS_IO_URING -DBOOST_ASIO_DISABLE_EPOLL)
+		link_libraries(${IOUring_LIBRARIES})
+	endif()
 endif()
 
-add_subdirectory(dchs)
+add_subdirectory(avpn)
 
-configure_file(dchs.service.in dchs.service)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dchs.service DESTINATION /usr/lib/systemd/system/)
-install(TARGETS dchs DESTINATION bin)
+configure_file(avpn.service.in avpn.service)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/avpn.service DESTINATION /usr/lib/systemd/system/)
