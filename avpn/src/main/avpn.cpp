@@ -6,13 +6,14 @@
 //
 
 #include "avpn/avpn.hpp"
-#include "avpn/async_connect.hpp"
-#include "avpn/url_parser.hpp"
-#include "avpn/scoped_exit.hpp"
-#include "avpn/simple_http.hpp"
-#include "avpn/multipart.hpp"
-#include "avpn/fileop.hpp"
 #include "avpn/version.hpp"
+
+#include "utils/async_connect.hpp"
+#include "utils/url_parser.hpp"
+#include "utils/scoped_exit.hpp"
+#include "utils/simple_http.hpp"
+#include "utils/multipart.hpp"
+#include "utils/fileop.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
 

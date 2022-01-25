@@ -6,38 +6,25 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp.in
 add_definitions(-DLOGGING_COMPRESS_LOGS)
 
 file(GLOB avpn_SRCS
-	include/avpn/scoped_exit.hpp
-	include/avpn/time_clock.hpp
-	include/avpn/url_parser.hpp
 	include/avpn/version.hpp
 	include/avpn/internal.hpp
 	include/avpn/io_context_pool.hpp
 	include/avpn/logging.hpp
 	include/avpn/misc.hpp
 	include/avpn/avpn.hpp
-	include/avpn/async_connect.hpp
-	include/avpn/simple_http.hpp
-	include/avpn/socks_proxy.hpp
-	include/avpn/url_parser.hpp
-	include/avpn/http_last_modified.hpp
-	include/avpn/default_cert.hpp
-	include/avpn/io.hpp
-	include/avpn/handler_type_check.hpp
-	include/avpn/multipart.hpp
-	include/avpn/fileop.hpp
 	include/avpn/reedsolomon.hpp
-	include/avpn/bitfield.hpp
 
 	include/vpncore/*.hpp
-	include/utils/*.hpp
 
-	src/main.cpp
-	src/avpn.cpp
-	src/io_context_pool.cpp
-	src/internal.cpp
-	src/default_cert.cpp
-	src/reedsolomon.cpp
-	src/http_last_modified.cpp
+	include/utils/*.hpp
+	src/utils/http_last_modified.cpp
+	src/utils/default_cert.cpp
+
+	src/main/main.cpp
+	src/main/avpn.cpp
+	src/main/io_context_pool.cpp
+	src/main/internal.cpp
+	src/main/reedsolomon.cpp
 )
 
 add_executable(avpn ${avpn_SRCS})

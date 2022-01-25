@@ -115,8 +115,8 @@ namespace multiprecision = boost::multiprecision;
 
 #pragma warning(pop)
 
-#include "avpn/url_parser.hpp"
-#include "avpn/time_clock.hpp"
+#include "utils/url_parser.hpp"
+#include "utils/time_clock.hpp"
 
 #pragma warning(push)
 #pragma warning(disable: 4267)

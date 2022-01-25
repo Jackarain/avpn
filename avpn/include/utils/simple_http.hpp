@@ -25,15 +25,15 @@
 
 #include <boost/filesystem.hpp>
 
-#include "avpn/http_last_modified.hpp"
-#include "avpn/url_parser.hpp"
-#include "avpn/socks_proxy.hpp"
-#include "avpn/default_cert.hpp"
+#include "utils/http_last_modified.hpp"
+#include "utils/url_parser.hpp"
+#include "utils/socks_proxy.hpp"
+#include "utils/default_cert.hpp"
 #include "utils/logging.hpp"
-#include "avpn/async_connect.hpp"
+#include "utils/async_connect.hpp"
 
 #ifndef HTTPD_VERSION_STRING
-#  define HTTPD_VERSION_STRING         "avpn/1.0"
+#  define HTTPD_VERSION_STRING         "httpd/1.0"
 #endif
 
 #ifdef SIMPLE_HTTP_USE_FLAT_BUFFER
@@ -210,7 +210,7 @@ namespace avpn
 		BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, http_response))
 		async_perform(const std::string& url, http_request& req, Handler&& handler)
 		{
-			XPAY_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, http_response));
+			ASYNC_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, http_response));
 
 			return boost::asio::async_initiate<Handler,
 				void(boost::system::error_code, http_response)>(initiate_do_perform(this), handler, url, "", &req);
@@ -223,7 +223,7 @@ namespace avpn
 		BOOST_ASIO_INITFN_RESULT_TYPE(Handler, void(boost::system::error_code, http_response))
 		async_perform(const std::string& url, const std::string& socks, http_request& req, Handler&& handler)
 		{
-			XPAY_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, http_response));
+			ASYNC_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, http_response));
 
 			return boost::asio::async_initiate<Handler,
 				void(boost::system::error_code, http_response)>(initiate_do_perform(this), handler, url, socks, &req);

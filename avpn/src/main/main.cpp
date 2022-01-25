@@ -55,11 +55,10 @@ namespace po = boost::program_options;
 #include "avpn/version.hpp"
 #include "avpn/internal.hpp"
 #include "avpn/avpn.hpp"
-#include "avpn/simple_http.hpp"
-
-#include "avpn/fileop.hpp"
-
 #include "avpn/reedsolomon.hpp"
+
+#include "utils/simple_http.hpp"
+#include "utils/fileop.hpp"
 
 
 int platform_init()
@@ -177,6 +176,7 @@ int main(int argc, char** argv)
 	int direct_tcp;
 	int fec_timeout;
 	bool auto_fec;
+	int keepalive;
 	std::string ifdev;
 	std::string identity;
 
@@ -204,6 +204,8 @@ int main(int argc, char** argv)
 
 		("autofec", po::value<bool>(&auto_fec)->default_value(false), "Automatic parameterization for fec.")
 		("direct_tcp", po::value<int>(&direct_tcp)->default_value(0), "Direct tcp, disable use udp.")
+
+		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
 	;
 
 	try
@@ -257,6 +259,7 @@ int main(int argc, char** argv)
 	params.direct_tcp_ = direct_tcp;
 	params.fec_timeout_ = fec_timeout;
 	params.auto_fec_ = auto_fec;
+	params.keepalive_ = keepalive;
 	if (data_shards + parity_shards > 256)
 	{
 		LOG_ERR << "sum of data and parity shards cannot exceed 256";

@@ -9,7 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
-#include "avpn/http_last_modified.hpp"
+#include "utils/http_last_modified.hpp"
 
 #pragma warning(push)
 #pragma warning(disable: 4505)

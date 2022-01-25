@@ -11,10 +11,10 @@
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/spawn.hpp>
 
-#include "avpn/url_parser.hpp"
-#include "avpn/io.hpp"
+#include "utils/url_parser.hpp"
+#include "utils/io.hpp"
 #include "utils/logging.hpp"
-#include "avpn/handler_type_check.hpp"
+#include "utils/handler_type_check.hpp"
 
 namespace socks
 {
@@ -465,7 +465,7 @@ namespace socks {
 	async_do_proxy(const std::string& socks_url,
 		const std::string& address, const std::string& port, tcp::socket& socket, Handler&& handler)
 	{
-		XPAY_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, bool));
+		ASYNC_HANDLER_TYPE_CHECK(Handler, void(boost::system::error_code, bool));
 		boost::asio::async_completion<Handler, void(boost::system::error_code, bool)> init(handler);
 
 		boost::asio::spawn(socket.get_executor(),

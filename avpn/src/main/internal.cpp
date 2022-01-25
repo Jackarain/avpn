@@ -43,7 +43,7 @@
 #include <boost/date_time/c_local_time_adjustor.hpp>
 
 #include "avpn/internal.hpp"
-#include "avpn/scoped_exit.hpp"
+#include "utils/scoped_exit.hpp"
 
 #include "cryptopp/sha.h"
 #include "cryptopp/hmac.h"

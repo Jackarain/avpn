@@ -35,16 +35,15 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
 
+#include "avpn/reedsolomon.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
-#include "avpn/scoped_exit.hpp"
-#include "avpn/reedsolomon.hpp"
-#include "avpn/bitfield.hpp"
-#include "avpn/url_parser.hpp"
-#include "avpn/async_connect.hpp"
-#include "avpn/time_clock.hpp"
-#include "avpn/io.hpp"
-
+#include "utils/scoped_exit.hpp"
+#include "utils/bitfield.hpp"
+#include "utils/url_parser.hpp"
+#include "utils/async_connect.hpp"
+#include "utils/time_clock.hpp"
+#include "utils/io.hpp"
 #include "utils/logging.hpp"
 
 namespace avpn {
@@ -67,7 +66,7 @@ namespace avpn {
 	const static int normal_mtu = 1500;
 	const static int static_mtu = 1400;
 	static uint32_t static_netaddr = 0;
-
+	static std::thread::id dispath_thrd_id = std::this_thread::get_id();
 	//////////////////////////////////////////////////////////////////////////
 
 	enum {
@@ -75,9 +74,10 @@ namespace avpn {
 		vpt_udp = 1,
 		vpt_icmp = 2,
 		vpt_fec = 3,
-		vpt_ctrl = 4,
-		vpt_ctrl_reply = 5,
-		vpt_auth = 6,
+		vpt_udp_handshake = 4,
+		vpt_udp_handshake_reply = 5,
+		vpt_keepalive = 6,
+		vpt_auth = 7,
 	};
 
 	// nofec type(1) + len(4) + body(len)
@@ -223,6 +223,9 @@ namespace avpn {
 
 							if (ip.size() < 4)
 								continue;
+
+							bufptr += n;
+							bufsize -= n;
 						}
 
 						// 必然等于4.
@@ -233,8 +236,6 @@ namespace avpn {
 						BOOST_ASSERT(ip_size > 0);
 
 						// 跳过已经拷贝的4字节head.
-						bufptr += 4;
-						bufsize -= 4;
 						ip_size -= 4;
 
 						auto num = std::min<int>(ip_size, bufsize);
@@ -512,8 +513,9 @@ namespace avpn {
 		std::atomic_uint32_t gid_{ 0 };		// fec 编码group id.
 
 		time_point packet_tm_;				// fec 编码缓冲接收起始时间.
+
 		std::vector<MessageT> fec_enc_;		// fec 编码缓冲.
-		int64_t fec_enc_size_{ 0 };			// 缓冲字节数.
+		std::atomic_int64_t fec_enc_size_{ 0 };			// 缓冲字节数.
 
 		udp::endpoint endp_;
 		udp::socket* sock_{ nullptr };
@@ -629,6 +631,7 @@ namespace avpn {
 		int fec_timeout_;			// fec超时设置, 用于指定收集fec数据时间.
 		int direct_tcp_;			// 在udp网络完全不通的环境下使用tcp网络.
 		bool auto_fec_;				// 自动调整fec参数以适应网络变化.
+		int keepalive_;				// 保持网络活动消息.
 	};
 
 	class channel
@@ -1141,19 +1144,36 @@ namespace avpn {
 				// 设置为2进制模式.
 				connection_ptr->ws_stream_.binary(true);
 				// 收到pong消息, 重置超时.
-				ws_connection_weak_ptr wsptr = connection_ptr;
+				ws_connection_weak_ptr wsconn_weak_ptr = connection_ptr;
 				connection_ptr->ws_stream_.control_callback(
-					[this, wsptr = std::move(wsptr)]
+					[this, wsconn_weak_ptr = std::move(wsconn_weak_ptr)]
 				(boost::beast::websocket::frame_type ft, boost::beast::string_view)
 				{
 					if (ft == boost::beast::websocket::frame_type::pong)
 					{
-						auto ptr = wsptr.lock();
-						if (!ptr || m_abort)
+						auto ws_conn_ptr = wsconn_weak_ptr.lock();
+						if (!ws_conn_ptr || m_abort)
 							return;
 
-						LOG_DBG << "Server pong recevied, id: " << ptr->connection_id_;
-						ws_expires_after(*ptr, 60);
+						LOG_DBG << "Server pong recevied, id: " << ws_conn_ptr->connection_id_;
+						ws_expires_after(*ws_conn_ptr, 60);
+
+						auto uconn_ptr = ws_conn_ptr->udp_stream_.lock();
+						if (!uconn_ptr)
+							return;
+
+						auto& uconn = *uconn_ptr;
+						if (!uconn.sock_)
+							return;
+
+						// udp保活消息, 避免大nat网络删除udp转发信息.
+						std::string msg(pkt_header_size, '\0');
+						char* wp = (char*)msg.data();
+
+						write_uint8(vpt_keepalive, wp);
+						write_int32(0, wp);
+
+						direct_channel_udp_write(*uconn.sock_, uconn.endp_, msg);
 					}
 				});
 
@@ -1339,6 +1359,9 @@ namespace avpn {
 			if (m_params.direct_tcp_ == vpn_tcp_mode::only_tcp)
 				return;
 
+			dispath_thrd_id = std::this_thread::get_id();
+			LOG_DBG << "Start fec timer for dispath...";
+
 			while (!m_abort)
 			{
 				m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_timeout_));
@@ -1393,20 +1416,28 @@ namespace avpn {
 			}
 		}
 
-		bool do_fec_perform(const ws_connection_ptr& wsconn, udp_connection& conn, boost::asio::yield_context& yield)
+		bool do_fec_perform(const ws_connection_ptr& wsconn, udp_connection& uconn, boost::asio::yield_context&/* yield*/)
 		{
-			boost::ignore_unused(yield);
-
 			// 保存当前时间, 用于后面计算fec收集数据包超时使用.
 			auto now = time_clock::steady_clock::now();
 			// 继续发送.
 			bool keep_continue = false;
 
-			auto& sock = *conn.sock_;
-			auto& fec_enc = conn.fec_enc_;
+			auto& sock = *uconn.sock_;
+			auto& fec_enc = uconn.fec_enc_;
+
+			// 通知过来时, 数据已经被发送了.
+			if (uconn.fec_enc_size_ == 0)
+			{
+				LOG_WARN << "do_fec_perform, uconn.fec_enc_size_ == 0!!!";
+				return keep_continue;
+			}
+
+			uconn.writing_ = true;
+			scoped_exit scoped([&uconn]() mutable { uconn.writing_ = false; });
 
 			// 实在是数据太小了, 无法fec时, 直接通过ws发送.
-			if ((conn.fec_enc_size_ < static_mtu * 5) &&
+			if ((uconn.fec_enc_size_ < static_mtu * 5) &&
 				m_params.direct_tcp_ != vpn_tcp_mode::disable_tcp)
 			{
 				for (auto& msg : fec_enc)
@@ -1423,47 +1454,60 @@ namespace avpn {
 
 				// 清理已发送的数据包.
 				fec_enc.clear();
-				conn.fec_enc_size_ = 0;
+				uconn.fec_enc_size_ = 0;
 				return false;
 			}
 
-			conn.writing_ = true;
-			scoped_exit scoped([&conn]() mutable { conn.writing_ = false; });
-
 			// 收集时间未到, 继续收集.
-			auto duration = now - conn.packet_tm_;
+			auto duration = now - uconn.packet_tm_;
 			// if (duration < std::chrono::milliseconds(m_params.fec_timeout_))
 			//	return;
 
-			auto num_packet = fec_enc.size();
 			std::string content;
+			int64_t bytes_transferred = 0;
+			auto num_packet = fec_enc.size();
 
-			auto consume_fec_enc_size = conn.fec_enc_size_;
-			auto max_data_size = static_mtu * m_params.data_shards_;
+			BOOST_ASSERT(num_packet > 0);
+
+			const auto max_data_size = static_mtu * m_params.data_shards_;
 			auto be = fec_enc.begin();
 			auto end = fec_enc.end();
+
 			bool removed = false;
 			for (auto it = be; it != end; it++)
 			{
 				auto& msg = *it;
 				content.append((const char*)msg.content.data(), msg.content.size());
-				if (content.size() + 1400 >= max_data_size)
+				bytes_transferred += (int64_t)msg.content.size();
+
+				// max_data_size 是 data_shards 和 mtu 大小计算出来的最大编码数据量.
+				// fec编码一次最大数据量不能超过max_data_size, 否则有可能超出mtu大小
+				// 导致在发送时被分片而产生丢包.
+				if (content.size() + static_mtu >= max_data_size)
 				{
-					consume_fec_enc_size += msg.content.size();
-					fec_enc.erase(be, it);
+					fec_enc.erase(be, it + 1);
 					removed = true;
-					keep_continue = true;
+
+					if (fec_enc.size() > 0)
+						keep_continue = true;
+
 					break;
 				}
 			}
+
+			// 如果fec_enc的数据总大小是小于max_data_size时, content包含了所有fec_enc中的数据.
+			// 所以这里可以直接清理.
 			if (!removed)
 			{
+				BOOST_ASSERT(bytes_transferred == (int64_t)content.size());
+				BOOST_ASSERT(bytes_transferred == (int64_t)uconn.fec_enc_size_);
+
 				fec_enc.clear();
-				consume_fec_enc_size = conn.fec_enc_size_;
 			}
 
-			conn.fec_enc_size_ -= consume_fec_enc_size;
-			auto gid = conn.gid_++;
+			BOOST_ASSERT(bytes_transferred > 0 && bytes_transferred == (int64_t)content.size());
+			uconn.fec_enc_size_ -= bytes_transferred;
+			auto gid = uconn.gid_++;
 
 			auto& data_shards = m_params.data_shards_;
 			auto& parity_shards = m_params.parity_shards_;
@@ -1502,19 +1546,17 @@ namespace avpn {
 
 				write_string(s, wp);	// fec body
 
-				// performance performance???
-				direct_channel_udp_write(sock, conn.endp_, fec_body);
-				// auto bytes = direct_channel_udp_write(sock, conn.endp_, fec_body, yield);
 				send_data_size += fec_body.size();
+				direct_channel_udp_write(sock, uconn.endp_, fec_body);
 			}
 
 			LOG_DBG << "fec to: " << wsconn->virtual_ipaddr_
 				<< ", gid: " << gid
 				<< ", pershards: " << pershard_size
 				<< ", duration: " << duration.count()
-				<< ", origin pkts: " << num_packet
+				<< ", ip pkts: " << num_packet
 				<< ", fec pkts: " << shards.size()
-				<< ", origin bytes: " << consume_fec_enc_size
+				<< ", data bytes: " << bytes_transferred
 				<< ", fec bytes: " << send_data_size
 				<< ", immediately: " << (keep_continue ? "yes" : "no")
 				;
@@ -1555,15 +1597,15 @@ namespace avpn {
 			}
 			else
 			{
-				auto connptr = connection.udp_stream_.lock();
-				if (!connptr)
+				auto uconnptr = connection.udp_stream_.lock();
+				if (!uconnptr)
 				{
 					LOG_WARN << "on_channel_write, no network connection to send.";
 					return;
 				}
 
-				auto& conn = *connptr;
-				if (!conn.sock_)
+				auto& uconn = *uconnptr;
+				if (!uconn.sock_)
 				{
 					LOG_WARN << "on_channel_write, no udp network connection.";
 					return;
@@ -1573,7 +1615,7 @@ namespace avpn {
 				if ((m_params.parity_shards_ <= 0) ||
 					(m_params.parity_shards_ == 1 && m_params.data_shards_ == 1))
 				{
-					auto& sock = *conn.sock_;
+					auto& sock = *uconn.sock_;
 
 					std::string udp_body(pkt_header_size + msg.content.size(), 0);
 					char* wp = (char*)udp_body.data();
@@ -1585,31 +1627,38 @@ namespace avpn {
 					if (m_params.parity_shards_ == 1 && msg.type == vpt_tcp)
 					{
 						auto duplicate = udp_body;
-						direct_channel_udp_write(sock, conn.endp_, duplicate);
+						direct_channel_udp_write(sock, uconn.endp_, duplicate);
 					}
 
-					direct_channel_udp_write(sock, conn.endp_, udp_body);
+					direct_channel_udp_write(sock, uconn.endp_, udp_body);
 					return;
 				}
 
-				auto& fec_enc = conn.fec_enc_;
+				boost::system::error_code ec;
 
-				conn.writing_ = true;
-				scoped_exit scoped([&conn]() mutable { conn.writing_ = false; });
+				uconn.writing_ = true;
+				scoped_exit scoped([&uconn]() mutable { uconn.writing_ = false; });
+
+				auto& fec_enc = uconn.fec_enc_;
 
 				// 收集数据包.
 				if (fec_enc.empty())
-					conn.packet_tm_ = time_clock::steady_clock::now();
+					uconn.packet_tm_ = time_clock::steady_clock::now();
 
 				// move msg to fec_enc queue.
-				conn.fec_enc_size_ += msg.content.size();
+				auto bytes = msg.content.size();
+				uconn.fec_enc_size_ += bytes;
 				fec_enc.emplace_back(std::move(msg));
 
 				// 如果缓冲达到最大, 唤醒fec timer处理fec缓冲.
-				if (conn.fec_enc_size_ + static_mtu >= static_mtu * m_params.data_shards_)
+				if (uconn.fec_enc_size_ + static_mtu >= static_mtu * m_params.data_shards_)
 				{
-					LOG_DBG << "fec enc size too many: " << conn.fec_enc_size_ << ", wake up now.";
-					boost::system::error_code ec;
+#if 0
+					LOG_DBG << "fec enc, gid: " << uconn.gid_
+						<< ", add ip " << bytes
+						<< ", too many: " << uconn.fec_enc_size_
+						<< ", wake up now";
+#endif
 					m_fec_timer.cancel_one(ec);
 				}
 			}
@@ -1717,7 +1766,7 @@ namespace avpn {
 					std::string msg(pkt_header_size + m_virtual_ipaddr.size(), '\0');
 					char* wp = (char*)msg.data();
 
-					write_uint8(vpt_ctrl, wp);
+					write_uint8(vpt_udp_handshake, wp);
 					write_int32((int32_t)m_virtual_ipaddr.size(), wp);
 					write_string(m_virtual_ipaddr, wp);
 
@@ -1947,12 +1996,29 @@ namespace avpn {
 			{
 				if (ft == boost::beast::websocket::frame_type::pong)
 				{
-					auto ptr = wsptr.lock();
-					if (!ptr || m_abort)
+					auto ws_conn_ptr = wsptr.lock();
+					if (!ws_conn_ptr || m_abort)
 						return;
 
-					LOG_DBG << "Client pong recevied, id: " << ptr->connection_id_;
-					ws_expires_after(*ptr, 60);
+					ws_expires_after(*ws_conn_ptr, 60);
+					LOG_DBG << "Client pong recevied, id: " << ws_conn_ptr->connection_id_;
+
+					auto uconn_ptr = ws_conn_ptr->udp_stream_.lock();
+					if (!uconn_ptr)
+						return;
+
+					auto& uconn = *uconn_ptr;
+					if (!uconn.sock_)
+						return;
+
+					// udp保活消息, 避免大nat网络删除udp转发信息.
+					std::string msg(pkt_header_size, '\0');
+					char* wp = (char*)msg.data();
+
+					write_uint8(vpt_keepalive, wp);
+					write_int32(0, wp);
+
+					direct_channel_udp_write(*uconn.sock_, uconn.endp_, msg);
 				}
 			});
 
@@ -2064,18 +2130,38 @@ namespace avpn {
 			{
 				while (!m_abort)
 				{
-					auto conn = ptr.lock();
-					if (!conn || conn->quit_)
+					auto ws_conn_ptr = ptr.lock();
+					if (!ws_conn_ptr || ws_conn_ptr->quit_)
 						return;
 
 					boost::system::error_code ec;
 
-					LOG_DBG << "Keepalive for connection id: " << conn->connection_id_;
-					conn->ws_stream_.async_ping("", yield[ec]);
+					LOG_DBG << "Keepalive for connection id: " << ws_conn_ptr->connection_id_;
+					ws_conn_ptr->ws_stream_.async_ping("", yield[ec]);
 
-					auto& timer = conn->ws_timer_;
+					do
+					{
+						auto uconn_ptr = ws_conn_ptr->udp_stream_.lock();
+						if (!uconn_ptr)
+							break;
 
-					timer.expires_from_now(std::chrono::seconds(29));
+						auto& uconn = *uconn_ptr;
+						if (!uconn.sock_)
+							break;
+
+						// udp保活消息, 避免大nat网络删除udp转发信息.
+						std::string msg(pkt_header_size, '\0');
+						char* wp = (char*)msg.data();
+
+						write_uint8(vpt_keepalive, wp);
+						write_int32(0, wp);
+
+						direct_channel_udp_write(*uconn.sock_, uconn.endp_, msg);
+					} while (false);
+
+					auto& timer = ws_conn_ptr->ws_timer_;
+
+					timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
 					timer.async_wait(yield[ec]);
 				}
 			});
@@ -2185,7 +2271,7 @@ namespace avpn {
 				}
 			}
 			break;
-			case vpt_ctrl:
+			case vpt_udp_handshake:
 				break;
 			case vpt_icmp:
 				[[fallthrough]];
@@ -2280,9 +2366,11 @@ namespace avpn {
 						}
 					}
 
+#if 0
 					if (num_fec > 0)
 						LOG_DBG << "process_udp_net_packet, groups: " << groups.size()
 						<< ", ids: " << group_ids << ", fec write pkt: " << num_fec;
+#endif
 				}
 			};
 
@@ -2292,7 +2380,12 @@ namespace avpn {
 			case vpt_auth:
 			{}
 			break;
-			case vpt_ctrl:
+			case vpt_keepalive:
+			{
+				LOG_DBG << "udp client: " << endp << " keepalive";
+			}
+			break;
+			case vpt_udp_handshake:
 			{
 				// 在server模式, 接收到client的虚拟ip, 往对应的ws_connection
 				// 中保存udp_connection信息.
@@ -2328,14 +2421,14 @@ namespace avpn {
 					std::string reply(pkt_header_size, '\0');
 					char* wp = (char*)reply.data();
 
-					write_uint8(vpt_ctrl_reply, wp);
+					write_uint8(vpt_udp_handshake_reply, wp);
 					write_int32(0, wp);
 
 					direct_channel_udp_write(sock, endp, reply, yield);
 				}
 			}
 			break;
-			case vpt_ctrl_reply:
+			case vpt_udp_handshake_reply:
 			{
 				if (m_identity == 1)
 				{
