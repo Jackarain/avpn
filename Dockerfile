@@ -4,7 +4,7 @@ RUN apk add --no-cache fortify-headers bsd-compat-headers libgphobos libgomp lib
 
 ADD . /avpn
 
-RUN cd /avpn && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja && ninja
+RUN cd /avpn && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja && ninja
 
 FROM alpine:latest
 
@@ -14,5 +14,5 @@ COPY --from=builder /avpn/build/bin/avpn /usr/local/bin/
 
 EXPOSE 33333 33333/udp
 
-ENTRYPOINT ["avpn", --identity", "server", "--tun", "tun9", "--tcp", "\"[::]:33333\"", "--udp", "\"[::]:33333\"", "--fec_timeout", "1", "--data_shards", "1", "--parity_shards", "0", "--direct_tcp", "0"]
+ENTRYPOINT ["avpn", "--identity", "server", "--tun", "tun9", "--tcp", "[::]:33333", "--udp", "[::]:33333", "--fec_timeout", "1", "--data_shards", "1", "--parity_shards", "0", "--direct_tcp", "0"]
 
