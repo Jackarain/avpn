@@ -1,7 +1,6 @@
 [Unit]
 Description=avpn Core Daemon
 After=network.target
-Requires=postgresql.service
 
 [Service]
 ExecStartPre=/bin/mkdir -pv /var/log/avpn
