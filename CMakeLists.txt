@@ -196,6 +196,15 @@ else()
 	find_package(ZLIB REQUIRED)
 endif()
 
+if (UNIX)
+	add_subdirectory(third_party/iproute2)
+	set(IPROUTE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iproute2/include)
+	set(IPROUTE2_LIBRARIES iproute2)
+
+	include_directories(${IPROUTE2_INCLUDE_DIRS})
+
+endif()
+
 add_subdirectory(third_party/fmt)
 
 include_directories(third_party
@@ -245,7 +254,9 @@ if (WIN32)
 		Mswsock.lib
 	)
 else()
-	link_libraries(netlink mnl)
+	link_libraries(
+		${IPROUTE2_LIBRARIES}
+	)
 endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
