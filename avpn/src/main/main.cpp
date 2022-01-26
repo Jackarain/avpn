@@ -173,6 +173,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> udp_listens;
 	int data_shards;
 	int parity_shards;
+	int mode;
 	int direct_tcp;
 	int fec_timeout;
 	bool auto_fec;
@@ -202,7 +203,8 @@ int main(int argc, char** argv)
 		("fec_delay", po::value<int>(&fec_timeout)->default_value(50), "Timeout(milliseconds) for fec.")
 
 		("autofec", po::value<bool>(&auto_fec)->default_value(false), "Automatic parameterization for fec.")
-		("direct_tcp", po::value<int>(&direct_tcp)->default_value(0), "Direct tcp, disable use udp.")
+		("direct_tcp", po::value<int>(&direct_tcp)->default_value(0), "Now deprecated, See mode.")
+		("mode", po::value<int>(&mode)->default_value(0), "Transfer mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
 	;
@@ -223,6 +225,9 @@ int main(int argc, char** argv)
 			std::cout << desc;
 			return EXIT_SUCCESS;
 		}
+
+		if (vm.count("direct_tcp"))
+			mode = direct_tcp;
 	}
 	catch (const std::exception& e)
 	{
@@ -255,7 +260,7 @@ int main(int argc, char** argv)
 	auto& params = cfg.channel_params_;
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
-	params.direct_tcp_ = direct_tcp;
+	params.mode_ = mode;
 	params.fec_timeout_ = fec_timeout;
 	params.auto_fec_ = auto_fec;
 	params.keepalive_ = keepalive;

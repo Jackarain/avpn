@@ -629,7 +629,7 @@ namespace avpn {
 		int data_shards_;			// fec数据设置.
 		int parity_shards_;			// fec冗余设置.
 		int fec_timeout_;			// fec超时设置, 用于指定收集fec数据时间.
-		int direct_tcp_;			// 在udp网络完全不通的环境下使用tcp网络.
+		int mode_;			// 在udp网络完全不通的环境下使用tcp网络.
 		bool auto_fec_;				// 自动调整fec参数以适应网络变化.
 		int keepalive_;				// 保持网络活动消息.
 	};
@@ -1353,7 +1353,7 @@ namespace avpn {
 		{
 			boost::system::error_code ec;
 
-			if (m_params.direct_tcp_ == vpn_tcp_mode::only_tcp)
+			if (m_params.mode_ == vpn_tcp_mode::only_tcp)
 				return;
 
 			dispath_thrd_id = std::this_thread::get_id();
@@ -1433,7 +1433,7 @@ namespace avpn {
 
 			// 实在是数据太小了, 无法fec时, 直接通过ws发送.
 			if ((uconn.fec_enc_size_ < static_mtu * 5) &&
-				m_params.direct_tcp_ != vpn_tcp_mode::disable_tcp)
+				m_params.mode_ != vpn_tcp_mode::disable_tcp)
 			{
 				for (auto& msg : fec_enc)
 				{
@@ -1562,8 +1562,8 @@ namespace avpn {
 		void on_channel_write(avpn::ws_connection& connection,
 			avpn::MessageT& msg, boost::asio::yield_context& yield)
 		{
-			if (m_params.direct_tcp_ == vpn_tcp_mode::only_tcp ||
-				(m_params.direct_tcp_ == vpn_tcp_mode::tcpudp_mix &&
+			if (m_params.mode_ == vpn_tcp_mode::only_tcp ||
+				(m_params.mode_ == vpn_tcp_mode::tcpudp_mix &&
 					!connection.deque_writing_))
 			{
 				std::string pkt(pkt_header_size + msg.content.size(), '\0');
