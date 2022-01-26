@@ -8,11 +8,13 @@ RUN cd /avpn && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug 
 
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates bash
 
 COPY --from=builder /avpn/build/bin/avpn /usr/local/bin/
 
-EXPOSE 33333 33333/udp
+EXPOSE 30000-31000/tcp
+EXPOSE 30000-31000/udp
 
-ENTRYPOINT ["avpn", "--identity", "server", "--tun", "tun9", "--tcp", "[::]:33333", "--udp", "[::]:33333", "--fec_timeout", "1", "--data_shards", "1", "--parity_shards", "0", "--direct_tcp", "0"]
+ADD /run /home/run
+CMD ["/home/run/run.sh"]
 
