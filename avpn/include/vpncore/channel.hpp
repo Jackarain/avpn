@@ -666,7 +666,7 @@ namespace avpn {
 	public:
 		channel(boost::asio::io_context& io, avpn::io_context_pool& ios, const channel_params& params)
 			: m_io_context(io)
-			, m_io_pool(ios)
+			, m_ioc_pool(ios)
 			, m_params(params)
 			, m_fec_timer(m_io_context)
 		{
@@ -770,12 +770,12 @@ namespace avpn {
 			// 开始启动tcp客户端, 即ws服务器.
 			init_ws_acceptors();
 
-			int pool_size = static_cast<int>(m_io_pool.pool_size());
+			int pool_size = static_cast<int>(m_ioc_pool.pool_size());
 			for (int i = 0; i < pool_size; i++)
 			{
 				for (auto& a : m_ws_acceptors)
 				{
-					boost::asio::spawn(m_io_pool.get_io_context().get_executor(),
+					boost::asio::spawn(m_ioc_pool.get_io_context().get_executor(),
 						[this, &a](boost::asio::yield_context yield) mutable {
 							start_ws_listen(a, yield);
 						});
@@ -907,7 +907,7 @@ namespace avpn {
 			for (const auto& wsd : m_tcp_listens)
 			{
 				tcp::endpoint endp;
-				bool ipv6only = make_listen_endpoint(wsd, endp, ec);
+				[[maybe_unused]] bool ipv6only = make_listen_endpoint(wsd, endp, ec);
 				if (ec)
 				{
 					LOG_ERR << "WS server listen error: " << wsd << ", ec: " << ec.message();
@@ -940,8 +940,6 @@ namespace avpn {
 						return false;
 					}
 				}
-#else
-				boost::ignore_unused(ipv6only); // avoid warning...
 #endif
 				a.bind(endp, ec);
 				if (ec)
@@ -969,9 +967,8 @@ namespace avpn {
 			boost::system::error_code ignore_ec;
 			{
 				std::lock_guard<std::mutex> lock(m_ws_mux);
-				for (auto& [id, conn_ptr] : m_ws_streams)
+				for ([[maybe_unused]] auto& [id, conn_ptr] : m_ws_streams)
 				{
-					boost::ignore_unused(id);
 					BOOST_ASSERT(conn_ptr);
 
 					if (!conn_ptr) continue;
@@ -1373,10 +1370,8 @@ namespace avpn {
 				if (m_identity == 0)
 				{
 					std::lock_guard<std::mutex> lock(m_ws_mux);
-					for (auto& [id, wsconn] : m_ws_streams)
+					for ([[maybe_unused]] auto& [id, wsconn] : m_ws_streams)
 					{
-						boost::ignore_unused(id);
-
 						if (!wsconn)
 							continue;
 
@@ -1567,7 +1562,9 @@ namespace avpn {
 		void on_channel_write(avpn::ws_connection& connection,
 			avpn::MessageT& msg, boost::asio::yield_context& yield)
 		{
-			if (m_params.direct_tcp_ == vpn_tcp_mode::only_tcp)
+			if (m_params.direct_tcp_ == vpn_tcp_mode::only_tcp ||
+				(m_params.direct_tcp_ == vpn_tcp_mode::tcpudp_mix &&
+					!connection.deque_writing_))
 			{
 				std::string pkt(pkt_header_size + msg.content.size(), '\0');
 				char* wp = (char*)pkt.data();
@@ -1704,7 +1701,7 @@ namespace avpn {
 					LOG_DBG << "start_udp_socket, udp listen: " << listen;
 
 					udp::endpoint endp;
-					bool ipv6only = make_listen_endpoint(listen, endp, ec);
+					[[maybe_unused]] bool ipv6only = make_listen_endpoint(listen, endp, ec);
 					if (ec)
 					{
 						LOG_ERR << "Start listen udp error: " << listen << ", ec: " << ec.message();
@@ -1723,8 +1720,6 @@ namespace avpn {
 							continue;
 						}
 					}
-#else
-					boost::ignore_unused(ipv6only);
 #endif
 					sock.bind(endp, ec);
 					if (ec)
@@ -2167,6 +2162,69 @@ namespace avpn {
 			});
 		}
 
+		void do_forward_packet(udp_connection_ptr uconn, boost::asio::yield_context& yield)
+		{
+			if (!uconn)
+				return;
+
+			auto& fec = uconn->fec_dec_;
+
+			auto num_garbage = fec.garbage_clean();
+			if (num_garbage > 0)
+				LOG_DBG << "do_forward_packet, clean garbage: " << num_garbage;
+
+#if 0
+			std::string group_ids;
+			size_t num_fec = 0;
+#endif
+
+			auto groups = fec.acquire();
+			for (auto& gop : groups)
+			{
+#if 0
+				group_ids += fmt::format(" {} ", gop.gid_);
+#endif
+				auto v = gop.decode();
+				for (auto& d : v)
+				{
+#if 0
+					num_fec++;
+#endif
+					// 处理内网数据包.
+					auto endp = avpn::lookup_endpoint_pair((const uint8_t*)d.data(), d.size());
+					auto dst_addr = endp.dst_.address().to_v4().to_uint();
+					udp::endpoint uendp(endp.dst_.address(), 0);
+
+					// 非内网数据包, 直接转发到tun设备, 由os处理.
+					if ((static_netaddr ^ dst_addr) >= 65536)
+					{
+						m_tuntap_writer(std::move(d));
+						continue;
+					}
+
+					// 内网数据包, 直接找到对应链转发.
+					auto conn = lookup_ws(dst_addr);
+					if (!conn)
+					{
+						m_tuntap_writer(std::move(d));
+						continue;
+					}
+
+					avpn::MessageT msg;
+					msg.type = (uint8_t)endp.type_;
+					msg.content = d;
+
+					on_channel_write(*conn, msg, yield);
+				}
+			}
+
+#if 0
+			if (num_fec > 0)
+				LOG_DBG << "do_forward_packet, groups: " << groups.size()
+				<< ", ids: " << group_ids << ", fec write pkt: " << num_fec;
+#endif
+		}
+
 		void process_net_packet(uint8_t type, std::string_view content,
 			ws_connection_ptr& connection_ptr, boost::asio::yield_context& yield)
 		{
@@ -2315,65 +2373,6 @@ namespace avpn {
 			udp::socket& sock, const udp::endpoint& endp, boost::asio::yield_context& yield)
 		{
 			udp_connection_ptr uconn;
-			auto do_forward = [this, &uconn, &yield]() mutable
-			{
-				if (!uconn)
-					return;
-
-				auto& fec = uconn->fec_dec_;
-
-				{
-					auto num_garbage = fec.garbage_clean();
-					if (num_garbage > 0)
-						LOG_DBG << "process_udp_net_packet, clean garbage: " << num_garbage;
-				}
-
-				{
-					std::string group_ids;
-					size_t num_fec = 0;
-					auto groups = fec.acquire();
-
-					for (auto& gop : groups)
-					{
-						group_ids += fmt::format(" {} ", gop.gid_);
-
-						auto v = gop.decode();
-						for (auto& d : v)
-						{
-							num_fec++;
-
-							// 处理内网数据包.
-							auto endp = avpn::lookup_endpoint_pair((const uint8_t*)d.data(), d.size());
-							auto dst_addr = endp.dst_.address().to_v4().to_uint();
-							udp::endpoint uendp(endp.dst_.address(), 0);
-
-							// 内网数据包, 直接找到对应链转发.
-							if ((static_netaddr ^ dst_addr) < 65536)
-							{
-								auto conn = lookup_ws(dst_addr);
-								if (conn)
-								{
-									avpn::MessageT msg;
-									msg.type = (uint8_t)endp.type_;
-									msg.content = d;
-
-									on_channel_write(*conn, msg, yield);
-									continue;
-								}
-							}
-
-							m_tuntap_writer(std::move(d));
-						}
-					}
-
-#if 0
-					if (num_fec > 0)
-						LOG_DBG << "process_udp_net_packet, groups: " << groups.size()
-						<< ", ids: " << group_ids << ", fec write pkt: " << num_fec;
-#endif
-				}
-			};
-
 
 			switch (type)
 			{
@@ -2529,7 +2528,7 @@ namespace avpn {
 			}
 
 			// 将从网络接收到的数据包转发到设备.
-			do_forward();
+			do_forward_packet(uconn, yield);
 		}
 
 		void add_udp(const udp::endpoint& endp, udp_connection_ptr& ptr)
@@ -2555,7 +2554,7 @@ namespace avpn {
 
 	private:
 		boost::asio::io_context& m_io_context;
-		avpn::io_context_pool& m_io_pool;
+		avpn::io_context_pool& m_ioc_pool;
 
 		// 通道参数配置, 包含fec参数.
 		channel_params m_params;
@@ -2567,8 +2566,8 @@ namespace avpn {
 		// 作为server时, 用于ws的服务器acceptor.
 		std::vector<tcp::acceptor> m_ws_acceptors;
 
-		// udp 通信 socket, 无论是client还是server, 都只会
-		// 初始化1次.
+		// udp 通信 socket, 无论是client还是server
+		// 都只会初始化1次.
 		std::once_flag m_once_start_udp;
 		std::vector<udp::socket> m_udp_sockets;
 
@@ -2581,7 +2580,9 @@ namespace avpn {
 
 		// channel for server.
 		std::mutex m_ws_mux;
-		// key's 32bit, use ipv4 address, virtual ipaddr.
+
+		// key's 32bit, use ipv4
+		// address, virtual ipaddr.
 		std::unordered_map<uint32_t, ws_connection_ptr> m_ws_streams;
 		std::unordered_map<int64_t, ws_connection_weak_ptr> m_incoming_ws;
 
@@ -2593,7 +2594,8 @@ namespace avpn {
 		std::once_flag m_once_fec_timer;
 		timer m_fec_timer;
 
-		// 作为client时, 参数中 upstreams 解析出的 udp server 的endpoint.
+		// 作为client时, 参数中 upstreams 解析
+		// 出的 udp server 的endpoint.
 		std::set<udp::endpoint> m_udp_servers;
 
 		// 本机作为client时的虚拟ip.

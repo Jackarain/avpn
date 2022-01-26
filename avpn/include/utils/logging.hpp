@@ -396,9 +396,8 @@ public:
 		return m_log_path.string();
 	}
 
-	void write(int64_t time, const char* str, std::streamsize size)
+	void write([[maybe_unused]] int64_t time, const char* str, std::streamsize size)
 	{
-		boost::ignore_unused(time);
 #ifdef LOGGING_COMPRESS_LOGS
 		bool condition = false;
 		auto hours = time / 1000 / 3600;
@@ -415,8 +414,7 @@ public:
 				break;
 			}
 
-			auto [ts, ptm] = aux::time_to_string(m_last_time);
-			boost::ignore_unused(ts);
+			[[maybe_unused]] auto [ts, ptm] = aux::time_to_string(m_last_time);
 
 			m_ofstream->close();
 			m_ofstream.reset();
@@ -562,8 +560,7 @@ inline void logger_writer(int64_t time, std::string level,
 {
 	(void)disable_cout;
 	LOGGER_LOCKS_();
-	auto [ts, ptm] = aux::time_to_string(time);
-	boost::ignore_unused(ptm);
+	[[maybe_unused]] auto [ts, ptm] = aux::time_to_string(time);
 	std::string prefix = ts + std::string(" [") + level + std::string("]: ");
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;

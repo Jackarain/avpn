@@ -133,8 +133,7 @@ namespace avpn {
 			if (len < (size_t)ihl + 4)
 				return {};
 
-			uint16_t total = ntohs(*(uint16_t*)(buf + 2));
-			boost::ignore_unused(total);
+			[[maybe_unused]] uint16_t total = ntohs(*(uint16_t*)(buf + 2));
 			uint8_t type = *(uint8_t*)(buf + 9);
 			uint32_t src_ip = (*(uint32_t*)(buf + 12));
 			uint32_t dst_ip = (*(uint32_t*)(buf + 16));

@@ -145,9 +145,8 @@ namespace asio_util {
 						auto& timer = *delay_timer;
 
 						timer.expires_from_now(200ms);
-						timer.async_wait([delay_timer, conn, params] (const boost::system::error_code& error)
+						timer.async_wait([delay_timer, conn, params] ([[maybe_unused]] const boost::system::error_code& error)
 						{
-							boost::ignore_unused(error);
 							if (params->flag_)
 								return;
 							conn.first();
@@ -208,7 +207,7 @@ namespace asio_util {
 		inline BOOST_ASIO_INITFN_RESULT_TYPE(IteratorConnectHandler,
 			void(boost::system::error_code, typename Stream::endpoint_type))
 		async_connect(Stream& s, const EndpointSequence& endpoints,
-			BOOST_ASIO_MOVE_ARG(IteratorConnectHandler) handler, 
+			BOOST_ASIO_MOVE_ARG(IteratorConnectHandler) handler,
 			typename boost::asio::enable_if<boost::asio::is_endpoint_sequence<EndpointSequence>::value>::type* = 0)
 	{
 		return boost::asio::async_initiate<IteratorConnectHandler,

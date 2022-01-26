@@ -30,7 +30,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <boost/core/ignore_unused.hpp>
 
 #pragma warning(push)
 #pragma warning(disable: 4702 4459)
@@ -141,7 +140,7 @@ namespace multiprecision = boost::multiprecision;
 
 #include "avpn/io_context_pool.hpp"
 
-#define APP_NAME "xpay"
+#define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
 
 using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>

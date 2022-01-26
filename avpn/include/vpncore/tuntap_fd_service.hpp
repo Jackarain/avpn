@@ -196,7 +196,7 @@ namespace avpn {
 			impl = this;
 		}
 
-		void destroy(impl_type& impl)
+		void destroy([[maybe_unused]] impl_type& impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			close(impl);
@@ -205,7 +205,7 @@ namespace avpn {
 		}
 
 
-		bool open(impl_type& impl, const dev_config& cfg)
+		bool open([[maybe_unused]] impl_type& impl, const dev_config& cfg)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 #ifdef AVPN_LINUX
@@ -334,7 +334,7 @@ namespace avpn {
 			return true;
 		}
 
-		void close(impl_type& impl)
+		void close([[maybe_unused]] impl_type& impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 #ifdef AVPN_LINUX
@@ -363,7 +363,7 @@ namespace avpn {
 		template <typename MutableBufferSequence, typename ReadHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-			async_read_some(impl_type& impl, const MutableBufferSequence& buffers,
+			async_read_some([[maybe_unused]] impl_type& impl, const MutableBufferSequence& buffers,
 				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
@@ -392,7 +392,7 @@ namespace avpn {
 		template <typename ConstBufferSequence, typename WriteHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-			async_write_some(impl_type& impl, const ConstBufferSequence& buffers,
+			async_write_some([[maybe_unused]] impl_type& impl, const ConstBufferSequence& buffers,
 				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
@@ -404,13 +404,13 @@ namespace avpn {
 			return init.result.get();
 		}
 
-		std::vector<device_tuntap> take_device_list(impl_type& impl)
+		std::vector<device_tuntap> take_device_list([[maybe_unused]] impl_type& impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			return m_device_list;
 		}
 
-		bool take_mac(impl_type& impl, char mac[6])
+		bool take_mac([[maybe_unused]] impl_type& impl, char mac[6])
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			if (m_tuntap_fd == 0)
@@ -420,7 +420,7 @@ namespace avpn {
 		}
 
 		// 获取当前打开的tuntap设备的mtu.
-		int take_mtu(impl_type& impl)
+		int take_mtu([[maybe_unused]] impl_type& impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			return m_frame_mtu;

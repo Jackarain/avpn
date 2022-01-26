@@ -180,8 +180,7 @@ int main(int argc, char** argv)
 	std::string ifdev;
 	std::string identity;
 
-	boost::nowide::args a(argc, argv);
-	boost::ignore_unused(a);
+	[[maybe_unused]] boost::nowide::args a(argc, argv);
 
 	po::options_description desc("Options");
 	desc.add_options()

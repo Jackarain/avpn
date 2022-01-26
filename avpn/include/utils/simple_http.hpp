@@ -21,7 +21,6 @@
 #include <boost/algorithm/string/find.hpp>
 
 #include <boost/variant.hpp>
-#include <boost/core/ignore_unused.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -526,8 +525,7 @@ namespace avpn
 			}
 
 			do {
-				auto bytes = http::async_read_some(stream, buffer, p, yield[ec]);
-				boost::ignore_unused(bytes);
+				[[maybe_unused]] auto bytes = http::async_read_some(stream, buffer, p, yield[ec]);
 				if (ec)
 					return ec;
 
