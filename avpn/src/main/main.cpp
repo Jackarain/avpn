@@ -203,7 +203,7 @@ int main(int argc, char** argv)
 		("fec_delay", po::value<int>(&fec_timeout)->default_value(50), "Timeout(milliseconds) for fec.")
 
 		("autofec", po::value<bool>(&auto_fec)->default_value(false), "Automatic parameterization for fec.")
-		("direct_tcp", po::value<int>(&direct_tcp)->default_value(0), "Now deprecated, See mode.")
+		("direct_tcp", po::value<int>(&direct_tcp)->default_value(-1), "Now deprecated, See mode.")
 		("mode", po::value<int>(&mode)->default_value(0), "Transfer mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-		if (vm.count("direct_tcp"))
+		if (direct_tcp != -1)
 			mode = direct_tcp;
 	}
 	catch (const std::exception& e)
