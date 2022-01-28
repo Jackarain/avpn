@@ -13,11 +13,6 @@
 
 namespace avpn {
 
-	enum {
-		avpn_server = 0,
-		avpn_client = 1
-	};
-
 	struct server_config
 	{
 		std::vector<std::string> upstreams_;

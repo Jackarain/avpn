@@ -90,6 +90,77 @@ void set_thread_name(boost::thread* thread, const char* name)
 	SetThreadName(threadId, name);
 }
 
+std::string utf8_from_astring(const std::string& str)
+{
+	wchar_t* wstring;
+	int char_count;
+
+	// convert "ANSI code page" string to UTF-16.
+	char_count = MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), NULL, 0);
+	std::string result(char_count * sizeof(wchar_t) * 10, 0);
+	wstring = (wchar_t*)(result.data() + (char_count * sizeof(wchar_t) *  5));
+	MultiByteToWideChar(CP_ACP, 0, str.c_str(), (int)str.size(), wstring, char_count);
+
+	// convert UTF-16 to MAME string (UTF-8).
+	char_count = WideCharToMultiByte(CP_UTF8, 0, wstring, char_count, NULL, 0, NULL, NULL);
+	WideCharToMultiByte(CP_UTF8, 0, wstring, char_count, (char*)result.data(), char_count, NULL, NULL);
+	result.resize(char_count);
+
+	return result;
+}
+
+std::tuple<std::string, bool> run_command(const std::string cmd) noexcept
+{
+	SECURITY_ATTRIBUTES sa = { 0 };
+	HANDLE hread, hwrite;
+
+	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+	sa.bInheritHandle = TRUE;
+
+	if (!CreatePipe(&hread, &hwrite, &sa, 0))
+		return { {}, false };
+
+	std::wstring command = L"cmd.exe /C " + boost::nowide::widen(cmd);
+
+	STARTUPINFOW si;
+	PROCESS_INFORMATION pi;
+	si.cb = sizeof(STARTUPINFO);
+	GetStartupInfoW(&si);
+	si.hStdError = hwrite;
+	si.hStdOutput = hwrite;
+	si.wShowWindow = SW_HIDE;
+	si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+
+	if (!CreateProcessW(NULL, (LPWSTR)command.c_str(), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+	{
+		CloseHandle(hwrite);
+		CloseHandle(hread);
+
+		return { {}, false };
+	}
+
+	CloseHandle(hwrite);
+
+	char buffer[4096] = { 0 };
+	DWORD nbytes;
+	std::ostringstream oss;
+
+	while (true)
+	{
+		if (ReadFile(hread, buffer, 4096, &nbytes, NULL) == NULL)
+			break;
+
+		oss.write(buffer, nbytes);
+	}
+
+	CloseHandle(hread);
+
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+
+	return { utf8_from_astring(oss.str()), true };
+}
+
 #elif __linux__
 
 void set_thread_name(boost::thread* thread, const char* name)

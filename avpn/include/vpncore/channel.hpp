@@ -35,6 +35,8 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
 
+#include <zlib.h>
+
 #include "avpn/reedsolomon.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
@@ -62,6 +64,11 @@ namespace avpn {
 	using namespace util;
 	using namespace stream_endian;
 
+	enum {
+		avpn_server = 0,
+		avpn_client = 1
+	};
+
 	const static std::string test_google_key = "VLTATWJGVH5W7V7DX6V436FG74";
 	const static int normal_mtu = 1500;
 	const static int static_mtu = 1400;
@@ -70,14 +77,17 @@ namespace avpn {
 	//////////////////////////////////////////////////////////////////////////
 
 	enum {
-		vpt_tcp = 0,
-		vpt_udp = 1,
-		vpt_icmp = 2,
-		vpt_fec = 3,
-		vpt_udp_handshake = 4,
-		vpt_udp_handshake_reply = 5,
-		vpt_keepalive = 6,
-		vpt_auth = 7,
+		vpt_compress_tcp = 0,
+		vpt_tcp,
+		vpt_compress_udp,
+		vpt_udp,
+		vpt_icmp,
+		vpt_compress_fec,
+		vpt_fec,
+		vpt_udp_handshake,
+		vpt_udp_handshake_reply,
+		vpt_keepalive,
+		vpt_auth,
 	};
 
 	// nofec type(1) + len(4) + body(len)
@@ -619,7 +629,7 @@ namespace avpn {
 
 	enum vpn_tcp_mode
 	{
-		disable_tcp,
+		only_udp,
 		tcpudp_mix,
 		only_tcp,
 	};
@@ -628,10 +638,15 @@ namespace avpn {
 	{
 		int data_shards_;			// fec数据设置.
 		int parity_shards_;			// fec冗余设置.
-		int fec_timeout_;			// fec超时设置, 用于指定收集fec数据时间.
-		int mode_;			// 在udp网络完全不通的环境下使用tcp网络.
+		int fec_delay_;				// fec超时设置, 用于指定收集fec数据时间.
+		int mode_;					// 在udp网络完全不通的环境下使用tcp网络.
+		bool compress_;				// 压缩选项.
 		bool auto_fec_;				// 自动调整fec参数以适应网络变化.
 		int keepalive_;				// 保持网络活动消息.
+
+		std::vector<std::string> routes_;	// server推送路由.
+		std::string pushdns_;				// server推送dns.
+		bool passbyvpn_;					// 客户端默认通过vpn.
 	};
 
 	class channel
@@ -684,7 +699,7 @@ namespace avpn {
 			m_status_notify = notify_func;
 
 			// 客户端身份.
-			m_identity = 1;
+			m_identity = avpn_client;
 
 			std::call_once(m_once_fec_timer, [this]()
 				{
@@ -765,7 +780,7 @@ namespace avpn {
 			m_status_notify = notify_func;
 
 			// 服务器身份.
-			m_identity = 0;
+			m_identity = avpn_server;
 
 			// 开始启动tcp客户端, 即ws服务器.
 			init_ws_acceptors();
@@ -815,7 +830,7 @@ namespace avpn {
 			m_abort = true;
 
 			boost::system::error_code ignore_ec;
-			if (m_identity == 1)
+			if (m_identity == avpn_client)
 			{
 				auto conn = m_client.lock();
 				if (conn)
@@ -829,7 +844,7 @@ namespace avpn {
 				}
 			}
 
-			if (m_identity == 0)
+			if (m_identity == avpn_server)
 			{
 				LOG_DBG << "close all acceptors...";
 				for (auto& a : m_ws_acceptors)
@@ -861,7 +876,7 @@ namespace avpn {
 			}
 
 			if (endp.type_ == avpn::ip_icmp)
-				LOG_DBG << "server_write, icmp: " << endp;
+				LOG_DBG << "client_write, icmp: " << endp;
 
 			auto& stream = connection_ptr->ws_stream_;
 			boost::asio::spawn(stream.get_executor(),
@@ -1330,7 +1345,7 @@ namespace avpn {
 				sock.async_send_to(boost::asio::buffer(msg), endp, yield[ec]);
 				if (ec)
 				{
-					LOG_DBG << "direct_channel_udp_write, coroutinue async_send_to error: " << ec.message();
+					LOG_DBG << "direct_channel_udp_write, async_send_to: " << endp << " error: " << ec.message();
 					return;
 				}
 			});
@@ -1361,13 +1376,13 @@ namespace avpn {
 
 			while (!m_abort)
 			{
-				m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_timeout_));
+				m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_delay_));
 				m_fec_timer.async_wait(yield[ec]);
 
 				std::unordered_map<ws_connection_ptr, udp_connection_weak_ptr> ucs;
 
 				// 找到所有udp连接.
-				if (m_identity == 0)
+				if (m_identity == avpn_server)
 				{
 					std::lock_guard<std::mutex> lock(m_ws_mux);
 					for ([[maybe_unused]] auto& [id, wsconn] : m_ws_streams)
@@ -1433,7 +1448,7 @@ namespace avpn {
 
 			// 实在是数据太小了, 无法fec时, 直接通过ws发送.
 			if ((uconn.fec_enc_size_ < static_mtu * 5) &&
-				m_params.mode_ != vpn_tcp_mode::disable_tcp)
+				m_params.mode_ != vpn_tcp_mode::only_udp)
 			{
 				for (auto& msg : fec_enc)
 				{
@@ -1521,6 +1536,7 @@ namespace avpn {
 
 			rs.encode(shards);
 
+			char* bufptr = nullptr;
 			size_t send_data_size = 0;
 			for (size_t n = 0; n < shards.size(); n++)
 			{
@@ -1529,9 +1545,13 @@ namespace avpn {
 
 				std::string fec_body(pkt_header_size + body_size, 0);
 				char* wp = (char*)fec_body.data();
+				char* base = wp;
 
 				write_uint8(vpt_fec, wp);
 				write_int32((int32_t)body_size, wp);
+
+				if (m_params.compress_)
+					bufptr = wp;
 
 				write_uint32(gid, wp);						// gid
 				write_uint8((uint8_t)n, wp);				// pid
@@ -1540,6 +1560,31 @@ namespace avpn {
 				write_int32((int32_t)gsize, wp);			// gsize
 
 				write_string(s, wp);	// fec body
+
+				// 如果启用了压缩, 则先压缩.
+				if (m_params.compress_)
+				{
+					int insize = (int)(wp - bufptr);
+					BOOST_ASSERT(insize > 0 && insize < 1450);
+
+					std::string compress_bufs(insize * 2, 0);
+					uLong outsize = (uLong)compress_bufs.size();
+
+					auto ok = compress((Bytef*)compress_bufs.data(), &outsize,
+						(const Bytef*)bufptr, (uLong)insize);
+					if (ok == Z_OK)
+					{
+						if (outsize < (uLong)insize)
+						{
+							std::memcpy(bufptr, compress_bufs.data(), outsize);
+
+							write_uint8(vpt_compress_fec, base);
+							write_int32((int32_t)outsize, base);
+
+							fec_body.resize(outsize + pkt_header_size);
+						}
+					}
+				}
 
 				send_data_size += fec_body.size();
 				direct_channel_udp_write(sock, uconn.endp_, fec_body);
@@ -1553,7 +1598,7 @@ namespace avpn {
 				<< ", fec pkts: " << shards.size()
 				<< ", data bytes: " << bytes_transferred
 				<< ", fec bytes: " << send_data_size
-				<< ", immediately: " << (keep_continue ? "yes" : "no")
+				<< ", immediate: " << (keep_continue ? "yes" : "no")
 				;
 
 			return keep_continue;
@@ -1566,6 +1611,32 @@ namespace avpn {
 				(m_params.mode_ == vpn_tcp_mode::tcpudp_mix &&
 					!connection.deque_writing_))
 			{
+				// 如果启用了压缩, 则先压缩.
+				if ((msg.type == vpt_tcp || msg.type == vpt_udp) &&
+					m_params.compress_)
+				{
+					std::string compress_bufs(msg.content.size() * 2, 0);
+					uLong outsize = (uLong)compress_bufs.size();
+
+					auto ok = compress((Bytef*)compress_bufs.data(), &outsize,
+						(const Bytef*)msg.content.data(), (uLong)msg.content.size());
+					if (ok == Z_OK)
+					{
+						if (outsize < msg.content.size())
+						{
+							compress_bufs.resize(outsize);
+							msg.content = compress_bufs;
+
+							if (msg.type == vpt_tcp)
+								msg.type = vpt_compress_tcp;
+							else if (msg.type == vpt_udp)
+								msg.type = vpt_compress_udp;
+							else
+								BOOST_ASSERT(false && "commpress invalid msg.type");
+						}
+					}
+				}
+
 				std::string pkt(pkt_header_size + msg.content.size(), '\0');
 				char* wp = (char*)pkt.data();
 
@@ -1613,6 +1684,32 @@ namespace avpn {
 					(m_params.parity_shards_ == 1 && m_params.data_shards_ == 1))
 				{
 					auto& sock = *uconn.sock_;
+
+					// 如果启用了压缩, 则先压缩.
+					if ((msg.type == vpt_tcp || msg.type == vpt_udp) &&
+						m_params.compress_)
+					{
+						std::string compress_bufs(msg.content.size() * 2, 0);
+						uLong outsize = (uLong)compress_bufs.size();
+
+						auto ok = compress((Bytef*)compress_bufs.data(), &outsize,
+							(const Bytef*)msg.content.data(), (uLong)msg.content.size());
+						if (ok == Z_OK)
+						{
+							if (outsize < msg.content.size())
+							{
+								compress_bufs.resize(outsize);
+								msg.content = compress_bufs;
+
+								if (msg.type == vpt_tcp)
+									msg.type = vpt_compress_tcp;
+								else if (msg.type == vpt_udp)
+									msg.type = vpt_compress_udp;
+								else
+									BOOST_ASSERT(false && "commpress invalid msg.type");
+							}
+						}
+					}
 
 					std::string udp_body(pkt_header_size + msg.content.size(), 0);
 					char* wp = (char*)udp_body.data();
@@ -1693,7 +1790,7 @@ namespace avpn {
 		{
 			boost::system::error_code ec;
 
-			if (m_identity == 0)
+			if (m_identity == avpn_server)
 			{
 				// server 模式的时候.
 				for (auto& listen : m_udp_listens)
@@ -2214,6 +2311,15 @@ namespace avpn {
 					msg.type = (uint8_t)endp.type_;
 					msg.content = d;
 
+					if (endp.type_ == avpn::ip_type::ip_tcp)
+						msg.type = vpt_tcp;
+					else if (endp.type_ == avpn::ip_type::ip_udp)
+						msg.type = vpt_udp;
+					else if (endp.type_ == avpn::ip_type::ip_icmp)
+						msg.type = vpt_icmp;
+					else
+						BOOST_ASSERT(false && "invalid msg.type");
+
 					on_channel_write(*conn, msg, yield);
 				}
 			}
@@ -2225,16 +2331,47 @@ namespace avpn {
 #endif
 		}
 
+		std::tuple<std::string, uint32_t> ip_assigner()
+		{
+			std::string ip_string;
+			uint32_t ipaddr;
+
+			do
+			{
+				ipaddr = m_ip_assigned++;
+
+				auto addr = boost::asio::ip::make_address_v4(ipaddr);
+				auto addr_bytes = addr.to_bytes();
+
+				// 过滤无效ip.
+				if (addr_bytes[3] == 255 || addr_bytes[3] == 0)
+					continue;
+
+				// 重头开始(10.0.0.10).
+				if (addr_bytes[2] == 255)
+				{
+					m_ip_assigned = 0x0a00000a;
+					continue;
+				}
+
+				// ok, 获取ip字符串.
+				ip_string = addr.to_string();
+			} while (false);
+
+			return {ip_string, ipaddr};
+		}
+
 		void process_net_packet(uint8_t type, std::string_view content,
 			ws_connection_ptr& connection_ptr, boost::asio::yield_context& yield)
 		{
 			auto& connection = *connection_ptr;
+			std::string bufs;
 
 			switch (type)
 			{
 			case vpt_auth:
 			{
-				if (m_identity == 0) // 作为 server.
+				if (m_identity == avpn_server) // 作为 server.
 				{
 					if (content.size() < 4)
 						return;
@@ -2251,50 +2388,93 @@ namespace avpn {
 						return;
 					}
 
-					// 返回获取的ip地址.
-					std::string ip_string;
-					uint32_t ipaddr;
-					std::string reply;
+					std::string reply(pkt_header_size, 0);
 
-					do
+					// 给client分配ip地址.
+					std::string ip_content(32, 0);
+					std::string ip;
+
 					{
-						ipaddr = m_ip_assigned++;
+						auto base = (char*)ip_content.data();
+						auto p = base;
 
-						auto addr = boost::asio::ip::make_address_v4(ipaddr);
-						auto addr_bytes = addr.to_bytes();
+						auto [ip_string, ipaddr] = ip_assigner();
+						connection.virtual_ipaddr_ = ipaddr;
+						ip = ip_string;
 
-						// 过滤无效ip.
-						if (addr_bytes[3] == 255 || addr_bytes[3] == 0)
-							continue;
+						write_uint32((uint32_t)ip_string.size(), p);
+						write_string(ip_string, p);
 
-						// 重头开始(10.0.0.10).
-						if (addr_bytes[2] == 255)
+						ip_content.resize(p - base);
+					}
+
+					// 推送路由.
+					std::string routes(1024, 0);
+					{
+						auto base = (char*)routes.data();
+						auto p = base;
+
+						for (auto& route : m_params.routes_)
 						{
-							m_ip_assigned = 0x0a00000a;
-							continue;
+							if ((p + route.size()) - base >= 1024)
+							{
+								write_uint32((uint32_t)0, p);
+								break;
+							}
+
+							write_uint32((uint32_t)route.size(), p);
+							write_string(route, p);
 						}
 
-						ip_string = addr.to_string();
+						routes.resize(p - base);
+					}
 
-						reply.resize(pkt_header_size + ip_string.size(), 0);
-						char* wp = (char*)reply.data();
+					// ((passbyvpn[(uint8)1/0]), (pushdns[u32]), vip[(u32)size, string]), (pushroutes[(u32(size), string)])
+					auto body_size = 1 + 4 + ip_content.size() + routes.size();
+					reply.resize(pkt_header_size + body_size);
 
-						write_uint8(vpt_auth, wp);
-						write_int32((int32_t)ip_string.size(), wp);
-						write_string(ip_string, wp);
+					auto base = (char*)reply.data();
+					auto p = base;
 
-						connection.virtual_ipaddr_ = ipaddr;
+					write_uint8(vpt_auth, p);
+					write_uint32((uint32_t)body_size, p);
 
-					} while (false);
+					// passbyvpn.
+					write_uint8(m_params.passbyvpn_, p);
+
+					// pushdns.
+					if (m_params.pushdns_.empty())
+					{
+						write_uint32(0, p);
+					}
+					else
+					{
+						boost::system::error_code ec;
+						auto addr = boost::asio::ip::address_v4::from_string(m_params.pushdns_, ec);
+						if (ec)
+						{
+							LOG_WARN << "push dns params error: " << ec.message();
+							write_uint32(0, p);
+						}
+						else
+						{
+							write_uint32(addr.to_uint(), p);
+						}
+					}
+
+					write_string(ip_content, p);
+					write_string(routes, p);
+
+					BOOST_ASSERT((size_t)(p - base) == body_size + 5);
 
 					LOG_DBG << "Server assign virtual ip: "
-						<< ip_string << " to id: " << connection.connection_id_;
+						<< ip << " to id: " << connection.connection_id_;
 
 					// 从临时连接表中删除.
 					m_incoming_ws.erase(connection.connection_id_);
 
 					// 添加到连接管理.
-					add_ws(ipaddr, connection_ptr);
+					add_ws(connection.virtual_ipaddr_, connection_ptr);
 
 					// 返回数据.
 					direct_channel_ws_write(connection_ptr, reply);
@@ -2302,16 +2482,60 @@ namespace avpn {
 					return;
 				}
 
-				if (m_identity == 1) // 作为 client 在认证通过后发起 udp 连接.
+				if (m_identity == avpn_client) // 作为 client 在认证通过后发起 udp 连接.
 				{
-					if (content.size() < 7) // ip字符串, 至少7个字符.
+					if (content.size() < 12) // ip字符串, 至少7个字符.
 					{
 						LOG_WARN << "Client assign virtual ip error: " << std::string(content);
 						return;
 					}
 
+					int bodysize = (int)content.size();
+					auto bufptr = content.data();
+
+					[[maybe_unused]] auto passbyvpn = read_uint8(bufptr);	// passbyvpn
+					LOG_DBG << "passby vpn: " << (passbyvpn ? "yes" : "no");
+					bodysize--;
+					[[maybe_unused]] auto pushdns = read_uint32(bufptr);	// pushdns
+					if (pushdns != 0)
+					{
+						auto dns = boost::asio::ip::address_v4(pushdns);
+						LOG_DBG << "add dns: " << dns.to_string();
+					}
+					bodysize -= 4;
+					int32_t ipsize = read_int32(bufptr);
+					bodysize -= 4;
+					if (bodysize - ipsize < 0 || ipsize < 0)
+					{
+						BOOST_ASSERT(false && "bodysize - ipsize < 0");
+						return;
+					}
+
 					// 保存获得的虚拟ip.
-					m_virtual_ipaddr = std::string(content);
+					m_virtual_ipaddr = std::string(bufptr, ipsize);
+					bufptr += ipsize;
+					bodysize -= ipsize;
+
+					std::vector<std::string> routes;
+					for (; bodysize >= 4;)
+					{
+						int sz = (int32_t)read_int32(bufptr);
+						bodysize -= 4;
+						if (bodysize - sz < 0 || sz < 0)
+						{
+							BOOST_ASSERT(false && "bodysize - sz < 0");
+							return;
+						}
+
+						std::string route(bufptr, sz);
+						bufptr += sz;
+						bodysize -= sz;
+
+						LOG_DBG << "add route: " << route;
+
+						routes.emplace_back(std::move(route));
+					}
+
 					auto ipaddr = boost::asio::ip::address_v4::from_string(m_virtual_ipaddr);
 					connection_ptr->virtual_ipaddr_ = ipaddr.to_uint();
 
@@ -2331,6 +2555,21 @@ namespace avpn {
 			break;
 			case vpt_udp_handshake:
 				break;
+			case vpt_compress_tcp:
+				[[fallthrough]];
+			case vpt_compress_udp:
+			{
+				// 解压缩操作.
+				uLongf bufsize = 16384;
+				bufs.resize(bufsize);
+				auto ok = uncompress((Bytef*)bufs.data(), &bufsize,
+					(const Bytef*)content.data(), (uLongf)content.size());
+				if (ok != Z_OK)
+					return;
+				bufs.resize(bufsize);
+				content = std::string_view(bufs.data(), bufsize);
+			}
+			[[fallthrough]];
 			case vpt_icmp:
 				[[fallthrough]];
 			case vpt_udp:
@@ -2360,6 +2599,10 @@ namespace avpn {
 
 				if (!m_tuntap_writer)
 					return;
+
+				if (type == vpt_icmp)
+					LOG_DBG << "Recvive tcp, write tun icmp: " << endp;
+
 				m_tuntap_writer(std::string(content));
 			}
 			break;
@@ -2373,6 +2616,7 @@ namespace avpn {
 			udp::socket& sock, const udp::endpoint& endp, boost::asio::yield_context& yield)
 		{
 			udp_connection_ptr uconn;
+			std::string bufs;
 
 			switch (type)
 			{
@@ -2388,7 +2632,7 @@ namespace avpn {
 			{
 				// 在server模式, 接收到client的虚拟ip, 往对应的ws_connection
 				// 中保存udp_connection信息.
-				if (m_identity == 0)
+				if (m_identity == avpn_server)
 				{
 					// 没找到udp连接, 则创建udp连接.
 					uconn = lookup_udp(endp);
@@ -2413,7 +2657,7 @@ namespace avpn {
 						return;
 
 					// 将udp连接绑定到tcp连接.
-					LOG_DBG << "udp client: " << uconn->endp_ << " send ctrl";
+					LOG_DBG << "udp client: " << uconn->endp_ << " send handshake";
 					wsconn->udp_stream_ = uconn;
 
 					// 回复client已经成功绑定.
@@ -2429,9 +2673,9 @@ namespace avpn {
 			break;
 			case vpt_udp_handshake_reply:
 			{
-				if (m_identity == 1)
+				if (m_identity == avpn_client)
 				{
-					LOG_DBG << "udp server: " << endp << " reply ctrl";
+					LOG_DBG << "udp server: " << endp << " reply handshake";
 					auto wsconn = m_client.lock();
 					if (!wsconn)
 						break;
@@ -2466,6 +2710,21 @@ namespace avpn {
 				}
 			}
 			break;
+			case vpt_compress_tcp:
+				[[fallthrough]];
+			case vpt_compress_udp:
+			{
+				// 解压缩操作.
+				uLongf bufsize = 16384;
+				bufs.resize(bufsize);
+				auto ok = uncompress((Bytef*)bufs.data(), &bufsize,
+					(const Bytef*)content.data(), (uLongf)content.size());
+				if (ok != Z_OK)
+					return;
+				bufs.resize(bufsize);
+				content = std::string_view(bufs.data(), bufsize);
+			}
+			[[fallthrough]];
 			case vpt_icmp:
 				[[fallthrough]];
 			case vpt_udp:
@@ -2496,11 +2755,31 @@ namespace avpn {
 				if (!m_tuntap_writer)
 					return;
 
+				if (type == vpt_icmp)
+					LOG_DBG << "Recvive udp, write tun icmp: " << endp;
+
 				m_tuntap_writer(std::string(content));
 			}
 			break;
+			case vpt_compress_fec:
+			{
+				// 解压缩操作.
+				uLongf bufsize = 16384;
+				bufs.resize(bufsize);
+				auto ok = uncompress((Bytef*)bufs.data(), &bufsize,
+					(const Bytef*)content.data(), (uLongf)content.size());
+				if (ok != Z_OK)
+					return;
+				bufs.resize(bufsize);
+				content = std::string_view(bufs.data(), bufsize);
+			}
+			[[fallthrough]];
 			case vpt_fec:
 			{
+				// 数据大小太小, 直接丢弃.
+				if (content.size() < fec_header_size)
+					return;
+
 				// 如果没找到udp连接, 此时这个fec包不可信, 则直接丢弃.
 				uconn = lookup_udp(endp);
 				if (!uconn)
@@ -2508,8 +2787,6 @@ namespace avpn {
 
 				// 解析fec数据.
 				auto bufptr = content.data();
-				if (content.size() < fec_header_size)
-					return;
 
 				auto gid = read_uint32(bufptr);		// gid
 				auto pid = read_uint8(bufptr);		// pid

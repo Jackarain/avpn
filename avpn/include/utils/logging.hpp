@@ -101,7 +101,7 @@ namespace util {
 
 #ifdef LOGGING_COMPRESS_LOGS
 
-namespace compress {
+namespace log_compress {
 
 	const std::string GZ_SUFFIX = ".gz";
 	// const size_t SUFFIX_LEN = sizeof(GZ_SUFFIX) - 1;
@@ -445,10 +445,10 @@ public:
 			boost::async(boost::launch::async, [this, fn]() {
 				std::string file = fn;
 				boost::system::error_code ignore_ec;
-				boost::mutex& m = compress::compress_lock();
+				boost::mutex& m = log_compress::compress_lock();
 				boost::lock_guard<boost::mutex> lock(m);
-				if (!compress::do_compress_gz(fn)) {
-					file = fn + compress::GZ_SUFFIX;
+				if (!log_compress::do_compress_gz(fn)) {
+					file = fn + log_compress::GZ_SUFFIX;
 					boost::filesystem::remove(file, ignore_ec);
 					if (ignore_ec)
 						std::cout << "delete log failed: " << file

@@ -174,12 +174,17 @@ int main(int argc, char** argv)
 	int data_shards;
 	int parity_shards;
 	int mode;
-	int direct_tcp;
-	int fec_timeout;
+	bool compress;
+	int fec_delay;
 	bool auto_fec;
 	int keepalive;
 	std::string ifdev;
 	std::string identity;
+	std::string config;
+
+	std::vector<std::string> routes;
+	std::string pushdns;
+	bool passbyvpn = false;
 
 	[[maybe_unused]] boost::nowide::args a(argc, argv);
 
@@ -188,32 +193,43 @@ int main(int argc, char** argv)
 		("help,h", "Help message.")
 		("version", "Current version.")
 
-		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
+		("config", po::value<std::string>(&config), "Load config options from file.")
+
+		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
+
 		("tun", po::value<std::string>(&ifdev)->default_value(""), "Tun device.")
+
+		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
 
-		("data_shards", po::value<int>(&data_shards)->default_value(3), "Reedsolomon params of data shards.")
-		("parity_shards", po::value<int>(&parity_shards)->default_value(1), "Reedsolomon params of parity shards.")
+		("data_shards,d", po::value<int>(&data_shards)->default_value(8), "Reedsolomon params of data shards.")
+		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4), "Reedsolomon params of parity shards.")
 
-		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
-
-		("fec_timeout", po::value<int>(&fec_timeout)->default_value(50), "Timeout(milliseconds) for fec.")
-		("fec_delay", po::value<int>(&fec_timeout)->default_value(50), "Timeout(milliseconds) for fec.")
+		("fec_delay", po::value<int>(&fec_delay)->default_value(20), "Delay(milliseconds) for fec.")
 
 		("autofec", po::value<bool>(&auto_fec)->default_value(false), "Automatic parameterization for fec.")
-		("direct_tcp", po::value<int>(&direct_tcp)->default_value(-1), "Now deprecated, See mode.")
-		("mode", po::value<int>(&mode)->default_value(0), "Transfer mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
+		("mode", po::value<int>(&mode)->default_value(0), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
+		("compress", po::value<bool>(&compress)->default_value(false), "Enable a compression algorithm.")
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
+
+		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken(), "Push routes to client.")
+		("pushdns", po::value<std::string>(&pushdns)->default_value(""), "Push nameserver to client.")
+		("passbyvpn", po::value<bool>(&passbyvpn)->default_value(false), "All IP network traffic originating on client machines to pass through the server.")
 	;
 
 	try
 	{
 		// 解析命令行.
 		po::variables_map vm;
-		po::store(po::parse_command_line(argc, argv, desc), vm);
+		po::store(
+			po::command_line_parser(argc, argv)
+			.options(desc)
+			.style(po::command_line_style::unix_style | po::command_line_style::allow_long_disguise)
+			.run()
+			,vm);
 		po::notify(vm);
 
 		// 输出版本信息.
@@ -226,8 +242,19 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-		if (direct_tcp != -1)
-			mode = direct_tcp;
+		if (vm.count("config"))
+		{
+			if (!std::filesystem::exists(config))
+			{
+				LOG_ERR << "No such config file: " << config;
+				return EXIT_FAILURE;
+			}
+
+			LOG_DBG << "Load config file: " << config;
+			auto cfg = po::parse_config_file(config.c_str(), desc, false);
+			po::store(cfg, vm);
+			po::notify(vm);
+		}
 	}
 	catch (const std::exception& e)
 	{
@@ -261,7 +288,8 @@ int main(int argc, char** argv)
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
 	params.mode_ = mode;
-	params.fec_timeout_ = fec_timeout;
+	params.compress_ = compress;
+	params.fec_delay_ = fec_delay;
 	params.auto_fec_ = auto_fec;
 	params.keepalive_ = keepalive;
 	if (data_shards + parity_shards > 256)
@@ -279,15 +307,19 @@ int main(int argc, char** argv)
 		cfg.identity_ = avpn::avpn_client;
 	}
 
-	avpn::avpn_service dsrv{ios, cfg};
+	params.routes_ = routes;
+	params.pushdns_ = pushdns;
+	params.passbyvpn_ = passbyvpn;
 
-	dsrv.start();
+	avpn::avpn_service srv{ios, cfg};
+
+	srv.start();
 
 	// 处理中止信号.
-	terminator_signal.async_wait([&ios, &dsrv](const boost::system::error_code&, int)
+	terminator_signal.async_wait([&ios, &srv](const boost::system::error_code&, int)
 	{
 		LOG_DBG << "terminator is called!";
-		dsrv.stop();
+		srv.stop();
 		ios.stop();
 	});
 

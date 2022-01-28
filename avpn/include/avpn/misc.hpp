@@ -26,6 +26,9 @@ bool unescape_path(const std::string& in, std::string& out);
 
 boost::posix_time::ptime make_localtime(std::string_view time) noexcept;
 
+// 运行一个命令, 返回命令输出的信息.
+std::tuple<std::string, bool> run_command(const std::string cmd) noexcept;
+
 template<class Iterator>
 std::string to_hexstring(Iterator start, Iterator end, std::string const& prefix)
 {

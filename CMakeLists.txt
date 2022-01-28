@@ -254,7 +254,14 @@ if (WIN32)
 		Mswsock.lib
 	)
 else()
+	# aviod link std::filesystem fail.
+	set(std_fs_workaround "")
+	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
+		set(std_fs_workaround stdc++fs)
+	endif()
+
 	link_libraries(
+		${std_fs_workaround}
 		${IPROUTE2_LIBRARIES}
 	)
 endif()
