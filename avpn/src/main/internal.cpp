@@ -39,6 +39,8 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/format.hpp>
+#include <boost/algorithm/string/regex.hpp>
+
 
 #include <boost/date_time/c_local_time_adjustor.hpp>
 
@@ -109,7 +111,7 @@ std::string utf8_from_astring(const std::string& str)
 	return result;
 }
 
-std::tuple<std::string, bool> run_command(const std::string cmd) noexcept
+std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept
 {
 	SECURITY_ATTRIBUTES sa = { 0 };
 	HANDLE hread, hwrite;
@@ -153,12 +155,16 @@ std::tuple<std::string, bool> run_command(const std::string cmd) noexcept
 		oss.write(buffer, nbytes);
 	}
 
+	WaitForSingleObject(pi.hProcess, INFINITE);
+	DWORD exit_code;
+	GetExitCodeProcess(pi.hProcess, &exit_code);
+
 	CloseHandle(hread);
 
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 
-	return { utf8_from_astring(oss.str()), true };
+	return { utf8_from_astring(oss.str()), exit_code == EXIT_SUCCESS ? true : false };
 }
 
 #elif __linux__
@@ -174,6 +180,29 @@ void set_thread_name(const char* name)
 	prctl(PR_SET_NAME, name, 0, 0, 0);
 }
 
+std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept
+{
+	auto pf = popen(cmd.c_str(), "r");
+	if (!pf)
+		return { "", false };
+
+	std::string result;
+	int total = 0;
+
+	while (!feof(pf))
+	{
+		result.resize(total + 1024);
+		auto nread = fread((char*)(result.data() + total), 1, 1024, pf);
+		if (nread <= 0)
+			break;
+		total += nread;
+	}
+	result.resize(total);
+
+	int exit_code = pclose(pf);
+	return { result, exit_code == EXIT_SUCCESS ? true : false };
+}
+
 #else
 
 void set_thread_name(boost::thread*, const char*)
@@ -186,6 +215,106 @@ void set_thread_name(const char* name)
 
 #endif
 
+std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = false)
+{
+	std::vector<std::string> result;
+	boost::split_regex(result, route, boost::regex(" +"));
+
+	if (result.size() < 2)
+		return { "", false };
+
+	boost::asio::ip::network_v4 net;
+	boost::system::error_code ec;
+
+	// 解析 destination and mask.
+	auto it = result.begin();
+	auto& dest = *it++;
+	bool is_cidr = dest.find('/') != std::string::npos;
+	if (is_cidr)
+	{
+		net = boost::asio::ip::make_network_v4(dest, ec);
+		if (ec)
+			return { "", false };
+	}
+	else
+	{
+		if (result.size() < 3)
+			return { "", false };
+
+		auto addr = boost::asio::ip::make_address_v4(dest, ec);
+		auto& str = *it++;
+		auto mask = boost::asio::ip::make_address_v4(str, ec);
+		if (ec)
+			return { "", false };
+
+		net = boost::asio::ip::make_network_v4(addr, mask);
+	}
+
+	// 解析 gateway.
+	auto& gw = *it++;
+	auto gateway = boost::asio::ip::make_address_v4(gw, ec);
+	if (ec)
+		return { "", false };
+
+	std::string metric;
+
+	// 解析metric.
+	if (it != result.end())
+		metric = *it;
+
+	// 根据平台构造命令.
+	std::string add_route_cmd;
+
+#ifdef _WIN32
+	// route ADD 157.0.0.0 MASK 255.0.0.0  157.55.80.1 METRIC 3
+	add_route_cmd = "route ";
+	if (flag)
+		add_route_cmd += "ADD ";
+	else
+		add_route_cmd += "DELETE ";
+	add_route_cmd += net.address().to_string(ec) + " MASK ";
+	if (ec)
+		return { "", false };
+	add_route_cmd += net.netmask().to_string(ec) + " ";
+	if (ec)
+		return { "", false };
+	add_route_cmd += gateway.to_string(ec);
+	if (ec)
+		return { "", false };
+	if (!metric.empty())
+		add_route_cmd += " METRIC " + metric;
+#elif __linux__
+	// ip route add 183.230.32.0/24 via 10.0.0.1
+	add_route_cmd = "ip route ";
+	if (flag)
+		add_route_cmd += "add ";
+	else
+		add_route_cmd += "del ";
+	add_route_cmd += net.address().to_string(ec) + "/" + std::to_string(net.prefix_length());
+	if (ec)
+		return { "", false };
+	add_route_cmd += " via " + gateway.to_string(ec);
+	if (ec)
+		return { "", false };
+	if (!metric.empty())
+		add_route_cmd += " metric " + metric;
+#else
+	// TODO: unsupported system.
+	return { "", false };
+#endif
+
+	return run_command(add_route_cmd);
+}
+
+std::tuple<std::string, bool> add_route(const std::string& route)
+{
+	return route_ops(route, true);
+}
+
+std::tuple<std::string, bool> del_route(const std::string& route)
+{
+	return route_ops(route, false);
+}
 
 inline std::string uuid_to_string(boost::uuids::uuid const& u)
 {
@@ -413,6 +542,17 @@ bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost
 	endp.port(static_cast<unsigned short>(std::atoi(port.data())));
 
 	return ipv6only;
+}
+
+bool same_ipv4_network(const boost::asio::ip::network_v4& net, uint32_t u32_addr)
+{
+	boost::asio::ip::address_v4 addr(u32_addr);
+	boost::asio::ip::network_v4 other(addr, net.netmask());
+
+	if (net.network() == other.network())
+		return true;
+
+	return false;
 }
 
 char from_hex_char(char c) noexcept

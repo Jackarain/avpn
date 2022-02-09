@@ -11,8 +11,6 @@
 #include "utils/async_connect.hpp"
 #include "utils/url_parser.hpp"
 #include "utils/scoped_exit.hpp"
-#include "utils/simple_http.hpp"
-#include "utils/multipart.hpp"
 #include "utils/fileop.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
@@ -84,7 +82,7 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			avpn::MessageT msg;
+			avpn::vpn_message msg;
 			auto& content = msg.content;
 			content.resize(128 * 1024);
 
@@ -157,13 +155,7 @@ namespace avpn {
 							return;
 						m_start_tuntap = true;
 
-						std::string ipaddr = m_channel.virtual_ipaddr();
-						if (ipaddr.empty())
-						{
-							LOG_ERR << "vpn virtual ip address is empty!";
-							return;
-						}
-
+						auto ipaddr = m_channel.virtual_ipaddr();
 						setup_tun(ipaddr);
 
 						LOG_DBG << "vpn device start...";
@@ -203,8 +195,7 @@ namespace avpn {
 						m_start_tuntap = true;
 						m_channel_status = status;
 
-						std::string ipaddr = "10.0.0.1";
-						setup_tun(ipaddr);
+						setup_tun(m_channel.virtual_gateway());
 
 						LOG_DBG << "vpn device start...";
 
@@ -246,15 +237,25 @@ namespace avpn {
 			});
 	}
 
-	void avpn_service::setup_tun(const std::string& ipaddr)
+	void avpn_service::setup_tun(const boost::asio::ip::network_v4& net)
 	{
 		// 先关闭设备.
 		m_tuntap.close();
 
-		LOG_DBG << "setup_tun ip: " << ipaddr << ", tun: " << m_config.ifdev_;
+		auto mask = net.netmask();
+		auto addr = net.address();
+		auto ipaddr = addr.to_string();
 
-		// 获取相关信息并配置网卡.
-		avpn::dev_config dc = { ipaddr, "255.255.0.0", "10.0.0.0", "", "", "", 0, avpn::dev_tun, 0 };
+		uint32_t gw = addr.to_uint() & mask.to_uint();
+		auto gateway = boost::asio::ip::make_address_v4(gw);
+
+		LOG_DBG << "setup_tun ip: " << ipaddr
+			<< ", mask: " << mask.to_string()
+			<< ", gateway: " << gateway.to_string()
+			<< ", tun: " << m_config.ifdev_;
+
+		// 构造配置参数.
+		avpn::dev_config dc = { ipaddr, mask.to_string(), gateway.to_string(), "", "", "", 0, avpn::dev_tun, 0 };
 		dc.dev_name_ = m_config.ifdev_;
 		auto dev_list = m_tuntap.take_device_list();
 		std::string guid;

@@ -24,6 +24,16 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
+#elif AVPN_APPLE
+
+#include <netinet/in.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/kern_control.h>
+#include <net/if_utun.h>
+#include <sys/ioctl.h>
+#include <sys/kern_event.h>
+
 #endif
 
 #ifdef AVPN_LINUX
@@ -73,7 +83,7 @@ static const char			drv_name[] = "tun";
 #include "utils/logging.hpp"
 #include "vpncore/tuntap_config.hpp"
 
-
+#ifdef AVPN_LINUX
 static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
 {
 	struct {
@@ -96,6 +106,7 @@ static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 	return sendto(rth->fd, (void*)&req, sizeof(req), 0,
 		(struct sockaddr*)&nladdr, sizeof(nladdr));
 }
+#endif
 
 namespace avpn {
 	namespace posix = boost::asio::posix;
@@ -329,6 +340,8 @@ namespace avpn {
 			m_tuntap_fd = fd;
 
 			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successd, " << fd;
+
+#elif defined(AVPN_APPLE)
 
 #endif
 			return true;

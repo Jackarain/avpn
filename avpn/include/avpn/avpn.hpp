@@ -45,7 +45,7 @@ namespace avpn {
 		void start_vpn();
 
 		void do_tuntap_write(std::string&& message);
-		void setup_tun(const std::string& ipaddr);
+		void setup_tun(const boost::asio::ip::network_v4& net);
 
 	private:
 		io_context_pool& m_io_context_pool;

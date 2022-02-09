@@ -257,7 +257,7 @@ namespace util {
 
 	private:
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__APPLE__)
 #	pragma GCC diagnostic push
 #	pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
@@ -267,7 +267,7 @@ namespace util {
 			if (m_size & 7)
 				m_bytes[(m_size + 7) / 8 - 1] &= 0xff << (8 - (m_size & 7));
 		}
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__APPLE__)
 #	pragma GCC diagnostic pop
 #endif
 

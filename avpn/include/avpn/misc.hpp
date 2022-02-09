@@ -19,6 +19,8 @@ std::string google_generate_secret();
 bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost::system::error_code& ec);
 bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost::system::error_code& ec);
 
+bool same_ipv4_network(const boost::asio::ip::network_v4& net, uint32_t u32_addr);
+
 std::string base64_encode(std::string_view input);
 std::string base64_decode(std::string_view input);
 
@@ -27,7 +29,11 @@ bool unescape_path(const std::string& in, std::string& out);
 boost::posix_time::ptime make_localtime(std::string_view time) noexcept;
 
 // 运行一个命令, 返回命令输出的信息.
-std::tuple<std::string, bool> run_command(const std::string cmd) noexcept;
+std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept;
+
+// 添加或删除指定路由.
+std::tuple<std::string, bool> add_route(const std::string& route);
+std::tuple<std::string, bool> del_route(const std::string& route);
 
 template<class Iterator>
 std::string to_hexstring(Iterator start, Iterator end, std::string const& prefix)

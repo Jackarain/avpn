@@ -43,8 +43,6 @@
 #  include <sys/utsname.h>
 #endif
 
-#include <gsl/span>
-
 #include <boost/nowide/args.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/program_options.hpp>
@@ -57,7 +55,6 @@ namespace po = boost::program_options;
 #include "avpn/avpn.hpp"
 #include "avpn/reedsolomon.hpp"
 
-#include "utils/simple_http.hpp"
 #include "utils/fileop.hpp"
 
 
@@ -178,6 +175,7 @@ int main(int argc, char** argv)
 	int fec_delay;
 	bool auto_fec;
 	int keepalive;
+	std::string subnet;
 	std::string ifdev;
 	std::string identity;
 	std::string config;
@@ -185,8 +183,11 @@ int main(int argc, char** argv)
 	std::vector<std::string> routes;
 	std::string pushdns;
 	bool passbyvpn = false;
+	bool c2c = true;
 
-	[[maybe_unused]] boost::nowide::args a(argc, argv);
+	INIT_ASYNC_LOGGING();
+
+	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
 	po::options_description desc("Options");
 	desc.add_options()
@@ -218,6 +219,9 @@ int main(int argc, char** argv)
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken(), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->default_value(""), "Push nameserver to client.")
 		("passbyvpn", po::value<bool>(&passbyvpn)->default_value(false), "All IP network traffic originating on client machines to pass through the server.")
+
+		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16"), "VPN subnet.")
+		("c2c", po::value<bool>(&c2c)->default_value(true), "Allow different clients to be able to see each other.")
 	;
 
 	try
@@ -229,7 +233,7 @@ int main(int argc, char** argv)
 			.options(desc)
 			.style(po::command_line_style::unix_style | po::command_line_style::allow_long_disguise)
 			.run()
-			,vm);
+			, vm);
 		po::notify(vm);
 
 		// 输出版本信息.
@@ -241,6 +245,10 @@ int main(int argc, char** argv)
 			std::cout << desc;
 			return EXIT_SUCCESS;
 		}
+
+		std::vector<std::string> print_args;
+		print_args.assign(argv, argv + argc);
+		LOG_DBG << "Run: " << boost::algorithm::join(print_args, " ");
 
 		if (vm.count("config"))
 		{
@@ -254,6 +262,12 @@ int main(int argc, char** argv)
 			auto cfg = po::parse_config_file(config.c_str(), desc, false);
 			po::store(cfg, vm);
 			po::notify(vm);
+		}
+
+		// test subnet address.
+		{
+			auto net = boost::asio::ip::make_network_v4(subnet);
+			net.address().to_string();
 		}
 	}
 	catch (const std::exception& e)
@@ -292,6 +306,8 @@ int main(int argc, char** argv)
 	params.fec_delay_ = fec_delay;
 	params.auto_fec_ = auto_fec;
 	params.keepalive_ = keepalive;
+	params.c2c_ = c2c;
+	params.subnet_ = subnet;
 	if (data_shards + parity_shards > 256)
 	{
 		LOG_ERR << "sum of data and parity shards cannot exceed 256";

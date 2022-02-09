@@ -17,6 +17,34 @@ math(EXPR VERSION_TINY "${VERSION_DAY_YEAR}")
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
 
+# Disable in-source builds to prevent source tree corruption.
+if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+  message(FATAL_ERROR "
+FATAL: In-source builds are not allowed.
+       You should create a separate directory for build files.
+")
+endif()
+message(STATUS "CMAKE Version: ${CMAKE_VERSION}")
+
+message(STATUS "Source Dir: ${CMAKE_CURRENT_SOURCE_DIR}")
+message(STATUS "Host System name: ${CMAKE_HOST_SYSTEM_NAME}")
+
+set(default_build_type "Release")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+        STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+                 "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+message(STATUS "System name: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "System version: ${CMAKE_SYSTEM_VERSION}")
+if (WIN32)
+	message(STATUS "Platform version: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
 # 跨平台性定义.
 if (WIN32)
 	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
@@ -25,6 +53,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_definitions(-DAVPN_LINUX)
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
 	add_definitions(-DAVPN_FREEBSD)
+elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	add_definitions(-DAVPN_APPLE)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cmake")
@@ -196,13 +226,12 @@ else()
 	find_package(ZLIB REQUIRED)
 endif()
 
-if (UNIX)
+if (UNIX AND NOT APPLE)
 	add_subdirectory(third_party/iproute2)
 	set(IPROUTE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iproute2/include)
 	set(IPROUTE2_LIBRARIES iproute2)
 
 	include_directories(${IPROUTE2_INCLUDE_DIRS})
-
 endif()
 
 add_subdirectory(third_party/fmt)
@@ -253,7 +282,7 @@ if (WIN32)
 		Winmm.lib
 		Mswsock.lib
 	)
-else()
+elseif(UNIX AND NOT APPLE)
 	# aviod link std::filesystem fail.
 	set(std_fs_workaround "")
 	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
