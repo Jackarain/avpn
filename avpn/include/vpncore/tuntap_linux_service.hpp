@@ -24,20 +24,11 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 
-#elif AVPN_APPLE
-
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/kern_control.h>
-#include <net/if_utun.h>
-#include <sys/ioctl.h>
-#include <sys/kern_event.h>
-
 #endif
 
 #ifdef AVPN_LINUX
-extern "C" {
+extern "C"
+{
 #include <linux/if_tun.h>
 #include <asm/types.h>
 #include <libnetlink.h>
@@ -49,19 +40,19 @@ extern "C" {
 // #define ARPHRD_ETHER        1
 
 #ifndef IFF_TUN
-#define IFF_TUN             0x0001
+#define IFF_TUN 0x0001
 #endif // !IFF_TUN
 
 #ifndef IFF_TAP
-#define IFF_TAP             0x0002
+#define IFF_TAP 0x0002
 #endif // !IFF_TAP
 
 #ifndef IFF_NO_PI
-#define IFF_NO_PI			0x1000
+#define IFF_NO_PI 0x1000
 #endif // !IFF_NO_PI
 
-static const char			drv_name[] = "tun";
-#define TUNDEV				"/dev/net/tun"
+static const char drv_name[] = "tun";
+#define TUNDEV "/dev/net/tun"
 
 #endif
 
@@ -86,7 +77,8 @@ static const char			drv_name[] = "tun";
 #ifdef AVPN_LINUX
 static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
 {
-	struct {
+	struct
+	{
 		struct nlmsghdr nlh;
 		struct rtgenmsg g;
 	} req;
@@ -103,24 +95,26 @@ static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 	req.nlh.nlmsg_seq = rth->dump = ++rth->seq;
 	req.g.rtgen_family = family;
 
-	return sendto(rth->fd, (void*)&req, sizeof(req), 0,
-		(struct sockaddr*)&nladdr, sizeof(nladdr));
+	return sendto(rth->fd, (void *)&req, sizeof(req), 0,
+				  (struct sockaddr *)&nladdr, sizeof(nladdr));
 }
 #endif
 
-namespace avpn {
+namespace avpn
+{
 	namespace posix = boost::asio::posix;
 
 	template <typename ReturnType>
 	inline ReturnType error_wrapper(ReturnType return_value,
-		boost::system::error_code& ec)
+									boost::system::error_code &ec)
 	{
 		ec = boost::system::error_code(errno,
-			boost::asio::error::get_system_category());
+									   boost::asio::error::get_system_category());
 		return return_value;
 	}
 
-	namespace details {
+	namespace details
+	{
 
 		inline int read_tuntap_prop(const char *dev, const char *prop, long *value)
 		{
@@ -130,20 +124,23 @@ namespace avpn {
 			int ret;
 
 			ret = snprintf(fname, sizeof(fname), "/sys/class/net/%s/%s",
-				dev, prop);
+						   dev, prop);
 
-			if (ret <= 0 || (size_t)ret >= sizeof(fname)) {
+			if (ret <= 0 || (size_t)ret >= sizeof(fname))
+			{
 				LOG_ERR << "could not build pathname for property";
 				return -1;
 			}
 
 			fp = fopen(fname, "r");
-			if (fp == NULL) {
+			if (fp == NULL)
+			{
 				LOG_ERR << "fopen " << fname << " fail";
 				return -1;
 			}
 
-			if (!fgets(buf, sizeof(buf), fp)) {
+			if (!fgets(buf, sizeof(buf), fp))
+			{
 				LOG_ERR << "property '" << prop << "' in file " << fname << "is currently unknown";
 				fclose(fp);
 				goto out;
@@ -156,7 +153,8 @@ namespace avpn {
 			fclose(fp);
 			result = strtol(buf, &endp, 0);
 
-			if (*endp || buf == endp) {
+			if (*endp || buf == endp)
+			{
 				LOG_ERR << "value '" << buf << "' in file " << fname << " is not a number";
 				goto out;
 			}
@@ -170,26 +168,24 @@ namespace avpn {
 		}
 	}
 
-	class tuntap_fd_service
-		: public boost::asio::detail::service_base<tuntap_fd_service>
+	class tuntap_linux_service
+		: public boost::asio::detail::service_base<tuntap_linux_service>
 	{
 		// c++11 noncopyable.
-		tuntap_fd_service(const tuntap_fd_service&) = delete;
-		tuntap_fd_service& operator=(const tuntap_fd_service&) = delete;
+		tuntap_linux_service(const tuntap_linux_service &) = delete;
+		tuntap_linux_service &operator=(const tuntap_linux_service &) = delete;
 
 	public:
-		using impl_type = tuntap_fd_service*;
+		using impl_type = tuntap_linux_service *;
 
-		explicit tuntap_fd_service(boost::asio::io_context& io_context)
-			: boost::asio::detail::service_base<tuntap_fd_service>(io_context)
-			, m_stream_descriptor(io_context)
-			, m_tuntap_fd(0)
+		explicit tuntap_linux_service(boost::asio::io_context &io_context)
+			: boost::asio::detail::service_base<tuntap_linux_service>(io_context), m_stream_descriptor(io_context), m_tuntap_fd(0)
 		{
 			// 程序开始时获取tuntap列表.
 			fetch_tuntap();
 		}
 
-		~tuntap_fd_service()
+		~tuntap_linux_service()
 		{
 		}
 
@@ -202,12 +198,12 @@ namespace avpn {
 			return nullptr;
 		}
 
-		void create(impl_type& impl)
+		void create(impl_type &impl)
 		{
 			impl = this;
 		}
 
-		void destroy([[maybe_unused]] impl_type& impl)
+		void destroy([[maybe_unused]] impl_type &impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			close(impl);
@@ -215,11 +211,10 @@ namespace avpn {
 			impl = null();
 		}
 
-
-		bool open([[maybe_unused]] impl_type& impl, const dev_config& cfg)
+		bool open([[maybe_unused]] impl_type &impl, const dev_config &cfg)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
-#ifdef AVPN_LINUX
+#if defined(AVPN_LINUX)
 			struct ifreq ifr;
 			int fd;
 
@@ -270,7 +265,7 @@ namespace avpn {
 			// hardcode set mtu size.
 			ifr.ifr_mtu = 1450;
 
-			if (ioctl(sock, SIOCSIFMTU, (void*)&ifr) < 0)
+			if (ioctl(sock, SIOCSIFMTU, (void *)&ifr) < 0)
 			{
 				::close(sock);
 				::close(fd);
@@ -340,17 +335,14 @@ namespace avpn {
 			m_tuntap_fd = fd;
 
 			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successd, " << fd;
-
-#elif defined(AVPN_APPLE)
-
 #endif
 			return true;
 		}
 
-		void close([[maybe_unused]] impl_type& impl)
+		void close([[maybe_unused]] impl_type &impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
-#ifdef AVPN_LINUX
+#if defined(AVPN_LINUX)
 			if (m_tuntap_fd != 0)
 			{
 				boost::system::error_code ignore_ec;
@@ -361,10 +353,10 @@ namespace avpn {
 		}
 
 		template <typename MutableBufferSequence, typename ReadHandler>
-		void start_async_read(const MutableBufferSequence& buffers, ReadHandler& handler)
+		void start_async_read(const MutableBufferSequence &buffers, ReadHandler &handler)
 		{
-			m_stream_descriptor.async_read_some(buffers, [this, handler]
-			(boost::system::error_code error, std::size_t bytes_transferred) mutable
+			m_stream_descriptor.async_read_some(buffers,
+			[this, handler](boost::system::error_code error, std::size_t bytes_transferred) mutable
 			{
 				boost::system::error_code ec;
 				if (error == boost::asio::error::eof)
@@ -376,13 +368,14 @@ namespace avpn {
 		template <typename MutableBufferSequence, typename ReadHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-			async_read_some([[maybe_unused]] impl_type& impl, const MutableBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+		async_read_some([[maybe_unused]] impl_type &impl, const MutableBufferSequence &buffers,
+			BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 
 			boost::asio::async_completion<ReadHandler,
-				void(boost::system::error_code, std::size_t)> init(handler);
+				void(boost::system::error_code, std::size_t)>
+					init(handler);
 
 			start_async_read(buffers, init.completion_handler);
 
@@ -390,7 +383,7 @@ namespace avpn {
 		}
 
 		template <typename ConstBufferSequence, typename WriteHandler>
-		void start_async_write(const ConstBufferSequence& buffers, WriteHandler& handler)
+		void start_async_write(const ConstBufferSequence &buffers, WriteHandler &handler)
 		{
 			m_stream_descriptor.async_write_some(buffers, [this, handler]
 			(boost::system::error_code error, std::size_t bytes_transferred) mutable
@@ -405,25 +398,26 @@ namespace avpn {
 		template <typename ConstBufferSequence, typename WriteHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-			async_write_some([[maybe_unused]] impl_type& impl, const ConstBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+		async_write_some([[maybe_unused]] impl_type &impl, const ConstBufferSequence &buffers,
+			BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			boost::asio::async_completion<WriteHandler,
-				void(boost::system::error_code, std::size_t)> init(handler);
+				void(boost::system::error_code, std::size_t)>
+				init(handler);
 
 			start_async_write(buffers, init.completion_handler);
 
 			return init.result.get();
 		}
 
-		std::vector<device_tuntap> take_device_list([[maybe_unused]] impl_type& impl)
+		std::vector<device_tuntap> take_device_list([[maybe_unused]] impl_type &impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			return m_device_list;
 		}
 
-		bool take_mac([[maybe_unused]] impl_type& impl, char mac[6])
+		bool take_mac([[maybe_unused]] impl_type &impl, char mac[6])
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			if (m_tuntap_fd == 0)
@@ -433,7 +427,7 @@ namespace avpn {
 		}
 
 		// 获取当前打开的tuntap设备的mtu.
-		int take_mtu([[maybe_unused]] impl_type& impl)
+		int take_mtu([[maybe_unused]] impl_type &impl)
 		{
 			BOOST_ASSERT("impl == this" && impl == this);
 			return m_frame_mtu;
@@ -453,7 +447,7 @@ namespace avpn {
 				return;
 			if (rtnl_wilddump_request_old(&rth, AF_UNSPEC, RTM_GETLINK) < 0)
 				return;
-			if (rtnl_dump_filter_nc(&rth, list_tuntap_func, (void*)this, 0) < 0)
+			if (rtnl_dump_filter_nc(&rth, list_tuntap_func, (void *)this, 0) < 0)
 				return;
 			rtnl_close(&rth);
 #endif
@@ -463,7 +457,7 @@ namespace avpn {
 		// friend
 		static int list_tuntap_func(struct nlmsghdr *n, void *arg)
 		{
-			auto pthis = (tuntap_fd_service*)arg;
+			auto pthis = (tuntap_linux_service *)arg;
 			return pthis->list_tuntap(n);
 		}
 #endif
@@ -471,18 +465,19 @@ namespace avpn {
 		int list_tuntap(struct nlmsghdr *n)
 		{
 #ifdef AVPN_LINUX
-			struct ifinfomsg *ifi = (struct ifinfomsg*)NLMSG_DATA(n);
+			struct ifinfomsg *ifi = (struct ifinfomsg *)NLMSG_DATA(n);
 			struct rtattr *tb[IFLA_MAX + 1];
 			struct rtattr *linkinfo[IFLA_INFO_MAX + 1];
 			const char *name, *kind;
-			long flags/*, owner = -1, group = -1 */;
+			long flags /*, owner = -1, group = -1 */;
 
 			if (n->nlmsg_type != RTM_NEWLINK && n->nlmsg_type != RTM_DELLINK)
 				return 0;
 			if (n->nlmsg_len < NLMSG_LENGTH(sizeof(*ifi)))
 				return -1;
 
-			switch (ifi->ifi_type) {
+			switch (ifi->ifi_type)
+			{
 			case ARPHRD_NONE:
 			case ARPHRD_ETHER:
 				break;
@@ -497,8 +492,7 @@ namespace avpn {
 			if (!tb[IFLA_LINKINFO])
 				return 0;
 
-			parse_rtattr(linkinfo, IFLA_INFO_MAX, (struct rtattr *)
-				RTA_DATA(tb[IFLA_LINKINFO]), RTA_PAYLOAD(tb[IFLA_LINKINFO]));
+			parse_rtattr(linkinfo, IFLA_INFO_MAX, (struct rtattr *)RTA_DATA(tb[IFLA_LINKINFO]), RTA_PAYLOAD(tb[IFLA_LINKINFO]));
 			// parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, (void*)tb[IFLA_LINKINFO]);
 			if (!linkinfo[IFLA_INFO_KIND])
 				return 0;

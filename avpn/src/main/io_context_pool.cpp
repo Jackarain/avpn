@@ -8,6 +8,9 @@
 #include "avpn/internal.hpp"
 #include "avpn/io_context_pool.hpp"
 
+#include "utils/misc.hpp"
+
+
 namespace avpn {
 
 	io_context_pool::io_context_pool(std::size_t pool_size)

@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include "avpn/internal.hpp"
+
+
 namespace avpn {
 
 	/// A pool of io_context objects.

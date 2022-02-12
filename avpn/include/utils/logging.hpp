@@ -833,9 +833,6 @@ public:
 };
 } // namespace util
 
-using util::init_logging;
-using util::shutdown_logging;
-
 #if (defined(DEBUG) || defined(_DEBUG) || defined(ENABLE_LOGGER)) && !defined(DISABLE_LOGGER)
 
 #undef LOG_DBG

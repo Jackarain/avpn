@@ -10,9 +10,9 @@
 #if defined(AVPN_WINDOWS)
 #	include "vpncore/tuntap_windows_service.hpp"
 #elif defined(AVPN_LINUX)
-#	include "vpncore/tuntap_fd_service.hpp"
+#	include "vpncore/tuntap_linux_service.hpp"
 #elif defined(AVPN_APPLE)
-#	include "vpncore/tuntap_fd_service.hpp"
+#	include "vpncore/tuntap_macos_service.hpp"
 #else
 #	error unsupported platform
 #endif
@@ -27,9 +27,9 @@ namespace avpn {
 #if defined(AVPN_WINDOWS)
 	using tuntap = basic_tuntap<tuntap_windows_service>;
 #elif defined(AVPN_LINUX)
-	using tuntap = basic_tuntap<tuntap_fd_service>;
+	using tuntap = basic_tuntap<tuntap_linux_service>;
 #elif defined(AVPN_APPLE)
-	using tuntap = basic_tuntap<tuntap_fd_service>;
+	using tuntap = basic_tuntap<tuntap_macos_service>;
 #endif
 
 }

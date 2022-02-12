@@ -79,10 +79,10 @@ namespace avpn {
 	void avpn_service::start_tun_read_loop(boost::asio::yield_context& yield)
 	{
 		boost::system::error_code ec;
+		avpn::vpn_message msg;
 
 		while (!m_abort)
 		{
-			avpn::vpn_message msg;
 			auto& content = msg.content;
 			content.resize(128 * 1024);
 
@@ -246,7 +246,7 @@ namespace avpn {
 		auto addr = net.address();
 		auto ipaddr = addr.to_string();
 
-		uint32_t gw = addr.to_uint() & mask.to_uint();
+		uint32_t gw = (addr.to_uint() & mask.to_uint()) + 1;
 		auto gateway = boost::asio::ip::make_address_v4(gw);
 
 		LOG_DBG << "setup_tun ip: " << ipaddr

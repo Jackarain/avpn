@@ -52,6 +52,7 @@ namespace po = boost::program_options;
 
 #include "avpn/version.hpp"
 #include "avpn/internal.hpp"
+#include "avpn/io_context_pool.hpp"
 #include "avpn/avpn.hpp"
 #include "avpn/reedsolomon.hpp"
 
@@ -185,8 +186,6 @@ int main(int argc, char** argv)
 	bool passbyvpn = false;
 	bool c2c = true;
 
-	INIT_ASYNC_LOGGING();
-
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
 	po::options_description desc("Options");
@@ -277,7 +276,7 @@ int main(int argc, char** argv)
 	}
 
 	auto concurrency = boost::thread::hardware_concurrency() + 2;
-	io_context_pool ios{concurrency};
+	avpn::io_context_pool ios{concurrency};
 
 	boost::asio::signal_set terminator_signal(ios.get_io_context());
 	terminator_signal.add(SIGINT);

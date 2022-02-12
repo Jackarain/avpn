@@ -86,7 +86,7 @@
 #include <boost/json.hpp>
 
 #include <boost/filesystem.hpp>
-namespace fs = boost::filesystem;
+
 
 #include <boost/signals2.hpp>
 
@@ -97,7 +97,7 @@ namespace fs = boost::filesystem;
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
-namespace multiprecision = boost::multiprecision;
+
 #include <boost/circular_buffer.hpp>
 
 #ifdef __clang__
@@ -114,47 +114,3 @@ namespace multiprecision = boost::multiprecision;
 #include "utils/logging.hpp"
 
 #pragma warning(pop)
-
-#include "utils/url_parser.hpp"
-#include "utils/time_clock.hpp"
-
-#pragma warning(push)
-#pragma warning(disable: 4267)
-
-
-#ifndef _MSC_VER
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif // _MSC_VER
-
-#include "cryptopp/base32.h"
-
-#ifndef _MSC_VER
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
-#endif // _MSC_VER
-
-#pragma warning(pop)
-
-#include "avpn/io_context_pool.hpp"
-
-#define APP_NAME "avpn"
-#define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
-
-using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
-using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
-namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
-
-using ws = websocket::stream<tcp::socket>;
-using boost::multiprecision::cpp_int;
-using boost::multiprecision::cpp_dec_float_50;
-using boost::multiprecision::cpp_dec_float_100;
-using avpn::io_context_pool;
-using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
-
-template<class ... T> inline constexpr bool always_false = false;
-
-#include "avpn/misc.hpp"

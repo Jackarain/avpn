@@ -11,6 +11,7 @@
 #include <functional>
 #include <cstring> // for std::memcpy
 #include <map>
+#include <unordered_map>
 #include <set>
 
 #include <boost/asio/io_context.hpp>
@@ -39,6 +40,7 @@
 
 #include <zlib.h>
 
+#include "avpn/io_context_pool.hpp"
 #include "avpn/reedsolomon.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
@@ -49,6 +51,7 @@
 #include "utils/time_clock.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
+#include "utils/misc.hpp"
 
 namespace avpn {
 
@@ -57,7 +60,7 @@ namespace avpn {
 	using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
 	namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 	using ws = websocket::stream<tcp::socket>;		// from <boost/beast/websocket.hpp>
-	namespace net = boost::asio;					// from <boost/asio.hpp>
+	// namespace net = boost::asio;					// from <boost/asio.hpp>
 	using time_point = time_clock::steady_clock::time_point;
 
 	using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
@@ -1902,11 +1905,11 @@ namespace avpn {
 				}
 
 				uint8_t* bufptr = (uint8_t*)&buffer[0];
-
 				auto type = read_uint8(bufptr);
+				auto bufsize = read_int32(bufptr);
 
 				// 接下来就是数据.
-				std::string_view sv((char*)bufptr, read_int32(bufptr));
+				std::string_view sv((char*)bufptr, bufsize);
 				if (sv.size() >= normal_mtu)
 				{
 					LOG_ERR << "start_client_read, remote host: " << remote_endp << ", verify message size fail.";
@@ -1999,7 +2002,8 @@ namespace avpn {
 					continue;
 				}
 
-				asio_util::async_connect(sock, results, yield[ec]);
+				// asio_utils::async_connect can't ctrl + break.
+				boost::asio::async_connect(sock, results, yield[ec]);
 				if (ec)
 				{
 					LOG_ERR << "channel::connect, async_connect: " << ec.message();
@@ -2147,7 +2151,8 @@ namespace avpn {
 				auto type = read_uint8(bufptr);
 
 				// 接下来就是数据.
-				std::string_view sv((char*)bufptr, read_int32(bufptr));
+				auto bufsize = read_int32(bufptr);
+				std::string_view sv((char*)bufptr, bufsize);
 				if (sv.size() >= normal_mtu)
 				{
 					LOG_ERR << "start_client_read, id: " << connection_id << ", verify message size fail.";
@@ -2206,7 +2211,7 @@ namespace avpn {
 
 					boost::system::error_code ec;
 
-					LOG_DBG << "Keepalive for connection id: " << ws_conn_ptr->connection_id_;
+					// LOG_DBG << "Keepalive for connection id: " << ws_conn_ptr->connection_id_;
 					ws_conn_ptr->ws_stream_.async_ping("", yield[ec]);
 
 					do
@@ -2470,7 +2475,7 @@ namespace avpn {
 					if (version != avpn_protocol_version)
 					{
 						LOG_ERR << "Client protocol version incompatible: "
-							<< avpn_protocol_version << ", expect: " << version;
+							<< version << ", expect: " << avpn_protocol_version;
 						return;
 					}
 					bodysize-=2;
@@ -2616,7 +2621,7 @@ namespace avpn {
 			break;
 			case vpt_keepalive:
 			{
-				LOG_DBG << "udp client: " << endp << " keepalive";
+				// LOG_DBG << "udp client: " << endp << " keepalive";
 			}
 			break;
 			case vpt_udp_handshake:

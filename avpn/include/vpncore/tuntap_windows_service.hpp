@@ -33,8 +33,6 @@
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Iphlpapi.lib")
 
-#endif
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -618,3 +616,5 @@ namespace avpn {
 		int if_index;
 	};
 }
+
+#endif

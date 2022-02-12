@@ -27,7 +27,7 @@ namespace asio_util {
 
 	namespace detail {
 		template <typename Stream>
-		struct connect_params_detaila
+		struct connect_context
 		{
 			std::atomic_int flag_;
 			std::atomic_int num_;
@@ -68,9 +68,7 @@ namespace asio_util {
 			void callback(Handler&& handler, Iterator& begin, const boost::system::error_code& error)
 			{
 				auto executor = boost::asio::get_associated_executor(handler);
-				auto h = std::move(handler);
-
-				boost::asio::post(executor, [error, h, begin]() mutable
+				boost::asio::post(executor, [error, h = std::move(handler), begin]() mutable
 				{
 					if constexpr (std::is_same_v<ResultType, typename Stream::endpoint_type>)
 						do_result(h, error, *begin);
@@ -81,15 +79,15 @@ namespace asio_util {
 
 			template <typename Stream, typename Handler, typename Iterator,
 				typename ConnectCondition, typename ResultType = void>
-			void do_async_connect(Handler&& handler, Stream& s,
+			void do_async_connect(Handler&& handler, Stream& stream,
 				Iterator begin, Iterator end,
 				ConnectCondition connect_condition)
 			{
-				auto params = boost::make_local_shared<connect_params_detaila<Stream>>();
+				auto context = boost::make_local_shared<connect_context<Stream>>();
 
-				params->flag_ = false;
-				params->num_ = std::distance(begin, end);
-				if (params->num_ == 0)
+				context->flag_ = false;
+				context->num_ = std::distance(begin, end);
+				if (context->num_ == 0)
 				{
 					auto error = boost::system::error_code(boost::asio::error::no_data);
 					callback<Stream, Handler, Iterator, ResultType>(std::forward<Handler>(handler), begin, error);
@@ -116,14 +114,14 @@ namespace asio_util {
 
 				for (; begin != end; begin++)
 				{
-					auto sock = boost::make_local_shared<Stream>(s.get_executor());
-					params->socket_.emplace_back(sock);
+					auto sock = boost::make_local_shared<Stream>(stream.get_executor());
+					context->socket_.emplace_back(sock);
 
-					auto func = [this, begin, &s, params, sock, handler, &connect_condition]() mutable
+					auto func = [this, begin, &stream, context, sock, handler, &connect_condition]() mutable
 					{
 						if (!check_condition({}, *sock, *begin, connect_condition))
 						{
-							if (reject == params->num_)
+							if (reject == context->num_)
 							{
 								auto error = boost::system::error_code(boost::asio::error::not_found);
 								callback<Stream, Handler, Iterator, ResultType>(std::forward<Handler>(handler), begin, error);
@@ -132,27 +130,28 @@ namespace asio_util {
 							return;
 						}
 
-						sock->async_connect(*begin, [this, &s, params, begin, sock, handler]
+						sock->async_connect(*begin,
+						[&stream, context, begin, sock, handler]
 						(const boost::system::error_code& error) mutable
 						{
 							if (!error)
 							{
-								if (params->flag_.exchange(true))
+								if (context->flag_.exchange(true))
 									return;
 
-								s = std::move(*sock);
+								stream = std::move(*sock);
 							}
 
-							params->num_--;
-							bool is_last = params->num_ == 0;
+							context->num_--;
+							bool is_last = context->num_ == 0;
 
 							if (error)
 							{
-								if (params->flag_ || !is_last)
+								if (context->flag_ || !is_last)
 									return;
 							}
 
-							auto& sockets = params->socket_;
+							auto& sockets = context->socket_;
 							for (auto& t : sockets)
 							{
 								if (!t)
@@ -176,14 +175,14 @@ namespace asio_util {
 						using boost::asio::steady_timer;
 
 						// ipv4 delay 200ms.
-						auto delay_timer = boost::make_local_shared<steady_timer>(s.get_executor());
+						auto delay_timer = boost::make_local_shared<steady_timer>(stream.get_executor());
 						auto& timer = *delay_timer;
 
 						timer.expires_from_now(200ms);
-						timer.async_wait([delay_timer, conn_func = std::move(conn_func), params]
+						timer.async_wait([delay_timer, conn_func = std::move(conn_func), context]
 						([[maybe_unused]] const boost::system::error_code& error)
 						{
-							if (params->flag_)
+							if (context->flag_)
 								return;
 							conn_func();
 						});
