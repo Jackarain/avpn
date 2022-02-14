@@ -46,9 +46,28 @@
 #include "utils/misc.hpp"
 #include "utils/scoped_exit.hpp"
 
+#pragma warning(push)
+#pragma warning(disable: 4267)
+
+#ifndef _MSC_VER
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif // _MSC_VER
+
 #include "cryptopp/sha.h"
 #include "cryptopp/hmac.h"
+#include "cryptopp/base32.h"
 #include "cryptopp/base64.h"
+
+#ifndef _MSC_VER
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+#endif // _MSC_VER
+
+#pragma warning(pop)
 
 namespace fs = boost::filesystem;
 

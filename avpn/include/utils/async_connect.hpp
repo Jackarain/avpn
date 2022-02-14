@@ -40,6 +40,20 @@ namespace asio_util {
 			h(error, result);
 		}
 
+		template <typename Stream, typename Handler,
+			typename Iterator, typename ResultType = void>
+		void callback(Handler&& handler, Iterator& begin, const boost::system::error_code& error)
+		{
+			auto executor = boost::asio::get_associated_executor(handler);
+			boost::asio::post(executor, [error, h = std::move(handler), begin]() mutable
+			{
+				if constexpr (std::is_same_v<ResultType, typename Stream::endpoint_type>)
+					do_result(h, error, *begin);
+				if constexpr (!std::is_same_v<ResultType, typename Stream::endpoint_type>)
+					do_result(h, error, begin);
+			});
+		}
+
 		struct default_connect_condition
 		{
 			template <typename Stream, typename Endpoint>
@@ -61,20 +75,6 @@ namespace asio_util {
 				bool ret = connect_condition(ec, stream, endp);
 				if (!ret) reject++;
 				return ret;
-			}
-
-			template <typename Stream, typename Handler,
-				typename Iterator, typename ResultType = void>
-			void callback(Handler&& handler, Iterator& begin, const boost::system::error_code& error)
-			{
-				auto executor = boost::asio::get_associated_executor(handler);
-				boost::asio::post(executor, [error, h = std::move(handler), begin]() mutable
-				{
-					if constexpr (std::is_same_v<ResultType, typename Stream::endpoint_type>)
-						do_result(h, error, *begin);
-					if constexpr (!std::is_same_v<ResultType, typename Stream::endpoint_type>)
-						do_result(h, error, begin);
-				});
 			}
 
 			template <typename Stream, typename Handler, typename Iterator,

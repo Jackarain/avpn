@@ -47,6 +47,7 @@ elseif (APPLE)
 endif()
 
 add_executable(avpn ${avpn_SRCS})
+set_property(TARGET avpn PROPERTY CXX_STANDARD 20)
 
 target_include_directories(avpn PUBLIC
 	${CMAKE_BINARY_DIR}

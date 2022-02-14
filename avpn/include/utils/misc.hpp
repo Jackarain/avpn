@@ -116,27 +116,6 @@
 #include "utils/url_parser.hpp"
 #include "utils/time_clock.hpp"
 
-#pragma warning(push)
-#pragma warning(disable: 4267)
-
-
-#ifndef _MSC_VER
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif // _MSC_VER
-
-#include "cryptopp/base32.h"
-
-#ifndef _MSC_VER
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
-#endif // _MSC_VER
-
-#pragma warning(pop)
-
 #include "avpn/io_context_pool.hpp"
 
 #define APP_NAME "avpn"

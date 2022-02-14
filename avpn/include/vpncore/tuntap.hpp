@@ -13,6 +13,8 @@
 #	include "vpncore/tuntap_linux_service.hpp"
 #elif defined(AVPN_APPLE)
 #	include "vpncore/tuntap_macos_service.hpp"
+#elif defined(AVPN_ANDROID)
+#	include "vpncore/tuntap_android_service.hpp"
 #else
 #	error unsupported platform
 #endif
@@ -30,6 +32,8 @@ namespace avpn {
 	using tuntap = basic_tuntap<tuntap_linux_service>;
 #elif defined(AVPN_APPLE)
 	using tuntap = basic_tuntap<tuntap_macos_service>;
+#elif defined(AVPN_ANDROID)
+	using tuntap = basic_tuntap<tuntap_android_service>;
 #endif
 
 }

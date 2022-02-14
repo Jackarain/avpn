@@ -48,8 +48,6 @@ namespace avpn
 		tuntap_macos_service &operator=(const tuntap_macos_service &) = delete;
 
 	public:
-		using impl_type = tuntap_macos_service *;
-
 		explicit tuntap_macos_service(boost::asio::io_context &io_context)
 			: boost::asio::detail::service_base<tuntap_macos_service>(io_context)
 			, m_stream_descriptor(io_context)
@@ -60,32 +58,8 @@ namespace avpn
 		{
 		}
 
-		void shutdown_service()
+		bool open(const dev_config &cfg)
 		{
-		}
-
-		impl_type null() const
-		{
-			return nullptr;
-		}
-
-		void create(impl_type &impl)
-		{
-			impl = this;
-		}
-
-		void destroy([[maybe_unused]] impl_type &impl)
-		{
-			BOOST_ASSERT("impl == this" && impl == this);
-			close(impl);
-			// delete impl;
-			impl = null();
-		}
-
-		bool open([[maybe_unused]] impl_type &impl, const dev_config &cfg)
-		{
-			BOOST_ASSERT("impl == this" && impl == this);
-
 			struct ctl_info ctlInfo = {0};
 			strlcpy(ctlInfo.ctl_name, UTUN_CONTROL_NAME, sizeof(ctlInfo.ctl_name));
 
@@ -177,7 +151,7 @@ namespace avpn
 					::close(fd);
 					return false;
 				}
-				ifr.ifr_mtu = 1450;
+				m_frame_mtu = ifr.ifr_mtu = 1450;
 
 				if (ioctl(s, SIOCSIFMTU, (void *)&ifr) < 0)
 				{
@@ -255,15 +229,14 @@ namespace avpn
 			return true;
 		}
 
-		void close([[maybe_unused]] impl_type &impl)
+		void close()
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
-			if (m_tuntap_fd != 0)
-			{
-				boost::system::error_code ignore_ec;
-				m_stream_descriptor.close(ignore_ec);
-				m_tuntap_fd = 0;
-			}
+			if (m_tuntap_fd == 0)
+				return;
+
+			boost::system::error_code ignore_ec;
+			m_stream_descriptor.close(ignore_ec);
+			m_tuntap_fd = 0;
 		}
 
 		template <typename MutableBufferSequence, typename ReadHandler>
@@ -288,11 +261,9 @@ namespace avpn
 		template <typename MutableBufferSequence, typename ReadHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-		async_read_some([[maybe_unused]] impl_type &impl, const MutableBufferSequence &buffers,
+		async_read_some(const MutableBufferSequence &buffers,
 			BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
-
 			boost::asio::async_completion<ReadHandler,
 				void(boost::system::error_code, std::size_t)>
 					init(handler);
@@ -329,10 +300,9 @@ namespace avpn
 		template <typename ConstBufferSequence, typename WriteHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-		async_write_some([[maybe_unused]] impl_type &impl, const ConstBufferSequence &buffers,
+		async_write_some(const ConstBufferSequence &buffers,
 			BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
 			boost::asio::async_completion<WriteHandler,
 				void(boost::system::error_code, std::size_t)>
 				init(handler);
@@ -342,15 +312,13 @@ namespace avpn
 			return init.result.get();
 		}
 
-		std::vector<device_tuntap> take_device_list([[maybe_unused]] impl_type &impl)
+		std::vector<device_tuntap> take_device_list()
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
 			return m_device_list;
 		}
 
-		bool take_mac([[maybe_unused]] impl_type &impl, char mac[6])
+		bool take_mac(char mac[6])
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
 			if (m_tuntap_fd == 0)
 				return false;
 			std::memcpy(mac, m_mac_addr.data(), 6);
@@ -358,25 +326,22 @@ namespace avpn
 		}
 
 		// 获取当前打开的tuntap设备的mtu.
-		int take_mtu([[maybe_unused]] impl_type &impl)
+		int take_mtu()
 		{
-			BOOST_ASSERT("impl == this" && impl == this);
 			return m_frame_mtu;
 		}
 
 		int get_if_index() const
 		{
-			return if_index;
+			return -1;
 		}
 
 	private:
 		boost::asio::posix::stream_descriptor m_stream_descriptor;
 		std::vector<device_tuntap> m_device_list;
 		dev_config m_config;
-		int m_frame_mtu;
+		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
-		int m_tuntap_fd;
-		int if_index;
 	};
 
 }

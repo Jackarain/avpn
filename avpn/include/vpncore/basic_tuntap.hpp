@@ -24,20 +24,14 @@ namespace avpn {
 		basic_tuntap& operator=(const basic_tuntap&) = delete;
 
 	public:
-		typedef Service service_type;
-		typedef typename service_type::impl_type impl_type;
+		using service_type = Service;
 
 		explicit basic_tuntap(boost::asio::io_context& io_context)
-			: service_(boost::asio::use_service<Service>(io_context)),
-			impl_(service_.null())
-		{
-			service_.create(impl_);
-		}
+			: service_(io_context)
+		{}
 
 		~basic_tuntap()
-		{
-			service_.destroy(impl_);
-		}
+		{}
 
 		boost::asio::io_context& get_io_context()
 		{
@@ -47,13 +41,13 @@ namespace avpn {
 		// 打开指定的tuntap设备，并按cfg配置.
 		bool open(const dev_config& cfg)
 		{
-			return service_.open(impl_, cfg);
+			return service_.open(cfg);
 		}
 
 		// 关闭已经打开的tuntap设备.
 		void close()
 		{
-			service_.close(impl_);
+			service_.close();
 		}
 
 		// 提供异步读取tuntap设备上的数据到buffer.
@@ -65,7 +59,7 @@ namespace avpn {
 				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
 		{
 			boost::asio::async_completion<ReadHandler, void(boost::system::error_code, std::size_t)> init(handler);
-			service_.async_read_some(impl_, buffers, std::move(init.completion_handler));
+			service_.async_read_some(buffers, std::move(init.completion_handler));
 			return init.result.get();
 		}
 
@@ -78,7 +72,7 @@ namespace avpn {
 				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
 		{
 			boost::asio::async_completion<WriteHandler, void(boost::system::error_code, std::size_t)> init(handler);
-			service_.async_write_some(impl_, buffers, std::move(init.completion_handler));
+			service_.async_write_some(buffers, std::move(init.completion_handler));
 			return init.result.get();
 		}
 
@@ -86,19 +80,19 @@ namespace avpn {
 		// 先获取到tuntap, 根据这个列表选择打开指定device.
 		std::vector<device_tuntap> take_device_list()
 		{
-			return service_.take_device_list(impl_);
+			return service_.take_device_list();
 		}
 
 		// 获取当前打开的tuntap设备的mac.
 		bool take_mac(char mac[6])
 		{
-			return service_.take_mac(impl_, mac);
+			return service_.take_mac(mac);
 		}
 
 		// 获取当前打开的tuntap设备的mtu.
 		int take_mtu()
 		{
-			return service_.take_mtu(impl_);
+			return service_.take_mtu();
 		}
 
 		int get_if_index() const
@@ -107,8 +101,7 @@ namespace avpn {
 		}
 
 	private:
-		service_type & service_;
-		impl_type impl_;
+		service_type service_;
 	};
 
 }
