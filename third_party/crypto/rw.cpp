@@ -1,4 +1,4 @@
-// rw.cpp - written and placed in the public domain by Wei Dai
+// rw.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 
@@ -12,9 +12,9 @@
 #ifndef CRYPTOPP_IMPORTS
 
 #if defined(_OPENMP)
-static const bool CRYPTOPP_RW_USE_OMP = true;
+# define CRYPTOPP_RW_USE_OMP 1
 #else
-static const bool CRYPTOPP_RW_USE_OMP = false;
+# define CRYPTOPP_RW_USE_OMP 0
 #endif
 
 NAMESPACE_BEGIN(CryptoPP)
@@ -75,6 +75,7 @@ bool RWFunction::Validate(RandomNumberGenerator &rng, unsigned int level) const
 	CRYPTOPP_UNUSED(rng), CRYPTOPP_UNUSED(level);
 	bool pass = true;
 	pass = pass && m_n > Integer::One() && m_n%8 == 5;
+	CRYPTOPP_ASSERT(pass);
 	return pass;
 }
 
@@ -125,6 +126,8 @@ void InvertibleRWFunction::PrecomputeTweakedRoots() const
 {
 	ModularArithmetic modp(m_p), modq(m_q);
 
+	// GCC warning bug, https://stackoverflow.com/q/12842306/608639
+#ifdef _OPENMP
 	#pragma omp parallel sections if(CRYPTOPP_RW_USE_OMP)
 	{
 		#pragma omp section
@@ -134,6 +137,11 @@ void InvertibleRWFunction::PrecomputeTweakedRoots() const
 		#pragma omp section
 			m_pre_q_p = modp.Exponentiate(m_q, m_p - 2);
 	}
+#else
+	m_pre_2_9p = modp.Exponentiate(2, (9 * m_p - 11)/8);
+	m_pre_2_3q = modq.Exponentiate(2, (3 * m_q - 5)/8);
+	m_pre_q_p = modp.Exponentiate(m_q, m_p - 2);
+#endif
 
 	m_precompute = true;
 }
@@ -222,6 +230,7 @@ Integer InvertibleRWFunction::CalculateInverse(RandomNumberGenerator &rng, const
 	else
 		f = 2;
 
+#ifdef _OPENMP
 	Integer W, X;
 	#pragma omp parallel sections if(CRYPTOPP_RW_USE_OMP)
 	{
@@ -235,6 +244,12 @@ Integer InvertibleRWFunction::CalculateInverse(RandomNumberGenerator &rng, const
 			X = (f.IsUnit() ? t : modp.Multiply(m_pre_2_9p, t));
 		}
 	}
+#else
+	const Integer W = (f.IsUnit() ? U : modq.Multiply(m_pre_2_3q, U));
+	const Integer t = modp.Multiply(modp.Exponentiate(V, 3), eh);
+	const Integer X = (f.IsUnit() ? t : modp.Multiply(m_pre_2_9p, t));
+#endif
+
 	const Integer Y = W + q * modp.Multiply(m_pre_q_p, (X - W));
 
 	// Signature
@@ -252,16 +267,25 @@ Integer InvertibleRWFunction::CalculateInverse(RandomNumberGenerator &rng, const
 bool InvertibleRWFunction::Validate(RandomNumberGenerator &rng, unsigned int level) const
 {
 	bool pass = RWFunction::Validate(rng, level);
+	CRYPTOPP_ASSERT(pass);
 	pass = pass && m_p > Integer::One() && m_p%8 == 3 && m_p < m_n;
+	CRYPTOPP_ASSERT(pass);
 	pass = pass && m_q > Integer::One() && m_q%8 == 7 && m_q < m_n;
+	CRYPTOPP_ASSERT(pass);
 	pass = pass && m_u.IsPositive() && m_u < m_p;
+	CRYPTOPP_ASSERT(pass);
 	if (level >= 1)
 	{
 		pass = pass && m_p * m_q == m_n;
+		CRYPTOPP_ASSERT(pass);
 		pass = pass && m_u * m_q % m_p == 1;
+		CRYPTOPP_ASSERT(pass);
 	}
 	if (level >= 2)
+	{
 		pass = pass && VerifyPrime(rng, m_p, level-2) && VerifyPrime(rng, m_q, level-2);
+		CRYPTOPP_ASSERT(pass);
+	}
 	return pass;
 }
 

@@ -1,18 +1,21 @@
-// cmac.cpp - written and placed in the public domain by Wei Dai
+// cmac.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 
 #ifndef CRYPTOPP_IMPORTS
 
 #include "cmac.h"
+#include "misc.h"
 
-NAMESPACE_BEGIN(CryptoPP)
+ANONYMOUS_NAMESPACE_BEGIN
 
-static void MulU(byte *k, unsigned int length)
+using CryptoPP::byte;
+using CryptoPP::IsPowerOf2;
+
+void MulU(byte *k, unsigned int len)
 {
 	byte carry = 0;
-
-	for (int i=length-1; i>=1; i-=2)
+	for (int i=len-1; i>=1; i-=2)
 	{
 		byte carry2 = k[i] >> 7;
 		k[i] += k[i] + carry;
@@ -20,9 +23,22 @@ static void MulU(byte *k, unsigned int length)
 		k[i-1] += k[i-1] + carry2;
 	}
 
+#ifndef CRYPTOPP_CMAC_WIDE_BLOCK_CIPHERS
+	CRYPTOPP_ASSERT(len == 16);
+
 	if (carry)
 	{
-		switch (length)
+		k[15] ^= 0x87;
+		return;
+	}
+#else
+	CRYPTOPP_ASSERT(IsPowerOf2(len));
+	CRYPTOPP_ASSERT(len >= 8);
+	CRYPTOPP_ASSERT(len <= 128);
+
+	if (carry)
+	{
+		switch (len)
 		{
 		case 8:
 			k[7] ^= 0x1b;
@@ -31,21 +47,41 @@ static void MulU(byte *k, unsigned int length)
 			k[15] ^= 0x87;
 			break;
 		case 32:
+			// https://crypto.stackexchange.com/q/9815/10496
+			// Polynomial x^256 + x^10 + x^5 + x^2 + 1
 			k[30] ^= 4;
-			k[31] ^= 0x23;
+			k[31] ^= 0x25;
+			break;
+		case 64:
+			// https://crypto.stackexchange.com/q/9815/10496
+			// Polynomial x^512 + x^8 + x^5 + x^2 + 1
+			k[62] ^= 1;
+			k[63] ^= 0x25;
+			break;
+		case 128:
+			// https://crypto.stackexchange.com/q/9815/10496
+			// Polynomial x^1024 + x^19 + x^6 + x + 1
+			k[125] ^= 8;
+			k[126] ^= 0x00;
+			k[127] ^= 0x43;
 			break;
 		default:
-			throw InvalidArgument("CMAC: " + IntToString(length) + " is not a supported cipher block size");
+			CRYPTOPP_ASSERT(0);
 		}
 	}
+#endif  // CRYPTOPP_CMAC_WIDE_BLOCK_CIPHERS
 }
+
+ANONYMOUS_NAMESPACE_END
+
+NAMESPACE_BEGIN(CryptoPP)
 
 void CMAC_Base::UncheckedSetKey(const byte *key, unsigned int length, const NameValuePairs &params)
 {
 	BlockCipher &cipher = AccessCipher();
-	unsigned int blockSize = cipher.BlockSize();
-
 	cipher.SetKey(key, length, params);
+
+	unsigned int blockSize = cipher.BlockSize();
 	m_reg.CleanNew(3*blockSize);
 	m_counter = 0;
 

@@ -1,8 +1,7 @@
-// blumshub.h - written and placed in the public domain by Wei Dai
+// blumshub.h - originally written and placed in the public domain by Wei Dai
 
-//! \file
-//! \headerfile blumshub.h
-//! \brief Classes for Blum Blum Shub generator
+/// \file blumshub.h
+/// \brief Classes for Blum Blum Shub generator
 
 #ifndef CRYPTOPP_BLUMSHUB_H
 #define CRYPTOPP_BLUMSHUB_H
@@ -13,11 +12,19 @@
 
 NAMESPACE_BEGIN(CryptoPP)
 
-//! BlumBlumShub without factorization of the modulus
+/// \brief BlumBlumShub without factorization of the modulus
+/// \details You should reseed the generator after a fork() to avoid multiple generators
+///  with the same internal state.
 class PublicBlumBlumShub : public RandomNumberGenerator,
 						   public StreamTransformation
 {
 public:
+	virtual ~PublicBlumBlumShub() {}
+
+	/// \brief Construct a PublicBlumBlumShub
+	/// \param n the modulus
+	/// \param seed the seed for the generator
+	/// \details seed is the secret key and should be about as large as n.
 	PublicBlumBlumShub(const Integer &n, const Integer &seed);
 
 	unsigned int GenerateBit();
@@ -28,30 +35,30 @@ public:
 	bool IsSelfInverting() const {return true;}
 	bool IsForwardTransformation() const {return true;}
 
-#ifndef CRYPTOPP_MAINTAIN_BACKWARDS_COMPATIBILITY_562
-	virtual ~PublicBlumBlumShub() {}
-#endif
-
 protected:
 	ModularArithmetic modn;
 	Integer current;
 	word maxBits, bitsLeft;
 };
 
-//! BlumBlumShub with factorization of the modulus
+/// \brief BlumBlumShub with factorization of the modulus
+/// \details You should reseed the generator after a fork() to avoid multiple generators
+///  with the same internal state.
 class BlumBlumShub : public PublicBlumBlumShub
 {
 public:
-	// Make sure p and q are both primes congruent to 3 mod 4 and at least 512 bits long,
-	// seed is the secret key and should be about as big as p*q
+	virtual ~BlumBlumShub() {}
+
+	/// \brief Construct a BlumBlumShub
+	/// \param p the first prime factor
+	/// \param q the second prime factor
+	/// \param seed the seed for the generator
+	/// \details Esure p and q are both primes congruent to 3 mod 4 and at least 512 bits long.
+	///  seed is the secret key and should be about as large as p*q.
 	BlumBlumShub(const Integer &p, const Integer &q, const Integer &seed);
 
 	bool IsRandomAccess() const {return true;}
 	void Seek(lword index);
-
-#ifndef CRYPTOPP_MAINTAIN_BACKWARDS_COMPATIBILITY_562
-	virtual ~BlumBlumShub() {}
-#endif
 
 protected:
 	const Integer p, q;

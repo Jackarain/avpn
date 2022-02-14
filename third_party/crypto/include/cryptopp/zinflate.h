@@ -1,3 +1,8 @@
+// zinflate.h - originally written and placed in the public domain by Wei Dai
+
+/// \file zinflate.h
+/// \brief DEFLATE compression and decompression (RFC 1951)
+
 #ifndef CRYPTOPP_ZINFLATE_H
 #define CRYPTOPP_ZINFLATE_H
 
@@ -8,7 +13,7 @@
 
 NAMESPACE_BEGIN(CryptoPP)
 
-//! _
+/// \since Crypto++ 1.0
 class LowFirstBitReader
 {
 public:
@@ -29,7 +34,8 @@ private:
 
 struct CodeLessThan;
 
-//! Huffman Decoder
+/// \brief Huffman Decoder
+/// \since Crypto++ 1.0
 class HuffmanDecoder
 {
 public:
@@ -83,8 +89,8 @@ private:
 	mutable std::vector<LookupEntry, AllocatorWithCleanup<LookupEntry> > m_cache;
 };
 
-//! DEFLATE (RFC 1951) decompressor
-
+/// \brief DEFLATE decompressor (RFC 1951)
+/// \since Crypto++ 1.0
 class Inflator : public AutoSignaling<Filter>
 {
 public:
@@ -94,14 +100,18 @@ public:
 		Err(ErrorType e, const std::string &s)
 			: Exception(e, s) {}
 	};
+	/// \brief Exception thrown when a truncated stream is encountered
 	class UnexpectedEndErr : public Err {public: UnexpectedEndErr() : Err(INVALID_DATA_FORMAT, "Inflator: unexpected end of compressed block") {}};
+	/// \brief Exception thrown when a bad block is encountered
 	class BadBlockErr : public Err {public: BadBlockErr() : Err(INVALID_DATA_FORMAT, "Inflator: error in compressed block") {}};
+	/// \brief Exception thrown when an invalid distance is encountered
+	class BadDistanceErr : public Err {public: BadDistanceErr() : Err(INVALID_DATA_FORMAT, "Inflator: error in bit distance") {}};
 
-	//! \brief RFC 1951 Decompressor
-	//! \param attachment the filter's attached transformation
-	//! \param repeat decompress multiple compressed streams in series
-	//! \param autoSignalPropagation 0 to turn off MessageEnd signal
-	Inflator(BufferedTransformation *attachment = NULL, bool repeat = false, int autoSignalPropagation = -1);
+	/// \brief RFC 1951 Decompressor
+	/// \param attachment the filter's attached transformation
+	/// \param repeat decompress multiple compressed streams in series
+	/// \param autoSignalPropagation 0 to turn off MessageEnd signal
+	Inflator(BufferedTransformation *attachment = NULLPTR, bool repeat = false, int autoSignalPropagation = -1);
 
 	void IsolatedInitialize(const NameValuePairs &parameters);
 	size_t Put2(const byte *inString, size_t length, int messageEnd, bool blocking);
@@ -128,11 +138,11 @@ private:
 	void OutputString(const byte *string, size_t length);
 	void OutputPast(unsigned int length, unsigned int distance);
 
-	static const HuffmanDecoder *FixedLiteralDecoder();
-	static const HuffmanDecoder *FixedDistanceDecoder();
+	void CreateFixedDistanceDecoder();
+	void CreateFixedLiteralDecoder();
 
-	const HuffmanDecoder& GetLiteralDecoder() const;
-	const HuffmanDecoder& GetDistanceDecoder() const;
+	const HuffmanDecoder& GetLiteralDecoder();
+	const HuffmanDecoder& GetDistanceDecoder();
 
 	enum State {PRE_STREAM, WAIT_HEADER, DECODING_BODY, POST_STREAM, AFTER_END};
 	State m_state;
@@ -143,6 +153,7 @@ private:
 	NextDecode m_nextDecode;
 	unsigned int m_literal, m_distance;	// for LENGTH_BITS or DISTANCE_BITS
 	HuffmanDecoder m_dynamicLiteralDecoder, m_dynamicDistanceDecoder;
+	member_ptr<HuffmanDecoder> m_fixedLiteralDecoder, m_fixedDistanceDecoder;
 	LowFirstBitReader m_reader;
 	SecByteBlock m_window;
 	size_t m_current, m_lastFlush;

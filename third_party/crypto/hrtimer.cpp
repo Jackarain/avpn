@@ -1,4 +1,4 @@
-﻿// hrtimer.cpp - written and placed in the public domain by Wei Dai
+// hrtimer.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 #include "hrtimer.h"
@@ -8,9 +8,9 @@
 #include <time.h>
 
 #if defined(CRYPTOPP_WIN32_AVAILABLE)
-# ifndef WIN32_LEAN_AND_MEAN
-#  define WIN32_LEAN_AND_MEAN
-# endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 # if ((WINVER >= 0x0602 /*_WIN32_WINNT_WIN8*/) || (_WIN32_WINNT >= 0x0602 /*_WIN32_WINNT_WIN8*/))
 # include <processthreadsapi.h>
@@ -32,8 +32,6 @@
 
 NAMESPACE_BEGIN(CryptoPP)
 
-#ifndef CRYPTOPP_IMPORTS
-
 #if defined(CRYPTOPP_WIN32_AVAILABLE)
 static TimerWord InitializePerformanceCounterFrequency()
 {
@@ -50,13 +48,15 @@ inline TimerWord PerformanceCounterFrequency()
 }
 #endif
 
+#ifndef CRYPTOPP_IMPORTS
+
 double TimerBase::ConvertTo(TimerWord t, Unit unit)
 {
 	static unsigned long unitsPerSecondTable[] = {1, 1000, 1000*1000, 1000*1000*1000};
 
 	// When 'unit' is an enum 'Unit', a Clang warning is generated.
 	CRYPTOPP_ASSERT(static_cast<unsigned int>(unit) < COUNTOF(unitsPerSecondTable));
-	return (double)CRYPTOPP_VC6_INT64 t * unitsPerSecondTable[unit] / CRYPTOPP_VC6_INT64 TicksPerSecond();
+	return static_cast<double>(t) * unitsPerSecondTable[unit] / TicksPerSecond();
 }
 
 void TimerBase::StartTimer()
@@ -99,7 +99,7 @@ TimerWord Timer::GetCurrentTimerValue()
 	return now.QuadPart;
 #elif defined(CRYPTOPP_UNIX_AVAILABLE)
 	timeval now;
-	gettimeofday(&now, NULL);
+	gettimeofday(&now, NULLPTR);
 	return (TimerWord)now.tv_sec * 1000000 + now.tv_usec;
 #else
 	// clock_t now;

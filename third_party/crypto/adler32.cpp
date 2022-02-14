@@ -1,4 +1,4 @@
-// adler32.cpp - written and placed in the public domain by Wei Dai
+// adler32.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 #include "adler32.h"
@@ -72,7 +72,7 @@ void Adler32::TruncatedFinal(byte *hash, size_t size)
 		hash[0] = byte(m_s2 >> 8);
 		// fall through
 	case 0:
-		;;
+		;
 		// fall through
 	}
 

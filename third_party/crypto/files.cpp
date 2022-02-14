@@ -1,4 +1,4 @@
-// files.cpp - written and placed in the public domain by Wei Dai
+// files.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 
@@ -6,11 +6,42 @@
 
 #include "files.h"
 
+#include <iostream>
+#include <fstream>
 #include <limits>
+
+ANONYMOUS_NAMESPACE_BEGIN
+
+/// \brief Disable badbit, failbit and eof exceptions
+/// \sa https://github.com/weidai11/cryptopp/pull/968 and
+///  https://www.cplusplus.com/reference/ios/ios/exceptions
+class IosExceptionMask
+{
+public:
+	IosExceptionMask(std::istream& stream) : m_stream(stream) {
+		m_mask = m_stream.exceptions();
+		m_stream.exceptions(static_cast<std::ios::iostate>(0));
+	}
+
+	IosExceptionMask(std::istream& stream, std::ios::iostate newMask) : m_stream(stream) {
+		m_mask = m_stream.exceptions();
+		m_stream.exceptions(newMask);
+	}
+
+	~IosExceptionMask() {
+		m_stream.exceptions(m_mask);
+	}
+
+private:
+	std::istream& m_stream;
+	std::ios::iostate m_mask;
+};
+
+ANONYMOUS_NAMESPACE_END
 
 NAMESPACE_BEGIN(CryptoPP)
 
-#if CRYPTOPP_DEBUG && !defined(CRYPTOPP_DOXYGEN_PROCESSING)
+#if defined(CRYPTOPP_DEBUG) && !defined(CRYPTOPP_DOXYGEN_PROCESSING)
 void Files_TestInstantiations()
 {
 	FileStore f0;
@@ -22,12 +53,12 @@ void Files_TestInstantiations()
 void FileStore::StoreInitialize(const NameValuePairs &parameters)
 {
 	m_waiting = false;
-	m_stream = NULL;
+	m_stream = NULLPTR;
 	m_file.release();
 
-	const char *fileName = NULL;
+	const char *fileName = NULLPTR;
 #if defined(CRYPTOPP_UNIX_AVAILABLE) || _MSC_VER >= 1400
-	const wchar_t *fileNameWide = NULL;
+	const wchar_t *fileNameWide = NULLPTR;
 	if (!parameters.GetValue(Name::InputFileNameWide(), fileNameWide))
 #endif
 		if (!parameters.GetValue(Name::InputFileName(), fileName))
@@ -65,9 +96,22 @@ lword FileStore::MaxRetrievable() const
 	if (!m_stream)
 		return 0;
 
+	// Disable badbit, failbit and eof exceptions
+	IosExceptionMask guard(*m_stream);
+
+	// Clear error bits due to seekg(). Also see
+	// https://github.com/weidai11/cryptopp/pull/968
 	std::streampos current = m_stream->tellg();
 	std::streampos end = m_stream->seekg(0, std::ios::end).tellg();
+	m_stream->clear();
 	m_stream->seekg(current);
+	m_stream->clear();
+
+	// Return max for a non-seekable stream
+	// https://www.cplusplus.com/reference/istream/istream/tellg
+	if (end == static_cast<std::streampos>(-1))
+		return LWORD_MAX;
+
 	return end-current;
 }
 
@@ -178,12 +222,12 @@ lword FileStore::Skip(lword skipMax)
 
 void FileSink::IsolatedInitialize(const NameValuePairs &parameters)
 {
-	m_stream = NULL;
+	m_stream = NULLPTR;
 	m_file.release();
 
-	const char *fileName = NULL;
+	const char *fileName = NULLPTR;
 #if defined(CRYPTOPP_UNIX_AVAILABLE) || _MSC_VER >= 1400
-	const wchar_t *fileNameWide = NULL;
+	const wchar_t *fileNameWide = NULLPTR;
 	if (!parameters.GetValue(Name::OutputFileNameWide(), fileNameWide))
 #endif
 		if (!parameters.GetValue(Name::OutputFileName(), fileName))

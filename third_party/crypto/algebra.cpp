@@ -1,4 +1,4 @@
-// algebra.cpp - written and placed in the public domain by Wei Dai
+// algebra.cpp - originally written and placed in the public domain by Wei Dai
 
 #include "pch.h"
 
@@ -260,7 +260,7 @@ void AbstractGroup<T>::SimultaneousMultiply(T *results, const T &base, const Int
 	exponents.reserve(expCount);
 	unsigned int i;
 
-	for (i=0; i<expCount; i++)
+	for (i=0; expBegin && i<expCount; i++)
 	{
 		CRYPTOPP_ASSERT(expBegin->NotNegative());
 		exponents.push_back(WindowSlider(*expBegin++, InversionIsFast(), 0));
