@@ -353,10 +353,6 @@ namespace avpn {
 			close();
 		}
 
-		void shutdown_service()
-		{
-		}
-
 		bool open(const dev_config& cfg)
 		{
 #if UNICODE
@@ -536,7 +532,7 @@ namespace avpn {
 			async_read_some(const MutableBufferSequence& buffers,
 				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
 		{
-			return m_io_handle.async_read_some_at(0, buffers, handler);
+			return m_io_handle.async_read_some(buffers, handler);
 		}
 
 		template <typename ConstBufferSequence, typename WriteHandler>
@@ -545,7 +541,7 @@ namespace avpn {
 			async_write_some(const ConstBufferSequence& buffers,
 				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
 		{
-			return m_io_handle.async_write_some_at(0, buffers, handler);
+			return m_io_handle.async_write_some(buffers, handler);
 		}
 
 		std::vector<device_tuntap> take_device_list()
@@ -577,7 +573,7 @@ namespace avpn {
 		HANDLE m_handle;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
-		boost::asio::windows::random_access_handle m_io_handle;
+		boost::asio::stream_file m_io_handle;
 		int m_if_index{ -1 };
 	};
 }

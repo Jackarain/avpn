@@ -1056,8 +1056,8 @@ namespace fec {
 
 		bool codingloop::check_shards(const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs, size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs,
-			std::vector<gsl::span<uint8_t>>&/* target */)
+			std::vector<std::span<uint8_t>>& outputs,
+			std::vector<std::span<uint8_t>>&/* target */)
 		{
 			size_t checkCount = outputs.size();
 			if (checkCount == 0)
@@ -1084,7 +1084,7 @@ namespace fec {
 
 		void io_table_codingloop::encode(const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs, size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs)
+			std::vector<std::span<uint8_t>>& outputs)
 		{
 			size_t outputCount = outputs.size();
 			if (outputCount == 0)
@@ -1120,8 +1120,8 @@ namespace fec {
 
 		bool io_table_codingloop::check_shards(const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs, size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs,
-			std::vector<gsl::span<uint8_t>>& target)
+			std::vector<std::span<uint8_t>>& outputs,
+			std::vector<std::span<uint8_t>>& target)
 		{
 			if (target.size() == 0)
 				return codingloop::check_shards(parity_rows, inputs, data_shard_count, outputs, target);
@@ -1193,9 +1193,9 @@ namespace fec {
 		{
 			check_shards(shards);
 
-			std::vector<gsl::span<uint8_t>> outputs;
+			std::vector<std::span<uint8_t>> outputs;
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
-				outputs.push_back(gsl::span<uint8_t>((uint8_t*)shards[i].data(), shards[i].size()));
+				outputs.push_back(std::span<uint8_t>((uint8_t*)shards[i].data(), shards[i].size()));
 			}
 
 			// do the coding.
@@ -1261,7 +1261,7 @@ namespace fec {
 
 			auto dataDecodeMatrix = submatrix.invert();
 
-			std::vector<gsl::span<uint8_t>> outputs;
+			std::vector<std::span<uint8_t>> outputs;
 			outputs.resize(m_parity_shards);
 
 			std::vector<std::vector<uint8_t>> matrixRows;

@@ -48,10 +48,13 @@
 #include "utils/bitfield.hpp"
 #include "utils/url_parser.hpp"
 #include "utils/async_connect.hpp"
+#include "utils/yield_cancellation_slot_bind.hpp"
 #include "utils/time_clock.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
+
+
 
 namespace avpn {
 
@@ -694,6 +697,7 @@ namespace avpn {
 			, m_ip_iterator(++m_ip_assigner.begin())
 			, m_fec_timer(m_io_context)
 		{
+			LOG_DBG << "Start unique counter: " << gen_unique_number();
 		}
 
 	public:
@@ -844,6 +848,8 @@ namespace avpn {
 		void close()
 		{
 			m_abort = true;
+
+			m_cancel_sig.emit(boost::asio::cancellation_type::all);
 
 			boost::system::error_code ignore_ec;
 			if (m_identity == avpn_client)
@@ -2002,8 +2008,7 @@ namespace avpn {
 					continue;
 				}
 
-				// asio_utils::async_connect can't ctrl + break.
-				boost::asio::async_connect(sock, results, yield[ec]);
+				asio_util::async_connect(sock, results, yield_cancellation_slot_bind(m_cancel_sig.slot(), yield[ec]));
 				if (ec)
 				{
 					LOG_ERR << "channel::connect, async_connect: " << ec.message();
@@ -2620,9 +2625,7 @@ namespace avpn {
 			{}
 			break;
 			case vpt_keepalive:
-			{
-				// LOG_DBG << "udp client: " << endp << " keepalive";
-			}
+			{}
 			break;
 			case vpt_udp_handshake:
 			{
@@ -2848,6 +2851,9 @@ namespace avpn {
 		// 都只会初始化1次.
 		std::once_flag m_once_start_udp;
 		std::vector<udp::socket> m_udp_sockets;
+
+		// 专门用于退出时取消asio_util::async_connect.
+		boost::asio::cancellation_signal m_cancel_sig;
 
 		// tuntap设备写入函数及状态通知函数.
 		tuntap_writer m_tuntap_writer;

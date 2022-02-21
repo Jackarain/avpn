@@ -168,7 +168,6 @@ namespace avpn
 		explicit tuntap_linux_service(boost::asio::io_context &io_context)
 			: boost::asio::detail::service_base<tuntap_linux_service>(io_context)
 			, m_stream_descriptor(io_context)
-			, m_tuntap_fd(0)
 		{
 			// 程序开始时获取tuntap列表.
 			fetch_tuntap();
@@ -475,7 +474,7 @@ namespace avpn
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
-		int m_tuntap_fd;
+		int m_tuntap_fd{ 0 };
 		int m_if_index{ -1 };
 	};
 

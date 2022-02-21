@@ -79,7 +79,6 @@ namespace avpn
 		explicit tuntap_android_service(boost::asio::io_context &io_context)
 			: boost::asio::detail::service_base<tuntap_android_service>(io_context)
 			, m_stream_descriptor(io_context)
-			, m_tuntap_fd(0)
 		{}
 
 		~tuntap_android_service()
@@ -117,7 +116,7 @@ namespace avpn
 
 			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " opened";
 
-			if_index = if_nametoindex(ifr.ifr_name);
+			m_if_index = if_nametoindex(ifr.ifr_name);
 
 			// open dummy socket for ioctls
 			int sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -292,7 +291,7 @@ namespace avpn
 
 		int get_if_index() const
 		{
-			return if_index;
+			return m_if_index;
 		}
 
 	private:
@@ -301,8 +300,8 @@ namespace avpn
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
-		int m_tuntap_fd;
-		int if_index{ -1 };
+		int m_tuntap_fd{ 0 };
+		int m_if_index{ -1 };
 	};
 
 }

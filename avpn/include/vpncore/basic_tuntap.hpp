@@ -31,7 +31,9 @@ namespace avpn {
 		{}
 
 		~basic_tuntap()
-		{}
+		{
+			close();
+		}
 
 		boost::asio::io_context& get_io_context()
 		{

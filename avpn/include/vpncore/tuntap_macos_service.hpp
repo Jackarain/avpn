@@ -51,7 +51,6 @@ namespace avpn
 		explicit tuntap_macos_service(boost::asio::io_context &io_context)
 			: boost::asio::detail::service_base<tuntap_macos_service>(io_context)
 			, m_stream_descriptor(io_context)
-			, m_tuntap_fd(0)
 		{}
 
 		~tuntap_macos_service()
@@ -342,6 +341,7 @@ namespace avpn
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
+		int m_tuntap_fd{ 0 };
 	};
 
 }

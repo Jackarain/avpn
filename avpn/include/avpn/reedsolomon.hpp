@@ -14,7 +14,7 @@
 #include <filesystem>
 #include <stdexcept>
 
-#include <gsl/span>
+#include <span> // from c++ 20
 
 #include <boost/algorithm/string/join.hpp>
 
@@ -65,14 +65,14 @@ namespace fec {
 			const std::vector<std::vector<uint8_t>>&,
 			const std::vector<std::string_view>&,
 			size_t,
-			std::vector<gsl::span<uint8_t>>&) = 0;
+			std::vector<std::span<uint8_t>>&) = 0;
 
 		virtual bool check_shards(
 			const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs,
 			size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs,
-			std::vector<gsl::span<uint8_t>>&/* target */);
+			std::vector<std::span<uint8_t>>& outputs,
+			std::vector<std::span<uint8_t>>&/* target */);
 	};
 
 	// 基本的(无优化)codingloop实现.
@@ -83,14 +83,14 @@ namespace fec {
 			const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs,
 			size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs) override;
+			std::vector<std::span<uint8_t>>& outputs) override;
 
 		virtual bool check_shards(
 			const std::vector<std::vector<uint8_t>>& parity_rows,
 			const std::vector<std::string_view>& inputs,
 			size_t data_shard_count,
-			std::vector<gsl::span<uint8_t>>& outputs,
-			std::vector<gsl::span<uint8_t>>& target) override;
+			std::vector<std::span<uint8_t>>& outputs,
+			std::vector<std::span<uint8_t>>& target) override;
 	};
 
 

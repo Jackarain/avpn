@@ -253,9 +253,6 @@ else()
 endif()
 include_directories(${OPENSSL_INCLUDE_DIR})
 
-set(GSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/gsl/include)
-include_directories(${GSL_INCLUDE_DIRS})
-
 link_libraries(
 		Boost::coroutine
 		Boost::context

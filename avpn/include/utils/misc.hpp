@@ -340,6 +340,14 @@ inline std::string gen_unique_string(const unsigned int max_str_len)
 	return str;
 }
 
+inline uint32_t gen_unique_number()
+{
+	static std::atomic_uint32_t base = static_cast<uint32_t>(
+		std::chrono::duration_cast<std::chrono::microseconds>(
+			std::chrono::system_clock::now().time_since_epoch()).count());
+	return base++;
+}
+
 namespace avpn {
 	using namespace boost;
 

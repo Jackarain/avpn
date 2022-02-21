@@ -230,12 +230,12 @@ namespace aux {
 	{
 		uint32_t codepoint;
 		uint32_t state = 0;
-		size_t count = 0;
 		uint8_t* s = (uint8_t*)str.c_str();
+		uint8_t* end = s + str.size();
 
-		for (count = 0; *s; ++s)
-			if (!decode(&state, &codepoint, *s))
-				count += 1;
+		for (; s != end; ++s)
+			if (decode(&state, &codepoint, *s) == 1)
+				return false;
 
 		return state == 0;
 	}
@@ -442,21 +442,22 @@ public:
 			boost::filesystem::resize_file(m_log_path, 0, ec);
 			m_log_size = 0;
 			auto fn = filename.string();
-			boost::async(boost::launch::async, [this, fn]() {
-				std::string file = fn;
+			boost::async(boost::launch::async, [fn]()
+			{
 				boost::system::error_code ignore_ec;
 				boost::mutex& m = log_compress::compress_lock();
 				boost::lock_guard<boost::mutex> lock(m);
-				if (!log_compress::do_compress_gz(fn)) {
-					file = fn + log_compress::GZ_SUFFIX;
+				if (!log_compress::do_compress_gz(fn))
+				{
+					auto file = fn + log_compress::GZ_SUFFIX;
 					boost::filesystem::remove(file, ignore_ec);
 					if (ignore_ec)
 						std::cout << "delete log failed: " << file
 						<< ", error code: " << ignore_ec.message() << std::endl;
+					return;
 				}
-				else {
-					boost::filesystem::remove(fn, ignore_ec);
-				}
+
+				boost::filesystem::remove(fn, ignore_ec);
 			});
 
 			break;
