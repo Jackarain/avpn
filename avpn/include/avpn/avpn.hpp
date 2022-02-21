@@ -38,10 +38,13 @@ namespace avpn {
 
 	public:
 		void start();
+
+		boost::asio::awaitable<int> run();
+
 		void stop();
 
 	private:
-		void start_tun_read_loop(boost::asio::yield_context& yield);
+		boost::asio::awaitable<void> start_tun_read_loop();
 		void start_vpn();
 
 		void do_tuntap_write(std::string&& message);

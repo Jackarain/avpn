@@ -239,76 +239,54 @@ namespace avpn
 		}
 
 		template <typename MutableBufferSequence, typename ReadHandler>
-		void start_async_read(const MutableBufferSequence &buffers, ReadHandler &handler)
-		{
-			m_stream_descriptor.async_read_some(buffers,
-			[this, buffers, handler](boost::system::error_code error, std::size_t bytes_transferred) mutable
-			{
-				boost::system::error_code ec;
-				if (error == boost::asio::error::eof)
-					ec = error;
-				if (bytes_transferred > 4)
-				{
-					auto ptr = boost::asio::buffer_cast<char*>(buffers);
-					bytes_transferred -= 4;
-					std::memmove(ptr, ptr + 4, bytes_transferred);
-				}
-				handler(ec, bytes_transferred);
-			});
-		}
-
-		template <typename MutableBufferSequence, typename ReadHandler>
 		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-		async_read_some(const MutableBufferSequence &buffers,
-			BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+		async_read_some(const MutableBufferSequence &buffers, ReadHandler&& handler)
 		{
-			boost::asio::async_completion<ReadHandler,
-				void(boost::system::error_code, std::size_t)>
-					init(handler);
-
-			start_async_read(buffers, init.completion_handler);
-
-			return init.result.get();
+			return boost::asio::async_initiate<ReadHandler, void(boost::system::error_code, std::size_t)>
+				([this](auto&& handler, auto buffers) mutable
+				{
+					m_stream_descriptor.async_read_some(buffers, [this, buffers, handler = std::move(handler)]
+					(boost::system::error_code error, std::size_t bytes_transferred) mutable
+					{
+						boost::system::error_code ec;
+						if (error == boost::asio::error::eof)
+							ec = error;
+						if (bytes_transferred > 4)
+						{
+							auto ptr = boost::asio::buffer_cast<char*>(buffers);
+							bytes_transferred -= 4;
+							std::memmove(ptr, ptr + 4, bytes_transferred);
+						}
+						handler(ec, bytes_transferred);
+					});
+				}, handler, buffers);
 		}
 
 		template <typename ConstBufferSequence, typename WriteHandler>
-		void start_async_write(const ConstBufferSequence &buffers, WriteHandler &handler)
-		{
-			// The first byte of data will always be the address family (eg, AF_INET) of
-     		// the packet. By default, the packet data follows immediately, but if the
-     		// PREPADDR bit is set, the address to which the packet is to be sent is
-     		// placed after the address family byte and before the packet data.
-
-			static uint32_t prefix = htonl(AF_INET);
-
-			std::vector<ConstBufferSequence> bufs;
-			bufs.push_back(boost::asio::buffer((char*)&prefix, sizeof(prefix)));
-			bufs.push_back(buffers);
-
-			m_stream_descriptor.async_write_some(bufs, [this, handler]
-			(boost::system::error_code error, std::size_t bytes_transferred) mutable
-			{
-				boost::system::error_code ec;
-				if (error == boost::asio::error::eof)
-					ec = error;
-				handler(ec, bytes_transferred - sizeof(uint32_t));
-			});
-		}
-
-		template <typename ConstBufferSequence, typename WriteHandler>
-		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-		async_write_some(const ConstBufferSequence &buffers,
-			BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+		async_write_some(const ConstBufferSequence &buffers, WriteHandler&& handler)
 		{
-			boost::asio::async_completion<WriteHandler,
-				void(boost::system::error_code, std::size_t)>
-				init(handler);
+			return boost::asio::async_initiate<WriteHandler, void(boost::system::error_code, std::size_t)>
+				([this](auto&& handler, auto buffers) mutable
+				{
+					// The first byte of data will always be the address family (eg, AF_INET) of
+					// the packet. By default, the packet data follows immediately, but if the
+					// PREPADDR bit is set, the address to which the packet is to be sent is
+					// placed after the address family byte and before the packet data.
+					static uint32_t prefix = htonl(AF_INET);
 
-			start_async_write(buffers, init.completion_handler);
+					std::vector<ConstBufferSequence> bufs;
+					bufs.push_back(boost::asio::buffer((char*)&prefix, sizeof(prefix)));
+					bufs.push_back(buffers);
 
-			return init.result.get();
+					m_stream_descriptor.async_write_some(bufs, [this, handler = std::move(handler)]
+					(boost::system::error_code error, std::size_t bytes_transferred) mutable
+					{
+						handler(error, bytes_transferred - sizeof(uint32_t));
+					});
+				}, handler, buffers);
 		}
 
 		std::vector<device_tuntap> take_device_list()

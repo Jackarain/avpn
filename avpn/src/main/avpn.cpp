@@ -76,7 +76,7 @@ namespace avpn {
 		LOG_DBG << "avpn_service.stop()";
 	}
 
-	void avpn_service::start_tun_read_loop(boost::asio::yield_context& yield)
+	boost::asio::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
 		avpn::vpn_message msg;
@@ -86,7 +86,8 @@ namespace avpn {
 			auto& content = msg.content;
 			content.resize(128 * 1024);
 
-			auto bytes = m_tuntap.async_read_some(boost::asio::buffer(content), yield[ec]);
+			auto bytes = co_await m_tuntap.async_read_some(boost::asio::buffer(content),
+					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
 			if (ec)
 			{
 				LOG_WARN << "start_tun, async_read_some: " << ec.message();
@@ -160,11 +161,8 @@ namespace avpn {
 
 						LOG_DBG << "vpn device start...";
 
-						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
-						[this](boost::asio::yield_context yield) mutable
-						{
-							start_tun_read_loop(yield);
-						});
+						boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+							start_tun_read_loop(), boost::asio::detached);
 					}
 
 					// 断开状态.
@@ -199,11 +197,8 @@ namespace avpn {
 
 						LOG_DBG << "vpn device start...";
 
-						boost::asio::spawn(m_io_context_pool.get_io_context().get_executor(),
-						[this](boost::asio::yield_context yield) mutable
-						{
-							start_tun_read_loop(yield);
-						});
+						boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+							start_tun_read_loop(), boost::asio::detached);
 					}
 				},
 				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
@@ -212,8 +207,8 @@ namespace avpn {
 
 	void avpn_service::do_tuntap_write(std::string&& message)
 	{
-		boost::asio::spawn(m_io_context.get_executor(),
-			[this, message = std::move(message)](boost::asio::yield_context yield) mutable
+		boost::asio::co_spawn(m_io_context.get_executor(),
+			[this, message = std::move(message)]() mutable -> boost::asio::awaitable<void>
 			{
 				m_tuntap_writing = !m_tuntap_write_deque.empty();
 				m_tuntap_write_deque.emplace_back(std::move(message));
@@ -225,16 +220,18 @@ namespace avpn {
 
 					while (!m_abort && !m_tuntap_write_deque.empty())
 					{
-						m_tuntap.async_write_some(boost::asio::buffer(m_tuntap_write_deque.front()), yield[ec]);
+						co_await m_tuntap.async_write_some(
+							boost::asio::buffer(m_tuntap_write_deque.front()),
+								boost::asio::redirect_error(boost::asio::use_awaitable, ec));
 						if (ec)
 						{
 							LOG_ERR << "do_tuntap_write, async_write error: " << ec.message();
-							return;
+							co_return;
 						}
 						m_tuntap_write_deque.pop_front();
 					}
 				}
-			});
+			}, boost::asio::detached);
 	}
 
 	void avpn_service::setup_tun(const boost::asio::ip::network_v4& net)
@@ -255,7 +252,8 @@ namespace avpn {
 			<< ", tun: " << m_config.ifdev_;
 
 		// 构造配置参数.
-		avpn::dev_config dc = { ipaddr, mask.to_string(), gateway.to_string(), "", "", "", 0, avpn::dev_tun, 0 };
+		avpn::dev_config dc = { ipaddr, mask.to_string(),
+			gateway.to_string(), "", "", "", 0, avpn::dev_tun, 0 };
 		dc.dev_name_ = m_config.ifdev_;
 		auto dev_list = m_tuntap.take_device_list();
 		std::string guid;

@@ -527,21 +527,19 @@ namespace avpn {
 		}
 
 		template <typename MutableBufferSequence, typename ReadHandler>
-		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-			async_read_some(const MutableBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+			async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
 		{
-			return m_io_handle.async_read_some(buffers, handler);
+			return m_io_handle.async_read_some(buffers, std::forward<ReadHandler>(handler));
 		}
 
 		template <typename ConstBufferSequence, typename WriteHandler>
-		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-			async_write_some(const ConstBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+			async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
 		{
-			return m_io_handle.async_write_some(buffers, handler);
+			return m_io_handle.async_write_some(buffers, std::forward<WriteHandler>(handler));
 		}
 
 		std::vector<device_tuntap> take_device_list()

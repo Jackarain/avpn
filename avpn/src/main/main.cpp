@@ -338,7 +338,7 @@ int main(int argc, char** argv)
 		ios.stop();
 	});
 
-	ios.run(5);
+	ios.run();
 
 	LOG_DBG << "avpn system exiting...";
 	return EXIT_SUCCESS;

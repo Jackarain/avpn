@@ -7,54 +7,50 @@
 
 #pragma once
 
-#include "avpn/internal.hpp"
-
+#include <vector>
+#include <boost/asio.hpp>
 
 namespace avpn {
+/// A pool of io_context objects.
+class io_context_pool
+{
+	// c++11 noncopyable.
+	io_context_pool(const io_context_pool&) = delete;
+	io_context_pool& operator=(const io_context_pool&) = delete;
 
-	/// A pool of io_context objects.
-	class io_context_pool
-	{
-		// c++11 noncopyable.
-		io_context_pool(const io_context_pool&) = delete;
-		io_context_pool& operator=(const io_context_pool&) = delete;
+public:
+	/// Construct the io_context pool.
+	explicit io_context_pool(std::size_t pool_size);
 
-	public:
-		/// Construct the io_context pool.
-		explicit io_context_pool(std::size_t pool_size);
+	/// Run all io_context objects in the pool.
+	void run();
 
-		/// Run all io_context objects in the pool.
-		void run(std::size_t db_threads = 1);
+	/// Stop all io_context objects in the pool.
+	void stop();
 
-		/// Stop all io_context objects in the pool.
-		void stop();
+	/// Get an io_context to use for a client.
+	boost::asio::io_context& get_io_context();
 
-		/// Get an io_context to use.
-		boost::asio::io_context& get_io_context();
+	/// Get main_io_context_ to use.
+	boost::asio::io_context& server_io_context();
 
-		/// Get an server io_context to use.
-		boost::asio::io_context& server_io_context();
+	/// Get pool size.
+	std::size_t pool_size() const;
 
-		/// Get an schedule io_context to use.
-		boost::asio::io_context& schedule_io_context();
+private:
+	using io_context_ptr = std::shared_ptr<boost::asio::io_context>;
+	using work_ptr = std::shared_ptr<boost::asio::io_context::work>;
 
-		/// Get an database io_context to use.
-		boost::asio::io_context& database_io_context();
+	// main io_context that used to run the main logic
+	boost::asio::io_context main_io_context_;
 
-		/// Get pool size.
-		std::size_t pool_size() const;
+	/// The pool of io_contexts for client sockets
+	std::vector<io_context_ptr> io_contexts_;
 
-	private:
-		using io_context_ptr = std::shared_ptr<boost::asio::io_context>;
-		using work_ptr = std::shared_ptr<boost::asio::io_context::work>;
+	/// The work that keeps the io_contexts running.
+	std::vector<work_ptr> work_;
 
-		/// The pool of io_contexts.
-		std::vector<io_context_ptr> io_contexts_;
+	std::size_t next_io_context_;
+};
 
-		/// The work that keeps the io_contexts running.
-		std::vector<work_ptr> work_;
-
-		/// The next io_context to use for a connection.
-		std::size_t next_io_context_;
-	};
 }

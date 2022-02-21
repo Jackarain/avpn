@@ -55,27 +55,21 @@ namespace avpn {
 		// 提供异步读取tuntap设备上的数据到buffer.
 		// 函数签名同asio的socket.async_read_some
 		template <typename MutableBufferSequence, typename ReadHandler>
-		BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-			async_read_some(const MutableBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+			async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
 		{
-			boost::asio::async_completion<ReadHandler, void(boost::system::error_code, std::size_t)> init(handler);
-			service_.async_read_some(buffers, std::move(init.completion_handler));
-			return init.result.get();
+			return service_.async_read_some(buffers, std::forward<ReadHandler>(handler));
 		}
 
 		// 提供异步写入tuntap设备上的数据到buffer.
 		// 函数签名同asio的socket.async_write_some
 		template <typename ConstBufferSequence, typename WriteHandler>
-		BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-			async_write_some(const ConstBufferSequence& buffers,
-				BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+			async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
 		{
-			boost::asio::async_completion<WriteHandler, void(boost::system::error_code, std::size_t)> init(handler);
-			service_.async_write_some(buffers, std::move(init.completion_handler));
-			return init.result.get();
+			return service_.async_write_some(buffers, std::forward<WriteHandler>(handler));
 		}
 
 		// 获取所有tuntap设备列表, 一般在打开tuntap devicep之前
