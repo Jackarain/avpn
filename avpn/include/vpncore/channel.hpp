@@ -628,13 +628,6 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	enum channel_status
-	{
-		st_connected,
-		st_disconnect,
-		st_listen,
-	};
-
 	enum vpn_tcp_mode
 	{
 		only_udp,
@@ -657,6 +650,19 @@ namespace avpn {
 		bool passbyvpn_;					// 客户端默认通过vpn.
 		bool c2c_;							// 客户端之间通信.
 		std::string subnet_;				// vpn子网配置.
+	};
+
+	enum connection_status
+	{
+		st_connected,
+		st_disconnect,
+		st_listen,
+	};
+
+	struct channel_status
+	{
+		std::vector<std::string> routes_;
+		connection_status status_;
 	};
 
 	class channel
@@ -831,7 +837,10 @@ namespace avpn {
 						on_fec_timer(), boost::asio::detached);
 				});
 
-			m_status_notify(channel_status::st_listen);
+			channel_status cs;
+			cs.status_ = connection_status::st_listen;
+
+			m_status_notify(cs);
 		}
 
 		void close()
@@ -2157,7 +2166,11 @@ namespace avpn {
 
 				// 通知断开连接.
 				if (m_status_notify)
-					m_status_notify(channel_status::st_disconnect);
+				{
+					channel_status cs;
+					cs.status_ = connection_status::st_disconnect;
+					m_status_notify(cs);
+				}
 
 				do_reconnect(connection_ptr);
 			}
@@ -2503,11 +2516,13 @@ namespace avpn {
 						bufptr += sz;
 						bodysize -= sz;
 
+#if 0
 						auto [ret, ok] = add_route(route);
 						if (ok)
 							LOG_DBG << "add route: " << route << " route added successfully!";
 						else
 							LOG_DBG << "add route: " << route << " route added fail, reason: " << ret;
+#endif
 
 						m_routes.emplace_back(std::move(route));
 					}
@@ -2521,7 +2536,13 @@ namespace avpn {
 
 					// 通知完成连接.
 					if (m_status_notify)
-						m_status_notify(channel_status::st_connected);
+					{
+						channel_status cs;
+						cs.routes_ = m_routes;
+						cs.status_ = connection_status::st_connected;
+
+						m_status_notify(cs);
+					}
 
 					co_return;
 				}

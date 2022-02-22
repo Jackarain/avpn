@@ -122,7 +122,7 @@ namespace avpn {
 			if (m_config.identity_ == avpn_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
-				if (m_channel_status != avpn::channel_status::st_listen)
+				if (m_channel_status.status_ != avpn::connection_status::st_listen)
 					continue;
 
 				// 透传到channel.
@@ -131,7 +131,7 @@ namespace avpn {
 			else if (m_config.identity_ == avpn_client)
 			{
 				// 未连接状态, 丢弃所有packet.
-				if (m_channel_status != avpn::channel_status::st_connected)
+				if (m_channel_status.status_ != avpn::connection_status::st_connected)
 					continue;
 
 				// 透传到channel.
@@ -145,12 +145,13 @@ namespace avpn {
 	void avpn_service::run_as_client()
 	{
 		m_channel.start_connect(m_config.upstreams_,
-			[this](avpn::channel_status status)
+			[this](avpn::channel_status cs)
 			{
-				m_channel_status = status;
+				m_channel_status = cs;
+				auto status = cs.status_;
 
 				// 连接成功, 如果没有启动tun, 则启动tun设备.
-				if (status == avpn::channel_status::st_connected)
+				if (status == avpn::connection_status::st_connected)
 				{
 					LOG_DBG << "vpn connected";
 
@@ -168,7 +169,7 @@ namespace avpn {
 				}
 
 				// 断开状态.
-				if (status == avpn::channel_status::st_disconnect)
+				if (status == avpn::connection_status::st_disconnect)
 				{
 					m_start_tuntap = false;
 					m_tuntap.close();
@@ -186,15 +187,16 @@ namespace avpn {
 	void avpn_service::run_as_server()
 	{
 		m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
-			[this](avpn::channel_status status)
+			[this](avpn::channel_status cs)
 			{
-				if (status == avpn::channel_status::st_listen)
+				auto st = cs.status_;
+				if (st == avpn::connection_status::st_listen)
 				{
 					if (m_start_tuntap)
 						return;
 
 					m_start_tuntap = true;
-					m_channel_status = status;
+					m_channel_status = cs;
 
 					setup_tun(m_channel.virtual_gateway());
 
