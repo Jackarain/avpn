@@ -1177,7 +1177,6 @@ namespace avpn {
 						if (!ws_conn_ptr || m_abort)
 							return;
 
-						LOG_DBG << "Server pong recevied, id: " << ws_conn_ptr->connection_id_;
 						ws_expires_after(*ws_conn_ptr, 60);
 					}
 				});
@@ -2076,7 +2075,6 @@ namespace avpn {
 						return;
 
 					ws_expires_after(*ws_conn_ptr, 60);
-					LOG_DBG << "Client pong recevied, id: " << ws_conn_ptr->connection_id_;
 				}
 			});
 
