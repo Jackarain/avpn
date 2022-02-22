@@ -356,7 +356,7 @@ std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = fa
 	if (flag)
 		add_route_cmd += "add -net ";
 	else
-		add_route_cmd += "del -net ";
+		add_route_cmd += "delete -net ";
 	add_route_cmd += net.address().to_string(ec) + "/" + std::to_string(net.prefix_length());
 	if (ec)
 		return { "", false };
