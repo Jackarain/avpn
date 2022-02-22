@@ -72,6 +72,16 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
+		// 退出时删除路由.
+		for (auto& route : m_channel_status.routes_)
+		{
+			auto [ret, ok] = del_route(route);
+			if (ok)
+				LOG_DBG << "del route: " << route << " route added successfully!";
+			else
+				LOG_DBG << "del route: " << route << " fail, reason: " << ret;
+		}
+
 		LOG_DBG << "avpn_service close channel.";
 		m_channel.close();
 

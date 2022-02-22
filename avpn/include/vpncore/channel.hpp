@@ -779,15 +779,6 @@ namespace avpn {
 						LOG_DBG << "channel::start_connect, do connect...";
 					}
 
-					for (auto& route : m_routes)
-					{
-						auto [ret, ok] = del_route(route);
-						if (ok)
-							LOG_DBG << "del route: " << route << " route added successfully!";
-						else
-							LOG_DBG << "del route: " << route << " fail, reason: " << ret;
-					}
-
 					LOG_WARN << "channel::start_connect, reconnect conroutine quit...";
 				}, boost::asio::detached);
 		}
