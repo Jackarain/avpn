@@ -274,12 +274,7 @@ namespace avpn {
 			}
 		}
 
-#ifdef AVPN_LINUX
 		dc.dev_type_ = avpn::dev_tun;
-		dc.tun_fd_ = -1;
-#else
-		dc.dev_type_ = avpn::dev_tun;
-#endif
 
 		if (!m_tuntap.open(dc))
 		{

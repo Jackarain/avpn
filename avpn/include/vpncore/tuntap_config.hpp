@@ -30,8 +30,13 @@ namespace avpn {
 		std::string dhcp_;
 		std::string guid_;
 		std::string dev_name_;
-		int tun_fd_; // use for linux tun dev.
-		dev_type dev_type_; // true is tap, false is tun.
+
+		// use for linux tun dev.
+		int tun_fd_{ -1 };
+
+		// true is tap, false is tun.
+		dev_type dev_type_{ avpn::dev_tun };
+
 		bool ifconfig_setup_;
 	};
 
