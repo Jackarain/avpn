@@ -276,6 +276,15 @@ namespace avpn {
 			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
+
+		for (auto& route : m_channel_status.routes_)
+		{
+			auto [ret, ok] = add_route(route);
+			if (ok)
+				LOG_DBG << "add route: " << route << " route added successfully!";
+			else
+				LOG_DBG << "add route: " << route << " route added fail, reason: " << ret;
+		}
 	}
 
 }
