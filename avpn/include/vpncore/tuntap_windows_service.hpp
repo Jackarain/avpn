@@ -394,18 +394,16 @@ namespace avpn {
 			}
 
 			// usage of numeric constants is ugly, but this is really tied to this version of the driver
-			if (cfg.dev_type_ == avpn::dev_tun
-				&& version.major == 9 && version.minor < 8)
+			if (version.major == 9 && version.minor < 8)
 			{
-				LOG_DBG << "WARNING:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
+				LOG_ERR << "WARNING:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
 					<< " does not support IPv6 in TUN mode. IPv6 will not work. Upgrade your Tap-Win32 driver.";
 			}
 
 			// tap driver 9.8 (2.2.0 and 2.2.1 release) is buggy
-			if (cfg.dev_type_ == avpn::dev_tun
-				&& version.major == 9 && version.minor == 8)
+			if (version.major == 9 && version.minor == 8)
 			{
-				LOG_DBG << "ERROR:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
+				LOG_ERR << "ERROR:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
 					<< " is buggy regarding small IPv4 packets in TUN mode. Upgrade your Tap-Win32 driver.";
 			}
 
