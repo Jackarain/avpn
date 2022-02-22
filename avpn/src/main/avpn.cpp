@@ -283,7 +283,7 @@ namespace avpn {
 			if (ok)
 				LOG_DBG << "add route: " << route << " route added successfully!";
 			else
-				LOG_DBG << "add route: " << route << " route added fail, reason: " << ret;
+				LOG_ERR << "add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
 		}
 	}
 
