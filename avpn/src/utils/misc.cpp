@@ -350,6 +350,21 @@ std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = fa
 		return { "", false };
 	if (!metric.empty())
 		add_route_cmd += " metric " + metric;
+#elif __APPLE__
+	// route -n add -net 183.230.32.0/24 10.0.0.1
+	add_route_cmd = "route -n ";
+	if (flag)
+		add_route_cmd += "add -net ";
+	else
+		add_route_cmd += "del -net ";
+	add_route_cmd += net.address().to_string(ec) + "/" + std::to_string(net.prefix_length());
+	if (ec)
+		return { "", false };
+	add_route_cmd += " " + gateway.to_string(ec);
+	if (ec)
+		return { "", false };
+	if (!metric.empty())
+		add_route_cmd += " -hopcount " + metric;
 #else
 	// TODO: unsupported system.
 	return { "", false };
