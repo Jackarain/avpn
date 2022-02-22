@@ -42,7 +42,6 @@ namespace avpn {
 
 	private:
 		boost::asio::awaitable<void> start_tun_read_loop();
-		void start_vpn();
 
 		void run_as_client();
 		void run_as_server();

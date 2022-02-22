@@ -58,7 +58,13 @@ namespace avpn {
 
 	void avpn_service::start()
 	{
-		start_vpn();
+		// 客户端启动客户端通信通道.
+		if (m_config.identity_ == avpn::avpn_client)
+			run_as_client();
+
+		// 服务器则将启动服务器通信通道.
+		if (m_config.identity_ == avpn::avpn_server)
+			run_as_server();
 	}
 
 	void avpn_service::stop()
@@ -134,17 +140,6 @@ namespace avpn {
 		}
 
 		LOG_WARN << "start_tun_read_loop quit...";
-	}
-
-	void avpn_service::start_vpn()
-	{
-		// 客户端启动客户端通信通道.
-		if (m_config.identity_ == avpn::avpn_client)
-			run_as_client();
-
-		// 服务器则将启动服务器通信通道.
-		if (m_config.identity_ == avpn::avpn_server)
-			run_as_server();
 	}
 
 	void avpn_service::run_as_client()
