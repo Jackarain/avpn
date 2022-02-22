@@ -138,70 +138,78 @@ namespace avpn {
 
 	void avpn_service::start_vpn()
 	{
-		boost::system::error_code ec;
-
 		// 客户端启动客户端通信通道.
 		if (m_config.identity_ == avpn::avpn_client)
-			m_channel.start_connect(m_config.upstreams_,
-				[this](avpn::channel_status status)
-				{
-					m_channel_status = status;
-
-					// 连接成功, 如果没有启动tun, 则启动tun设备.
-					if (status == avpn::channel_status::st_connected)
-					{
-						LOG_DBG << "vpn connected";
-
-						if (m_start_tuntap)
-							return;
-						m_start_tuntap = true;
-
-						auto ipaddr = m_channel.virtual_ipaddr();
-						setup_tun(ipaddr);
-
-						LOG_DBG << "vpn device start...";
-
-						boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-							start_tun_read_loop(), boost::asio::detached);
-					}
-
-					// 断开状态.
-					if (status == avpn::channel_status::st_disconnect)
-					{
-						m_start_tuntap = false;
-						m_tuntap.close();
-
-						if (m_abort)
-							return;
-
-						LOG_WARN << "vpn disconnect...";
-					}
-				},
-				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
-			);
+			run_as_client();
 
 		// 服务器则将启动服务器通信通道.
 		if (m_config.identity_ == avpn::avpn_server)
-			m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
-				[this](avpn::channel_status status)
+			run_as_server();
+	}
+
+	void avpn_service::run_as_client()
+	{
+		m_channel.start_connect(m_config.upstreams_,
+			[this](avpn::channel_status status)
+			{
+				m_channel_status = status;
+
+				// 连接成功, 如果没有启动tun, 则启动tun设备.
+				if (status == avpn::channel_status::st_connected)
 				{
-					if (status == avpn::channel_status::st_listen)
-					{
-						if (m_start_tuntap)
-							return;
+					LOG_DBG << "vpn connected";
 
-						m_start_tuntap = true;
-						m_channel_status = status;
+					if (m_start_tuntap)
+						return;
+					m_start_tuntap = true;
 
-						setup_tun(m_channel.virtual_gateway());
+					auto ipaddr = m_channel.virtual_ipaddr();
+					setup_tun(ipaddr);
 
-						LOG_DBG << "vpn device start...";
+					LOG_DBG << "vpn device start...";
 
-						boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-							start_tun_read_loop(), boost::asio::detached);
-					}
-				},
-				[this](std::string&& message) { do_tuntap_write(std::move(message)); }
+					boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+						start_tun_read_loop(), boost::asio::detached);
+				}
+
+				// 断开状态.
+				if (status == avpn::channel_status::st_disconnect)
+				{
+					m_start_tuntap = false;
+					m_tuntap.close();
+
+					if (m_abort)
+						return;
+
+					LOG_WARN << "vpn disconnect...";
+				}
+			},
+			[this](std::string&& message) { do_tuntap_write(std::move(message)); }
+			);
+	}
+
+	void avpn_service::run_as_server()
+	{
+		m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
+			[this](avpn::channel_status status)
+			{
+				if (status == avpn::channel_status::st_listen)
+				{
+					if (m_start_tuntap)
+						return;
+
+					m_start_tuntap = true;
+					m_channel_status = status;
+
+					setup_tun(m_channel.virtual_gateway());
+
+					LOG_DBG << "vpn device start...";
+
+					boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+						start_tun_read_loop(), boost::asio::detached);
+				}
+			},
+			[this](std::string&& message) { do_tuntap_write(std::move(message)); }
 			);
 	}
 

@@ -38,14 +38,14 @@ namespace avpn {
 
 	public:
 		void start();
-
-		boost::asio::awaitable<int> run();
-
 		void stop();
 
 	private:
 		boost::asio::awaitable<void> start_tun_read_loop();
 		void start_vpn();
+
+		void run_as_client();
+		void run_as_server();
 
 		void do_tuntap_write(std::string&& message);
 		void setup_tun(const boost::asio::ip::network_v4& net);
