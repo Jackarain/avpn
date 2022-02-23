@@ -190,12 +190,7 @@ namespace avpn
 
 			memset(&ifr, 0, sizeof(ifr));
 			ifr.ifr_flags = IFF_NO_PI;
-			if (cfg.dev_type_ == dev_tun)
-				ifr.ifr_flags |= IFF_TUN;
-			else if (cfg.dev_type_ == dev_tap)
-				ifr.ifr_flags |= IFF_TAP;
-			else
-				return false;
+			ifr.ifr_flags |= IFF_TUN;
 
 			if (!cfg.dev_name_.empty() && cfg.dev_name_.size() < IFNAMSIZ)
 				strncpy(ifr.ifr_name, cfg.dev_name_.data(), IFNAMSIZ);
@@ -412,7 +407,6 @@ namespace avpn
 			{
 				device_tuntap dev;
 				dev.name_ = name;
-				dev.dev_type_ = dev_tun;
 				m_device_list.push_back(dev);
 				LOG_DBG << "iframe: " << name << ", tun type: " << flags;
 			}
@@ -421,7 +415,6 @@ namespace avpn
 			{
 				device_tuntap dev;
 				dev.name_ = name;
-				dev.dev_type_ = dev_tap;
 				m_device_list.push_back(dev);
 				LOG_DBG << "iframe: " << name << ", tap type: " << flags;
 			}
