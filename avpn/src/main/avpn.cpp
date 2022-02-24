@@ -268,7 +268,7 @@ namespace avpn {
 
 		// 构造配置参数.
 		avpn::dev_config dc = { ipaddr, mask.to_string(),
-			gateway.to_string(), "", "", "", 0, 0 };
+			gateway.to_string(), "", "", "", 0 };
 		dc.dev_name_ = m_config.ifdev_;
 		auto dev_list = m_tuntap.take_device_list();
 		std::string guid;
