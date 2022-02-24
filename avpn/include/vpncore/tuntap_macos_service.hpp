@@ -234,6 +234,7 @@ namespace avpn
 				return;
 
 			boost::system::error_code ignore_ec;
+			m_stream_descriptor.cancel(ignore_ec);
 			m_stream_descriptor.close(ignore_ec);
 			m_tuntap_fd = 0;
 		}

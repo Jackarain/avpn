@@ -518,6 +518,7 @@ namespace avpn {
 				details::tap_win32_set_status(m_handle, FALSE);
 
 				boost::system::error_code ignore_ec;
+				m_io_handle.cancel(ignore_ec);
 				m_io_handle.close(ignore_ec);
 			}
 
