@@ -179,7 +179,10 @@ namespace avpn
 		bool open(const dev_config &cfg)
 		{
 			struct ifreq ifr;
-			int fd;
+
+			int fd = ::open(TUNDEV, O_RDWR);
+			if (fd < 0)
+				return false;
 
 			memset(&ifr, 0, sizeof(ifr));
 			ifr.ifr_flags = IFF_NO_PI;
