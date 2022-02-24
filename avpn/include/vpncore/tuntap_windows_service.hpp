@@ -513,7 +513,7 @@ namespace avpn {
 
 		void close()
 		{
-			if (!m_io_handle.is_open())
+			if (m_io_handle.is_open())
 			{
 				details::tap_win32_set_status(m_handle, FALSE);
 
