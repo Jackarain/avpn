@@ -89,13 +89,6 @@ namespace avpn
 			struct ifreq ifr;
 			int fd;
 
-			if (cfg.tun_fd_ < 0)
-			{
-				fd = ::open(TUNDEV, O_RDWR);
-				if (fd < 0)
-					return false;
-			}
-
 			memset(&ifr, 0, sizeof(ifr));
 			ifr.ifr_flags = IFF_NO_PI;
 			ifr.ifr_flags |= IFF_TUN;

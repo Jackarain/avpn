@@ -25,9 +25,6 @@ namespace avpn {
 		std::string guid_;
 		std::string dev_name_;
 
-		// use for linux tun dev.
-		int tun_fd_{ -1 };
-
 		bool ifconfig_setup_;
 	};
 
