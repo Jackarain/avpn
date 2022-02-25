@@ -305,6 +305,7 @@ int main(int argc, char** argv)
 	params.fec_delay_ = fec_delay;
 	params.auto_fec_ = auto_fec;
 	params.keepalive_ = keepalive;
+	params.passbyvpn_ = passbyvpn;
 	params.c2c_ = c2c;
 	params.subnet_ = subnet;
 	if (data_shards + parity_shards > 256)

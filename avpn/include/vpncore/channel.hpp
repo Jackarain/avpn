@@ -661,6 +661,7 @@ namespace avpn {
 
 	struct channel_status
 	{
+		bool passbyvpn_{ false };
 		std::vector<std::string> routes_;
 		connection_status status_;
 	};
