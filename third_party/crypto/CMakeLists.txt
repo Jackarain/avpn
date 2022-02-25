@@ -13,7 +13,7 @@
 # # error "The CMAKE_C_COMPILER is set to a C++ compiler"
 
 # Print useful information
-message( STATUS "CMake version ${CMAKE_VERSION}" )
+message( STATUS "Crypto CMake version ${CMAKE_VERSION}" )
 
 #cmake_minimum_required(VERSION 2.8.6)
 if (${CMAKE_VERSION} VERSION_LESS "3.0.0")
