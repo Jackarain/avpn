@@ -19,8 +19,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <arpa/inet.h>
 
 extern "C"
 {
@@ -29,6 +31,7 @@ extern "C"
 #include <libnetlink.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+
 }
 
 // #define ARPHRD_NONE			0xFFFE
@@ -65,6 +68,7 @@ static const char drv_name[] = "tun";
 #include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "utils/logging.hpp"
+#include "utils/scoped_exit.hpp"
 #include "vpncore/tuntap_config.hpp"
 
 static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
@@ -90,6 +94,76 @@ static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 	return sendto(rth->fd, (void *)&req, sizeof(req), 0,
 				  (struct sockaddr *)&nladdr, sizeof(nladdr));
 }
+
+#if 0
+
+int getgatewayandiface(struct in_addr* addr, char* iface_name)
+{
+	long destination, gateway;
+	char iface[IF_NAMESIZE] = {0};
+	char buf[4096] = {0};
+	FILE* file;
+
+	memset(iface, 0, sizeof(iface));
+	memset(buf, 0, sizeof(buf));
+
+	file = fopen("/proc/net/route", "r");
+	if (!file)
+		return -1;
+	scoped_exit scoped([&file]() mutable { fclose(file); });
+
+	while (fgets(buf, sizeof(buf), file))
+	{
+		if (sscanf(buf, "%s %lx %lx", iface, &destination, &gateway) == 3)
+		{
+			if (destination == 0)
+			{
+				*addr = *(struct in_addr*)&gateway;
+				strcpy(iface_name, iface);
+				return 0;
+			}
+		}
+	}
+
+	return -1;
+}
+
+#else
+
+int getgatewayandiface(in_addr_t* addr, char* interface)
+{
+	long destination, gateway;
+	char iface[IF_NAMESIZE];
+	char buf[IF_NAMESIZE];
+	FILE* file;
+
+	memset(iface, 0, sizeof(iface));
+	memset(buf, 0, sizeof(buf));
+
+	file = fopen("/proc/net/route", "r");
+	if (!file)
+		return -1;
+
+	while (fgets(buf, sizeof(buf), file)) {
+		if (sscanf(buf, "%s %lx %lx", iface, &destination, &gateway) == 3) {
+			if (destination == 0) { /* default */
+				*addr = gateway;
+				strcpy(interface, iface);
+				fclose(file);
+				return 0;
+			}
+		}
+	}
+
+	/* default route not found */
+	if (file)
+		fclose(file);
+	return -1;
+}
+
+
+#endif
+
 
 namespace avpn
 {

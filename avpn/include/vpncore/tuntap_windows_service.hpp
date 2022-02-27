@@ -94,26 +94,6 @@ namespace avpn {
 			}
 		}
 
-		inline DWORD get_interface_index(const TCHAR* guid)
-		{
-			ULONG index;
-			DWORD status;
-			std::wstring wstr;
-			wstr.reserve(256);
-			wstr = L"\\DEVICE\\TCPIP_" + std::wstring(guid);
-			if ((status = GetAdapterIndex(wstr.data(), &index)) != NO_ERROR)
-				return (DWORD)~0;
-			else
-				return index;
-		}
-
-		inline int tap_win32_set_status(HANDLE handle, int status)
-		{
-			unsigned long len = 0;
-			return DeviceIoControl(handle, TAP_IOCTL_SET_MEDIA_STATUS,
-				&status, sizeof(status), &status, sizeof(status), &len, NULL);
-		}
-
 		inline std::string error_format(DWORD err)
 		{
 			// Retrieve the system error message for the last-error code
@@ -141,6 +121,143 @@ namespace avpn {
 			LocalFree(lpMsgBuf);
 
 			return error_msg;
+		}
+
+		inline DWORD get_interface_index(const TCHAR* guid)
+		{
+			ULONG index;
+			DWORD status;
+			std::wstring wstr;
+			wstr.reserve(256);
+			wstr = L"\\DEVICE\\TCPIP_" + std::wstring(guid);
+			if ((status = GetAdapterIndex(wstr.data(), &index)) != NO_ERROR)
+				return (DWORD)~0;
+			else
+				return index;
+		}
+
+		inline std::optional<MIB_IPFORWARDTABLE> get_windows_routing_table()
+		{
+			ULONG size = 0;
+			MIB_IPFORWARDTABLE rt = { 0 };
+			DWORD status;
+
+			status = GetIpForwardTable(NULL, &size, TRUE);
+			if (status == ERROR_INSUFFICIENT_BUFFER)
+			{
+				status = GetIpForwardTable(&rt, &size, TRUE);
+				if (status != NO_ERROR)
+				{
+					LOG_ERR << "NOTE: GetIpForwardTable returned error: "
+						<< error_format(status) << "  (code=" << status << ")";
+					return {};
+				}
+			}
+
+			return { rt };
+		}
+
+		inline std::optional<MIB_IPFORWARDROW>
+			get_default_gateway_row(const MIB_IPFORWARDTABLE* routes)
+		{
+			DWORD lowest_metric = MAXDWORD;
+			MIB_IPFORWARDROW ret = { 0 };
+			int best = -1;
+
+			if (routes)
+			{
+				for (DWORD i = 0; i < routes->dwNumEntries; ++i)
+				{
+					const MIB_IPFORWARDROW* row = &routes->table[i];
+					const auto net = ntohl(row->dwForwardDest);
+					const auto mask = ntohl(row->dwForwardMask);
+					const DWORD index = row->dwForwardIfIndex;
+					const DWORD metric = row->dwForwardMetric1;
+
+#if 0
+					dmsg(D_ROUTE_DEBUG, "GDGR: route[%lu] %s/%s i=%d m=%d",
+						i,
+						print_in_addr_t((in_addr_t)net, 0, &gc),
+						print_in_addr_t((in_addr_t)mask, 0, &gc),
+						(int)index,
+						(int)metric);
+#endif
+
+					if (!net && !mask && metric < lowest_metric)
+					{
+						ret = *row;
+						lowest_metric = metric;
+						best = i;
+					}
+				}
+			}
+
+			LOG_DBG << "GDGR: best=" << best << " lm=" << lowest_metric;
+
+			return {ret};
+		}
+
+		inline std::optional<IP_ADAPTER_INFO> get_adapter_info_list()
+		{
+			ULONG size = 0;
+			IP_ADAPTER_INFO pi = { 0 };
+			DWORD status;
+
+			if ((status = GetAdaptersInfo(NULL, &size)) != ERROR_BUFFER_OVERFLOW)
+			{
+				LOG_ERR << "GetAdaptersInfo #1 failed (status="
+					<< status << ") : " << error_format(status);
+			}
+			else
+			{
+				if ((status = GetAdaptersInfo(&pi, &size)) != NO_ERROR)
+				{
+					LOG_ERR << "GetAdaptersInfo #2 failed (status="
+						<< status << ") : " << error_format(status);
+
+					return {};
+				}
+			}
+
+			return {pi};
+		}
+
+		inline void get_default_gateway()
+		{
+			auto adapters = get_adapter_info_list();
+			auto routes = get_windows_routing_table();
+			auto row = get_default_gateway_row(&*routes);
+			DWORD a_index;
+			const IP_ADAPTER_INFO* ai;
+
+			if (row)
+			{
+				auto addr = ntohl(row->dwForwardNextHop);
+				if (addr)
+				{
+					rgi->flags |= RGI_ADDR_DEFINED;
+					a_index = adapter_index_of_ip(adapters, rgi->gateway.addr, NULL, &rgi->gateway.netmask);
+					if (a_index != TUN_ADAPTER_INDEX_INVALID)
+					{
+						rgi->adapter_index = a_index;
+						rgi->flags |= (RGI_IFACE_DEFINED | RGI_NETMASK_DEFINED);
+						ai = get_adapter(adapters, a_index);
+						if (ai)
+						{
+							memcpy(rgi->hwaddr, ai->Address, 6);
+							rgi->flags |= RGI_HWADDR_DEFINED;
+						}
+					}
+				}
+			}
+		}
+
+
+		inline int tap_win32_set_status(HANDLE handle, int status)
+		{
+			unsigned long len = 0;
+			return DeviceIoControl(handle, TAP_IOCTL_SET_MEDIA_STATUS,
+				&status, sizeof(status), &status, sizeof(status), &len, NULL);
 		}
 
 		inline void windows_set_mtu(const int iface_index,

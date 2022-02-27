@@ -16,16 +16,16 @@
 #endif //AVPN_VERSION_MINOR
 
 #ifndef AVPN_VERSION_TINY
-#define AVPN_VERSION_TINY 53
+#define AVPN_VERSION_TINY 57
 #endif //AVPN_VERSION_TINY
 
 // the format of this version is: MMmmtt
 // M = Major version, m = minor version, t = tiny version
 #define AVPN_VERSION_NUM ((AVPN_VERSION_MAJOR * 10000) + (AVPN_VERSION_MINOR * 100) + AVPN_VERSION_TINY)
-#define AVPN_VERSION "4.2.53"
+#define AVPN_VERSION "4.2.57"
 
 #ifndef AVPN_GIT_REVISION
-#define AVPN_GIT_REVISION "Git-1203717"
+#define AVPN_GIT_REVISION "Git-94ee9b4"
 #endif
 
 #define AVPN_VERSION_MIME "AVPN/" AVPN_VERSION "(" AVPN_GIT_REVISION ")"
