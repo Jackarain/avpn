@@ -99,52 +99,52 @@ inline int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 
 namespace avpn
 {
-inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
-{
-	long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
-	char iface[512] = { 0 };
-	char buf[1024] = { 0 };
-	FILE* file;
-
-	memset(iface, 0, sizeof(iface));
-	memset(buf, 0, sizeof(buf));
-
-	file = fopen("/proc/net/route", "r");
-	if (!file)
-		return {};
-
-	scoped_exit scoped([&file]() mutable { fclose(file); });
-	long lowest_metric = std::numeric_limits<long>::max();
-	boost::asio::ip::network_v4 net;
-
-	while (fgets(buf, sizeof(buf), file))
+	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
 	{
-		LOG_DBG << buf;
+		long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
+		char iface[512] = { 0 };
+		char buf[1024] = { 0 };
+		FILE* file;
 
-		if (sscanf(buf, "%s %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx",
-			iface, &Destination, &Gateway, &Flags, &RefCnt,
-			&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
+		memset(iface, 0, sizeof(iface));
+		memset(buf, 0, sizeof(buf));
+
+		file = fopen("/proc/net/route", "r");
+		if (!file)
+			return {};
+
+		scoped_exit scoped([&file]() mutable { fclose(file); });
+		long lowest_metric = std::numeric_limits<long>::max();
+		boost::asio::ip::network_v4 net;
+
+		while (fgets(buf, sizeof(buf), file))
 		{
-			if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
+			LOG_DBG << buf;
+
+			if (sscanf(buf, "%s %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx",
+				iface, &Destination, &Gateway, &Flags, &RefCnt,
+				&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
 			{
-				lowest_metric = Metric;
+				if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
+				{
+					lowest_metric = Metric;
 
-				boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
-				boost::asio::ip::address_v4 mask{ ntohl(Mask) };
+					boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
+					boost::asio::ip::address_v4 mask{ ntohl(Mask) };
 
-				net = boost::asio::ip::network_v4(gw, mask);
+					net = boost::asio::ip::network_v4(gw, mask);
+				}
 			}
 		}
+
+		if (lowest_metric == std::numeric_limits<long>::max())
+			return {};
+
+		LOG_DBG << "Default gateway: " << net.address().to_string()
+			<< ", lowest metric: " << lowest_metric;
+
+		return net;
 	}
-
-	if (lowest_metric == std::numeric_limits<long>::max())
-		return {};
-
-	LOG_DBG << "Default gateway: " << net.address().to_string()
-		<< ", lowest metric: " << lowest_metric;
-
-	return net;
-}
 
 	template <typename ReturnType>
 	inline ReturnType error_wrapper(ReturnType return_value,
