@@ -59,6 +59,11 @@ static const char drv_name[] = "tun";
 
 namespace avpn
 {
+	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	{
+		return {};
+	}
+
 	template <typename ReturnType>
 	inline ReturnType error_wrapper(ReturnType return_value,
 		boost::system::error_code &ec)

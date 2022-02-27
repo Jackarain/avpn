@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <net/route.h>
 #include <net/if_utun.h>
+#include <net/if_dl.h>
 #include <sys/ioctl.h>
 #include <sys/kern_event.h>
 
@@ -33,6 +34,9 @@
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/regex.hpp>
+
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/misc.hpp"
@@ -40,6 +44,36 @@
 
 namespace avpn
 {
+	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	{
+		auto [result, ret] = run_command("netstat -rn -f inet");
+		if (!ret)
+			return {};
+
+		std::vector<std::string> strings;
+		boost::split(strings, result, boost::is_any_of("\n"));
+		boost::regex expression(R"((default)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S*).*)");
+
+		for (const auto word : strings)
+		{
+			boost::smatch what;
+			if (boost::regex_match(word, what, expression))
+			{
+				std::string gateway = std::string(what[2]);
+				boost::system::error_code ec;
+				auto gw = boost::asio::ip::address_v4::from_string(gateway, ec);
+				if (ec)
+					continue;
+				boost::asio::ip::address_v4 mask{ 0 };
+
+				LOG_DBG << "Default gateway: " << gw.to_string();
+				return boost::asio::ip::network_v4(gw, mask);
+			}
+		}
+
+		return {};
+	}
+
 	class tuntap_macos_service
 		: public boost::asio::detail::service_base<tuntap_macos_service>
 	{
