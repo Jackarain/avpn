@@ -136,16 +136,21 @@ namespace avpn {
 				return index;
 		}
 
-		inline std::optional<MIB_IPFORWARDTABLE> get_windows_routing_table()
+		static auto free_ppft = [](PMIB_IPFORWARDTABLE ppft) { ::free(ppft); };
+
+		inline std::shared_ptr<MIB_IPFORWARDTABLE> get_windows_routing_table()
 		{
 			ULONG size = 0;
-			MIB_IPFORWARDTABLE rt = { 0 };
+			PMIB_IPFORWARDTABLE rt = nullptr;
 			DWORD status;
+			std::shared_ptr<MIB_IPFORWARDTABLE> sprt;
 
 			status = GetIpForwardTable(NULL, &size, TRUE);
 			if (status == ERROR_INSUFFICIENT_BUFFER)
 			{
-				status = GetIpForwardTable(&rt, &size, TRUE);
+				rt = (MIB_IPFORWARDTABLE*)::malloc(size);
+				sprt.reset(rt, free_ppft);
+				status = GetIpForwardTable(rt, &size, TRUE);
 				if (status != NO_ERROR)
 				{
 					LOG_ERR << "NOTE: GetIpForwardTable returned error: "
@@ -154,7 +159,7 @@ namespace avpn {
 				}
 			}
 
-			return { rt };
+			return sprt;
 		}
 
 		inline std::optional<MIB_IPFORWARDROW>
@@ -174,15 +179,6 @@ namespace avpn {
 					const DWORD index = row->dwForwardIfIndex;
 					const DWORD metric = row->dwForwardMetric1;
 
-#if 0
-					dmsg(D_ROUTE_DEBUG, "GDGR: route[%lu] %s/%s i=%d m=%d",
-						i,
-						print_in_addr_t((in_addr_t)net, 0, &gc),
-						print_in_addr_t((in_addr_t)mask, 0, &gc),
-						(int)index,
-						(int)metric);
-#endif
-
 					if (!net && !mask && metric < lowest_metric)
 					{
 						ret = *row;
@@ -192,16 +188,17 @@ namespace avpn {
 				}
 			}
 
-			LOG_DBG << "GDGR: best=" << best << " lm=" << lowest_metric;
-
 			return {ret};
 		}
 
-		inline std::optional<IP_ADAPTER_INFO> get_adapter_info_list()
+		static auto free_pai = [](PIP_ADAPTER_INFO pai) { ::free(pai); };
+
+		inline std::shared_ptr<IP_ADAPTER_INFO> get_adapter_info_list()
 		{
 			ULONG size = 0;
-			IP_ADAPTER_INFO pi = { 0 };
+			PIP_ADAPTER_INFO pi = nullptr;
 			DWORD status;
+			std::shared_ptr<IP_ADAPTER_INFO> spi;
 
 			if ((status = GetAdaptersInfo(NULL, &size)) != ERROR_BUFFER_OVERFLOW)
 			{
@@ -210,7 +207,9 @@ namespace avpn {
 			}
 			else
 			{
-				if ((status = GetAdaptersInfo(&pi, &size)) != NO_ERROR)
+				pi = (PIP_ADAPTER_INFO)::malloc(size);
+				spi.reset(pi, free_pai);
+				if ((status = GetAdaptersInfo(pi, &size)) != NO_ERROR)
 				{
 					LOG_ERR << "GetAdaptersInfo #2 failed (status="
 						<< status << ") : " << error_format(status);
@@ -219,39 +218,28 @@ namespace avpn {
 				}
 			}
 
-			return {pi};
+			return spi;
 		}
 
-		inline void get_default_gateway()
+		inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
 		{
-			auto adapters = get_adapter_info_list();
-			auto routes = get_windows_routing_table();
-			auto row = get_default_gateway_row(&*routes);
-			DWORD a_index;
-			const IP_ADAPTER_INFO* ai;
+			auto routes = details::get_windows_routing_table();
+			auto row = details::get_default_gateway_row(&*routes);
 
 			if (row)
 			{
-				auto addr = ntohl(row->dwForwardNextHop);
-				if (addr)
-				{
-					rgi->flags |= RGI_ADDR_DEFINED;
-					a_index = adapter_index_of_ip(adapters, rgi->gateway.addr, NULL, &rgi->gateway.netmask);
-					if (a_index != TUN_ADAPTER_INDEX_INVALID)
-					{
-						rgi->adapter_index = a_index;
-						rgi->flags |= (RGI_IFACE_DEFINED | RGI_NETMASK_DEFINED);
-						ai = get_adapter(adapters, a_index);
-						if (ai)
-						{
-							memcpy(rgi->hwaddr, ai->Address, 6);
-							rgi->flags |= RGI_HWADDR_DEFINED;
-						}
-					}
-				}
-			}
-		}
+				boost::asio::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
+				boost::asio::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
+				boost::asio::ip::network_v4 net(gw, mask);
 
+				LOG_DBG << "Default gateway: " << gw.to_string()
+					<< ", lowest metric: " << row->dwForwardMetric1;
+
+				return net;
+			}
+
+			return {};
+		}
 
 		inline int tap_win32_set_status(HANDLE handle, int status)
 		{
@@ -295,8 +283,9 @@ namespace avpn {
 				LOG_DBG << family_name << " MTU set to " << mtu << " on interface " << iface_index << " using SetIpInterfaceEntry()";
 			}
 		}
-
 	}
+
+	using details::get_default_gateway;
 
 	class tuntap_windows_service
 		: public boost::asio::detail::service_base<tuntap_windows_service>

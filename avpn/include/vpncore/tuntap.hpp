@@ -19,8 +19,6 @@
 #	error unsupported platform
 #endif
 
-
-
 #include "vpncore/basic_tuntap.hpp"
 
 namespace avpn {
