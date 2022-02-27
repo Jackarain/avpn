@@ -59,6 +59,7 @@ static const char drv_name[] = "tun";
 
 #endif
 
+#include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
@@ -71,7 +72,7 @@ static const char drv_name[] = "tun";
 #include "utils/scoped_exit.hpp"
 #include "vpncore/tuntap_config.hpp"
 
-static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
+inline int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
 {
 	struct
 	{
@@ -95,13 +96,11 @@ static int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int ty
 				  (struct sockaddr *)&nladdr, sizeof(nladdr));
 }
 
-#if 0
-
-int getgatewayandiface(struct in_addr* addr, char* iface_name)
+inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
 {
-	long destination, gateway;
-	char iface[IF_NAMESIZE] = {0};
-	char buf[4096] = {0};
+	long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
+	char iface[IF_NAMESIZE] = { 0 };
+	char buf[IF_NAMESIZE] = { 0 };
 	FILE* file;
 
 	memset(iface, 0, sizeof(iface));
@@ -109,60 +108,35 @@ int getgatewayandiface(struct in_addr* addr, char* iface_name)
 
 	file = fopen("/proc/net/route", "r");
 	if (!file)
-		return -1;
+		return {};
+
 	scoped_exit scoped([&file]() mutable { fclose(file); });
+	long lowest_metric = std::numeric_limits<long>::max();
+	boost::asio::ip::network_v4 net;
 
 	while (fgets(buf, sizeof(buf), file))
 	{
-		if (sscanf(buf, "%s %lx %lx", iface, &destination, &gateway) == 3)
+		if (sscanf(buf, "%s %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx",
+			iface, &Destination, &Gateway, &Flags, &RefCnt,
+			&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
 		{
-			if (destination == 0)
+			if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
 			{
-				*addr = *(struct in_addr*)&gateway;
-				strcpy(iface_name, iface);
-				return 0;
+				lowest_metric = Metric;
+
+				boost::asio::ip::address_v4 gw{ Gateway };
+				boost::asio::ip::address_v4 mask{ Mask };
+
+				net = boost::asio::ip::network_v4(gw, mask);
 			}
 		}
 	}
 
-	return -1;
+	if (lowest_metric == std::numeric_limits<long>::max())
+		return {};
+
+	return net;
 }
-
-#else
-
-int getgatewayandiface(in_addr_t* addr, char* interface)
-{
-	long destination, gateway;
-	char iface[IF_NAMESIZE];
-	char buf[IF_NAMESIZE];
-	FILE* file;
-
-	memset(iface, 0, sizeof(iface));
-	memset(buf, 0, sizeof(buf));
-
-	file = fopen("/proc/net/route", "r");
-	if (!file)
-		return -1;
-
-	while (fgets(buf, sizeof(buf), file)) {
-		if (sscanf(buf, "%s %lx %lx", iface, &destination, &gateway) == 3) {
-			if (destination == 0) { /* default */
-				*addr = gateway;
-				strcpy(interface, iface);
-				fclose(file);
-				return 0;
-			}
-		}
-	}
-
-	/* default route not found */
-	if (file)
-		fclose(file);
-	return -1;
-}
-
-
-#endif
 
 
 namespace avpn

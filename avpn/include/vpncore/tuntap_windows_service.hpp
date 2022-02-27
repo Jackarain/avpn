@@ -167,7 +167,6 @@ namespace avpn {
 		{
 			DWORD lowest_metric = MAXDWORD;
 			MIB_IPFORWARDROW ret = { 0 };
-			int best = -1;
 
 			if (routes)
 			{
@@ -183,7 +182,6 @@ namespace avpn {
 					{
 						ret = *row;
 						lowest_metric = metric;
-						best = i;
 					}
 				}
 			}
