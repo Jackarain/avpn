@@ -55,10 +55,14 @@ target_include_directories(avpn PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(avpn PRIVATE -fcoroutines)
+endif()
+
 if(ENABLE_BUILD_WERROR)
 	if(MSVC)
 		target_compile_options(avpn PRIVATE /W4 /WX)
-	elseif(NOT APPLE AND NOT MINGW)
+	elseif(UNIX AND NOT APPLE)
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
 			target_compile_options(avpn PRIVATE -Werror -Wall -Wextra -Wno-unknown-pragmas -Wno-deprecated)
 		else()
