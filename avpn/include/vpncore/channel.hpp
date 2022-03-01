@@ -379,7 +379,7 @@ namespace avpn {
 	struct fec_cache
 	{
 	public:
-		const static size_t max_cache_size = 5 * 1024 * 1024;
+		const static size_t max_cache_size = 15 * 1024 * 1024;
 		std::map<uint32_t, fec_group> groups_;
 		int64_t total_cache_size_ = 0;
 		uint32_t start_gid_ = 0;
