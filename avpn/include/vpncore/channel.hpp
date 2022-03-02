@@ -1002,6 +1002,7 @@ namespace avpn {
 
 			auto& sock = *uconn.sock_;
 			auto& fec_enc = uconn.fec_enc_;
+			auto& fec_dec = uconn.fec_dec_;
 
 			// 通知过来时, 数据已经被发送了.
 			if (uconn.fec_enc_size_ == 0)
@@ -1167,6 +1168,7 @@ namespace avpn {
 				<< ", Data: " << bytes_transferred
 				<< ", Whole: " << send_data_size
 				<< ", Immed: " << (keep_continue ? "yes" : "no")
+				<< ", Dec: " << fec_dec.total_cache_size_
 				;
 
 			co_return keep_continue;
