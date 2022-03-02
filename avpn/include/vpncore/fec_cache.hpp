@@ -303,7 +303,7 @@ namespace avpn {
 
 	public:
 		explicit fec_cache(int64_t max_cache_size = 15 * 1024 * 1024)
-			: max_cache_size_(max_cache_size)
+			: cache_size_limit_(max_cache_size)
 		{}
 		~fec_cache() = default;
 
@@ -347,20 +347,20 @@ namespace avpn {
 
 		int garbage_clean()
 		{
-			int num = 0;
-			if (total_cache_size_ <= max_cache_size_)
-				return num;
+			if (total_cache_size_ <= cache_size_limit_)
+				return 0;
 
+			int num = 0;
 			for (auto it = groups_.begin(); it != groups_.end();)
 			{
 				auto& [gid, gop] = *it;
 
-				start_gid_ = gid;
+				start_gid_ = gid + 1;
 				total_cache_size_ -= gop.total_;
 				num++;
 				groups_.erase(it++);
 
-				if (total_cache_size_ <= max_cache_size_)
+				if (total_cache_size_ <= cache_size_limit_)
 					break;
 			}
 
@@ -372,74 +372,54 @@ namespace avpn {
 			std::vector<fec_group> result;
 			auto now = timer::clock_type::now();
 
-			// 从groups头开始取gop, 如果第1个gop不满足解码条件
-			// 则直接break.
 			for (auto it = groups_.begin(); it != groups_.end();)
 			{
 				auto& [gid, gop] = *it;
-
-				// 清除小于start_gid.
-				if (gop.gid_ < start_gid_)
-				{
-					it = groups_.erase(it);
-					continue;
-				}
-				else
-				{
-					it++;
-				}
 
 				// 满足fec数量要求, 便取出来用于返回解码.
 				if (gop.full() || gop.accord())
 				{
 					// 增加fec接收的gid, 自此小于start_gid的gop都将丢弃.
-					start_gid_ = gop.gid_ + 1;
+					if (start_gid_ == gop.gid_)
+						start_gid_ = gop.gid_ + 1;
 
 					// 计算fec cache总大小.
 					total_cache_size_ -= gop.total_;
 					BOOST_ASSERT(total_cache_size_ >= 0);
 
-					// 此gop返回.
+					// 返回此gop, 同时从cache中清除.
 					result.emplace_back(std::move(gop));
+					it = groups_.erase(it);
+
 					continue;
 				}
 				else
 				{
-					// 已经被处理过的gop.
-					if (gop.ps_ == -1 && gop.ds_ == -1)
+					// 清除严重超时的gop.
+					if (now - gop.time_ >= std::chrono::seconds(10))
 					{
-						start_gid_ = gop.gid_ + 1;
-						continue;
-					}
+						if (start_gid_ == gop.gid_)
+							start_gid_ = gop.gid_ + 1;
 
-					// 超时判断.
-					if (now - gop.time_ < std::chrono::milliseconds(50))
-						continue;
-
-					// 如果满了, 先处理.
-					if (gop.full() || gop.accord())
-					{
-						// 计算fec cache总大小.
 						total_cache_size_ -= gop.total_;
 						BOOST_ASSERT(total_cache_size_ >= 0);
 
-						// 此gop返回.
-						result.emplace_back(std::move(gop));
+						LOG_WARN << "clean timeout gop: " << gop.gid_
+							<< ", total size: " << total_cache_size_;
+
+						it = groups_.erase(it);
+						continue;
 					}
 				}
-			}
 
-			// 从groups中删除满足解码条件的gop.
-			for (auto& pkt : result)
-			{
-				groups_.erase(pkt.gid_);
+				it++;
 			}
 
 			return result;
 		}
 
 	public:
-		int64_t max_cache_size_;
+		int64_t cache_size_limit_;
 		std::map<uint32_t, fec_group> groups_;
 		int64_t total_cache_size_ = 0;
 		uint32_t start_gid_ = 0;
