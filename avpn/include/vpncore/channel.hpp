@@ -1254,8 +1254,7 @@ namespace avpn {
 				}
 
 				// 任何冗余为0的情况下, 禁用fec并立即发包.
-				if ((m_params.parity_shards_ <= 0) ||
-					(m_params.parity_shards_ == 1 && m_params.data_shards_ == 1))
+				if ((m_params.parity_shards_ <= 0) || m_params.data_shards_ == 1)
 				{
 					auto& sock = *uconn.sock_;
 
@@ -1292,7 +1291,8 @@ namespace avpn {
 					write_int32((int32_t)msg.content.size(), wp);
 					write_string(msg.content, wp);
 
-					if (m_params.parity_shards_ == 1 && msg.type == vpt_tcp)
+					// 多倍流量模式.
+					for (auto n = 0; n < m_params.parity_shards_ && msg.type == vpt_tcp; n++)
 					{
 						auto duplicate = udp_body;
 						co_await direct_channel_udp_write(sock, uconn.endp_, duplicate);
