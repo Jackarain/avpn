@@ -15,6 +15,7 @@
 #include <cinttypes>
 #include <vector>
 #include <algorithm>
+#include <limits>
 
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
@@ -315,7 +316,7 @@ namespace avpn {
 
 		void update(uint32_t gid, uint16_t pid,
 			int data_shards, int parity_shards, int gsize,
-			uint8_t* data, size_t size)
+			uint8_t* data, size_t data_size)
 		{
 			auto it = groups_.find(gid);
 			if (it == groups_.end())
@@ -325,17 +326,23 @@ namespace avpn {
 				if (gid < start_gid_)
 					return;
 
+				// gid回环的时候, 如果接收到的gid小于
+				// start_gid, 则由下判断确定丢弃过期数据.
+				static auto boundary = std::numeric_limits<uint32_t>::max() - 65535;
+				if (gid > boundary && start_gid_ < 65535)
+					return;
+
 				fec_group pkt(data_shards, parity_shards, gsize);
-				pkt.update(gid, pid, data, size);
+				pkt.update(gid, pid, data, data_size);
 				groups_.emplace(gid, std::move(pkt));
 			}
 			else
 			{
 				auto& pkt = it->second;
-				pkt.update(gid, pid, data, size);
+				pkt.update(gid, pid, data, data_size);
 			}
 
-			total_cache_size_ += size;
+			total_cache_size_ += data_size;
 		}
 
 		int garbage_clean()
