@@ -28,6 +28,7 @@ file(GLOB avpn_SRCS
 	include/vpncore/endpoint_pair.hpp
 	include/vpncore/tuntap.hpp
 	include/vpncore/tuntap_config.hpp
+	include/vpncore/fec_cache.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp
