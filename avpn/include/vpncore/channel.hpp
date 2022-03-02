@@ -939,11 +939,13 @@ namespace avpn {
 
 			LOG_DBG << "Start fec timer for dispath...";
 
-			while (!m_abort)
+			while (!m_abort) [[likely]]
 			{
 				m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_delay_));
 				co_await m_fec_timer.async_wait(
 					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				if (m_abort) [[unlikely]]
+					co_return;
 
 				std::unordered_map<ws_connection_ptr, udp_connection_weak_ptr> ucs;
 
