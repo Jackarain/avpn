@@ -882,12 +882,12 @@ namespace avpn {
 			ws_connection_ptr connection_ptr = m_client.lock();
 			if (!connection_ptr)
 			{
-				LOG_DBG << "client_write, lost connection: " << endp;
+				LOG_DBG << "client_write, t -> s, lost connection: " << endp;
 				return;
 			}
 
 			if (endp.type_ == avpn::ip_icmp)
-				LOG_DBG << "client_write, icmp: " << endp;
+				LOG_DBG << "client_write, t -> s, icmp: " << endp;
 
 			auto& stream = connection_ptr->ws_stream_;
 			boost::asio::co_spawn(stream.get_executor(),
@@ -899,12 +899,12 @@ namespace avpn {
 			auto connection_ptr = lookup_ws(endp.dst_.address().to_v4().to_uint());
 			if (!connection_ptr)
 			{
-				LOG_WARN << "server_write, lost connection: " << endp;
+				LOG_WARN << "server_write, t -> c, lost connection: " << endp;
 				return;
 			}
 
 			if (endp.type_ == avpn::ip_icmp)
-				LOG_DBG << "server_write, icmp: " << endp;
+				LOG_DBG << "server_write, t -> c, icmp: " << endp;
 
 			auto& stream = connection_ptr->ws_stream_;
 			boost::asio::co_spawn(stream.get_executor(),
@@ -1640,7 +1640,7 @@ namespace avpn {
 								boost::asio::redirect_error(boost::asio::use_awaitable, ec));
 						if (ec)
 						{
-							LOG_ERR << "on_channel_write, " << connection.connection_id_
+							LOG_ERR << "on_channel_write, t -> r, " << connection.connection_id_
 								<< " async_write error: " << ec.message();
 							co_return;
 						}
@@ -1653,14 +1653,14 @@ namespace avpn {
 				auto uconnptr = connection.udp_stream_.lock();
 				if (!uconnptr)
 				{
-					LOG_WARN << "on_channel_write, no network connection to send.";
+					LOG_WARN << "on_channel_write, t -> r, no network connection to send.";
 					co_return;
 				}
 
 				auto& uconn = *uconnptr;
 				if (!uconn.sock_)
 				{
-					LOG_WARN << "on_channel_write, no udp network connection.";
+					LOG_WARN << "on_channel_write, t -> r, no udp network connection.";
 					co_return;
 				}
 
