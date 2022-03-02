@@ -302,7 +302,7 @@ namespace avpn {
 		fec_cache& operator=(const fec_cache&) = delete;
 
 	public:
-		explicit fec_cache(int64_t max_cache_size = 15 * 1024 * 1024)
+		explicit fec_cache(int64_t max_cache_size = 64 * 1024 * 1024)
 			: cache_size_limit_(max_cache_size)
 		{}
 		~fec_cache() = default;
@@ -396,7 +396,7 @@ namespace avpn {
 				else
 				{
 					// 清除严重超时的gop.
-					if (now - gop.time_ >= std::chrono::seconds(10))
+					if (now - gop.time_ >= std::chrono::seconds(30))
 					{
 						if (start_gid_ == gop.gid_)
 							start_gid_ = gop.gid_ + 1;
