@@ -341,7 +341,6 @@ namespace avpn {
 			}
 
 			total_cache_size_ += data_size;
-			LOG_DBG << "Update gop: " << gid << ", pid: " << pid << ", total: " << total_cache_size_ << ", size: " << data_size;
 		}
 
 		int garbage_clean()
@@ -380,7 +379,6 @@ namespace avpn {
 			for (const auto& gop : result_)
 			{
 				total_cache_size_ -= gop.total_;
-				LOG_DBG << "Acquire gop: " << gop.gid_ << ", total: " << total_cache_size_ << ", size: " << gop.total_;
 			}
 
 			return std::move(result_);
