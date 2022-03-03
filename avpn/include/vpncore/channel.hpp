@@ -1853,7 +1853,7 @@ namespace avpn {
 
 					// 不允许内网传输.
 					if (!m_params.c2c_)
-						continue;;
+						continue;
 
 					// 内网数据包, 直接找到对应链转发.
 					auto conn = lookup_ws(dst_addr);
@@ -1913,6 +1913,7 @@ namespace avpn {
 		{
 			auto& connection = *connection_ptr;
 			std::string bufs;
+			udp_connection_ptr uconn = connection.udp_stream_.lock();
 
 			switch (type)
 			{
@@ -2192,6 +2193,10 @@ namespace avpn {
 			{}
 			break;
 			}
+
+			// 将从网络接收到的数据包转发到设备.
+			if (uconn)
+				co_await do_forward_packet(uconn);
 		}
 
 		boost::asio::awaitable<void> process_udp_net_packet(
