@@ -35,6 +35,15 @@ namespace util {
 		{
 			assign(rhs.bytes(), (int)rhs.size());
 		}
+		bitfield(bitfield&& rhs)
+			: m_bytes(rhs.m_bytes)
+			, m_size(rhs.m_size)
+			, m_own(rhs.m_own)
+		{
+			rhs.m_bytes = nullptr;
+			rhs.m_size = 0;
+			rhs.m_own = false;
+		}
 
 		void borrow_bytes(char* b, int bits)
 		{

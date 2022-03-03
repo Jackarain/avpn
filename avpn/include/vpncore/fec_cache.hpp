@@ -49,7 +49,7 @@ namespace avpn {
 		fec_group(fec_group&& pg) noexcept
 			: pkts_(std::move(pg.pkts_))
 			, gid_(pg.gid_)
-			, bs_(pg.bs_)
+			, bs_(std::move(pg.bs_))
 			, ps_(pg.ps_)
 			, gsize_(pg.gsize_)
 			, ds_(pg.ds_)
@@ -58,7 +58,6 @@ namespace avpn {
 		{
 			pg.gid_ = 0;
 			pg.pkts_.clear();
-			pg.bs_.clear_all();
 			pg.ds_ = -1;
 			pg.ps_ = -1;
 			pg.gsize_ = 0;
@@ -311,7 +310,6 @@ namespace avpn {
 		{
 			groups_.clear();
 			total_cache_size_ = 0;
-			start_gid_ = 0;
 		}
 
 		void update(uint32_t gid, uint16_t pid,
@@ -321,17 +319,6 @@ namespace avpn {
 			auto it = groups_.find(gid);
 			if (it == groups_.end())
 			{
-				// 如果gid小于start_gid, 则表示数据已经过期
-				// 不再需要了, 便可丢了.
-				if (gid < start_gid_)
-					return;
-
-				// gid回环的时候, 如果接收到的gid小于
-				// start_gid, 则由下判断确定丢弃过期数据.
-				static auto boundary = std::numeric_limits<uint32_t>::max() - 65535;
-				if (gid > boundary && start_gid_ < 65535)
-					return;
-
 				fec_group pkt(data_shards, parity_shards, gsize);
 				pkt.update(gid, pid, data, data_size);
 				groups_.emplace(gid, std::move(pkt));
@@ -340,6 +327,13 @@ namespace avpn {
 			{
 				auto& pkt = it->second;
 				pkt.update(gid, pid, data, data_size);
+
+				// 保存已经可用的pkt.
+				if (pkt.accord())
+				{
+					result_.emplace_back(std::move(pkt));
+					groups_.erase(it);
+				}
 			}
 
 			total_cache_size_ += data_size;
@@ -355,7 +349,6 @@ namespace avpn {
 			{
 				auto& [gid, gop] = *it;
 
-				start_gid_ = gid + 1;
 				total_cache_size_ -= gop.total_;
 				num++;
 				groups_.erase(it++);
@@ -369,60 +362,14 @@ namespace avpn {
 
 		std::vector<fec_group> acquire()
 		{
-			std::vector<fec_group> result;
-			auto now = timer::clock_type::now();
-
-			for (auto it = groups_.begin(); it != groups_.end();)
-			{
-				auto& [gid, gop] = *it;
-
-				// 满足fec数量要求, 便取出来用于返回解码.
-				if (gop.full() || gop.accord())
-				{
-					// 增加fec接收的gid, 自此小于start_gid的gop都将丢弃.
-					if (start_gid_ == gop.gid_)
-						start_gid_ = gop.gid_ + 1;
-
-					// 计算fec cache总大小.
-					total_cache_size_ -= gop.total_;
-					BOOST_ASSERT(total_cache_size_ >= 0);
-
-					// 返回此gop, 同时从cache中清除.
-					result.emplace_back(std::move(gop));
-					it = groups_.erase(it);
-
-					continue;
-				}
-				else
-				{
-					// 清除严重超时的gop.
-					if (now - gop.time_ >= std::chrono::seconds(30))
-					{
-						if (start_gid_ == gop.gid_)
-							start_gid_ = gop.gid_ + 1;
-
-						total_cache_size_ -= gop.total_;
-						BOOST_ASSERT(total_cache_size_ >= 0);
-
-						LOG_WARN << "clean timeout gop: " << gop.gid_
-							<< ", total size: " << total_cache_size_;
-
-						it = groups_.erase(it);
-						continue;
-					}
-				}
-
-				it++;
-			}
-
-			return result;
+			return std::move(result_);
 		}
 
 	public:
 		int64_t cache_size_limit_;
 		std::map<uint32_t, fec_group> groups_;
+		std::vector<fec_group> result_;
 		int64_t total_cache_size_ = 0;
-		uint32_t start_gid_ = 0;
 	};
 
 }
