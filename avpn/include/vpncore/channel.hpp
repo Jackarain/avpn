@@ -1170,7 +1170,7 @@ namespace avpn {
 				<< ", Data: " << bytes_transferred
 				<< ", Whole: " << send_data_size
 				<< ", Immed: " << (keep_continue ? "yes" : "no")
-				<< ", Dec: " << fec_dec.total_cache_size_
+				<< ", Mem: " << fec_dec.total_cache_size_
 				;
 
 			co_return keep_continue;

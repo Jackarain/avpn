@@ -319,6 +319,9 @@ namespace avpn {
 			auto it = groups_.find(gid);
 			if (it == groups_.end())
 			{
+				if (expired_.contains(gid))
+					return;
+
 				fec_group pkt(data_shards, parity_shards, gsize);
 				pkt.update(gid, pid, data, data_size);
 				groups_.emplace(gid, std::move(pkt));
@@ -331,16 +334,28 @@ namespace avpn {
 				// 保存已经可用的pkt.
 				if (pkt.accord())
 				{
+					expired_.insert(gid);
 					result_.emplace_back(std::move(pkt));
 					groups_.erase(it);
 				}
 			}
 
 			total_cache_size_ += data_size;
+			LOG_DBG << "Update gop: " << gid << ", pid: " << pid << ", total: " << total_cache_size_ << ", size: " << data_size;
 		}
 
 		int garbage_clean()
 		{
+			if (expired_.size() > 2048)
+			{
+				int num = 0;
+				for (auto it = expired_.begin();
+					it != expired_.end() && num <= 1024; num++)
+				{
+					expired_.erase(it++);
+				}
+			}
+
 			if (total_cache_size_ <= cache_size_limit_)
 				return 0;
 
@@ -362,12 +377,19 @@ namespace avpn {
 
 		std::vector<fec_group> acquire()
 		{
+			for (const auto& gop : result_)
+			{
+				total_cache_size_ -= gop.total_;
+				LOG_DBG << "Acquire gop: " << gop.gid_ << ", total: " << total_cache_size_ << ", size: " << gop.total_;
+			}
+
 			return std::move(result_);
 		}
 
 	public:
 		int64_t cache_size_limit_;
 		std::map<uint32_t, fec_group> groups_;
+		std::set<uint32_t> expired_;
 		std::vector<fec_group> result_;
 		int64_t total_cache_size_ = 0;
 	};
