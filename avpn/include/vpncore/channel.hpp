@@ -498,13 +498,13 @@ namespace avpn {
 				on_channel_write(connection_ptr, std::move(msg)), boost::asio::detached);
 		}
 
-		boost::asio::ip::network_v4 virtual_ipaddr() const
+		boost::asio::ip::network_v4 vnet_ipaddr() const
 		{
-			auto endp = boost::asio::ip::make_address_v4(m_virtual_ipaddr);
+			auto endp = boost::asio::ip::make_address_v4(m_vnet_ipaddr);
 			return boost::asio::ip::make_network_v4(endp, m_prefix_length);
 		}
 
-		boost::asio::ip::network_v4 virtual_gateway() const
+		boost::asio::ip::network_v4 vnet() const
 		{
 			// 总是使用网络中第1个地址作为网关.
 			auto endp = *m_subnet.hosts().begin();
@@ -1424,12 +1424,12 @@ namespace avpn {
 						<< serv.address().to_string() << "]:" << serv.port();
 
 					// 回复client已经成功绑定.
-					std::string msg(pkt_header_size + m_virtual_ipaddr.size(), '\0');
+					std::string msg(pkt_header_size + m_vnet_ipaddr.size(), '\0');
 					char* wp = (char*)msg.data();
 
 					write_uint8(vpt_udp_handshake, wp);
-					write_int32((int32_t)m_virtual_ipaddr.size(), wp);
-					write_string(m_virtual_ipaddr, wp);
+					write_int32((int32_t)m_vnet_ipaddr.size(), wp);
+					write_string(m_vnet_ipaddr, wp);
 
 					co_await direct_channel_udp_write(sock, serv, msg);
 
@@ -2081,7 +2081,7 @@ namespace avpn {
 					}
 
 					// 保存获得的虚拟ip.
-					m_virtual_ipaddr = std::string(bufptr, ipsize);
+					m_vnet_ipaddr = std::string(bufptr, ipsize);
 					bufptr += ipsize;
 					bodysize -= ipsize;
 
@@ -2111,7 +2111,7 @@ namespace avpn {
 						m_routes.emplace_back(std::move(route));
 					}
 
-					auto ipaddr = boost::asio::ip::address_v4::from_string(m_virtual_ipaddr);
+					auto ipaddr = boost::asio::ip::address_v4::from_string(m_vnet_ipaddr);
 					connection_ptr->virtual_ipaddr_ = ipaddr.to_uint();
 
 					// 使用udp发起ctrl命令, 使用得server跟踪到本udp对应的虚拟ip连接.
@@ -2470,7 +2470,7 @@ namespace avpn {
 		std::set<udp::endpoint> m_udp_servers;
 
 		// 本机作为client时, server为其分配的虚拟ip.
-		std::string m_virtual_ipaddr;
+		std::string m_vnet_ipaddr;
 		// 本机作为client时, server通告的prefix长度.
 		int8_t m_prefix_length{ -1 };
 

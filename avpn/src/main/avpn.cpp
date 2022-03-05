@@ -169,7 +169,7 @@ namespace avpn {
 						return;
 					m_start_tuntap = true;
 
-					auto ipaddr = m_channel.virtual_ipaddr();
+					auto ipaddr = m_channel.vnet_ipaddr();
 					setup_tun(ipaddr);
 
 					LOG_DBG << "vpn device start...";
@@ -208,7 +208,7 @@ namespace avpn {
 					m_start_tuntap = true;
 					m_channel_status = cs;
 
-					setup_tun(m_channel.virtual_gateway());
+					setup_tun(m_channel.vnet());
 
 					LOG_DBG << "vpn device start...";
 
@@ -295,6 +295,8 @@ namespace avpn {
 			else
 				LOG_ERR << "add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
 		}
+
+		m_vnet = net;
 	}
 
 }

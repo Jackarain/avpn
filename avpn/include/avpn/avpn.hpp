@@ -59,6 +59,7 @@ namespace avpn {
 		std::deque<std::string> m_tuntap_write_deque;
 		bool m_tuntap_writing{ false };
 		timer m_tuntap_timer;
+		boost::asio::ip::network_v4 m_vnet;
 		avpn::channel m_channel;
 
 		std::atomic_bool m_abort{ false };
