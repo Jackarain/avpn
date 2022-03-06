@@ -121,7 +121,7 @@ namespace avpn
 		{
 			LOG_DBG << buf;
 
-			if (sscanf(buf, "%s %lx %lx %lx %lx %lx %lx %lx %lx %lx %lx",
+			if (sscanf(buf, "%16s %lx %lx %lx %ld %ld %ld %lx %ld %ld %ld",
 				iface, &Destination, &Gateway, &Flags, &RefCnt,
 				&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
 			{
