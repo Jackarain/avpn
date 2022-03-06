@@ -72,111 +72,44 @@ static const char drv_name[] = "tun";
 #include "utils/scoped_exit.hpp"
 #include "vpncore/tuntap_config.hpp"
 
-inline int rtnl_wilddump_request_old(struct rtnl_handle *rth, int family, int type)
-{
-	struct
-	{
-		struct nlmsghdr nlh;
-		struct rtgenmsg g;
-	} req;
-	struct sockaddr_nl nladdr;
-
-	memset(&nladdr, 0, sizeof(nladdr));
-	nladdr.nl_family = AF_NETLINK;
-
-	memset(&req, 0, sizeof(req));
-	req.nlh.nlmsg_len = sizeof(req);
-	req.nlh.nlmsg_type = type;
-	req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
-	req.nlh.nlmsg_pid = 0;
-	req.nlh.nlmsg_seq = rth->dump = ++rth->seq;
-	req.g.rtgen_family = family;
-
-	return sendto(rth->fd, (void *)&req, sizeof(req), 0,
-				  (struct sockaddr *)&nladdr, sizeof(nladdr));
-}
-
 
 namespace avpn
 {
-	inline std::tuple<boost::asio::ip::network_v4, std::string> default_gateway()
+	inline namespace details
 	{
-		long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
-		FILE* file;
-		std::string iface;
-
-		file = fopen("/proc/net/route", "r");
-		if (!file)
-			return {};
-
-		scoped_exit scoped([&file]() mutable { fclose(file); });
-		long lowest_metric = std::numeric_limits<long>::max();
-		boost::asio::ip::network_v4 net;
-
-		char buf[1024] = { 0 };
-		memset(buf, 0, sizeof(buf));
-		while (fgets(buf, sizeof(buf), file))
+		inline int rtnl_wilddump_request_old(struct rtnl_handle* rth, int family, int type)
 		{
-			char tmp[512] = { 0 };
-			if (sscanf(buf, "%16s %lx %lx %lx %ld %ld %ld %lx %ld %ld %ld",
-				tmp, &Destination, &Gateway, &Flags, &RefCnt,
-				&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
+			struct
 			{
-				if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
-				{
-					lowest_metric = Metric;
+				struct nlmsghdr nlh;
+				struct rtgenmsg g;
+			} req;
+			struct sockaddr_nl nladdr;
 
-					boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
-					boost::asio::ip::address_v4 mask{ ntohl(Mask) };
+			memset(&nladdr, 0, sizeof(nladdr));
+			nladdr.nl_family = AF_NETLINK;
 
-					net = boost::asio::ip::network_v4(gw, mask);
-					iface = tmp;
-				}
-			}
+			memset(&req, 0, sizeof(req));
+			req.nlh.nlmsg_len = sizeof(req);
+			req.nlh.nlmsg_type = type;
+			req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
+			req.nlh.nlmsg_pid = 0;
+			req.nlh.nlmsg_seq = rth->dump = ++rth->seq;
+			req.g.rtgen_family = family;
+
+			return sendto(rth->fd, (void*)&req, sizeof(req), 0,
+				(struct sockaddr*)&nladdr, sizeof(nladdr));
 		}
 
-		if (lowest_metric == std::numeric_limits<long>::max())
-			return {};
-
-		LOG_DBG << "Default gateway: " << net.address().to_string()
-			<< ", lowest metric: " << lowest_metric;
-
-		return { net, iface };
-	}
-
-	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
-	{
-		[[maybe_unused]] auto [net, iface] = default_gateway();
-		return { net };
-	}
-
-	inline std::optional<std::string> get_default_gateway_iface()
-	{
-		[[maybe_unused]] auto [net, iface] = default_gateway();
-		return { iface };
-	}
-
-	template <typename ReturnType>
-	inline ReturnType error_wrapper(ReturnType return_value,
-									boost::system::error_code &ec)
-	{
-		ec = boost::system::error_code(errno,
-									   boost::asio::error::get_system_category());
-		return return_value;
-	}
-
-	namespace details
-	{
-
-		inline int read_tuntap_prop(const char *dev, const char *prop, long *value)
+		inline int read_tuntap_prop(const char* dev, const char* prop, long* value)
 		{
-			char fname[128], buf[80], *endp, *nl;
-			FILE *fp;
+			char fname[128], buf[80], * endp, * nl;
+			FILE* fp;
 			long result;
 			int ret;
 
 			ret = snprintf(fname, sizeof(fname), "/sys/class/net/%s/%s",
-						   dev, prop);
+				dev, prop);
 
 			if (ret <= 0 || (size_t)ret >= sizeof(fname))
 			{
@@ -218,6 +151,72 @@ namespace avpn
 			LOG_ERR << "failed to parse " << fname;
 			return -1;
 		}
+
+		template <typename ReturnType>
+		inline ReturnType error_wrapper(ReturnType return_value,
+			boost::system::error_code& ec)
+		{
+			ec = boost::system::error_code(errno,
+				boost::asio::error::get_system_category());
+			return return_value;
+		}
+
+		inline std::tuple<boost::asio::ip::network_v4, std::string> default_gateway()
+		{
+			long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
+			FILE* file;
+			std::string iface;
+
+			file = fopen("/proc/net/route", "r");
+			if (!file)
+				return {};
+
+			scoped_exit scoped([&file]() mutable { fclose(file); });
+			long lowest_metric = std::numeric_limits<long>::max();
+			boost::asio::ip::network_v4 net;
+
+			char buf[1024] = { 0 };
+			memset(buf, 0, sizeof(buf));
+			while (fgets(buf, sizeof(buf), file))
+			{
+				char tmp[512] = { 0 };
+				if (sscanf(buf, "%16s %lx %lx %lx %ld %ld %ld %lx %ld %ld %ld",
+					tmp, &Destination, &Gateway, &Flags, &RefCnt,
+					&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
+				{
+					if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
+					{
+						lowest_metric = Metric;
+
+						boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
+						boost::asio::ip::address_v4 mask{ ntohl(Mask) };
+
+						net = boost::asio::ip::network_v4(gw, mask);
+						iface = tmp;
+					}
+				}
+			}
+
+			if (lowest_metric == std::numeric_limits<long>::max())
+				return {};
+
+			LOG_DBG << "Default gateway: " << net.address().to_string()
+				<< ", lowest metric: " << lowest_metric;
+
+			return { net, iface };
+		}
+	}
+
+	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	{
+		[[maybe_unused]] auto [net, iface] = default_gateway();
+		return { net };
+	}
+
+	inline std::optional<std::string> get_default_gateway_iface()
+	{
+		[[maybe_unused]] auto [net, iface] = default_gateway();
+		return { iface };
 	}
 
 	class tuntap_linux_service
