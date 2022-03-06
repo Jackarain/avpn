@@ -59,9 +59,61 @@ static const char drv_name[] = "tun";
 
 namespace avpn
 {
+	inline std::tuple<boost::asio::ip::network_v4, std::string> default_gateway()
+	{
+		long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
+		FILE* file;
+		std::string iface;
+
+		file = fopen("/proc/net/route", "r");
+		if (!file)
+			return {};
+
+		scoped_exit scoped([&file]() mutable { fclose(file); });
+		long lowest_metric = std::numeric_limits<long>::max();
+		boost::asio::ip::network_v4 net;
+
+		char buf[1024] = { 0 };
+		memset(buf, 0, sizeof(buf));
+		while (fgets(buf, sizeof(buf), file))
+		{
+			char tmp[512] = { 0 };
+			if (sscanf(buf, "%16s %lx %lx %lx %ld %ld %ld %lx %ld %ld %ld",
+				tmp, &Destination, &Gateway, &Flags, &RefCnt,
+				&Use, &Metric, &Mask, &MTU, &Window, &IRTT) == 11)
+			{
+				if (Destination == 0 && Mask == 0 && Metric < lowest_metric)
+				{
+					lowest_metric = Metric;
+
+					boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
+					boost::asio::ip::address_v4 mask{ ntohl(Mask) };
+
+					net = boost::asio::ip::network_v4(gw, mask);
+					iface = tmp;
+				}
+			}
+		}
+
+		if (lowest_metric == std::numeric_limits<long>::max())
+			return {};
+
+		LOG_DBG << "Default gateway: " << net.address().to_string()
+			<< ", lowest metric: " << lowest_metric;
+
+		return { net, iface };
+	}
+
 	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
 	{
-		return {};
+		[[maybe_unused]] auto [net, iface] = default_gateway();
+		return { net };
+	}
+
+	inline std::optional<std::string> get_default_gateway_iface()
+	{
+		[[maybe_unused]] auto [net, iface] = default_gateway();
+		return { iface };
 	}
 
 	template <typename ReturnType>
