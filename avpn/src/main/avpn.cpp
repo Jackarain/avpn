@@ -129,7 +129,7 @@ namespace avpn {
 				msg.type = vpt_icmp;
 
 			// 根据程序的身份, 准备透传.
-			if (m_config.identity_ == avpn_server)
+			if (m_config.identity_ == avpn::avpn_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
 				if (m_channel_status.status_ != avpn::connection_status::st_listen)
@@ -138,7 +138,7 @@ namespace avpn {
 				// 透传到channel.
 				m_channel.server_write(std::move(msg), endp);
 			}
-			else if (m_config.identity_ == avpn_client)
+			else if (m_config.identity_ == avpn::avpn_client)
 			{
 				// 未连接状态, 丢弃所有packet.
 				if (m_channel_status.status_ != avpn::connection_status::st_connected)
