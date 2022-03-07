@@ -20,7 +20,7 @@ io_context_pool::io_context_pool(std::size_t pool_size)
 	// exit until they are explicitly stopped.
 	for (std::size_t i = 0; i < pool_size; ++i)
 	{
-		io_context_ptr io_context(new boost::asio::io_context);
+		io_context_ptr io_context(new boost::asio::io_context(1));
 		work_ptr work(new boost::asio::io_context::work(*io_context));
 		io_contexts_.push_back(io_context);
 		work_.push_back(work);
