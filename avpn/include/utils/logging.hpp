@@ -111,7 +111,7 @@ namespace util {
 
 #ifdef LOGGING_COMPRESS_LOGS
 
-namespace log_compress {
+namespace log_compress__ {
 
 	const std::string GZ_SUFFIX = ".gz";
 	// const size_t SUFFIX_LEN = sizeof(GZ_SUFFIX) - 1;
@@ -168,7 +168,7 @@ namespace log_compress {
 
 #endif
 
-namespace aux {
+namespace logger_aux__ {
 
 	static const boost::uint64_t epoch = 116444736000000000L; /* Jan 1, 1601 */
 	typedef union {
@@ -193,7 +193,7 @@ namespace aux {
 		if (system_start_time == 0) {
 			LOGGING_FT nt_time;
 			GetSystemTimeAsFileTime(&(nt_time.ft_struct));
-			int64_t tim = (__int64)((nt_time.ft_scalar - aux::epoch) / (__int64)10000);
+			int64_t tim = (__int64)((nt_time.ft_scalar - logger_aux__::epoch) / (__int64)10000);
 			system_start_time = tim - tmp;
 		}
 
@@ -337,10 +337,10 @@ namespace aux {
 
 	inline std::string string_utf8(const std::string& str)
 	{
-		if (!aux::utf8_check_is_valid(str))
+		if (!logger_aux__::utf8_check_is_valid(str))
 		{
 			std::wstring wres;
-			if (aux::string_wide(str, wres))
+			if (logger_aux__::string_wide(str, wres))
 				return boost::nowide::narrow(wres);
 		}
 
@@ -381,21 +381,21 @@ namespace aux {
 }
 
 
-class auto_logger_file
+class auto_logger_file__
 {
 	// c++11 noncopyable.
-	auto_logger_file(const auto_logger_file&) = delete;
-	auto_logger_file& operator=(const auto_logger_file&) = delete;
+	auto_logger_file__(const auto_logger_file__&) = delete;
+	auto_logger_file__& operator=(const auto_logger_file__&) = delete;
 
 public:
-	auto_logger_file()
+	auto_logger_file__()
 	{
 		m_log_path = m_log_path / (LOG_APPNAME + std::string(".log"));
 		boost::system::error_code ignore_ec;
 		if (!boost::filesystem::exists(m_log_path, ignore_ec))
 			boost::filesystem::create_directories(boost::filesystem::path(m_log_path).branch_path(), ignore_ec);
 	}
-	~auto_logger_file()
+	~auto_logger_file__()
 	{
 	}
 
@@ -432,7 +432,7 @@ public:
 				break;
 			}
 
-			auto ptm = aux::time_to_string(nullptr, m_last_time);
+			auto ptm = logger_aux__::time_to_string(nullptr, m_last_time);
 
 			m_ofstream->close();
 			m_ofstream.reset();
@@ -463,11 +463,11 @@ public:
 			boost::async(boost::launch::async, [fn]()
 			{
 				boost::system::error_code ignore_ec;
-				boost::mutex& m = log_compress::compress_lock();
+				boost::mutex& m = log_compress__::compress_lock();
 				boost::lock_guard<boost::mutex> lock(m);
-				if (!log_compress::do_compress_gz(fn))
+				if (!log_compress__::do_compress_gz(fn))
 				{
-					auto file = fn + log_compress::GZ_SUFFIX;
+					auto file = fn + log_compress__::GZ_SUFFIX;
 					boost::filesystem::remove(file, ignore_ec);
 					if (ignore_ec)
 						std::cout << "delete log failed: " << file
@@ -503,7 +503,7 @@ private:
 };
 
 #ifndef DISABLE_LOGGER_THREAD_SAFE
-#define LOGGER_LOCKS_() boost::lock_guard<boost::mutex> lock(aux::lock_single<boost::mutex>())
+#define LOGGER_LOCKS_() boost::lock_guard<boost::mutex> lock(logger_aux__::lock_single<boost::mutex>())
 #else
 #define LOGGER_LOCKS_() ((void)0)
 #endif // LOGGER_THREAD_SAFE
@@ -525,13 +525,13 @@ const static int _logger_warn_id__ = 2;
 const static int _logger_error_id__ = 3;
 const static int _logger_file_id__ = 4;
 
-const static std::string LOGGER_DEBUG_STR = "DEBUG";
-const static std::string LOGGER_INFO_STR = "INFO";
-const static std::string LOGGER_WARN_STR = "WARNING";
-const static std::string LOGGER_ERR_STR = "ERROR";
-const static std::string LOGGER_FILE_STR = "FILE";
+const static std::string _LOGGER_DEBUG_STR__ = "DEBUG";
+const static std::string _LOGGER_INFO_STR__ = "INFO";
+const static std::string _LOGGER_WARN_STR__ = "WARNING";
+const static std::string _LOGGER_ERR_STR__ = "ERROR";
+const static std::string _LOGGER_FILE_STR__ = "FILE";
 
-inline void output_console([[maybe_unused]] bool disable_cout,
+inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 	[[maybe_unused]] const int& level,
 	[[maybe_unused]] const std::string& prefix,
 	[[maybe_unused]] const std::string& message)
@@ -583,7 +583,7 @@ inline void output_console([[maybe_unused]] bool disable_cout,
 }
 
 #ifdef USE_SYSTEMD_LOGGING
-inline void output_systemd(const int& level, const std::string& message)
+inline void logger_output_systemd__(const int& level, const std::string& message)
 {
 	if (level == _logger_info_id__)
 		sd_journal_print(LOG_INFO, "%s", message.c_str());
@@ -596,45 +596,45 @@ inline void output_systemd(const int& level, const std::string& message)
 }
 #endif // USE_SYSTEMD_LOGGING
 
-inline const std::string& logger_level_string(const int& level) noexcept
+inline const std::string& logger_level_string__(const int& level) noexcept
 {
 	switch (level)
 	{
 	case _logger_debug_id__:
-		return LOGGER_DEBUG_STR;
+		return _LOGGER_DEBUG_STR__;
 	case _logger_info_id__:
-		return LOGGER_INFO_STR;
+		return _LOGGER_INFO_STR__;
 	case _logger_warn_id__:
-		return LOGGER_WARN_STR;
+		return _LOGGER_WARN_STR__;
 	case _logger_error_id__:
-		return LOGGER_ERR_STR;
+		return _LOGGER_ERR_STR__;
 	case _logger_file_id__:
-		return LOGGER_FILE_STR;
+		return _LOGGER_FILE_STR__;
 	}
 
 	BOOST_ASSERT(false && "invalid logging level!");
-	return LOGGER_DEBUG_STR;
+	return _LOGGER_DEBUG_STR__;
 }
 
-inline void logger_writer(int64_t time, const int& level,
+inline void logger_writer__(int64_t time, const int& level,
 	const std::string& message, [[maybe_unused]] bool disable_cout = false)
 {
 	LOGGER_LOCKS_();
 	char ts[64] = { 0 };
-	auto ptm = aux::time_to_string(ts, time);
-	std::string prefix = ts + std::string(" [") + logger_level_string(level) + std::string("]: ");
+	auto ptm = logger_aux__::time_to_string(ts, time);
+	std::string prefix = ts + std::string(" [") + logger_level_string__(level) + std::string("]: ");
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;
 #ifndef DISABLE_WRITE_LOGGING
-	util::aux::writer_single<util::auto_logger_file>().write(time, whole.c_str(), whole.size());
+	util::logger_aux__::writer_single<util::auto_logger_file__>().write(time, whole.c_str(), whole.size());
 #endif // !DISABLE_WRITE_LOGGING
-	output_console(disable_cout, level, prefix, tmp);
+	logger_output_console__(disable_cout, level, prefix, tmp);
 #ifdef USE_SYSTEMD_LOGGING
-	output_systemd(level, message);
+	logger_output_systemd__(level, message);
 #endif // USE_SYSTEMD_LOGGING
 }
 
-namespace aux {
+namespace logger_aux__ {
 
 	class logger_internal
 	{
@@ -671,9 +671,9 @@ namespace aux {
 			std::string&& message, bool disable_cout = false)
 		{
 			m_io_context.post(
-				[time = aux::gettime(), level, message = std::move(message), disable_cout]()
+				[time = logger_aux__::gettime(), level, message = std::move(message), disable_cout]()
 				{
-					logger_writer(time, level, message, disable_cout);
+					logger_writer__(time, level, message, disable_cout);
 				});
 		}
 
@@ -692,34 +692,34 @@ namespace aux {
 	};
 }
 
-inline boost::shared_ptr<aux::logger_internal>& fetch_log_obj()
+inline boost::shared_ptr<logger_aux__::logger_internal>& logger_fetch_log_obj__()
 {
-	static boost::shared_ptr<aux::logger_internal> logger_obj_;
+	static boost::shared_ptr<logger_aux__::logger_internal> logger_obj_;
 	return logger_obj_;
 }
 
 inline void init_logging(bool use_async = true, const std::string& path = "")
 {
-	auto_logger_file& file = aux::writer_single<util::auto_logger_file>();
+	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
 	if (!path.empty())
 		file.open(path.c_str());
 
-	auto& log_obj = fetch_log_obj();
+	auto& log_obj = logger_fetch_log_obj__();
 	if (use_async && !log_obj) {
-		log_obj.reset(new aux::logger_internal());
+		log_obj.reset(new logger_aux__::logger_internal());
 		log_obj->start();
 	}
 }
 
 inline std::string log_path()
 {
-	auto_logger_file& file = aux::writer_single<util::auto_logger_file>();
+	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
 	return file.log_path();
 }
 
 inline void shutdown_logging()
 {
-	auto& log_obj = fetch_log_obj();
+	auto& log_obj = logger_fetch_log_obj__();
 	if (log_obj) {
 		log_obj->stop();
 		log_obj.reset();
@@ -747,32 +747,32 @@ struct auto_init_async_logger
 	}
 };
 
-class logger
+class logger___
 {
 	// c++11 noncopyable.
-	logger(const logger&) = delete;
-	logger& operator=(const logger&) = delete;
+	logger___(const logger___&) = delete;
+	logger___& operator=(const logger___&) = delete;
 public:
-	logger(const int& level, bool disable_cout = false)
+	logger___(const int& level, bool disable_cout = false)
 		: level_(level)
 		, m_disable_cout(disable_cout)
 	{
 		if (!logging_flag())
 			return;
 	}
-	~logger()
+	~logger___()
 	{
 		if (!logging_flag())
 			return;
-		std::string message = aux::string_utf8(out_);
-		if (fetch_log_obj())
-			fetch_log_obj()->post_log(level_, std::move(message), m_disable_cout);
+		std::string message = logger_aux__::string_utf8(out_);
+		if (logger_fetch_log_obj__())
+			logger_fetch_log_obj__()->post_log(level_, std::move(message), m_disable_cout);
 		else
-			logger_writer(aux::gettime(), level_, message, m_disable_cout);
+			logger_writer__(logger_aux__::gettime(), level_, message, m_disable_cout);
 	}
 
 	template <class T>
-	inline logger& strcat_impl(T const& v)
+	inline logger___& strcat_impl(T const& v)
 	{
 		if (!logging_flag())
 			return *this;
@@ -780,70 +780,70 @@ public:
 		return *this;
 	}
 
-	inline logger& operator<<(bool v)
+	inline logger___& operator<<(bool v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(short v)
+	inline logger___& operator<<(short v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(unsigned short v)
+	inline logger___& operator<<(unsigned short v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(int v)
+	inline logger___& operator<<(int v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(unsigned int v)
+	inline logger___& operator<<(unsigned int v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(unsigned long long v)
+	inline logger___& operator<<(unsigned long long v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(long v)
+	inline logger___& operator<<(long v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(long long v)
+	inline logger___& operator<<(long long v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(float v)
+	inline logger___& operator<<(float v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(double v)
+	inline logger___& operator<<(double v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(long double v)
+	inline logger___& operator<<(long double v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(unsigned long int v)
+	inline logger___& operator<<(unsigned long int v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(const std::string& v)
+	inline logger___& operator<<(const std::string& v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(const char* v)
+	inline logger___& operator<<(const char* v)
 	{
 		return strcat_impl(v);
 	}
-	inline logger& operator<<(const void *v)
+	inline logger___& operator<<(const void *v)
 	{
 		if (!logging_flag())
 			return *this;
 		fmt::format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
 		return *this;
 	}
-	inline logger& operator<<(const boost::posix_time::ptime& p)
+	inline logger___& operator<<(const boost::posix_time::ptime& p)
 	{
 		if (!logging_flag())
 			return *this;
@@ -878,15 +878,15 @@ public:
 	bool m_disable_cout;
 };
 
-class empty_logger
+class empty_logger___
 {
 	// c++11 noncopyable.
-	empty_logger(const empty_logger&) = delete;
-	empty_logger& operator=(const empty_logger&) = delete;
+	empty_logger___(const empty_logger___&) = delete;
+	empty_logger___& operator=(const empty_logger___&) = delete;
 
 public:
 	template <class T>
-	empty_logger& operator<<(T const&/*v*/)
+	empty_logger___& operator<<(T const&/*v*/)
 	{
 		return *this;
 	}
@@ -901,11 +901,11 @@ public:
 #undef LOG_ERR
 #undef LOG_FILE
 
-#define LOG_DBG util::logger(util::_logger_debug_id__)
-#define LOG_INFO util::logger(util::_logger_info_id__)
-#define LOG_WARN util::logger(util::_logger_warn_id__)
-#define LOG_ERR util::logger(util::_logger_error_id__)
-#define LOG_FILE util::logger(util::_logger_file_id__, true)
+#define LOG_DBG util::logger___(util::_logger_debug_id__)
+#define LOG_INFO util::logger___(util::_logger_info_id__)
+#define LOG_WARN util::logger___(util::_logger_warn_id__)
+#define LOG_ERR util::logger___(util::_logger_error_id__)
+#define LOG_FILE util::logger___(util::_logger_file_id__, true)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
@@ -917,11 +917,11 @@ public:
 
 #else
 
-#define LOG_DBG util::empty_logger()
-#define LOG_INFO util::empty_logger()
-#define LOG_WARN util::empty_logger()
-#define LOG_ERR util::empty_logger()
-#define LOG_FILE util::empty_logger()
+#define LOG_DBG util::empty_logger___()
+#define LOG_INFO util::empty_logger___()
+#define LOG_WARN util::empty_logger___()
+#define LOG_ERR util::empty_logger___()
+#define LOG_FILE util::empty_logger___()
 
 #define VLOG_DBG LOG_DBG
 #define VLOG_INFO LOG_INFO
