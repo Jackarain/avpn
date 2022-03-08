@@ -1,5 +1,10 @@
 ﻿cmake_minimum_required(VERSION 3.0)
-file(GLOB FMT_SRC src/*.cc include/fmt/*.h)
+
+file(GLOB FMT_SRC
+	src/format.cc
+	src/os.cc
+	include/fmt/*.h
+)
 
 add_library(fmt STATIC ${FMT_SRC})
 

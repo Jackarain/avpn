@@ -44,12 +44,6 @@
 #	endif
 #endif
 
-// #if defined(__has_include)
-// #	if __has_include(<format>)
-// #		include <format>
-// #	endif
-// #endif
-
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable: 4244 4127)
@@ -71,6 +65,7 @@
 #ifdef _MSC_VER
 #	pragma warning(pop)
 #endif
+
 
 //#include <utf8.hpp>
 //////////////////////////////////////////////////////////////////////////
@@ -366,19 +361,22 @@ namespace aux {
 		return writer_instance;
 	}
 
-	inline std::tuple<std::string, struct tm*> time_to_string(int64_t time)
+	inline struct tm* time_to_string(char* buffer, int64_t time)
 	{
-		std::string ret;
 		std::time_t rawtime = time / 1000;
 		struct tm* ptm = std::localtime(&rawtime);
+
 		if (!ptm)
-			return { ret, ptm };
-		char buffer[1024];
+			return nullptr;
+
+		if (buffer == nullptr)
+			return ptm;
+
 		std::sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
 			ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday,
 			ptm->tm_hour, ptm->tm_min, ptm->tm_sec, (int)(time % 1000));
-		ret = buffer;
-		return { ret, ptm };
+
+		return ptm;
 	}
 }
 
@@ -434,7 +432,7 @@ public:
 				break;
 			}
 
-			[[maybe_unused]] auto [ts, ptm] = aux::time_to_string(m_last_time);
+			auto ptm = aux::time_to_string(nullptr, m_last_time);
 
 			m_ofstream->close();
 			m_ofstream.reset();
@@ -521,6 +519,12 @@ private:
 #endif // WIN32 && LOGGER_DBG_VIEW
 #endif // LOGGER_DBG_VIEW_
 
+const static int _logger_debug_id__ = 0;
+const static int _logger_info_id__ = 1;
+const static int _logger_warn_id__ = 2;
+const static int _logger_error_id__ = 3;
+const static int _logger_file_id__ = 4;
+
 const static std::string LOGGER_DEBUG_STR = "DEBUG";
 const static std::string LOGGER_INFO_STR = "INFO";
 const static std::string LOGGER_WARN_STR = "WARNING";
@@ -528,7 +532,7 @@ const static std::string LOGGER_ERR_STR = "ERROR";
 const static std::string LOGGER_FILE_STR = "FILE";
 
 inline void output_console([[maybe_unused]] bool disable_cout,
-	[[maybe_unused]] const std::string& level,
+	[[maybe_unused]] const int& level,
 	[[maybe_unused]] const std::string& prefix,
 	[[maybe_unused]] const std::string& message)
 {
@@ -543,13 +547,13 @@ inline void output_console([[maybe_unused]] bool disable_cout,
 	HANDLE handle_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	GetConsoleScreenBufferInfo(handle_stdout, &csbi);
-	if (level == LOGGER_INFO_STR)
+	if (level == _logger_info_id__)
 		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN);
-	else if (level == LOGGER_DEBUG_STR)
+	else if (level == _logger_debug_id__)
 		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-	else if (level == LOGGER_WARN_STR)
+	else if (level == _logger_warn_id__)
 		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
-	else if (level == LOGGER_ERR_STR)
+	else if (level == _logger_error_id__)
 		SetConsoleTextAttribute(handle_stdout, FOREGROUND_RED | FOREGROUND_INTENSITY);
 
 	WriteConsoleW(handle_stdout, title.data(), (DWORD)title.size(), nullptr, nullptr);
@@ -564,40 +568,61 @@ inline void output_console([[maybe_unused]] bool disable_cout,
 #endif
 
 #elif !defined(DISABLE_LOGGER_TO_CONSOLE)
-	fmt::memory_buffer out;
-	if (level == LOGGER_INFO_STR)
-		fmt::format_to(out, "\033[32m{}\033[0m{}", prefix, message);
-	else if (level == LOGGER_DEBUG_STR)
-		fmt::format_to(out, "\033[1;32m{}\033[0m{}", prefix, message);
-	else if (level == LOGGER_WARN_STR)
-		fmt::format_to(out, "\033[1;33m{}\033[0m{}", prefix, message);
-	else if (level == LOGGER_ERR_STR)
-		fmt::format_to(out, "\033[1;31m{}\033[0m{}", prefix, message);
-	std::cout << fmt::to_string(out);
+	std::string out;
+	if (level == _logger_info_id__)
+		fmt::format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
+	else if (level == _logger_debug_id__)
+		fmt::format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
+	else if (level == _logger_warn_id__)
+		fmt::format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
+	else if (level == _logger_error_id__)
+		fmt::format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
+	std::cout << out;
 	std::cout.flush();
 #endif
 }
 
 #ifdef USE_SYSTEMD_LOGGING
-inline void output_systemd(const std::string& level, const std::string& message)
+inline void output_systemd(const int& level, const std::string& message)
 {
-	if (level == LOGGER_INFO_STR)
+	if (level == _logger_info_id__)
 		sd_journal_print(LOG_INFO, "%s", message.c_str());
-	else if (level == LOGGER_DEBUG_STR)
+	else if (level == _logger_debug_id__)
 		sd_journal_print(LOG_DEBUG, "%s", message.c_str());
-	else if (level == LOGGER_WARN_STR)
+	else if (level == _logger_warn_id__)
 		sd_journal_print(LOG_WARNING, "%s", message.c_str());
-	else if (level == LOGGER_ERR_STR)
+	else if (level == _logger_error_id__)
 		sd_journal_print(LOG_ERR, "%s", message.c_str());
 }
 #endif // USE_SYSTEMD_LOGGING
 
-inline void logger_writer(int64_t time, const std::string& level,
+inline const std::string& logger_level_string(const int& level) noexcept
+{
+	switch (level)
+	{
+	case _logger_debug_id__:
+		return LOGGER_DEBUG_STR;
+	case _logger_info_id__:
+		return LOGGER_INFO_STR;
+	case _logger_warn_id__:
+		return LOGGER_WARN_STR;
+	case _logger_error_id__:
+		return LOGGER_ERR_STR;
+	case _logger_file_id__:
+		return LOGGER_FILE_STR;
+	}
+
+	BOOST_ASSERT(false && "invalid logging level!");
+	return LOGGER_DEBUG_STR;
+}
+
+inline void logger_writer(int64_t time, const int& level,
 	const std::string& message, [[maybe_unused]] bool disable_cout = false)
 {
 	LOGGER_LOCKS_();
-	[[maybe_unused]] auto [ts, ptm] = aux::time_to_string(time);
-	std::string prefix = ts + std::string(" [") + level + std::string("]: ");
+	char ts[64] = { 0 };
+	auto ptm = aux::time_to_string(ts, time);
+	std::string prefix = ts + std::string(" [") + logger_level_string(level) + std::string("]: ");
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;
 #ifndef DISABLE_WRITE_LOGGING
@@ -642,7 +667,7 @@ namespace aux {
 				m_io_context.stop();
 		}
 
-		void post_log(const std::string& level,
+		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
 			m_io_context.post(
@@ -728,7 +753,7 @@ class logger
 	logger(const logger&) = delete;
 	logger& operator=(const logger&) = delete;
 public:
-	logger(const std::string& level, bool disable_cout = false)
+	logger(const int& level, bool disable_cout = false)
 		: level_(level)
 		, m_disable_cout(disable_cout)
 	{
@@ -739,7 +764,7 @@ public:
 	{
 		if (!logging_flag())
 			return;
-		std::string message = aux::string_utf8(fmt::to_string(out_));
+		std::string message = aux::string_utf8(out_);
 		if (fetch_log_obj())
 			fetch_log_obj()->post_log(level_, std::move(message), m_disable_cout);
 		else
@@ -751,7 +776,7 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		fmt::format_to(out_, "{}", v);
+		fmt::format_to(std::back_inserter(out_), "{}", v);
 		return *this;
 	}
 
@@ -815,7 +840,7 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		fmt::format_to(out_, "{:#010x}", (std::size_t)v);
+		fmt::format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
 		return *this;
 	}
 	inline logger& operator<<(const boost::posix_time::ptime& p)
@@ -828,28 +853,28 @@ public:
 			auto date = p.date().year_month_day();
 			auto time = p.time_of_day();
 
-			fmt::format_to(out_, "{:04}", date.year);
-			fmt::format_to(out_, "-{:02}", date.month.as_number());
-			fmt::format_to(out_, "-{:02}", date.day.as_number());
+			fmt::format_to(std::back_inserter(out_), "{:04}", date.year);
+			fmt::format_to(std::back_inserter(out_), "-{:02}", date.month.as_number());
+			fmt::format_to(std::back_inserter(out_), "-{:02}", date.day.as_number());
 
-			fmt::format_to(out_, " {:02}", time.hours());
-			fmt::format_to(out_, ":{:02}", time.minutes());
-			fmt::format_to(out_, ":{:02}", time.seconds());
+			fmt::format_to(std::back_inserter(out_), " {:02}", time.hours());
+			fmt::format_to(std::back_inserter(out_), ":{:02}", time.minutes());
+			fmt::format_to(std::back_inserter(out_), ":{:02}", time.seconds());
 
 			auto ms = time.total_milliseconds() % 1000;		// milliseconds.
 			if (ms != 0)
-				fmt::format_to(out_, ".{:03}", ms);
+				fmt::format_to(std::back_inserter(out_), ".{:03}", ms);
 		}
 		else
 		{
-			fmt::format_to(out_, "NOT A DATE TIME");
+			fmt::format_to(std::back_inserter(out_), "NOT A DATE TIME");
 		}
 
 		return *this;
 	}
 
-	fmt::memory_buffer out_;
-	const std::string& level_;
+	std::string out_;
+	const int& level_;
 	bool m_disable_cout;
 };
 
@@ -876,11 +901,11 @@ public:
 #undef LOG_ERR
 #undef LOG_FILE
 
-#define LOG_DBG util::logger(util::LOGGER_DEBUG_STR)
-#define LOG_INFO util::logger(util::LOGGER_INFO_STR)
-#define LOG_WARN util::logger(util::LOGGER_WARN_STR)
-#define LOG_ERR util::logger(util::LOGGER_ERR_STR)
-#define LOG_FILE util::logger(util::LOGGER_FILE_STR, true)
+#define LOG_DBG util::logger(util::_logger_debug_id__)
+#define LOG_INFO util::logger(util::_logger_info_id__)
+#define LOG_WARN util::logger(util::_logger_warn_id__)
+#define LOG_ERR util::logger(util::_logger_error_id__)
+#define LOG_FILE util::logger(util::_logger_file_id__, true)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
