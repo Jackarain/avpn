@@ -2,9 +2,6 @@
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp.in
 		${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp @ONLY NEWLINE_STYLE LF)
 
-#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
-add_definitions(-DLOGGING_COMPRESS_LOGS)
-
 file(GLOB avpn_WINDOWS_SRCS
 	include/vpncore/tuntap_windows_service.hpp
 )
@@ -48,7 +45,11 @@ elseif (APPLE)
 endif()
 
 add_executable(avpn ${avpn_SRCS})
-set_property(TARGET avpn PROPERTY CXX_STANDARD 20)
+if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
+	set_property(TARGET avpn PROPERTY CXX_STANDARD 23)
+else()
+	set_property(TARGET avpn PROPERTY CXX_STANDARD 20)
+endif()
 
 target_include_directories(avpn PUBLIC
 	${CMAKE_BINARY_DIR}

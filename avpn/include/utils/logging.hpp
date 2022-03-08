@@ -31,9 +31,24 @@
 #include <boost/nowide/convert.hpp>
 
 //////////////////////////////////////////////////////////////////////////
-#ifdef LOGGING_COMPRESS_LOGS
-#	include <zlib.h>
-#endif // LOGGING_COMPRESS_LOGS
+#if defined(__has_include)
+#	if __has_include(<zlib.h>)
+#		include <zlib.h>
+#		ifndef LOGGING_COMPRESS_LOGS
+#			define LOGGING_COMPRESS_LOGS
+#		endif
+#	endif
+#else
+#	ifdef LOGGING_COMPRESS_LOGS
+#		include <zlib.h>
+#	endif
+#endif
+
+// #if defined(__has_include)
+// #	if __has_include(<format>)
+// #		include <format>
+// #	endif
+// #endif
 
 #ifdef _MSC_VER
 #	pragma warning(push)
@@ -368,7 +383,12 @@ namespace aux {
 }
 
 
-class auto_logger_file {
+class auto_logger_file
+{
+	// c++11 noncopyable.
+	auto_logger_file(const auto_logger_file&) = delete;
+	auto_logger_file& operator=(const auto_logger_file&) = delete;
+
 public:
 	auto_logger_file()
 	{
@@ -591,7 +611,12 @@ inline void logger_writer(int64_t time, const std::string& level,
 
 namespace aux {
 
-	class logger_internal {
+	class logger_internal
+	{
+		// c++11 noncopyable.
+		logger_internal(const logger_internal&) = delete;
+		logger_internal& operator=(const logger_internal&) = delete;
+
 	public:
 		logger_internal()
 		{
@@ -697,7 +722,11 @@ struct auto_init_async_logger
 	}
 };
 
-class logger : boost::noncopyable {
+class logger
+{
+	// c++11 noncopyable.
+	logger(const logger&) = delete;
+	logger& operator=(const logger&) = delete;
 public:
 	logger(const std::string& level, bool disable_cout = false)
 		: level_(level)
@@ -824,7 +853,12 @@ public:
 	bool m_disable_cout;
 };
 
-class empty_logger : boost::noncopyable {
+class empty_logger
+{
+	// c++11 noncopyable.
+	empty_logger(const empty_logger&) = delete;
+	empty_logger& operator=(const empty_logger&) = delete;
+
 public:
 	template <class T>
 	empty_logger& operator<<(T const&/*v*/)
