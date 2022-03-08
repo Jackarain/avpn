@@ -9,7 +9,6 @@
 
 #include <clocale>
 #include <fstream>
-#include <iostream>
 #include <list>
 #include <memory>
 #include <string>
@@ -47,12 +46,12 @@
 #if defined(__has_include)
 #	if __has_include(<format>)
 #		include <format>
-using std::format;
-using std::format_to;
+#define format std::format
+#define format_to std::format_to
 #	endif
 #endif
 
-#ifndef __cpp_lib_format
+#if !defined(__cpp_lib_format)
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable: 4244 4127)
@@ -67,8 +66,8 @@ using std::format_to;
 #include <fmt/printf.h>
 #include <fmt/format.h>
 
-using fmt::format;
-using fmt::format_to;
+#define format fmt::format
+#define format_to fmt::format_to
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -945,3 +944,6 @@ public:
 #define INIT_ASYNC_LOGGING() void
 
 #endif
+
+#undef format
+#undef format_to
