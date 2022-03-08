@@ -44,6 +44,14 @@
 #	endif
 #endif
 
+#if defined(__has_include)
+#	if __has_include(<format>)
+#		include <format>
+using std::format;
+#	endif
+#endif
+
+#ifndef __cpp_lib_format
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable: 4244 4127)
@@ -58,12 +66,15 @@
 #include <fmt/printf.h>
 #include <fmt/format.h>
 
+using fmt::format;
+
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
 #ifdef _MSC_VER
 #	pragma warning(pop)
+#endif
 #endif
 
 
@@ -441,12 +452,12 @@ public:
 			boost::filesystem::path filename;
 
 			if constexpr (LOG_MAXFILE_SIZE <= 0) {
-				auto logfile = fmt::format("{:04d}{:02d}{:02d}-{:02d}.log",
+				auto logfile = format("{:04d}{:02d}{:02d}-{:02d}.log",
 					ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_hour);
 				filename = logpath / logfile;
 			} else {
 				auto utc_time = std::mktime(ptm);
-				auto logfile = fmt::format("{:04d}{:02d}{:02d}-{}.log",
+				auto logfile = format("{:04d}{:02d}{:02d}-{}.log",
 					ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, utc_time);
 				filename = logpath / logfile;
 			}
@@ -570,13 +581,13 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 #elif !defined(DISABLE_LOGGER_TO_CONSOLE)
 	std::string out;
 	if (level == _logger_info_id__)
-		fmt::format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
+		format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
 	else if (level == _logger_debug_id__)
-		fmt::format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
+		format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
 	else if (level == _logger_warn_id__)
-		fmt::format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
+		format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
 	else if (level == _logger_error_id__)
-		fmt::format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
+		format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
 	std::cout << out;
 	std::cout.flush();
 #endif
@@ -776,7 +787,7 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		fmt::format_to(std::back_inserter(out_), "{}", v);
+		format_to(std::back_inserter(out_), "{}", v);
 		return *this;
 	}
 
@@ -840,7 +851,7 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		fmt::format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
+		format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
 		return *this;
 	}
 	inline logger___& operator<<(const boost::posix_time::ptime& p) noexcept
@@ -853,21 +864,21 @@ public:
 			auto date = p.date().year_month_day();
 			auto time = p.time_of_day();
 
-			fmt::format_to(std::back_inserter(out_), "{:04}", date.year);
-			fmt::format_to(std::back_inserter(out_), "-{:02}", date.month.as_number());
-			fmt::format_to(std::back_inserter(out_), "-{:02}", date.day.as_number());
+			format_to(std::back_inserter(out_), "{:04}", static_cast<unsigned int>(date.year));
+			format_to(std::back_inserter(out_), "-{:02}", date.month.as_number());
+			format_to(std::back_inserter(out_), "-{:02}", date.day.as_number());
 
-			fmt::format_to(std::back_inserter(out_), " {:02}", time.hours());
-			fmt::format_to(std::back_inserter(out_), ":{:02}", time.minutes());
-			fmt::format_to(std::back_inserter(out_), ":{:02}", time.seconds());
+			format_to(std::back_inserter(out_), " {:02}", time.hours());
+			format_to(std::back_inserter(out_), ":{:02}", time.minutes());
+			format_to(std::back_inserter(out_), ":{:02}", time.seconds());
 
 			auto ms = time.total_milliseconds() % 1000;		// milliseconds.
 			if (ms != 0)
-				fmt::format_to(std::back_inserter(out_), ".{:03}", ms);
+				format_to(std::back_inserter(out_), ".{:03}", ms);
 		}
 		else
 		{
-			fmt::format_to(std::back_inserter(out_), "NOT A DATE TIME");
+			format_to(std::back_inserter(out_), "NOT A DATE TIME");
 		}
 
 		return *this;
