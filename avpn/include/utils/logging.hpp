@@ -48,6 +48,7 @@
 #	if __has_include(<format>)
 #		include <format>
 using std::format;
+using std::format_to;
 #	endif
 #endif
 
@@ -67,6 +68,7 @@ using std::format;
 #include <fmt/format.h>
 
 using fmt::format;
+using fmt::format_to;
 
 #ifdef __clang__
 #pragma clang diagnostic pop
