@@ -396,7 +396,7 @@ public:
 		m_log_path = m_log_path / (LOG_APPNAME + std::string(".log"));
 		std::error_code ignore_ec;
 		if (!std::filesystem::exists(m_log_path, ignore_ec))
-			std::filesystem::create_directories(m_log_path, ignore_ec);
+			std::filesystem::create_directories(m_log_path.parent_path(), ignore_ec);
 	}
 	~auto_logger_file__()
 	{
@@ -409,7 +409,7 @@ public:
 		m_log_path = path;
 		std::error_code ignore_ec;
 		if (!std::filesystem::exists(m_log_path, ignore_ec))
-			std::filesystem::create_directories(m_log_path, ignore_ec);
+			std::filesystem::create_directories(m_log_path.parent_path(), ignore_ec);
 	}
 
 	std::string log_path() const
@@ -440,7 +440,7 @@ public:
 			m_ofstream->close();
 			m_ofstream.reset();
 
-			auto logpath = std::filesystem::path(m_log_path);
+			auto logpath = std::filesystem::path(m_log_path.parent_path());
 			std::filesystem::path filename;
 
 			if constexpr (LOG_MAXFILE_SIZE <= 0) {
