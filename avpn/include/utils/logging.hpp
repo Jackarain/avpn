@@ -14,6 +14,8 @@
 #include <string>
 #include <tuple>
 #include <version>
+#include <thread>
+#include <functional>
 #include <filesystem>
 #include <system_error>
 
@@ -209,6 +211,55 @@ namespace logger_aux__ {
 #endif
 	}
 
+	namespace internal {
+		template <typename T = void>
+		struct Null {};
+		inline Null<> localtime_r(...) { return Null<>(); }
+		inline Null<> localtime_s(...) { return Null<>(); }
+		inline Null<> gmtime_r(...) { return Null<>(); }
+		inline Null<> gmtime_s(...) { return Null<>(); }
+	}
+
+	// Thread-safe replacement for std::localtime
+	inline bool localtime(std::time_t time, std::tm& tm)
+	{
+		struct LocalTime {
+			std::time_t time_;
+			std::tm tm_;
+
+			LocalTime(std::time_t t) : time_(t) {}
+
+			bool run() {
+				using namespace internal;
+				return handle(localtime_r(&time_, &tm_));
+			}
+
+			bool handle(std::tm* tm) { return tm != nullptr; }
+
+			bool handle(internal::Null<>) {
+				using namespace internal;
+				return fallback(localtime_s(&tm_, &time_));
+			}
+
+			bool fallback(int res) { return res == 0; }
+
+			bool fallback(internal::Null<>) {
+				using namespace internal;
+				std::tm* tm = std::localtime(&time_);
+				if (tm) tm_ = *tm;
+				return tm != nullptr;
+			}
+		};
+
+		LocalTime lt(time);
+		if (lt.run()) {
+			tm = lt.tm_;
+			return true;
+		}
+
+		return false;
+	}
+
 	inline uint32_t decode(uint32_t* state, uint32_t* codep, uint32_t byte)
 	{
 		static constexpr uint8_t utf8d[] = {
@@ -366,19 +417,19 @@ namespace logger_aux__ {
 	inline struct tm* time_to_string(char* buffer, int64_t time)
 	{
 		std::time_t rawtime = time / 1000;
-		struct tm* ptm = std::localtime(&rawtime);
+		thread_local struct tm ptm;
 
-		if (!ptm)
+		if (!localtime(time, ptm))
 			return nullptr;
 
 		if (buffer == nullptr)
-			return ptm;
+			return nullptr;
 
 		std::sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
-			ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday,
-			ptm->tm_hour, ptm->tm_min, ptm->tm_sec, (int)(time % 1000));
+			ptm.tm_year + 1900, ptm.tm_mon + 1, ptm.tm_mday,
+			ptm.tm_hour, ptm.tm_min, ptm.tm_sec, (int)(time % 1000));
 
-		return ptm;
+		return &ptm;
 	}
 }
 
