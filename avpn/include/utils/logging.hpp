@@ -892,42 +892,42 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}ns", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}ns", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::microseconds& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}us", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}us", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::milliseconds& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}ms", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}ms", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::seconds& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}s", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}s", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::minutes& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}min", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}min", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::hours& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}h", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}h", v.count());
 		return *this;
 	}
 #if (__cplusplus >= 202002L)
@@ -935,28 +935,28 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}d", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}d", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::weeks& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}weeks", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}weeks", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::years& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}years", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}years", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::months& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}months", (std::size_t)v.count());
+		std::format_to(std::back_inserter(out_), "{}months", v.count());
 		return *this;
 	}
 #endif
