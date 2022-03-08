@@ -53,11 +53,11 @@
 #	endif
 #endif
 
-#if !defined(__cpp_lib_format)
+#if defined(__cpp_lib_format)
 #	include <format>
 #endif
 
-#if !!defined(__cpp_lib_format)
+#if defined(__cpp_lib_format)
 #ifdef _MSC_VER
 #	pragma warning(push)
 #	pragma warning(disable: 4244 4127)
