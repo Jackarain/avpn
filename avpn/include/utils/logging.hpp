@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <system_error>
 
+#include <boost/utility/string_view.hpp>
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -876,6 +877,10 @@ public:
 	inline logger___& operator<<(const std::string_view& v)
 	{
 		return strcat_impl(v);
+	}
+	inline logger___& operator<<(const boost::string_view& v)
+	{
+		return strcat_impl(std::string_view(v.data(), v.size()));
 	}
 	inline logger___& operator<<(const char* v)
 	{
