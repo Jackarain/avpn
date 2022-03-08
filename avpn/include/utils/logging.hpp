@@ -14,11 +14,11 @@
 #include <string>
 #include <tuple>
 #include <version>
+#include <filesystem>
+#include <system_error>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/noncopyable.hpp>
 #include <boost/nowide/convert.hpp>
 
 //////////////////////////////////////////////////////////////////////////
@@ -394,9 +394,9 @@ public:
 	auto_logger_file__()
 	{
 		m_log_path = m_log_path / (LOG_APPNAME + std::string(".log"));
-		boost::system::error_code ignore_ec;
-		if (!boost::filesystem::exists(m_log_path, ignore_ec))
-			boost::filesystem::create_directories(boost::filesystem::path(m_log_path).branch_path(), ignore_ec);
+		std::error_code ignore_ec;
+		if (!std::filesystem::exists(m_log_path, ignore_ec))
+			std::filesystem::create_directories(m_log_path, ignore_ec);
 	}
 	~auto_logger_file__()
 	{
@@ -407,9 +407,9 @@ public:
 	void open(const char* path)
 	{
 		m_log_path = path;
-		boost::system::error_code ignore_ec;
-		if (!boost::filesystem::exists(m_log_path, ignore_ec))
-			boost::filesystem::create_directories(boost::filesystem::path(m_log_path).branch_path(), ignore_ec);
+		std::error_code ignore_ec;
+		if (!std::filesystem::exists(m_log_path, ignore_ec))
+			std::filesystem::create_directories(m_log_path, ignore_ec);
 	}
 
 	std::string log_path() const
@@ -440,8 +440,8 @@ public:
 			m_ofstream->close();
 			m_ofstream.reset();
 
-			auto logpath = boost::filesystem::path(m_log_path).branch_path();
-			boost::filesystem::path filename;
+			auto logpath = std::filesystem::path(m_log_path);
+			std::filesystem::path filename;
 
 			if constexpr (LOG_MAXFILE_SIZE <= 0) {
 				auto logfile = format("{:04d}{:02d}{:02d}-{:02d}.log",
@@ -456,29 +456,29 @@ public:
 
 			m_last_time = time;
 
-			boost::system::error_code ec;
-			if (!boost::filesystem::copy_file(m_log_path, filename, ec))
+			std::error_code ec;
+			if (!std::filesystem::copy_file(m_log_path, filename, ec))
 				break;
 
-			boost::filesystem::resize_file(m_log_path, 0, ec);
+			std::filesystem::resize_file(m_log_path, 0, ec);
 			m_log_size = 0;
 			auto fn = filename.string();
 			std::thread th([fn]()
 				{
-					boost::system::error_code ignore_ec;
+					std::error_code ignore_ec;
 					std::mutex& m = log_compress__::compress_lock();
 					std::lock_guard<std::mutex> lock(m);
 					if (!log_compress__::do_compress_gz(fn))
 					{
 						auto file = fn + log_compress__::GZ_SUFFIX;
-						boost::filesystem::remove(file, ignore_ec);
+						std::filesystem::remove(file, ignore_ec);
 						if (ignore_ec)
 							std::cout << "delete log failed: " << file
 							<< ", error code: " << ignore_ec.message() << std::endl;
 						return;
 					}
 
-					boost::filesystem::remove(fn, ignore_ec);
+					std::filesystem::remove(fn, ignore_ec);
 				});
 			th.detach();
 			break;
@@ -499,7 +499,7 @@ public:
 	}
 
 private:
-	boost::filesystem::path m_log_path{"./logs"};
+	std::filesystem::path m_log_path{"./logs"};
 	ofstream_ptr m_ofstream;
 	int64_t m_last_time{-1};
 	std::size_t m_log_size{0};
