@@ -92,19 +92,6 @@ namespace std {
 
 namespace util {
 
-///内部使用的简易日志类.
-// @begin example
-//  #include "logging.hpp"
-//  int main()
-//  {
-//     init_logging();
-//     LOG_DEBUG << "Initialized.";
-//     std::string result = do_something();
-//     LOG_DEBUG << "do_something return : " << result;	// 输出do_something返回结果到日志.
-//     ...
-//  }
-// @end example
-
 #ifndef LOG_APPNAME
 #	define LOG_APPNAME "application"
 #endif
