@@ -534,7 +534,7 @@ const static std::string _LOGGER_FILE_STR__ = "FILE";
 inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 	[[maybe_unused]] const int& level,
 	[[maybe_unused]] const std::string& prefix,
-	[[maybe_unused]] const std::string& message)
+	[[maybe_unused]] const std::string& message) noexcept
 {
 #if defined(WIN32)
 
@@ -583,7 +583,7 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 }
 
 #ifdef USE_SYSTEMD_LOGGING
-inline void logger_output_systemd__(const int& level, const std::string& message)
+inline void logger_output_systemd__(const int& level, const std::string& message) noexcept
 {
 	if (level == _logger_info_id__)
 		sd_journal_print(LOG_INFO, "%s", message.c_str());
@@ -617,7 +617,7 @@ inline const std::string& logger_level_string__(const int& level) noexcept
 }
 
 inline void logger_writer__(int64_t time, const int& level,
-	const std::string& message, [[maybe_unused]] bool disable_cout = false)
+	const std::string& message, [[maybe_unused]] bool disable_cout = false) noexcept
 {
 	LOGGER_LOCKS_();
 	char ts[64] = { 0 };
@@ -772,7 +772,7 @@ public:
 	}
 
 	template <class T>
-	inline logger___& strcat_impl(T const& v)
+	inline logger___& strcat_impl(T const& v) noexcept
 	{
 		if (!logging_flag())
 			return *this;
@@ -843,7 +843,7 @@ public:
 		fmt::format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
 		return *this;
 	}
-	inline logger___& operator<<(const boost::posix_time::ptime& p)
+	inline logger___& operator<<(const boost::posix_time::ptime& p) noexcept
 	{
 		if (!logging_flag())
 			return *this;
