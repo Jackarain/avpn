@@ -121,9 +121,9 @@ namespace log_compress__ {
 	const size_t BUFLEN = 65536;
 	// const size_t MAX_NAME_LEN = 4096;
 
-	inline boost::mutex& compress_lock()
+	inline std::mutex& compress_lock()
 	{
-		static boost::mutex lock;
+		static std::mutex lock;
 		return lock;
 	}
 
@@ -466,8 +466,8 @@ public:
 			std::thread th([fn]()
 				{
 					boost::system::error_code ignore_ec;
-					boost::mutex& m = log_compress__::compress_lock();
-					boost::lock_guard<boost::mutex> lock(m);
+					std::mutex& m = log_compress__::compress_lock();
+					std::lock_guard<std::mutex> lock(m);
 					if (!log_compress__::do_compress_gz(fn))
 					{
 						auto file = fn + log_compress__::GZ_SUFFIX;
@@ -506,7 +506,7 @@ private:
 };
 
 #ifndef DISABLE_LOGGER_THREAD_SAFE
-#define LOGGER_LOCKS_() boost::lock_guard<boost::mutex> lock(logger_aux__::lock_single<boost::mutex>())
+#define LOGGER_LOCKS_() std::lock_guard<std::mutex> lock(logger_aux__::lock_single<std::mutex>())
 #else
 #define LOGGER_LOCKS_() ((void)0)
 #endif // LOGGER_THREAD_SAFE
