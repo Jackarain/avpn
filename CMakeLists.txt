@@ -116,7 +116,7 @@ if (MSVC)
 		-DBOOST_USE_WINAPI_VERSION=0x0601
 	)
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
 	message(STATUS "Using parallel compiling (/MP)")
 	set(CMAKE_CXX_STACK_SIZE "100000000") #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:100000000")
 	message(STATUS "Set stack size: 100000000 bytes")
