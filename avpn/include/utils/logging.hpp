@@ -19,7 +19,8 @@
 #include <filesystem>
 #include <system_error>
 
-#include <boost/asio/io_context.hpp>
+#include <boost/asio/thread_pool.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/nowide/convert.hpp>
 
@@ -701,29 +702,19 @@ namespace logger_aux__ {
 		}
 		~logger_internal()
 		{
-			if (m_main_thread.joinable()) {
-				if (!m_io_context.stopped())
-					m_io_context.stop();
-				m_main_thread.join();
-			}
+			m_io_thread.join();
 		}
 
 	public:
-		void start()
-		{
-			m_main_thread = std::thread(std::bind(&logger_internal::main_thread, this));
-		}
-
 		void stop()
 		{
-			if (!m_io_context.stopped())
-				m_io_context.stop();
+			m_io_thread.stop();
 		}
 
 		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
-			m_io_context.post(
+			boost::asio::post(m_io_thread,
 				[time = logger_aux__::gettime(), level, message = std::move(message), disable_cout]()
 				{
 					logger_writer__(time, level, message, disable_cout);
@@ -731,17 +722,7 @@ namespace logger_aux__ {
 		}
 
 	private:
-		void main_thread()
-		{
-			boost::asio::io_context::work work(m_io_context);
-			try {
-				m_io_context.run();
-			} catch (std::exception&) {}
-		}
-
-	private:
-		boost::asio::io_context m_io_context;
-		std::thread m_main_thread;
+		boost::asio::thread_pool m_io_thread{ 1 };
 	};
 }
 
@@ -760,7 +741,6 @@ inline void init_logging(bool use_async = true, const std::string& path = "")
 	auto& log_obj = logger_fetch_log_obj__();
 	if (use_async && !log_obj) {
 		log_obj.reset(new logger_aux__::logger_internal());
-		log_obj->start();
 	}
 }
 
