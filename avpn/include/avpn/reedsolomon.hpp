@@ -139,7 +139,7 @@ namespace fec {
 			}
 		}
 
-		matrix buildMatrix(int shards, int data_shards);
+		matrix build_matrix(int shards, int data_shards);
 
 	private:
 		int m_shards;

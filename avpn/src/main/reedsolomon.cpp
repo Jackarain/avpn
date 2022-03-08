@@ -1166,7 +1166,7 @@ namespace fec {
 		reedsolomon::reedsolomon(int dataShards, int parityShards) : m_shards(dataShards + parityShards)
 			, m_data_shards(dataShards)
 			, m_parity_shards(parityShards)
-			, m_matrix{ buildMatrix(m_shards, m_data_shards) }
+			, m_matrix{ build_matrix(m_shards, m_data_shards) }
 		{
 			if (dataShards <= 0 || parityShards <= 0) {
 				throw std::runtime_error("data shards must > 0");
@@ -1299,7 +1299,7 @@ namespace fec {
 #endif
 		}
 
-		fec::matrix reedsolomon::buildMatrix(int shards, int data_shards)
+		fec::matrix reedsolomon::build_matrix(int shards, int data_shards)
 		{
 			if (data_shards <= 0 || shards <= 0) {
 				throw std::runtime_error("data shards must > 0");
