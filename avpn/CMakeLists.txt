@@ -59,6 +59,8 @@ target_include_directories(avpn PUBLIC
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	target_compile_options(avpn PRIVATE -fcoroutines)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_compile_definitions(avpn PRIVATE -DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
 if(ENABLE_BUILD_WERROR)

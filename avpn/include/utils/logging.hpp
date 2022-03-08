@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <version>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/bind/bind.hpp>
@@ -59,12 +60,10 @@
 #	endif
 #endif
 
-#if defined(__has_include)
-#	if __has_include(<format>)
-#		include <format>
-#define format std::format
-#define format_to std::format_to
-#	endif
+#if defined(__cpp_lib_format)
+#	include <format>
+#	define format std::format
+#	define format_to std::format_to
 #endif
 
 #if !defined(__cpp_lib_format)
