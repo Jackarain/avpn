@@ -30,6 +30,22 @@
 #include <boost/nowide/convert.hpp>
 
 //////////////////////////////////////////////////////////////////////////
+#if defined(_WIN32) || defined(WIN32)
+#	ifndef WIN32_LEAN_AND_MEAN
+#		define WIN32_LEAN_AND_MEAN
+#	endif // !WIN32_LEAN_AND_MEAN
+#	include <mmsystem.h>
+#	include <windows.h>
+#	pragma comment(lib, "Winmm.lib")
+#endif // _WIN32
+
+#ifdef USE_SYSTEMD_LOGGING
+#ifdef __linux__
+#	include <systemd/sd-journal.h>
+#endif // __linux__
+#endif
+
+//////////////////////////////////////////////////////////////////////////
 #if defined(__has_include)
 #	if __has_include(<zlib.h>)
 #		include <zlib.h>
@@ -81,21 +97,6 @@
 
 //#include <utf8.hpp>
 //////////////////////////////////////////////////////////////////////////
-
-#if defined(_WIN32) || defined(WIN32)
-#	ifndef WIN32_LEAN_AND_MEAN
-#		define WIN32_LEAN_AND_MEAN
-#	endif // !WIN32_LEAN_AND_MEAN
-#	include <mmsystem.h>
-#	include <windows.h>
-#	pragma comment(lib, "Winmm.lib")
-#endif // _WIN32
-
-#ifdef USE_SYSTEMD_LOGGING
-	#ifdef __linux__
-	#	include <systemd/sd-journal.h>
-	#endif // __linux__
-#endif
 
 namespace util {
 
