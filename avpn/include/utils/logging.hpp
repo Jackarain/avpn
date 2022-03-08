@@ -105,10 +105,8 @@ namespace util {
 
 namespace log_compress__ {
 
-	const std::string GZ_SUFFIX = ".gz";
-	// const size_t SUFFIX_LEN = sizeof(GZ_SUFFIX) - 1;
-	const size_t BUFLEN = 65536;
-	// const size_t MAX_NAME_LEN = 4096;
+	const static std::string GZ_SUFFIX = ".gz";
+	const static size_t BUFLEN = 65536;
 
 	inline std::mutex& compress_lock()
 	{
@@ -775,7 +773,7 @@ class logger___
 public:
 	logger___(const int& level, bool disable_cout = false)
 		: level_(level)
-		, m_disable_cout(disable_cout)
+		, disable_cout_(disable_cout)
 	{
 		if (!logging_flag())
 			return;
@@ -786,9 +784,9 @@ public:
 			return;
 		std::string message = logger_aux__::string_utf8(out_);
 		if (logger_fetch_log_obj__())
-			logger_fetch_log_obj__()->post_log(level_, std::move(message), m_disable_cout);
+			logger_fetch_log_obj__()->post_log(level_, std::move(message), disable_cout_);
 		else
-			logger_writer__(logger_aux__::gettime(), level_, message, m_disable_cout);
+			logger_writer__(logger_aux__::gettime(), level_, message, disable_cout_);
 	}
 
 	template <class T>
@@ -895,7 +893,7 @@ public:
 
 	std::string out_;
 	const int& level_;
-	bool m_disable_cout;
+	bool disable_cout_;
 };
 
 class empty_logger___
