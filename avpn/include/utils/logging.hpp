@@ -419,7 +419,7 @@ namespace logger_aux__ {
 		std::time_t rawtime = time / 1000;
 		thread_local struct tm ptm;
 
-		if (!localtime(time, ptm))
+		if (!localtime(rawtime, ptm))
 			return nullptr;
 
 		if (buffer == nullptr)
