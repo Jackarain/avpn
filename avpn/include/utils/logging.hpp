@@ -16,18 +16,9 @@
 #include <version>
 
 #include <boost/asio/io_context.hpp>
-#include <boost/bind/bind.hpp>
-#include <boost/cstdint.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/make_shared.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
-#include <boost/thread.hpp>
-#include <boost/thread/future.hpp>
-#include <boost/thread/mutex.hpp>
-
 #include <boost/nowide/convert.hpp>
 
 //////////////////////////////////////////////////////////////////////////
@@ -182,9 +173,9 @@ namespace log_compress__ {
 
 namespace logger_aux__ {
 
-	static const boost::uint64_t epoch = 116444736000000000L; /* Jan 1, 1601 */
+	static const uint64_t epoch = 116444736000000000L; /* Jan 1, 1601 */
 	typedef union {
-		boost::uint64_t ft_scalar;
+		uint64_t ft_scalar;
 #if defined(WIN32) || defined(_WIN32)
 
 		FILETIME ft_struct;
@@ -411,7 +402,7 @@ public:
 	{
 	}
 
-	typedef boost::shared_ptr<std::ofstream> ofstream_ptr;
+	typedef std::shared_ptr<std::ofstream> ofstream_ptr;
 
 	void open(const char* path)
 	{
@@ -472,24 +463,24 @@ public:
 			boost::filesystem::resize_file(m_log_path, 0, ec);
 			m_log_size = 0;
 			auto fn = filename.string();
-			boost::async(boost::launch::async, [fn]()
-			{
-				boost::system::error_code ignore_ec;
-				boost::mutex& m = log_compress__::compress_lock();
-				boost::lock_guard<boost::mutex> lock(m);
-				if (!log_compress__::do_compress_gz(fn))
+			std::thread th([fn]()
 				{
-					auto file = fn + log_compress__::GZ_SUFFIX;
-					boost::filesystem::remove(file, ignore_ec);
-					if (ignore_ec)
-						std::cout << "delete log failed: " << file
-						<< ", error code: " << ignore_ec.message() << std::endl;
-					return;
-				}
+					boost::system::error_code ignore_ec;
+					boost::mutex& m = log_compress__::compress_lock();
+					boost::lock_guard<boost::mutex> lock(m);
+					if (!log_compress__::do_compress_gz(fn))
+					{
+						auto file = fn + log_compress__::GZ_SUFFIX;
+						boost::filesystem::remove(file, ignore_ec);
+						if (ignore_ec)
+							std::cout << "delete log failed: " << file
+							<< ", error code: " << ignore_ec.message() << std::endl;
+						return;
+					}
 
-				boost::filesystem::remove(fn, ignore_ec);
-			});
-
+					boost::filesystem::remove(fn, ignore_ec);
+				});
+			th.detach();
 			break;
 		}
 #endif
@@ -670,7 +661,7 @@ namespace logger_aux__ {
 	public:
 		void start()
 		{
-			m_main_thread = boost::thread(boost::bind(&logger_internal::main_thread, this));
+			m_main_thread = std::thread(std::bind(&logger_internal::main_thread, this));
 		}
 
 		void stop()
@@ -700,13 +691,13 @@ namespace logger_aux__ {
 
 	private:
 		boost::asio::io_context m_io_context;
-		boost::thread m_main_thread;
+		std::thread m_main_thread;
 	};
 }
 
-inline boost::shared_ptr<logger_aux__::logger_internal>& logger_fetch_log_obj__()
+inline std::shared_ptr<logger_aux__::logger_internal>& logger_fetch_log_obj__()
 {
-	static boost::shared_ptr<logger_aux__::logger_internal> logger_obj_;
+	static std::shared_ptr<logger_aux__::logger_internal> logger_obj_;
 	return logger_obj_;
 }
 
