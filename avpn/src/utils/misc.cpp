@@ -684,6 +684,124 @@ std::string to_string(const boost::posix_time::ptime& t)
 	return boost::posix_time::to_iso_extended_string(t);
 }
 
+bool valid_utf(unsigned char* string, int length)
+{
+	static const unsigned char utf8_table[] =
+	{
+	  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+	  3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
+	};
+
+	unsigned char* p;
+
+	if (length < 0)
+	{
+		for (p = string; *p != 0; p++);
+		length = (int)(p - string);
+	}
+
+	for (p = string; length-- > 0; p++)
+	{
+		unsigned char ab, c, d;
+
+		c = *p;
+		if (c < 128) continue;                /* ASCII character */
+
+		if (c < 0xc0)                         /* Isolated 10xx xxxx byte */
+			return false;
+
+		if (c >= 0xfe)                        /* Invalid 0xfe or 0xff bytes */
+			return false;
+
+		ab = utf8_table[c & 0x3f];            /* Number of additional bytes */
+		if (length < ab)
+			return false;
+		length -= ab;                         /* Length remaining */
+
+		/* Check top bits in the second byte */
+		if (((d = *(++p)) & 0xc0) != 0x80)
+			return false;
+
+		/* For each length, check that the remaining bytes start with the 0x80 bit
+		   set and not the 0x40 bit. Then check for an overlong sequence, and for the
+		   excluded range 0xd800 to 0xdfff. */
+		switch (ab)
+		{
+			/* 2-byte character. No further bytes to check for 0x80. Check first byte
+			   for for xx00 000x (overlong sequence). */
+		case 1:
+			if ((c & 0x3e) == 0)
+				return false;
+			break;
+		case 2:
+			if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+				return false;
+			if (c == 0xe0 && (d & 0x20) == 0)
+				return false;
+			if (c == 0xed && d >= 0xa0)
+				return false;
+			break;
+
+			/* 4-byte character. Check 3rd and 4th bytes for 0x80. Then check first 2
+			   bytes for for 1111 0000, xx00 xxxx (overlong sequence), then check for a
+			   character greater than 0x0010ffff (f4 8f bf bf) */
+		case 3:
+			if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+				return false;
+			if (c == 0xf0 && (d & 0x30) == 0)
+				return false;
+			if (c > 0xf4 || (c == 0xf4 && d > 0x8f))
+				return false;
+			break;
+
+			/* 5-byte and 6-byte characters are not allowed by RFC 3629, and will be
+			   rejected by the length test below. However, we do the appropriate tests
+			   here so that overlong sequences get diagnosed, and also in case there is
+			   ever an option for handling these larger code points. */
+
+			/* 5-byte character. Check 3rd, 4th, and 5th bytes for 0x80. Then check for
+			   1111 1000, xx00 0xxx */
+		case 4:
+			if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Fifth byte */
+				return false;
+			if (c == 0xf8 && (d & 0x38) == 0)
+				return false;
+			break;
+
+			/* 6-byte character. Check 3rd-6th bytes for 0x80. Then check for
+			   1111 1100, xx00 00xx. */
+		case 5:
+			if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Fifth byte */
+				return false;
+			if ((*(++p) & 0xc0) != 0x80)     /* Sixth byte */
+				return false;
+			if (c == 0xfc && (d & 0x3c) == 0)
+				return false;
+			break;
+		}
+
+		/* Character is valid under RFC 2279, but 4-byte and 5-byte characters are
+		   excluded by RFC 3629. The pointer p is currently at the last byte of the
+		   character. */
+		if (ab > 3)
+			return false;
+	}
+
+	return true;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 fs::path config_home_path()
