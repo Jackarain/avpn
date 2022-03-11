@@ -184,6 +184,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> routes;
 	std::string pushdns;
 	bool passbyvpn = false;
+	bool snat = false;
 	bool c2c = true;
 
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
@@ -218,6 +219,7 @@ int main(int argc, char** argv)
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken(), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->default_value(""), "Push nameserver to client.")
 		("passbyvpn", po::value<bool>(&passbyvpn)->default_value(false), "All IP network traffic originating on client machines to pass through the server.")
+		("snat", po::value<bool>(&snat)->default_value(false), "Source network address translation.")
 
 		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16"), "VPN subnet.")
 		("c2c", po::value<bool>(&c2c)->default_value(true), "Allow different clients to be able to see each other.")
@@ -296,6 +298,7 @@ int main(int argc, char** argv)
 	cfg.udp_listens_ = udp_listens;
 
 	cfg.ifdev_ = ifdev;
+	cfg.snat_ = snat;
 
 	auto& params = cfg.channel_params_;
 	params.data_shards_ = data_shards;

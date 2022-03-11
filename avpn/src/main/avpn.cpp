@@ -281,7 +281,12 @@ namespace avpn {
 				LOG_ERR << "add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
 		}
 
+		if (m_config.snat_)
+		{
+			// TODO: do snat...
+		}
+
 		m_vnet = net;
 	}
-
 }
+

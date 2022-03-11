@@ -21,6 +21,7 @@ namespace avpn {
 		std::vector<std::string> udp_listens_;
 
 		std::string ifdev_;
+		bool snat_{ false };
 
 		int identity_;
 		avpn::channel_params channel_params_;
