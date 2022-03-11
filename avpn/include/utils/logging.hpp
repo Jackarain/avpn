@@ -964,7 +964,6 @@ public:
 		std::format_to(std::back_inserter(out_), "{}months", v.count());
 		return *this;
 	}
-#endif
 	inline logger___& operator<<(const std::chrono::weekday& v)
 	{
 		if (!logging_flag())
@@ -1049,6 +1048,7 @@ public:
 #endif
 		return *this;
 	}
+#endif
 	inline logger___& operator<<(const boost::posix_time::ptime& p) noexcept
 	{
 		if (!logging_flag())
