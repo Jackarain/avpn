@@ -491,7 +491,8 @@ public:
 				break;
 			}
 
-			auto ptm = logger_aux__::time_to_string(nullptr, m_last_time);
+			char buffer[64] = { 0 };
+			auto ptm = logger_aux__::time_to_string(&buffer[0], m_last_time);
 
 			m_ofstream->close();
 			m_ofstream.reset();
