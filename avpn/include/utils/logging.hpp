@@ -429,7 +429,7 @@ namespace logger_aux__ {
 			return nullptr;
 
 		if (buffer == nullptr)
-			return nullptr;
+			return &ptm;
 
 		std::sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
 			ptm.tm_year + 1900, ptm.tm_mon + 1, ptm.tm_mday,
@@ -491,8 +491,7 @@ public:
 				break;
 			}
 
-			char buffer[64] = { 0 };
-			auto ptm = logger_aux__::time_to_string(&buffer[0], m_last_time);
+			auto ptm = logger_aux__::time_to_string(nullptr, m_last_time);
 
 			m_ofstream->close();
 			m_ofstream.reset();
