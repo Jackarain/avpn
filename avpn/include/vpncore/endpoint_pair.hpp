@@ -13,9 +13,38 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 
+#if defined(__cpp_lib_format)
+#	include <format>
+#endif
+
+#if !defined(__cpp_lib_format)
+#ifdef _MSC_VER
+#	pragma warning(push)
+#	pragma warning(disable: 4244 4127)
+#endif // _MSC_VER
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wexpansion-to-defined"
+#endif
+
 #include <fmt/ostream.h>
 #include <fmt/printf.h>
 #include <fmt/format.h>
+
+namespace std {
+	using ::fmt::format;
+	using ::fmt::format_to;
+}
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#	pragma warning(pop)
+#endif
+#endif
 
 #include "utils/logging.hpp"
 
@@ -78,7 +107,7 @@ namespace avpn {
 
 		std::string to_string() const
 		{
-			return fmt::format("{}:{} - {}:{}",
+			return std::format("{}:{} - {}:{}",
 				src_.address().to_string(), src_.port(),
 				dst_.address().to_string(), dst_.port());
 		}

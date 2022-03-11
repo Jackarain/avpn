@@ -20,22 +20,7 @@
 
 #include <boost/json.hpp>
 #include <boost/date_time.hpp>
-
 #include <boost/regex.hpp>
-
-
-#ifdef __clang__
-#	pragma clang diagnostic push
-#	pragma clang diagnostic ignored "-Wexpansion-to-defined"
-#endif
-
-#include <fmt/ostream.h>
-#include <fmt/printf.h>
-#include <fmt/format.h>
-
-#ifdef __clang__
-#	pragma clang diagnostic pop
-#endif
 
 
 namespace avpn {
