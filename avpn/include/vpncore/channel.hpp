@@ -57,6 +57,7 @@
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
+#include <utils/uawaitable.hpp>
 
 namespace avpn {
 
@@ -359,8 +360,7 @@ namespace avpn {
 
 						timer& reconnect_timer = wsclient->reconnect_timer_;
 						reconnect_timer.expires_from_now(never);
-						co_await reconnect_timer.async_wait(
-							boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+						co_await reconnect_timer.async_wait(uawaitable[ec]);
 
 						if (m_abort)
 							break;
@@ -619,8 +619,7 @@ namespace avpn {
 			while (!m_abort)
 			{
 				tcp::socket socket(m_io_context);
-				co_await a.async_accept(socket,
-					boost::asio::redirect_error(boost::asio::use_awaitable, error));
+				co_await a.async_accept(socket, uawaitable[error]);
 				if (error)
 				{
 					LOG_ERR << "WS server, async_accept: " << error.message();
@@ -671,8 +670,7 @@ namespace avpn {
 				request_parser parser;
 				parser.body_limit(std::numeric_limits<uint64_t>::max());
 
-				co_await http::async_read_header(stream, buffer, parser,
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				co_await http::async_read_header(stream, buffer, parser, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_DBG << "start_ws_connect, id: " << connection_id << ", async_read_header: " << ec.message();
@@ -684,8 +682,7 @@ namespace avpn {
 					http::response<http::empty_body> res;
 					res.version(11);
 					res.result(http::status::continue_);
-					co_await http::async_write(stream, res,
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					co_await http::async_write(stream, res, uawaitable[ec]);
 					if (ec)
 					{
 						LOG_DBG << "start_ws_connect, id: " << connection_id
@@ -722,8 +719,7 @@ namespace avpn {
 				stream.expires_never();
 
 				ws_stream ws{ std::move(stream) };
-				co_await ws.async_accept(req,
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				co_await ws.async_accept(req, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_DBG << "start_ws_connect, " << connection_id << ", async_accept: " << ec.message();
@@ -813,8 +809,7 @@ namespace avpn {
 
 			while (!m_abort)
 			{
-				auto bytes = co_await stream.async_read(buffer,
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
 				if (ec == websocket::error::closed)
 				{
 					LOG_DBG << "start_server_read, id: "
@@ -909,8 +904,7 @@ namespace avpn {
 			res.prepare_payload();
 
 			boost::beast::http::serializer<false, string_body, fields> sr{ res };
-			co_await boost::beast::http::async_write(stream, sr,
-				boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+			co_await boost::beast::http::async_write(stream, sr, uawaitable[ec]);
 			if (ec)
 			{
 				LOG_WARN << "do_http_response, id: " << connection_id << ", err: " << ec.message();
@@ -921,8 +915,8 @@ namespace avpn {
 			const udp::endpoint& endp, std::string& msg)
 		{
 			boost::system::error_code ec;
-			auto bytes = co_await sock.async_send_to(boost::asio::buffer(msg), endp,
-				boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+			auto bytes = co_await sock.async_send_to(boost::asio::buffer(msg),
+				endp, uawaitable[ec]);
 			if (ec)
 			{
 				LOG_DBG << "direct_channel_udp_write, async_send_to error: " << ec.message();
@@ -943,8 +937,7 @@ namespace avpn {
 			while (!m_abort) [[likely]]
 			{
 				m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_delay_));
-				co_await m_fec_timer.async_wait(
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				co_await m_fec_timer.async_wait(uawaitable[ec]);
 				if (m_abort) [[unlikely]]
 					co_return;
 
@@ -1228,8 +1221,7 @@ namespace avpn {
 					while (!m_abort && !message_deque.empty())
 					{
 						co_await connection.ws_stream_.async_write(
-							boost::asio::buffer(message_deque.front()),
-								boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+							boost::asio::buffer(message_deque.front()), uawaitable[ec]);
 						if (ec)
 						{
 							LOG_ERR << "on_channel_write, t -> r, " << connection.connection_id_
@@ -1344,8 +1336,7 @@ namespace avpn {
 				while (!m_abort && !message_deque.empty())
 				{
 					co_await connection.ws_stream_.async_write(
-						boost::asio::buffer(message_deque.front()),
-							boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+						boost::asio::buffer(message_deque.front()), uawaitable[ec]);
 					if (ec)
 					{
 						LOG_ERR << "channel_write, " << connection.connection_id_
@@ -1464,8 +1455,7 @@ namespace avpn {
 			while (!m_abort)
 			{
 				auto bytes = co_await sock.async_receive_from(
-					boost::asio::buffer(buffer), remote_endp,
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					boost::asio::buffer(buffer), remote_endp, uawaitable[ec]);
 				if (ec)
 					continue;
 
@@ -1515,8 +1505,7 @@ namespace avpn {
 
 				tcp::resolver resolver{ m_io_context };
 				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()), std::string(parser.port()),
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "channel::connect, async_resolve: " << ec.message();
@@ -1552,8 +1541,7 @@ namespace avpn {
 
 				tcp::resolver resolver{ m_io_context };
 				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()), std::string(parser.port()),
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "channel::connect, async_resolve: " << ec.message();
@@ -1591,8 +1579,7 @@ namespace avpn {
 
 				stream.set_option(boost::beast::websocket::stream_base::decorator(decorator));
 				co_await stream.async_handshake(std::string(parser.host()),
-					parser.path().empty() ? "/" : parser.path(),
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					parser.path().empty() ? "/" : parser.path(), uawaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "channel::connect, async_handshake: " << ec.message();
@@ -1622,8 +1609,7 @@ namespace avpn {
 						boost::system::error_code ec;
 
 						timer.expires_from_now(std::chrono::seconds(15));
-						co_await timer.async_wait(
-							boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+						co_await timer.async_wait(uawaitable[ec]);
 
 						if (!m_abort)
 							do_reconnect(connection_ptr);
@@ -1703,8 +1689,7 @@ namespace avpn {
 
 			while (!m_abort)
 			{
-				auto bytes = co_await stream.async_read(buffer,
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+				auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
 				if (ec == websocket::error::closed)
 				{
 					LOG_DBG << "start_client_read, id: " << connection_id << ", session was closed";
@@ -1744,8 +1729,7 @@ namespace avpn {
 			if (!m_abort && connection_ptr)
 			{
 				co_await connection.ws_stream_.async_close(
-					boost::beast::websocket::close_code::none,
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					boost::beast::websocket::close_code::none, uawaitable[ec]);
 				connection.ws_timer_.cancel_one(ec);
 
 				// 通知断开连接.
@@ -1791,8 +1775,7 @@ namespace avpn {
 					boost::system::error_code ec;
 
 					// LOG_DBG << "Keepalive for connection id: " << ws_conn_ptr->connection_id_;
-					co_await ws_conn_ptr->ws_stream_.async_ping("",
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					co_await ws_conn_ptr->ws_stream_.async_ping("", uawaitable[ec]);
 
 					do
 					{
@@ -1817,8 +1800,7 @@ namespace avpn {
 					auto& timer = ws_conn_ptr->ws_timer_;
 					timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
 
-					co_await timer.async_wait(
-						boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+					co_await timer.async_wait(uawaitable[ec]);
 				}
 			}, boost::asio::detached);
 		}

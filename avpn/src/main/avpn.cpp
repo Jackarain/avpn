@@ -12,6 +12,7 @@
 #include "utils/url_parser.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/fileop.hpp"
+#include "utils/uawaitable.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
 
@@ -87,8 +88,8 @@ namespace avpn {
 			auto& content = msg.content;
 			content.resize(128 * 1024);
 
-			auto bytes = co_await m_tuntap.async_read_some(boost::asio::buffer(content),
-					boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+			auto bytes = co_await m_tuntap.async_read_some(
+				boost::asio::buffer(content), uawaitable[ec]);
 			if (ec)
 			{
 				LOG_WARN << "start_tun, async_read_some: " << ec.message();
@@ -221,8 +222,7 @@ namespace avpn {
 					while (!m_abort && !m_tuntap_write_deque.empty())
 					{
 						co_await m_tuntap.async_write_some(
-							boost::asio::buffer(m_tuntap_write_deque.front()),
-								boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+							boost::asio::buffer(m_tuntap_write_deque.front()), uawaitable[ec]);
 						if (ec)
 						{
 							LOG_ERR << "do_tuntap_write, async_write error: " << ec.message();
