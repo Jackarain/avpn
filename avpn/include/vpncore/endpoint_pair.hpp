@@ -10,8 +10,10 @@
 
 #pragma once
 #include <iostream>
+
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/container_hash/hash.hpp>
 
 #if defined(__cpp_lib_format)
 #	include <format>
@@ -90,6 +92,14 @@ namespace avpn {
 			src_.port(ntohs(src_port));
 			dst_.address(dst_ip);
 			dst_.port(ntohs(dst_port));
+		}
+
+		endpoint_pair(endpoint_pair&& endp)
+			: src_(std::move(endp.src_))
+			, dst_(std::move(endp.dst_))
+			, type_(endp.type_)
+		{
+			endp.type_ = -1;
 		}
 
 		bool empty() const

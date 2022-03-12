@@ -18,10 +18,10 @@ file(GLOB avpn_SRCS
 	include/avpn/io_context_pool.hpp
 	include/avpn/logging.hpp
 	include/avpn/avpn.hpp
+	include/avpn/channel.hpp
 	include/avpn/reedsolomon.hpp
 
 	include/vpncore/basic_tuntap.hpp
-	include/vpncore/channel.hpp
 	include/vpncore/endpoint_pair.hpp
 	include/vpncore/tuntap.hpp
 	include/vpncore/tuntap_config.hpp
@@ -32,6 +32,7 @@ file(GLOB avpn_SRCS
 
 	src/main/main.cpp
 	src/main/avpn.cpp
+	src/main/channel.cpp
 	src/main/io_context_pool.cpp
 	src/main/reedsolomon.cpp
 )
@@ -47,8 +48,10 @@ endif()
 add_executable(avpn ${avpn_SRCS})
 if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
 	set_property(TARGET avpn PROPERTY CXX_STANDARD 23)
+	message(STATUS "Avpn set cxx standard: C++23")
 else()
 	set_property(TARGET avpn PROPERTY CXX_STANDARD 20)
+	message(STATUS "Avpn set cxx standard: C++20")
 endif()
 
 target_include_directories(avpn PUBLIC

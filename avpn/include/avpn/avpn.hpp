@@ -8,8 +8,9 @@
 #pragma once
 
 #include "avpn/internal.hpp"
+#include "avpn/channel.hpp"
+
 #include "vpncore/tuntap.hpp"
-#include "vpncore/channel.hpp"
 
 namespace avpn {
 
@@ -41,13 +42,15 @@ namespace avpn {
 		void start();
 		void stop();
 
+		void do_tuntap_write(std::string&& message);
+		void on_status(avpn::channel_status cs);
+
 	private:
 		boost::asio::awaitable<void> start_tun_read_loop();
 
 		void run_as_client();
 		void run_as_server();
 
-		void do_tuntap_write(std::string&& message);
 		void setup_tun(const boost::asio::ip::network_v4& net);
 
 	private:

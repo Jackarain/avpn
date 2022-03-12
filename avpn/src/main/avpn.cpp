@@ -19,7 +19,6 @@
 #include <chrono>
 #include <iomanip>
 
-#include <boost/json.hpp>
 #include <boost/date_time.hpp>
 #include <boost/regex.hpp>
 
@@ -33,7 +32,8 @@ namespace avpn {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context, m_io_context_pool, config.channel_params_)
+		, m_channel(m_io_context, m_io_context_pool,
+			config.channel_params_, static_cast<avpn_service&>(*this))
 	{
 	}
 
@@ -122,7 +122,7 @@ namespace avpn {
 					continue;
 
 				// 透传到channel.
-				m_channel.server_write(std::move(msg), endp);
+				m_channel.server_forward_tun(std::move(msg), std::move(endp));
 			}
 			else if (m_config.identity_ == avpn::avpn_client)
 			{
@@ -131,7 +131,7 @@ namespace avpn {
 					continue;
 
 				// 透传到channel.
-				m_channel.client_write(std::move(msg), endp);
+				m_channel.client_forward_tun(std::move(msg), std::move(endp));
 			}
 		}
 
@@ -140,70 +140,12 @@ namespace avpn {
 
 	void avpn_service::run_as_client()
 	{
-		m_channel.start_connect(m_config.upstreams_,
-			[this](avpn::channel_status cs)
-			{
-				m_channel_status = cs;
-				auto status = cs.status_;
-
-				// 连接成功, 如果没有启动tun, 则启动tun设备.
-				if (status == avpn::connection_status::st_connected)
-				{
-					LOG_DBG << "vpn connected";
-
-					if (m_start_tuntap)
-						return;
-					m_start_tuntap = true;
-
-					auto ipaddr = m_channel.vnet_ipaddr();
-					setup_tun(ipaddr);
-
-					LOG_DBG << "vpn device start...";
-
-					boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-						start_tun_read_loop(), boost::asio::detached);
-				}
-
-				// 断开状态.
-				if (status == avpn::connection_status::st_disconnect)
-				{
-					m_start_tuntap = false;
-					m_tuntap.close();
-
-					if (m_abort)
-						return;
-
-					LOG_WARN << "vpn disconnect...";
-				}
-			},
-			[this](std::string&& message) { do_tuntap_write(std::move(message)); }
-			);
+		m_channel.start_connect(m_config.upstreams_);
 	}
 
 	void avpn_service::run_as_server()
 	{
-		m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_,
-			[this](avpn::channel_status cs)
-			{
-				auto st = cs.status_;
-				if (st == avpn::connection_status::st_listen)
-				{
-					if (m_start_tuntap)
-						return;
-
-					m_start_tuntap = true;
-					m_channel_status = cs;
-
-					setup_tun(m_channel.vnet());
-
-					LOG_DBG << "vpn device start...";
-
-					boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-						start_tun_read_loop(), boost::asio::detached);
-				}
-			},
-			[this](std::string&& message) { do_tuntap_write(std::move(message)); }
-			);
+		m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_);
 	}
 
 	void avpn_service::do_tuntap_write(std::string&& message)
@@ -288,5 +230,71 @@ namespace avpn {
 
 		m_vnet = net;
 	}
+
+	void avpn_service::on_status(avpn::channel_status cs)
+	{
+		if (m_config.identity_ == avpn::avpn_client)
+		{
+			m_channel_status = cs;
+			auto status = cs.status_;
+
+			// 连接成功, 如果没有启动tun, 则启动tun设备.
+			if (status == avpn::connection_status::st_connected)
+			{
+				LOG_DBG << "vpn connected";
+
+				if (m_start_tuntap)
+					return;
+				m_start_tuntap = true;
+
+				auto ipaddr = m_channel.vnet_ipaddr();
+				setup_tun(ipaddr);
+
+				LOG_DBG << "vpn device start...";
+
+				boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+					start_tun_read_loop(), boost::asio::detached);
+			}
+
+			// 断开状态.
+			if (status == avpn::connection_status::st_disconnect)
+			{
+				m_start_tuntap = false;
+				m_tuntap.close();
+
+				if (m_abort)
+					return;
+
+				LOG_WARN << "vpn disconnect...";
+			}
+
+			return;
+		}
+
+		if (m_config.identity_ == avpn::avpn_server)
+		{
+			auto st = cs.status_;
+			if (st == avpn::connection_status::st_listen)
+			{
+				if (m_start_tuntap)
+					return;
+
+				m_start_tuntap = true;
+				m_channel_status = cs;
+
+				setup_tun(m_channel.vnet());
+
+				LOG_DBG << "vpn device start...";
+
+				boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
+					start_tun_read_loop(), boost::asio::detached);
+			}
+
+			return;
+		}
+
+		BOOST_ASSERT(false && "invalid identity");
+	}
+
 }
 

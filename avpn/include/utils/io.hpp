@@ -206,7 +206,7 @@ namespace stream_endian {
 
 	public:
 		inline bitstream(const uint8_t* bytes, size_t byte_count)
-			: bytes_(bytes), byte_count_(byte_count)
+			: bytes_(bytes), byte_count_(byte_count), writable_bytes_((uint8_t*)bytes)
 		{}
 
 		inline bitstream(uint8_t* bytes, size_t byte_count)
@@ -493,8 +493,108 @@ namespace stream_endian {
 			return WriteExponentialGolomb(signed_val * 2);
 		}
 
+		inline bool WriteTail()
+		{
+			size_t byte_offset;
+			size_t bit_offset;
+			GetCurrentOffset(&byte_offset, &bit_offset);
+
+			if (bit_offset > 0)
+			{
+				if (!WriteBits(0, 8 - bit_offset))
+					return false;
+
+				GetCurrentOffset(&byte_offset, &bit_offset);
+				if (bit_offset != 0)
+					return false;
+			}
+
+			return true;
+		}
+
+		inline bool ReadTail()
+		{
+			size_t byte_offset;
+			size_t bit_offset;
+			GetCurrentOffset(&byte_offset, &bit_offset);
+
+			if (bit_offset > 0)
+			{
+				if (!ReadBits(0, 8 - bit_offset))
+					return false;
+
+				GetCurrentOffset(&byte_offset, &bit_offset);
+				if (bit_offset != 0)
+					return false;
+			}
+
+			return true;
+		}
+
+		inline bool WriteString(const char* str, size_t size)
+		{
+			if (!WriteTail())
+				return false;
+
+			auto remainder = RemainingBitCount() / 8;
+			if (size > remainder)
+				return false;
+
+			uint8_t* bytes = writable_bytes_ + byte_offset_;
+			std::memcpy((void*)bytes, (const void*)str, size);
+			byte_offset_ += size;
+
+			return true;
+		}
+
+		inline bool ReadString(char* str, size_t size)
+		{
+			if (!ReadTail())
+				return false;
+
+			auto remainder = RemainingBitCount() / 8;
+			if (size > remainder)
+				return false;
+
+			uint8_t* bytes = writable_bytes_ + byte_offset_;
+			std::memcpy((void*)str, (const void*)bytes, size);
+			byte_offset_ += size;
+
+			return true;
+		}
+
+		inline size_t ByteOffset() const
+		{
+			return byte_offset_;
+		}
+
+		inline size_t BitOffset() const
+		{
+			return bit_offset_;
+		}
+
+		inline const uint8_t* GetOriginPtr() const
+		{
+			return bytes_;
+		}
+
+		inline void Reset(uint8_t* bytes, size_t byte_count)
+		{
+			bytes_ = (const uint8_t*)bytes;
+			writable_bytes_ = bytes;
+
+			byte_count_ = byte_count;
+			byte_offset_ = 0;
+			bit_offset_ = 0;
+		}
+
+		inline size_t AllSize() const
+		{
+			return byte_count_;
+		}
+
 	protected:
-		const uint8_t* const bytes_;
+		const uint8_t* bytes_;
 		// The total size of |bytes_|.
 		size_t byte_count_;
 		// The current offset, in bytes, from the start of |bytes_|.

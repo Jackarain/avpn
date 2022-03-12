@@ -1123,6 +1123,12 @@ public:
 
 #else
 
+#undef LOG_DBG
+#undef LOG_INFO
+#undef LOG_WARN
+#undef LOG_ERR
+#undef LOG_FILE
+
 #define LOG_DBG util::empty_logger___()
 #define LOG_INFO util::empty_logger___()
 #define LOG_WARN util::empty_logger___()
