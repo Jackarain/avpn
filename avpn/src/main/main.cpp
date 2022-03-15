@@ -160,6 +160,7 @@ std::string version_info()
 	std::ostringstream oss;
 	oss << "avpn version: v" << AVPN_VERSION << ", " << AVPN_GIT_REVISION
 		<< " built on " << __DATE__ << " " << __TIME__ << " runs on " << os_name << ", " << BOOST_COMPILER;
+	std::cerr << oss.str() << "\n";
 
 	return oss.str();
 }
@@ -238,7 +239,7 @@ int main(int argc, char** argv)
 		po::notify(vm);
 
 		// 输出版本信息.
-		LOG_INFO << version_info();
+		LOG_FILE << version_info();
 
 		// 帮助输出.
 		if (vm.count("help") || argc == 1)

@@ -32,7 +32,7 @@ namespace avpn {
 		, m_config(config)
 		, m_tuntap(m_io_context)
 		, m_tuntap_timer(m_io_context)
-		, m_channel(m_io_context, m_io_context_pool,
+		, m_vpn_tunnel(m_io_context, m_io_context_pool,
 			config.channel_params_, static_cast<avpn_service&>(*this))
 	{
 	}
@@ -69,7 +69,7 @@ namespace avpn {
 		}
 
 		LOG_DBG << "avpn_service close channel.";
-		m_channel.close();
+		m_vpn_tunnel.close();
 
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tuntap.close();
@@ -122,7 +122,7 @@ namespace avpn {
 					continue;
 
 				// 透传到channel.
-				m_channel.server_forward_tun(std::move(msg), std::move(endp));
+				m_vpn_tunnel.server_forward_tun(std::move(msg), std::move(endp));
 			}
 			else if (m_config.identity_ == avpn::avpn_client)
 			{
@@ -131,7 +131,7 @@ namespace avpn {
 					continue;
 
 				// 透传到channel.
-				m_channel.client_forward_tun(std::move(msg), std::move(endp));
+				m_vpn_tunnel.client_forward_tun(std::move(msg), std::move(endp));
 			}
 		}
 
@@ -140,12 +140,12 @@ namespace avpn {
 
 	void avpn_service::run_as_client()
 	{
-		m_channel.start_connect(m_config.upstreams_);
+		m_vpn_tunnel.start_connect(m_config.upstreams_);
 	}
 
 	void avpn_service::run_as_server()
 	{
-		m_channel.start_listen(m_config.tcp_listens_, m_config.udp_listens_);
+		m_vpn_tunnel.start_listen(m_config.tcp_listens_, m_config.udp_listens_);
 	}
 
 	void avpn_service::do_tuntap_write(std::string&& message)
@@ -247,7 +247,7 @@ namespace avpn {
 					return;
 				m_start_tuntap = true;
 
-				auto ipaddr = m_channel.vnet_ipaddr();
+				auto ipaddr = m_vpn_tunnel.vnet_ipaddr();
 				setup_tun(ipaddr);
 
 				LOG_DBG << "vpn device start...";
@@ -282,7 +282,7 @@ namespace avpn {
 				m_start_tuntap = true;
 				m_channel_status = cs;
 
-				setup_tun(m_channel.vnet());
+				setup_tun(m_vpn_tunnel.vnet());
 
 				LOG_DBG << "vpn device start...";
 

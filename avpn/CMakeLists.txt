@@ -2,6 +2,11 @@
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp.in
 		${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp @ONLY NEWLINE_STYLE LF)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLE_LOGGER")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
+set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
+
 file(GLOB avpn_WINDOWS_SRCS
 	include/vpncore/tuntap_windows_service.hpp
 )
@@ -18,7 +23,7 @@ file(GLOB avpn_SRCS
 	include/avpn/io_context_pool.hpp
 	include/avpn/logging.hpp
 	include/avpn/avpn.hpp
-	include/avpn/channel.hpp
+	include/avpn/vpn_tunnel.hpp
 	include/avpn/reedsolomon.hpp
 
 	include/vpncore/basic_tuntap.hpp
@@ -32,7 +37,7 @@ file(GLOB avpn_SRCS
 
 	src/main/main.cpp
 	src/main/avpn.cpp
-	src/main/channel.cpp
+	src/main/vpn_tunnel.cpp
 	src/main/io_context_pool.cpp
 	src/main/reedsolomon.cpp
 )

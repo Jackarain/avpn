@@ -520,7 +520,8 @@ namespace stream_endian {
 
 			if (bit_offset > 0)
 			{
-				if (!ReadBits(0, 8 - bit_offset))
+				uint32_t tmp = 0;
+				if (!ReadBits(&tmp, 8 - bit_offset))
 					return false;
 
 				GetCurrentOffset(&byte_offset, &bit_offset);

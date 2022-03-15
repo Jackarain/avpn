@@ -100,6 +100,7 @@ namespace avpn {
 		vpt_udp_handshake,
 		vpt_udp_handshake_reply,
 		vpt_keepalive,
+		vpt_keepalive_reply,
 		vpt_auth,
 	};
 
@@ -147,6 +148,17 @@ namespace avpn {
 				return client_endpoint();
 
 			return server_endpoint();
+		}
+
+		// 用于client获取下一个endpoint.
+		std::tuple<int, udp::endpoint> next_endpoint() const noexcept
+		{
+			auto index = next_endpoint_;
+			const auto& endp = endpoints_[next_endpoint_];
+
+			next_endpoint_ = (next_endpoint_ + 1) % endpoints_.size();
+
+			return {index, endp};
 		}
 
 		// 当作为client时, 添加指定数量的server的endpoint.
@@ -305,7 +317,7 @@ namespace avpn {
 	};
 
 	class avpn_service;
-	class channel
+	class vpn_tunnel
 	{
 		using string_body = boost::beast::http::string_body;
 		using string_response = boost::beast::http::response<string_body>;
@@ -327,12 +339,13 @@ namespace avpn {
 			boost::beast::flat_buffer& buffer_;
 		};
 
-		channel(const channel&) = delete;
-		channel& operator=(const channel&) = delete;
+		vpn_tunnel(const vpn_tunnel&) = delete;
+		vpn_tunnel& operator=(const vpn_tunnel&) = delete;
 
 	public:
-		channel(boost::asio::io_context& io, io_context_pool& ios,
+		vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios,
 			const channel_params& params, avpn_service& service);
+		~vpn_tunnel();
 
 		// 根据用户设置的参数, 启动一个server.
 		void start_listen(std::vector<std::string> tcp_listens,
@@ -376,23 +389,25 @@ namespace avpn {
 		boost::asio::awaitable<void> process_tcp_packet(uint32_t type,
 			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
 		boost::asio::awaitable<void> process_udp_packet(uint8_t type,
-			stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint& endp);
+			stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint endp);
 
 		// 直接转发数据到指定tcp socket.
 		boost::asio::awaitable<void> forward_tcp_write(
-			const vpn_connection_ptr& connection_ptr, std::string&& msg);
+			const vpn_connection_ptr& connection_ptr, std::string msg);
 
 		// 直接转发数据包到指定udp socket.
 		boost::asio::awaitable<void> forward_udp_write(udp::socket& sock,
-			const udp::endpoint& endp, std::string&& msg);
+			udp::endpoint endp, std::string msg);
 
 		// 转发数据包到网络, 自动根据配置转发.
 		boost::asio::awaitable<void> forward_channel_write(
-			vpn_connection_ptr connection_ptr, avpn::vpn_message&& msg);
+			vpn_connection_ptr connection_ptr, vpn_message msg);
 
 		// 启动udp socket服务, 成功后自动启动start_udp_read_loop进入循环
 		// 读取udp数据包请求.
-		boost::asio::awaitable<void> start_udp_socket();
+		boost::asio::awaitable<void> start_udp_server();
+		boost::asio::awaitable<void> start_udp_client();
+
 		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
 		boost::asio::awaitable<void> start_tcp_connect();
 
@@ -421,7 +436,9 @@ namespace avpn {
 
 		boost::asio::awaitable<void> do_vpt_packet(uint8_t type,
 			stream_endian::bitstream& reader, const udp::endpoint* endp);
-		boost::asio::awaitable<vpn_connection_ptr> do_vpt_fec_packet(stream_endian::bitstream& reader);
+
+		boost::asio::awaitable<vpn_connection_ptr>
+			do_vpt_fec_packet(stream_endian::bitstream& reader);
 
 		boost::asio::awaitable<void> do_vpt_udp_handshake(
 			stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint& endp);
@@ -468,7 +485,8 @@ namespace avpn {
 			time_point last_see_;
 			udp::socket sock_;
 		};
-		std::vector<udp_socket> m_udp_sockets;
+		using udp_socket_ptr = std::unique_ptr<udp_socket>;
+		std::vector<udp_socket_ptr> m_udp_sockets;
 
 		// 运行的身份.
 		int m_identity{ -1 };

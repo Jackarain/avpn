@@ -8,7 +8,7 @@
 #pragma once
 
 #include "avpn/internal.hpp"
-#include "avpn/channel.hpp"
+#include "avpn/vpn_tunnel.hpp"
 
 #include "vpncore/tuntap.hpp"
 
@@ -64,7 +64,7 @@ namespace avpn {
 		bool m_tuntap_writing{ false };
 		timer m_tuntap_timer;
 		boost::asio::ip::network_v4 m_vnet;
-		avpn::channel m_channel;
+		avpn::vpn_tunnel m_vpn_tunnel;
 
 		std::atomic_bool m_abort{ false };
 	};

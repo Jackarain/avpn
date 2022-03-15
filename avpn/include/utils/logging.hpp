@@ -1086,10 +1086,6 @@ public:
 
 class empty_logger___
 {
-	// c++11 noncopyable.
-	empty_logger___(const empty_logger___&) = delete;
-	empty_logger___& operator=(const empty_logger___&) = delete;
-
 public:
 	template <class T>
 	empty_logger___& operator<<(T const&/*v*/)

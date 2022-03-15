@@ -77,6 +77,11 @@ option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
 option(ENABLE_BUILD_WITH_LIBCXX "Build with libc++" OFF)
 option(ENABLE_BUILD_WITH_RTLIB_COMPILER_RT "Build with default rtlib to compiler-rt" OFF)
 
+option(ENABLE_MOLD "build using mold" OFF)
+option(ENABLE_LLD "build using lld" OFF)
+
+find_program(MOLD_LINKER mold)
+find_program(LLD_LINKER lld)
 
 if (ENABLE_GIT_VERSION)
 	find_package(Git)
@@ -178,10 +183,6 @@ if (ENABLE_SYSTEMD_LOGGING )
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_SYSTEMD_LOGGING")
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
-set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
-
 if (NOT MSVC)
 	if(NOT APPLE)
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -207,6 +208,21 @@ if (NOT MSVC)
 	else()
 		message(FATAL_ERROR "need at least GCC 11 or clang 14")
 	endif()
+
+	if (ENABLE_MOLD)
+		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+			if (MOLD_LINKER)
+				list(APPEND CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+			endif()
+		endif()
+	endif()
+
+	if (ENABLE_MOLD)
+		if (LLD_LINKER)
+			list(APPEND CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
+		endif()
+	endif()
+
 endif(NOT MSVC)
 
 #add_definitions(-DJSONRPC_DISABLE_THREADS)
