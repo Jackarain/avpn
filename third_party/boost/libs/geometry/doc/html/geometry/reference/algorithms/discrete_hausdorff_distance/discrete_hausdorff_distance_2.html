@@ -27,7 +27,7 @@
 <a name="geometry.reference.algorithms.discrete_hausdorff_distance.discrete_hausdorff_distance_2"></a><a class="link" href="discrete_hausdorff_distance_2.html" title="discrete_hausdorff_distance">discrete_hausdorff_distance</a>
 </h5></div></div></div>
 <p>
-            <a class="indexterm" name="idm36925"></a>
+            <a class="indexterm" name="idm37860"></a>
 Calculate discrete Hausdorff distance between two geometries (currently
             works for LineString-LineString, MultiPoint-MultiPoint, Point-MultiPoint,
             MultiLineString-MultiLineString).
@@ -178,7 +178,7 @@ Calculate discrete Hausdorff distance between two geometries (currently
     <span class="keyword">typedef</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">geometry</span><span class="special">::</span><span class="identifier">model</span><span class="special">::</span><span class="identifier">linestring</span><span class="special">&lt;</span><span class="identifier">point_type</span><span class="special">&gt;</span> <span class="identifier">linestring_type</span><span class="special">;</span>
 
     <span class="identifier">linestring_type</span> <span class="identifier">ls1</span><span class="special">,</span> <span class="identifier">ls2</span><span class="special">;</span>
-    <span class="identifier">boost</span><span class="special">::</span><span class="identifier">geometry</span><span class="special">::</span><span class="identifier">read_wkt</span><span class="special">(</span><span class="string">"LINESTRING(0 0,1 1,1 2,2 1,2 2)"</span><span class="special">,</span> <span class="identifier">ls2</span><span class="special">);</span>
+    <span class="identifier">boost</span><span class="special">::</span><span class="identifier">geometry</span><span class="special">::</span><span class="identifier">read_wkt</span><span class="special">(</span><span class="string">"LINESTRING(0 0,1 1,1 2,2 1,2 2)"</span><span class="special">,</span> <span class="identifier">ls1</span><span class="special">);</span>
     <span class="identifier">boost</span><span class="special">::</span><span class="identifier">geometry</span><span class="special">::</span><span class="identifier">read_wkt</span><span class="special">(</span><span class="string">"LINESTRING(1 0,0 1,1 1,2 1,3 1)"</span><span class="special">,</span> <span class="identifier">ls2</span><span class="special">);</span>
 
     <span class="keyword">double</span> <span class="identifier">res</span> <span class="special">=</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">geometry</span><span class="special">::</span><span class="identifier">discrete_hausdorff_distance</span><span class="special">(</span><span class="identifier">ls1</span><span class="special">,</span> <span class="identifier">ls2</span><span class="special">);</span>

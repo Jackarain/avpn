@@ -150,6 +150,30 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_REPORT_SEVERITY(severity);
 }
 
+#ifdef BOOST_HAS_INT128
+
+std::ostream& operator<<(std::ostream& os, __int128 val)
+{
+   std::stringstream ss;
+   ss << std::hex << "0x" << static_cast<std::uint64_t>(static_cast<unsigned __int128>(val) >> 64) << static_cast<std::uint64_t>(val);
+   return os << ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, unsigned __int128 val)
+{
+   std::stringstream ss;
+   ss << std::hex << "0x" << static_cast<std::uint64_t>(val >> 64) << static_cast<std::uint64_t>(val);
+   return os << ss.str();
+}
+
+#endif
+#ifdef BOOST_HAS_FLOAT128
+std::ostream& operator<<(std::ostream& os, __float128 f)
+{
+   return os << static_cast<long double>(f);
+}
+#endif
+
 #ifndef BOOST_NO_EXCEPTIONS
 #define BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)                                       \
    catch (const std::exception& e)                                                          \
@@ -161,14 +185,14 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
       std::cout << "Exception of unknown type was thrown" << std::endl;                     \
       report_severity(severity);                                                            \
    }
-#define BOOST_MP_TRY try
+#define BOOST_MP_TEST_TRY try
 #else
 #define BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
-#define BOOST_MP_TRY
+#define BOOST_MP_TEST_TRY
 #endif
 
 #define BOOST_CHECK_IMP(x, severity)                                                        \
-   BOOST_MP_TRY                                                                             \
+   BOOST_MP_TEST_TRY                                                                             \
    {                                                                                        \
       if (x)                                                                                \
       {                                                                                     \
@@ -186,7 +210,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
 #define BOOST_REQUIRE(x) BOOST_CHECK_IMP(x, abort_on_fail)
 
 #define BOOST_CLOSE_IMP(x, y, tol, severity)                                                \
-   BOOST_MP_TRY                                                                             \
+   BOOST_MP_TEST_TRY                                                                             \
    {                                                                                        \
       if (relative_error(x, y) > tol)                                                       \
       {                                                                                     \
@@ -203,7 +227,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_EQUAL_IMP(x, y, severity)                                              \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!((x) == (y)))                                                             \
       {                                                                              \
@@ -218,7 +242,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_NE_IMP(x, y, severity)                                                 \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!(x != y))                                                                 \
       {                                                                              \
@@ -233,7 +257,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_LT_IMP(x, y, severity)                                                 \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!(x < y))                                                                  \
       {                                                                              \
@@ -248,7 +272,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_GT_IMP(x, y, severity)                                                 \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!(x > y))                                                                  \
       {                                                                              \
@@ -263,7 +287,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_LE_IMP(x, y, severity)                                                 \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!(x <= y))                                                                 \
       {                                                                              \
@@ -278,7 +302,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
    BOOST_MP_UNEXPECTED_EXCEPTION_CHECK(severity)
 
 #define BOOST_GE_IMP(x, y, severity)                                                 \
-   BOOST_MP_TRY                                                                      \
+   BOOST_MP_TEST_TRY                                                                      \
    {                                                                                 \
       if (!(x >= y))                                                                 \
       {                                                                              \
@@ -294,7 +318,7 @@ void report_unexpected_exception(const E& e, int severity, const char* file, int
 
 #ifndef BOOST_NO_EXCEPTIONS
 #define BOOST_MT_CHECK_THROW_IMP(x, E, severity)                                                                   \
-   BOOST_MP_TRY                                                                                                    \
+   BOOST_MP_TEST_TRY                                                                                                    \
    {                                                                                                               \
       x;                                                                                                           \
       BOOST_MP_REPORT_WHERE << " Expected exception not thrown in expression " << BOOST_STRINGIZE(x) << std::endl; \

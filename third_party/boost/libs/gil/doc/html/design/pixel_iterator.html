@@ -99,7 +99,7 @@
 (i.e. whether they allow for modifying the pixel they refer to), to get the
 immutable (read-only) type of the iterator, and to determine whether they are
 plain iterators or adaptors over another pixel iterator:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">PixelIteratorConcept</span><span class="o">&lt;</span><span class="n">RandomAccessTraversalIteratorConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">PixelIteratorConcept</span><span class="o">&lt;</span><span class="n">RandomAccessTraversalIteratorConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
     <span class="o">:</span> <span class="n">PixelBasedConcept</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="n">where</span> <span class="n">PixelValueConcept</span><span class="o">&lt;</span><span class="n">value_type</span><span class="o">&gt;</span><span class="p">;</span>
@@ -130,7 +130,7 @@ over interleaved packed pixels.</p>
 <code class="docutils literal"><span class="pre">planar_pixel_iterator</span></code>, templated over a channel iterator and color space.
 Here is how the standard mutable and read-only planar RGB iterators over
 unsigned char are defined:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">ChannelPtr</span><span class="p">,</span> <span class="k">typename</span> <span class="n">ColorSpace</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">ChannelPtr</span><span class="p">,</span> <span class="k">typename</span> <span class="n">ColorSpace</span><span class="o">&gt;</span>
 <span class="k">struct</span> <span class="n">planar_pixel_iterator</span><span class="p">;</span>
 
 <span class="c1">// GIL provided typedefs</span>
@@ -143,7 +143,7 @@ subclasses from <code class="docutils literal"><span class="pre">homogeneous_col
 algorithms apply to it. The element type of its color base is a channel
 iterator. For example, GIL implements <code class="docutils literal"><span class="pre">operator++</span></code> of planar iterators
 approximately like this:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
 <span class="k">struct</span> <span class="nl">inc</span> <span class="p">:</span> <span class="k">public</span> <span class="n">std</span><span class="o">::</span><span class="n">unary_function</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span><span class="n">T</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="n">T</span> <span class="k">operator</span><span class="p">()(</span><span class="n">T</span> <span class="n">x</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="o">++</span><span class="n">x</span><span class="p">;</span> <span class="p">}</span>
@@ -171,9 +171,9 @@ byte and the bit offset.</p>
 <code class="docutils literal"><span class="pre">is_iterator_adaptor</span></code> metafunction must evaluate to true, and it needs to
 provide a member method to return the base iterator, a metafunction to get its
 type, and a metafunction to rebind to another base iterator:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">IteratorAdaptorConcept</span><span class="o">&lt;</span><span class="n">RandomAccessTraversalIteratorConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">IteratorAdaptorConcept</span><span class="o">&lt;</span><span class="n">RandomAccessTraversalIteratorConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="p">{</span>
-  <span class="n">where</span> <span class="n">SameType</span><span class="o">&lt;</span><span class="n">is_iterator_adaptor</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">type</span><span class="p">,</span> <span class="n">mpl</span><span class="o">::</span><span class="n">true_</span><span class="o">&gt;</span><span class="p">;</span>
+  <span class="n">where</span> <span class="n">SameType</span><span class="o">&lt;</span><span class="n">is_iterator_adaptor</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">type</span><span class="p">,</span> <span class="n">mp11</span><span class="o">::</span><span class="n">mp_true</span><span class="o">&gt;</span><span class="p">;</span>
 
   <span class="k">typename</span> <span class="n">iterator_adaptor_get_base</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;</span><span class="p">;</span>
       <span class="n">where</span> <span class="n">Metafunction</span><span class="o">&lt;</span><span class="n">iterator_adaptor_get_base</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;</span> <span class="o">&gt;</span><span class="p">;</span>
@@ -219,7 +219,7 @@ model <code class="docutils literal"><span class="pre">PixelDereferenceAdaptorCo
 <p>Pixel dereference adaptor is a unary function that can be applied upon
 dereferencing a pixel iterator. Its argument type could be anything (usually a
 <code class="docutils literal"><span class="pre">PixelConcept</span></code>) and the result type must be convertible to <code class="docutils literal"><span class="pre">PixelConcept</span></code>:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">UnaryFunctionConcept</span> <span class="n">D</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">UnaryFunctionConcept</span> <span class="n">D</span><span class="o">&gt;</span>
 <span class="n">concept</span> <span class="nl">PixelDereferenceAdaptorConcept</span><span class="p">:</span>
     <span class="n">DefaultConstructibleConcept</span><span class="o">&lt;</span><span class="n">D</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">CopyConstructibleConcept</span><span class="o">&lt;</span><span class="n">D</span><span class="o">&gt;</span><span class="p">,</span>
@@ -270,7 +270,7 @@ useful:</p>
 </ul>
 <p>Step iterators are forward traversal iterators that allow changing the step
 between adjacent values:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">StepIteratorConcept</span><span class="o">&lt;</span><span class="n">boost_concepts</span><span class="o">::</span><span class="n">ForwardTraversalConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">StepIteratorConcept</span><span class="o">&lt;</span><span class="n">boost_concepts</span><span class="o">::</span><span class="n">ForwardTraversalConcept</span> <span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="k">template</span> <span class="o">&lt;</span><span class="n">Integral</span> <span class="n">D</span><span class="o">&gt;</span> <span class="kt">void</span> <span class="n">Iterator</span><span class="o">::</span><span class="n">set_step</span><span class="p">(</span><span class="n">D</span> <span class="n">step</span><span class="p">);</span>
 <span class="p">};</span>
@@ -295,7 +295,7 @@ in memunits away. It must also supply a function that advances an iterator a
 given distance in memory units. <code class="docutils literal"><span class="pre">memunit_advanced</span></code> and
 <code class="docutils literal"><span class="pre">memunit_advanced_ref</span></code> have a default implementation but some iterators may
 supply a more efficient version:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">MemoryBasedIteratorConcept</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">MemoryBasedIteratorConcept</span>
 <span class="o">&lt;</span>
     <span class="n">boost_concepts</span><span class="o">::</span><span class="n">RandomAccessTraversalConcept</span> <span class="n">Iterator</span>
 <span class="o">&gt;</span>
@@ -312,7 +312,7 @@ supply a more efficient version:</p>
 <p>It is useful to be able to construct a step iterator over another iterator.
 More generally, given a type, we want to be able to construct an equivalent
 type that allows for dynamically specified horizontal step:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">HasDynamicXStepTypeConcept</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">HasDynamicXStepTypeConcept</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="k">typename</span> <span class="n">dynamic_x_step_type</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span>
       <span class="n">where</span> <span class="n">Metafunction</span><span class="o">&lt;</span><span class="n">dynamic_x_step_type</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="o">&gt;</span><span class="p">;</span>
@@ -342,7 +342,7 @@ GIL implementation contains the base iterator and a <code class="docutils litera
 number of memory units (bytes or bits) to skip for a unit step. It may also be
 used with a negative number. GIL provides a function to create a step iterator
 from a base iterator and a step:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Iterator models MemoryBasedIteratorConcept, HasDynamicXStepTypeConcept</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Iterator models MemoryBasedIteratorConcept, HasDynamicXStepTypeConcept</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="k">typename</span> <span class="n">dynamic_x_step_type</span><span class="o">&lt;</span><span class="n">Iterator</span><span class="o">&gt;::</span><span class="n">type</span> <span class="n">make_step_iterator</span><span class="p">(</span><span class="n">Iterator</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">it</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="kt">ptrdiff_t</span> <span class="n">step</span><span class="p">);</span>
 </pre></div>
@@ -367,7 +367,7 @@ but not <code class="docutils literal"><span class="pre">MemoryBasedIteratorConc
     </div>
     </div>
     <div class="footer" role="contentinfo">
-      Last updated on 2021-12-02 06:12:31.
+      Last updated on 2022-03-13 09:03:54.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
     </div>
   </body>

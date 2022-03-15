@@ -37,17 +37,17 @@ Boost.Utility also includes the class __string_ref__:
 - __string_ref__ is the initial implementation of Jeffrey Yaskin's [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3442.html N3442:
 string_ref: a non-owning reference to a string].
 
-- __string_view__ is an updated implementation to reflect the Library Fundamentals TS [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html N4480: \[string.view\]]
+- __string_view__ is an updated implementation to reflect the Library Fundamentals TS [@http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html N4480: \[string.view\]].
 
 Please prefer __string_view__ / __basic_string_view__ over __string_ref__ / __basic_string_ref__:
 
-- The __basic_string_view__ class better matches __std_basic_string_view__
+- The __basic_string_view__ class better matches __std_basic_string_view__.
 
 - __basic_string_view__ has WAY more constexpr support.
 
 - Code that uses __basic_string_ref__ should continue to work.
 
-- No much code depends on __basic_string_ref__ anymore
+- Not much code depends on __basic_string_ref__ anymore.
 
 
 ]
@@ -93,7 +93,7 @@ No memory allocations. No copying of character data. No changes to the code othe
 [section:reference Synopsis]
 [/=================]
 
-The header file [@../../../include/boost/utility/string_view.hpp `<boost/utility/string_view.hpp>`] defines a template __boost_basic_string_view__, and four specializations __string_view__, __wstring_view__, __u16string_view__, __u32string_view__ - for `char` / `wchar_t` / `char16_t` / `char32_t`.
+The header file [@../../../../boost/utility/string_view.hpp `<boost/utility/string_view.hpp>`] defines a template __boost_basic_string_view__, and four specializations __string_view__, __wstring_view__, __u16string_view__, __u32string_view__ - for `char` / `wchar_t` / `char16_t` / `char32_t`.
 
 `#include <boost/utility/string_view.hpp>`
 
@@ -207,4 +207,3 @@ Copyright 2012 Marshall Clow
 [endsect]
 
 [endsect]
-

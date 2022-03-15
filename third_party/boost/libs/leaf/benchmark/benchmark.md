@@ -123,7 +123,7 @@ Which on clang 9 outputs:
 ```x86asm
 val():
         mov     eax, 42
-	      ret
+          ret
 main:
         mov     eax, 42
         ret
@@ -212,10 +212,10 @@ We get:
 
 ```x86asm
 g():                                  # @g()
-	      mov     rax, rdi
-	      mov     dword ptr [rdi], 43
-	      mov     dword ptr [rdi + 16], 3
-	      ret
+          mov     rax, rdi
+          mov     dword ptr [rdi], 43
+          mov     dword ptr [rdi + 16], 3
+          ret
 ```
 
 With a less trivial definition of `f`:
@@ -330,7 +330,7 @@ To build both versions of the benchmark program, the compilers are invoked using
 
 In addition, the LEAF version is compiled with:
 
-* `-DBOOST_LEAF_DIAGNOSTICS=0`: Disable diagnostic information for error objects not recognized by the program. This is a debugging feature, see [Configuration Macros](https://boostorg.github.io/leaf/#configuration).
+* `-DBOOST_LEAF_CFG_DIAGNOSTICS=0`: Disable diagnostic information for error objects not recognized by the program. This is a debugging feature, see [Configuration Macros](https://boostorg.github.io/leaf/#configuration).
 
 ## Results
 

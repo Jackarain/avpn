@@ -16,10 +16,10 @@
 <script>
 function switch_style()
 {
-	var i, tag;
-	for( i=0, tag=document.getElementsByTagName("link"); i<tag.length; i++ )
-		if( tag[i].rel.indexOf("stylesheet")!=-1 && tag[i].href.includes("zajo-") )
-			tag[i].disabled = !tag[i].disabled;
+    var i, tag;
+    for( i=0, tag=document.getElementsByTagName("link"); i<tag.length; i++ )
+        if( tag[i].rel.indexOf("stylesheet")!=-1 && tag[i].href.includes("zajo-") )
+            tag[i].disabled = !tag[i].disabled;
 }
 </script>
 </head>
@@ -34,16 +34,16 @@ function switch_style()
 <ul class="sectlevel1">
 <li><a href="#_abstract">Abstract</a></li>
 <li><a href="#support">Support</a></li>
-<li><a href="#portability">Portability</a></li>
 <li><a href="#distribution">Distribution</a></li>
 <li><a href="#tutorial">Tutorial</a>
 <ul class="sectlevel2">
 <li><a href="#_reporting_errors">Reporting Errors</a></li>
-<li><a href="#_checking_for_errors">Checking for Errors</a></li>
-<li><a href="#tutorial-result">Error Handling</a></li>
+<li><a href="#checking_for_errors">Checking for Errors</a></li>
+<li><a href="#tutorial-error_handling">Error Handling</a></li>
 <li><a href="#_working_with_different_error_types">Working with Different Error Types</a></li>
 <li><a href="#_working_with_multiple_error_objects">Working with Multiple Error Objects</a></li>
-<li><a href="#tutorial-eh">Exception Handling</a></li>
+<li><a href="#tutorial-augmenting_errors">Augmenting Errors</a></li>
+<li><a href="#tutorial-exception_handling">Exception Handling</a></li>
 <li><a href="#_using_external_result_types">Using External <code>result</code> Types</a></li>
 <li><a href="#tutorial-model">Error Communication Model</a>
 <ul class="sectlevel3">
@@ -92,6 +92,7 @@ function switch_style()
 <ul class="sectlevel3">
 <li><a href="#context.hpp"><code>context.hpp</code></a></li>
 <li><a href="#handle_errors.hpp"><code>handle_errors.hpp</code></a></li>
+<li><a href="#handle_errors.hpp"><code>to_variant.hpp</code></a></li>
 <li><a href="#pred.hpp"><code>pred.hpp</code></a></li>
 </ul>
 </li>
@@ -109,6 +110,7 @@ function switch_style()
 <li><a href="#make_shared_context"><code>make_shared_context</code></a></li>
 <li><a href="#new_error"><code>new_error</code></a></li>
 <li><a href="#on_error"><code>on_error</code></a></li>
+<li><a href="#to_variant"><code>to_variant</code></a></li>
 <li><a href="#try_catch"><code>try_catch</code></a></li>
 <li><a href="#try_handle_all"><code>try_handle_all</code></a></li>
 <li><a href="#try_handle_some"><code>try_handle_some</code></a></li>
@@ -156,8 +158,12 @@ function switch_style()
 <li><a href="#result::error"><code>error</code></a></li>
 <li><a href="#result::load"><code>load</code></a></li>
 <li><a href="#result::operator_eq"><code>operator=</code></a></li>
+<li><a href="#result::has_value"><code>has_value</code></a></li>
+<li><a href="#result::has_error"><code>has_error</code></a></li>
 <li><a href="#result::operator_bool"><code>operator bool</code></a></li>
-<li><a href="#result::value"><code>value</code>, <code>operator*</code>, <code>-></code></a></li>
+<li><a href="#result::value"><code>value</code></a></li>
+<li><a href="#result::operator_ptr"><code>operator-></code></a></li>
+<li><a href="#result::operator_deref"><code>operator*</code></a></li>
 </ul>
 </li>
 <li><a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a></li>
@@ -214,7 +220,13 @@ function switch_style()
 <li><a href="#_boost_build">Boost Build</a></li>
 </ul>
 </li>
-<li><a href="#configuration">Configuration Macros</a></li>
+<li><a href="#configuration">Configuration</a>
+<ul class="sectlevel2">
+<li><a href="#configuring_tls_access">Configuring TLS Access</a></li>
+<li><a href="#embedded_platforms">Embedded Platforms</a></li>
+</ul>
+</li>
+<li><a href="#portability">Portability</a></li>
 <li><a href="#_limitations">Limitations</a></li>
 <li><a href="#_acknowledgements">Acknowledgements</a></li>
 </ul>
@@ -239,22 +251,22 @@ function switch_style()
 <div class="ulist">
 <ul>
 <li>
-<p>Small single-header format, no dependencies.</p>
+<p>Portable single-header format, no dependencies.</p>
 </li>
 <li>
-<p>Designed for maximum efficiency ("happy" path and "sad" path).</p>
+<p>Tiny code size when configured for embedded development.</p>
 </li>
 <li>
-<p>No dynamic memory allocations, even with heavy payloads.</p>
+<p>No dynamic memory allocations, even with very large payloads.</p>
 </li>
 <li>
-<p>O(1) transport of arbitrary error types (independent of call stack depth).</p>
+<p>Deterministic unbiased efficiency on the "happy" path and the "sad" path.</p>
+</li>
+<li>
+<p>Error objects are handled in constant time, independent of call stack depth.</p>
 </li>
 <li>
 <p>Can be used with or without exception handling.</p>
-</li>
-<li>
-<p>Support for multi-thread programming.</p>
 </li>
 </ul>
 </div>
@@ -272,9 +284,6 @@ function switch_style()
 </tr>
 </tbody>
 </table>
-<div class="paragraph">
-<p>LEAF is designed with a strong bias towards the common use case where callers of functions which may fail check for success and forward errors up the call stack but do not handle them. In this case, only a trivial success-or-failure discriminant is transported. Actual error objects are communicated directly to the error handling scope, skipping the intermediate check-only frames altogether.</p>
-</div>
 </div>
 </div>
 <div class="sect1">
@@ -292,20 +301,9 @@ function switch_style()
 <p><a href="https://lists.boost.org/mailman/listinfo.cgi/boost">Boost Developers Mailing List</a></p>
 </li>
 <li>
-<p><a href="https://github.com/boostorg/leaf/issues">Report an issue</a> on GitHub</p>
+<p><a href="https://github.com/boostorg/leaf/issues">Report issues</a> on GitHub</p>
 </li>
 </ul>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="portability">Portability</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>LEAF requires only C&#43;&#43;11, but is tested on many compiler versions and C++ standards.</p>
-</div>
-<div class="paragraph">
-<p>The library uses thread-local storage, except when multi-threading is disabled (e.g. on some embedded platforms). See <a href="#configuration">Configuration Macros</a>.</p>
 </div>
 </div>
 </div>
@@ -313,7 +311,7 @@ function switch_style()
 <h2 id="distribution">Distribution</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Copyright &#169; 2018-2021 Emil Dotchevski. Distributed under the <a href="http://www.boost.org/LICENSE_1_0.txt">Boost Software License, Version 1.0</a>.</p>
+<p>LEAF is distributed under the <a href="http://www.boost.org/LICENSE_1_0.txt">Boost Software License, Version 1.0</a>.</p>
 </div>
 <div class="paragraph">
 <p>There are three distribution channels:</p>
@@ -321,7 +319,7 @@ function switch_style()
 <div class="ulist">
 <ul>
 <li>
-<p>LEAF is included in official <a href="https://www.boost.org/">Boost</a> releases, starting with Boost 1.75.</p>
+<p>LEAF is included in official <a href="https://www.boost.org/">Boost</a> releases (starting with Boost 1.75), and therefore available via most package managers.</p>
 </li>
 <li>
 <p>The source code is hosted on <a href="https://github.com/boostorg/leaf">GitHub</a>.</p>
@@ -361,7 +359,7 @@ LEAF does not depend on Boost or other libraries.
 <p>Therefore what would have been a <code>result&lt;T, E&gt;</code> becomes <code>result&lt;T&gt;</code>, which stores the discriminant and (optionally) a <code>T</code>, while the <code>E</code> is communicated directly to the error handling scope where it is needed.</p>
 </div>
 <div class="paragraph">
-<p>The benefit of this decomposition is that <code>result&lt;T&gt;</code> becomes extremely lightweight, as it is not coupled with error types; further, error objects are communicated in O(1) time (independent of the call stack depth). Even very large objects are handled efficiently without dynamic memory allocation.</p>
+<p>The benefit of this decomposition is that <code>result&lt;T&gt;</code> becomes extremely lightweight, as it is not coupled with error types; further, error objects are communicated in constant time (independent of the call stack depth). Even very large objects are handled efficiently without dynamic memory allocation.</p>
 </div>
 <div class="sect2">
 <h3 id="_reporting_errors">Reporting Errors</h3>
@@ -388,7 +386,7 @@ LEAF does not depend on Boost or other libraries.
 <hr>
 </div>
 <div class="sect2">
-<h3 id="_checking_for_errors">Checking for Errors</h3>
+<h3 id="checking_for_errors">Checking for Errors</h3>
 <div class="paragraph">
 <p>Checking for errors communicated by a <code>leaf::result&lt;T&gt;</code> works as expected:</p>
 </div>
@@ -408,6 +406,18 @@ LEAF does not depend on Boost or other libraries.
 <div class="paragraph text-right">
 <p><a href="#result"><code>result</code></a></p>
 </div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The the result of <code>r.error()</code> is compatible with any instance of the <code>leaf::result</code> template. In the example above, note that <code>g</code> returns a <code>leaf::result&lt;U&gt;</code>, while <code>r</code> is of type <code>leaf::result&lt;T&gt;</code>.
+</td>
+</tr>
+</table>
+</div>
 <div class="paragraph">
 <p>The boilerplate <code>if</code> statement can be avoided using <code>BOOST_LEAF_AUTO</code>:</p>
 </div>
@@ -422,12 +432,56 @@ LEAF does not depend on Boost or other libraries.
 </div>
 </div>
 <div class="paragraph text-right">
-<p><a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a> | <a href="#BOOST_LEAF_CHECK"><code>BOOST_LEAF_CHECK</code></a></p>
+<p><a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
+</div>
+<div class="paragraph">
+<p><code>BOOST_LEAF_AUTO</code> can not be used with <code>void</code> results; in that case, to avoid the boilerplate <code>if</code> statement, use <code>BOOST_LEAF_CHECK</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;</span> <span class="n">f</span><span class="p">();</span>
+
+<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">g</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">BOOST_LEAF_CHECK</span><span class="p">(</span><span class="n">f</span><span class="p">());</span> <span class="c1">// Bail out on error</span>
+  <span class="k">return</span> <span class="mi">42</span><span class="p">;</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph text-right">
+<p><a href="#BOOST_LEAF_CHECK"><code>BOOST_LEAF_CHECK</code></a></p>
+</div>
+<div class="paragraph">
+<p>On implementations that define <code>__GNUC__</code> (e.g. GCC/clang), the <code>BOOST_LEAF_CHECK</code> macro definition takes advantage of <a href="https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html">GNU C statement expressions</a>. In this case, in addition to its portable usage with <code>result&lt;void&gt;</code>, <code>BOOST_LEAF_CHECK</code> can be used in expressions with non-<code>void</code> result types:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">f</span><span class="p">();</span>
+
+<span class="kt">float</span> <span class="nf">g</span><span class="p">(</span><span class="kt">int</span> <span class="n">x</span><span class="p">);</span>
+
+<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span> <span class="n">t</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">return</span> <span class="n">g</span><span class="p">(</span> <span class="n">BOOST_LEAF_CHECK</span><span class="p">(</span><span class="n">f</span><span class="p">())</span> <span class="p">);</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The following is the portable alternative:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span> <span class="n">t</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">f</span><span class="p">());</span>
+  <span class="k">return</span> <span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="p">}</span></code></pre>
+</div>
 </div>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="tutorial-result">Error Handling</h3>
+<h3 id="tutorial-error_handling">Error Handling</h3>
 <div class="paragraph">
 <p>Error handling scopes must use a special syntax to indicate that they need to access error objects. The following excerpt attempts several operations and handles errors of type <code>err1</code>:</p>
 </div>
@@ -456,7 +510,7 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#result"><code>result</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
 </div>
 <div class="paragraph">
-<p>The first lambda passed to <code>try_handle_some</code> is executed first; it attempts to produce a <code>result&lt;U&gt;</code>, but it may fail (we presume that <code>f1</code> and <code>f2</code> return <code>leaf::result&lt;T&gt;</code>, and <code>g</code> takes two arguments of type <code>T</code> and returns a <code>leaf::result&lt;U&gt;</code>).</p>
+<p>The first lambda passed to <code>try_handle_some</code> is executed first; it attempts to produce a <code>result&lt;U&gt;</code>, but it may fail.</p>
 </div>
 <div class="paragraph">
 <p>The second lambda is an error handler: it will be called iff the first lambda fails and an error object of type <code>err1</code> was communicated to LEAF. That object is stored on the stack, local to the <code>try_handle_some</code> function (LEAF knows to allocate this storage because we gave it an error handler that takes an <code>err1</code>). Error handlers passed to <code>leaf::try_handle_some</code> can return a valid <code>leaf::result&lt;U&gt;</code> but are allowed to fail.</p>
@@ -579,53 +633,40 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#result"><code>result</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
 </div>
 <div class="paragraph">
-<p>In this case, because we have supplied handlers for <code>err1</code> and for <code>err2</code>, <code>try_handle_some</code> knows to allocate storage on the stack for error objects of both types.</p>
+<p>Recall that error handlers are always considered in order:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The first error handler will be used if an error object of type <code>err1</code> is available;</p>
+</li>
+<li>
+<p>otherwise, the second error handler will be used if an error object of type <code>err2</code> is available;</p>
+</li>
+<li>
+<p>otherwise, <code>leaf::try_handle_some</code> fails.</p>
+</li>
+</ul>
 </div>
 <hr>
 </div>
 <div class="sect2">
 <h3 id="_working_with_multiple_error_objects">Working with Multiple Error Objects</h3>
 <div class="paragraph">
-<p>It is possible for an error handler to require more than one error object:</p>
+<p>The <code>leaf::new_error</code> function can be invoked with multiple error objects, for example to communicate an error code and the relevant file name:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">enum</span> <span class="k">class</span> <span class="nc">err1</span> <span class="p">{</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span><span class="p">,</span> <span class="n">e3</span> <span class="p">};</span>
-<span class="k">enum</span> <span class="k">class</span> <span class="nc">err2</span> <span class="p">{</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span> <span class="p">};</span>
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">enum</span> <span class="k">class</span> <span class="nc">io_error</span> <span class="p">{</span> <span class="n">open_error</span><span class="p">,</span> <span class="n">read_error</span><span class="p">,</span> <span class="n">write_error</span> <span class="p">};</span>
 
-<span class="p">....</span>
+<span class="k">struct</span> <span class="nc">e_file_name</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">value</span><span class="p">;</span> <span class="p">}</span>
 
-<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="n">r</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">try_handle_some</span><span class="p">(</span>
-
-  <span class="p">[]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
-  <span class="p">{</span>
-    <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">f1</span><span class="p">());</span>
-    <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span> <span class="n">f2</span><span class="p">());</span>
-
-    <span class="k">return</span> <span class="n">g</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">);</span>
-  <span class="p">},</span>
-
-  <span class="p">[](</span> <span class="n">err1</span> <span class="n">e1</span><span class="p">,</span> <span class="n">err2</span> <span class="n">e2</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
-  <span class="p">{</span>
-    <span class="c1">// Handle failures which communicate both an err1 and an err2 object.</span>
-  <span class="p">}</span> <span class="p">);</span></code></pre>
-</div>
-</div>
-<div class="paragraph text-right">
-<p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#result"><code>result</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
-</div>
-<div class="paragraph">
-<p>Naturally, <code>leaf::new_error</code> can be invoked with multiple error objects:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="n">f</span><span class="p">()</span>
+<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">File</span><span class="o">&gt;</span> <span class="n">open_file</span><span class="p">(</span> <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">name</span> <span class="p">)</span>
 <span class="p">{</span>
   <span class="p">....</span>
-  <span class="k">if</span><span class="p">(</span> <span class="n">error_detected</span> <span class="p">)</span>
-    <span class="k">return</span> <span class="n">leaf</span><span class="o">::</span><span class="n">new_error</span><span class="p">(</span><span class="n">err1</span><span class="o">::</span><span class="n">e1</span><span class="p">,</span> <span class="n">err2</span><span class="o">::</span><span class="n">e2</span><span class="p">);</span>
-
-  <span class="c1">// Produce and return a T.</span>
+  <span class="k">if</span><span class="p">(</span> <span class="n">open_failed</span> <span class="p">)</span>
+    <span class="k">return</span> <span class="n">leaf</span><span class="o">::</span><span class="n">new_error</span><span class="p">(</span><span class="n">io_error</span><span class="o">::</span><span class="n">open_error</span><span class="p">,</span> <span class="n">e_file_name</span> <span class="p">{</span><span class="n">name</span><span class="p">});</span>
+  <span class="p">....</span>
 <span class="p">}</span></code></pre>
 </div>
 </div>
@@ -633,22 +674,115 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#result"><code>result</code></a> | <a href="#new_error"><code>new_error</code></a></p>
 </div>
 <div class="paragraph">
-<p>As well, <code>leaf::on_error</code> can be used to automatically associate additional error objects with any failure that is "in flight":</p>
+<p>Similarly, error handlers may take multiple error objects as arguments:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="n">r</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">try_handle_some</span><span class="p">(</span>
+
+  <span class="p">[]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">open_file</span><span class="p">(</span><span class="n">fn</span><span class="p">));</span>
+    <span class="p">....</span>
+  <span class="p">},</span>
+
+  <span class="p">[](</span> <span class="n">io_error</span> <span class="n">ec</span><span class="p">,</span> <span class="n">e_file_name</span> <span class="n">fn</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="c1">// Handle I/O errors when a file name is available.</span>
+  <span class="p">},</span>
+
+  <span class="p">[](</span> <span class="n">io_error</span> <span class="n">ec</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="c1">// Handle I/O errors when no file name is available.</span>
+  <span class="p">}</span> <span class="p">);</span></code></pre>
+</div>
+</div>
+<div class="paragraph text-right">
+<p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#result"><code>result</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
+</div>
+<div class="paragraph">
+<p>Once again, error handlers are considered in order:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The first error handler will be used if an error object of type <code>io_error</code> <em>and</em> and error_object of type <code>e_file_name</code> are available;</p>
+</li>
+<li>
+<p>otherwise, the second error handler will be used if an error object of type <code>io_error</code> is avaliable;</p>
+</li>
+<li>
+<p>otherwise, <code>leaf_try_handle_some</code> fails.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>An alternative way to write the above is to provide a single error handler that takes the <code>e_file_name</code> argument as a pointer:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="n">r</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">try_handle_some</span><span class="p">(</span>
+
+  <span class="p">[]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">open_file</span><span class="p">(</span><span class="n">fn</span><span class="p">));</span>
+    <span class="p">....</span>
+  <span class="p">},</span>
+
+  <span class="p">[](</span> <span class="n">io_error</span> <span class="n">ec</span><span class="p">,</span> <span class="n">e_file_name</span> <span class="k">const</span> <span class="o">*</span> <span class="n">fn</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span> <span class="n">fn</span> <span class="p">)</span>
+      <span class="p">....</span> <span class="c1">// Handle I/O errors when a file name is available.</span>
+    <span class="k">else</span>
+      <span class="p">....</span> <span class="c1">// Handle I/O errors when no file name is available.</span>
+  <span class="p">}</span> <span class="p">);</span></code></pre>
+</div>
+</div>
+<div class="paragraph text-right">
+<p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#result"><code>result</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
+</div>
+<div class="paragraph">
+<p>An error handler is never dropped for lack of error objects of types which the handler takes as pointers; in this case LEAF simply passes <code>0</code> for these arguments.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Error handlers can take arguments by value, by const reference or pointer, and by mutable reference or pointer. It the latter case, changes to the error object state will be propagated up the call stack if the failure is not handled.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="tutorial-augmenting_errors">Augmenting Errors</h3>
+<div class="paragraph">
+<p>Let&#8217;s say we have a function <code>parse_line</code> which could fail due to an <code>io_error</code> or  a <code>parse_error</code>:</p>
 </div>
 <div class="listingblock">
 <div class="content">
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">enum</span> <span class="k">class</span> <span class="nc">io_error</span> <span class="p">{</span> <span class="n">open_error</span><span class="p">,</span> <span class="n">read_error</span><span class="p">,</span> <span class="n">write_error</span> <span class="p">};</span>
+
 <span class="k">enum</span> <span class="k">class</span> <span class="nc">parse_error</span> <span class="p">{</span> <span class="n">bad_syntax</span><span class="p">,</span> <span class="n">bad_range</span> <span class="p">};</span>
 
-<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">parse_line</span><span class="p">(</span> <span class="kt">FILE</span> <span class="o">*</span> <span class="n">f</span> <span class="p">);</span>
-
-<span class="k">struct</span> <span class="nc">e_line</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">value</span><span class="p">;</span> <span class="p">};</span>
+<span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">parse_line</span><span class="p">(</span> <span class="kt">FILE</span> <span class="o">*</span> <span class="n">f</span> <span class="p">);</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>leaf::on_error</code> function can be used to automatically associate additional error objects with any failure that is "in flight":</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">struct</span> <span class="nc">e_line</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">value</span><span class="p">;</span> <span class="p">};</span>
 
 <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;</span> <span class="n">process_file</span><span class="p">(</span> <span class="kt">FILE</span> <span class="o">*</span> <span class="n">f</span> <span class="p">)</span>
 <span class="p">{</span>
   <span class="k">for</span><span class="p">(</span> <span class="kt">int</span> <span class="n">current_line</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">current_line</span> <span class="o">!=</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">current_line</span> <span class="p">)</span>
   <span class="p">{</span>
-    <span class="k">auto</span> <span class="n">load</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">on_error</span><span class="p">(</span> <span class="n">e_line</span><span class="p">{</span> <span class="n">current_line</span> <span class="p">}</span> <span class="p">);</span>
+    <span class="k">auto</span> <span class="n">load</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">on_error</span><span class="p">(</span> <span class="n">e_line</span> <span class="p">{</span><span class="n">current_line</span><span class="p">}</span> <span class="p">);</span>
 
     <span class="n">BOOST_LEAF_AUTO</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">parse_line</span><span class="p">(</span><span class="n">f</span><span class="p">));</span>
 
@@ -661,7 +795,7 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#on_error"><code>on_error</code></a> | <a href="#BOOST_LEAF_AUTO"><code>BOOST_LEAF_AUTO</code></a></p>
 </div>
 <div class="paragraph">
-<p>Presumably, <code>parse_line</code> could fail with an <code>io_error</code> or with a <code>parse_error</code>, but <code>process_file</code> does not handle errors, so it remains neutral to failures, except to attach the <code>current_line</code> if something goes wrong. The object returned by <code>on_error</code> holds a copy of the <code>current_line</code> wrapped in <code>struct e_line</code>. If <code>parse_line</code> succeeds, the <code>e_line</code> object is simply discarded; but if it fails, the <code>e_line</code> object will be automatically attached to the failure.</p>
+<p>Because <code>process_file</code> does not handle errors, it remains neutral to failures, except to attach the <code>current_line</code> if something goes wrong. The object returned by <code>on_error</code> holds a copy of the <code>current_line</code> wrapped in <code>struct e_line</code>. If <code>parse_line</code> succeeds, the <code>e_line</code> object is simply discarded; but if it fails, the <code>e_line</code> object will be automatically "attached" to the failure.</p>
 </div>
 <div class="paragraph">
 <p>Such failures can then be handled like so:</p>
@@ -670,7 +804,7 @@ LEAF does not depend on Boost or other libraries.
 <div class="content">
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;</span> <span class="n">r</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">try_handle_some</span><span class="p">(</span>
 
-  <span class="p">[]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;</span>
+  <span class="p">[</span><span class="o">&amp;</span><span class="p">]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;</span>
   <span class="p">{</span>
     <span class="n">BOOST_LEAF_CHECK</span><span class="p">(</span> <span class="n">process_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">);</span>
   <span class="p">},</span>
@@ -695,7 +829,7 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#BOOST_LEAF_CHECK"><code>BOOST_LEAF_CHECK</code></a></p>
 </div>
 <div class="paragraph">
-<p>Remember, error handlers are considered in order, so the last one will be called if we get an <code>io_error</code> but no <code>e_line</code> was communicated to LEAF. Alternatively, we can provide a single <code>io_error</code> handler that takes <code>current_line</code> as a pointer-to-const:</p>
+<p>The following is equivalent, and perhaps simpler:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -720,15 +854,12 @@ LEAF does not depend on Boost or other libraries.
   <span class="p">}</span> <span class="p">);</span></code></pre>
 </div>
 </div>
-<div class="paragraph">
-<p>In essence, now the <code>e_line</code> argument is optional, LEAF will provide it if it is available, otherwise pass a null pointer.</p>
-</div>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="tutorial-eh">Exception Handling</h3>
+<h3 id="tutorial-exception_handling">Exception Handling</h3>
 <div class="paragraph">
-<p>What happens if an operation throws an exception? Not to worry, both <code>leaf::try_handle_some</code> and <code>leaf::try_handle_all</code> catch exceptions and are able to pass them to any compatible error handler:</p>
+<p>What happens if an operation throws an exception? Not to worry, both <code>try_handle_some</code> and <code>try_handle_all</code> catch exceptions and are able to pass them to any compatible error handler:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -802,7 +933,7 @@ LEAF does not depend on Boost or other libraries.
 <p>Remarkably, we did not have to change the error handlers! But how does this work? What kind of exceptions does <code>process_file</code> throw?</p>
 </div>
 <div class="paragraph">
-<p>LEAF enables a novel technique of exception handling, which does not use exception type hierarchies to classify failures and does not carry data in exception objects. Recall that when failures are communicated via <code>leaf::result</code>, we call <code>leaf::new_error</code> in a <code>return</code> statement, passing any number of error objects which are sent directly to the correct error handling scope:</p>
+<p>LEAF enables a novel technique of exception handling, which does not use an exception type hierarchy to classify failures and does not carry data in exception objects. Recall that when failures are communicated via <code>leaf::result</code>, we call <code>leaf::new_error</code> in a <code>return</code> statement, passing any number of error objects which are sent directly to the correct error handling scope:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -845,7 +976,7 @@ LEAF does not depend on Boost or other libraries.
 <p><a href="#exception"><code>exception</code></a></p>
 </div>
 <div class="paragraph">
-<p>The <code>leaf::exception</code> function handles the passed error objects just like <code>leaf::new_error</code> does, and then returns an object of a type that derives from <code>std::exception</code> (which the caller throws). Using this technique, the exception type is not important: <code>leaf::try_catch</code> catches all exceptions, then goes through the usual LEAF error handler selection machinery.</p>
+<p>The <code>leaf::exception</code> function handles the passed error objects just like <code>leaf::new_error</code> does, and then returns an object of a type that derives from <code>std::exception</code> (which the caller throws). Using this technique, the exception type is not important: <code>leaf::try_catch</code> catches all exceptions, then goes through the usual LEAF error handler selection procedure.</p>
 </div>
 <div class="paragraph">
 <p>If instead we want to use the legacy convention of throwing different types to indicate different failures, we simply pass an exception object (that is, an object of a type that derives from <code>std::exception</code>) as the first argument to <code>leaf::exception</code>:</p>
@@ -859,14 +990,11 @@ LEAF does not depend on Boost or other libraries.
 <p>In this case the returned object will be of type that derives from <code>std::runtime_error</code>, rather than from <code>std::exception</code>.</p>
 </div>
 <div class="paragraph">
-<p>Finally, <code>leaf::on_error</code> "just works" as well. Here is our <code>process_file</code> function rewritten to throw on error, rather than return a <code>leaf::result</code>:</p>
+<p>Finally, <code>leaf::on_error</code> "just works" as well. Here is our <code>process_file</code> function rewritten to work with exceptions, rather than return a <code>leaf::result</code> (see <a href="#tutorial-augmenting_errors">Augmenting Errors</a>):</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">enum</span> <span class="k">class</span> <span class="nc">io_error</span> <span class="p">{</span> <span class="n">open_error</span><span class="p">,</span> <span class="n">read_error</span><span class="p">,</span> <span class="n">write_error</span> <span class="p">};</span>
-<span class="k">enum</span> <span class="k">class</span> <span class="nc">parse_error</span> <span class="p">{</span> <span class="n">bad_syntax</span><span class="p">,</span> <span class="n">bad_range</span> <span class="p">};</span>
-
-<span class="kt">int</span> <span class="nf">parse_line</span><span class="p">(</span> <span class="kt">FILE</span> <span class="o">*</span> <span class="n">f</span> <span class="p">);</span> <span class="c1">// Throws</span>
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="kt">int</span> <span class="nf">parse_line</span><span class="p">(</span> <span class="kt">FILE</span> <span class="o">*</span> <span class="n">f</span> <span class="p">);</span> <span class="c1">// Throws</span>
 
 <span class="k">struct</span> <span class="nc">e_line</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">value</span><span class="p">;</span> <span class="p">};</span>
 
@@ -874,7 +1002,7 @@ LEAF does not depend on Boost or other libraries.
 <span class="p">{</span>
   <span class="k">for</span><span class="p">(</span> <span class="kt">int</span> <span class="n">current_line</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">current_line</span> <span class="o">!=</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">current_line</span> <span class="p">)</span>
   <span class="p">{</span>
-    <span class="k">auto</span> <span class="n">load</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">on_error</span><span class="p">(</span> <span class="n">e_line</span><span class="p">{</span> <span class="n">current_line</span> <span class="p">}</span> <span class="p">);</span>
+    <span class="k">auto</span> <span class="n">load</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">on_error</span><span class="p">(</span> <span class="n">e_line</span> <span class="p">{</span><span class="n">current_line</span><span class="p">}</span> <span class="p">);</span>
     <span class="kt">int</span> <span class="n">v</span> <span class="o">=</span> <span class="n">parse_line</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
 
     <span class="c1">// use v</span>
@@ -890,7 +1018,7 @@ LEAF does not depend on Boost or other libraries.
 <div class="sect2">
 <h3 id="_using_external_result_types">Using External <code>result</code> Types</h3>
 <div class="paragraph">
-<p>Static type checking creates difficulties in error handling interoperability in any non-trivial project. Using exception handling alleviates this problem somewhat because in that case error types are not burned into function signatures, so errors easily punch through multiple layers of APIs; but this doesn&#8217;t help C&#43;&#43; in general because the community is fractured on the issue of exception handling. Regardless of any arguments, the reality is that C&#43;&#43; programs need to be able to handle errors communicated through multiple layers of APIs via a plethora of error codes, <code>result</code> types and exceptions.</p>
+<p>Static type checking creates difficulties in error handling interoperability in any non-trivial project. Using exception handling alleviates this problem somewhat because in that case error types are not burned into function signatures, so errors easily punch through multiple layers of APIs; but this doesn&#8217;t help C&#43;&#43; in general because the community is fractured on the issue of exception handling. That debate notwithstanding, the reality is that C&#43;&#43; programs need to handle errors communicated through multiple layers of APIs via a plethora of error codes, <code>result</code> types and exceptions.</p>
 </div>
 <div class="paragraph">
 <p>LEAF enables application developers to shake error objects out of each individual library&#8217;s <code>result</code> type and send them to error handling scopes verbatim. Here is an example:</p>
@@ -3060,7 +3188,7 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
     <span class="k">virtual</span> <span class="kt">void</span> <span class="n">deactivate</span><span class="p">()</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
     <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">is_active</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
-    <span class="k">virtual</span> <span class="kt">void</span> <span class="n">propagate</span><span class="p">()</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">virtual</span> <span class="kt">void</span> <span class="n">propagate</span><span class="p">(</span> <span class="n">error_id</span> <span class="p">)</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
     <span class="k">virtual</span> <span class="kt">void</span> <span class="n">print</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="p">)</span> <span class="k">const</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
   <span class="p">};</span>
@@ -3105,11 +3233,11 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
   BOOST_LEAF_ASSIGN(auto v, r)
 </span>
 <span class="cp">#define BOOST_LEAF_CHECK(r)\
-		auto &amp;&amp; &lt;&lt;temp&gt;&gt; = r;\
-		if( &lt;&lt;temp&gt;&gt; )\
-      ;\
-    else\
-			return &lt;&lt;temp&gt;&gt;.error()
+  auto &amp;&amp; &lt;&lt;temp&gt;&gt; = r;\
+  if( &lt;&lt;temp&gt;&gt; )\
+    ;\
+  else\
+    return &lt;&lt;temp&gt;&gt;.error()
 </span>
 <span class="cp">#define BOOST_LEAF_NEW_ERROR &lt;&lt;inject e_source_location voodoo&gt;&gt; ::boost::leaf::new_error</span></code></pre>
 </div>
@@ -3140,7 +3268,8 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
   <span class="k">struct</span> <span class="nc">e_errno</span>
   <span class="p">{</span>
     <span class="kt">int</span> <span class="n">value</span><span class="p">;</span>
-    <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="n">e_errno</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="p">);</span>
+    <span class="k">explicit</span> <span class="n">e_errno</span><span class="p">(</span><span class="kt">int</span> <span class="n">value</span><span class="o">=</span><span class="n">errno</span><span class="p">);</span>
+    <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="n">e_errno</span> <span class="k">const</span> <span class="o">&amp;</span><span class="p">);</span>
   <span class="p">};</span>
 
   <span class="k">namespace</span> <span class="n">windows</span>
@@ -3148,8 +3277,14 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
     <span class="k">struct</span> <span class="nc">e_LastError</span>
     <span class="p">{</span>
       <span class="kt">unsigned</span> <span class="n">value</span><span class="p">;</span>
-      <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="n">e_LastError</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="p">);</span>
-    <span class="p">};</span>
+
+      <span class="k">explicit</span> <span class="n">e_LastError</span><span class="p">(</span><span class="kt">unsigned</span> <span class="n">value</span><span class="p">);</span>
+
+<span class="cp">#if BOOST_LEAF_CFG_WIN32
+</span>      <span class="n">e_LastError</span><span class="p">();</span>
+      <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="n">e_LastError</span> <span class="k">const</span> <span class="o">&amp;</span><span class="p">);</span>
+<span class="cp">#endif
+</span>    <span class="p">};</span>
   <span class="p">}</span>
 
 <span class="p">}</span> <span class="p">}</span></code></pre>
@@ -3200,16 +3335,18 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
     <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">U</span><span class="p">&gt;</span>
     <span class="n">result</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">=</span><span class="p">(</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="o">&amp;&amp;</span> <span class="n">r</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
+    <span class="kt">bool</span> <span class="n">has_value</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">bool</span> <span class="n">has_error</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="k">explicit</span> <span class="k">operator</span> <span class="kt">bool</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
     <span class="n">T</span> <span class="o">&amp;</span> <span class="n">value</span><span class="p">();</span>
 
-    <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
-    <span class="n">T</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">();</span>
+    <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="n">T</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
-    <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
-    <span class="n">T</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">();</span>
+    <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="n">T</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="o">&lt;&lt;</span><span class="n">unspecified</span><span class="o">-</span><span class="n">type</span><span class="o">&gt;&gt;</span> <span class="n">error</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
@@ -3324,6 +3461,9 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
 
   <span class="o">&lt;&lt;</span><span class="n">unspecified</span><span class="o">-</span><span class="n">exception</span><span class="o">-</span><span class="n">type</span><span class="o">&gt;&gt;</span> <span class="n">exception</span><span class="p">(</span> <span class="n">error_id</span> <span class="n">id</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">Ex</span><span class="p">,</span> <span class="k">class</span> <span class="nc">F</span><span class="p">&gt;</span>
+  <span class="o">&lt;&lt;</span><span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;-</span><span class="n">deduced</span><span class="o">&gt;&gt;</span> <span class="n">exception_to_result</span><span class="p">(</span> <span class="n">F</span> <span class="o">&amp;&amp;</span> <span class="n">f</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
+
 <span class="p">}</span> <span class="p">}</span>
 
 <span class="cp">#define BOOST_LEAF_EXCEPTION &lt;&lt;inject e_source_location voodoo&gt;&gt; ::boost::leaf::exception
@@ -3354,16 +3494,13 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
 <div class="exampleblock">
 <div class="content">
 <div class="listingblock">
-<div class="title">#include &lt;boost/leaf/capture_exception.hpp&gt;</div>
+<div class="title">#include &lt;boost/leaf/capture.hpp&gt;</div>
 <div class="content">
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
 
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">F</span><span class="p">,</span> <span class="k">class</span><span class="o">...</span> <span class="nc">A</span><span class="p">&gt;</span>
   <span class="k">decltype</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">declval</span><span class="o">&lt;</span><span class="n">F</span><span class="o">&gt;</span><span class="p">()(</span><span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">declval</span><span class="o">&lt;</span><span class="n">A</span><span class="o">&gt;</span><span class="p">())...))</span>
   <span class="n">capture</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">polymorphic_context</span><span class="o">&gt;</span> <span class="o">&amp;&amp;</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">F</span> <span class="o">&amp;&amp;</span> <span class="n">f</span><span class="p">,</span> <span class="n">A</span><span class="p">...</span> <span class="n">a</span><span class="p">);</span>
-
-  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">Ex</span><span class="p">,</span> <span class="k">class</span> <span class="nc">F</span><span class="p">&gt;</span>
-  <span class="o">&lt;&lt;</span><span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;-</span><span class="n">deduced</span><span class="o">&gt;&gt;</span> <span class="n">exception_to_result</span><span class="p">(</span> <span class="n">F</span> <span class="o">&amp;&amp;</span> <span class="n">f</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
 <span class="p">}</span> <span class="p">}</span></code></pre>
 </div>
@@ -3403,7 +3540,7 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
     <span class="kt">void</span> <span class="n">deactivate</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="kt">bool</span> <span class="n">is_active</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
 
-    <span class="kt">void</span> <span class="n">propagate</span> <span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="n">propagate</span><span class="p">(</span> <span class="n">error_id</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="kt">void</span> <span class="n">print</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span> <span class="p">)</span> <span class="k">const</span><span class="p">;</span>
 
@@ -3493,6 +3630,32 @@ The automatically-generated diagnostic messages are developer-friendly, but not 
 </div>
 <div class="paragraph text-right">
 <p>Reference: <a href="#try_handle_all"><code>try_handle_all</code></a> | <a href="#try_handle_some"><code>try_handle_some</code></a> | <a href="#try_catch"><code>try_catch</code></a> | <a href="#error_info"><code>error_info</code></a> | <a href="#diagnostic_info"><code>diagnostic_info</code></a> | <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a></p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="handle_errors.hpp"><code>to_variant.hpp</code></h4>
+<div class="exampleblock">
+<div class="content">
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/to_variant.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="c1">// Requires at least C++17</span>
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">E</span><span class="p">,</span> <span class="k">class</span> <span class="nc">TryBlock</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">variant</span><span class="o">&lt;</span>
+    <span class="k">typename</span> <span class="n">std</span><span class="o">::</span><span class="n">decay</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">declval</span><span class="o">&lt;</span><span class="n">TryBlock</span><span class="o">&gt;</span><span class="p">()().</span><span class="n">value</span><span class="p">())</span><span class="o">&gt;::</span><span class="n">type</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">optional</span><span class="o">&lt;</span><span class="n">E</span><span class="o">&gt;</span><span class="p">...</span><span class="o">&gt;&gt;</span>
+  <span class="n">to_variant</span><span class="p">(</span> <span class="n">TryBlock</span> <span class="o">&amp;&amp;</span> <span class="n">try_block</span> <span class="p">);</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph text-right">
+<p>Reference: <a href="#to_variant"><code>to_variant</code></a></p>
 </div>
 </div>
 </div>
@@ -4015,7 +4178,7 @@ To automatically capture <code>__FILE__</code>, <code>__LINE__</code> and <code>
 <div class="sect2">
 <h3 id="exception_to_result"><code>exception_to_result</code></h3>
 <div class="listingblock">
-<div class="title">#include &lt;boost/leaf/capture.hpp&gt;</div>
+<div class="title">#include &lt;boost/leaf/exception.hpp&gt;</div>
 <div class="content">
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
 
@@ -4357,6 +4520,91 @@ See <a href="#tutorial-on_error">Using <code>on_error</code></a> from the Tutori
 <hr>
 </div>
 <div class="sect2">
+<h3 id="to_variant"><code>to_variant</code></h3>
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/to_variant.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">E</span><span class="p">,</span> <span class="k">class</span> <span class="nc">TryBlock</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">variant</span><span class="o">&lt;</span>
+    <span class="k">typename</span> <span class="n">std</span><span class="o">::</span><span class="n">decay</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">declval</span><span class="o">&lt;</span><span class="n">TryBlock</span><span class="o">&gt;</span><span class="p">()().</span><span class="n">value</span><span class="p">())</span><span class="o">&gt;::</span><span class="n">type</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">tuple</span><span class="o">&lt;</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">optional</span><span class="o">&lt;</span><span class="n">E</span><span class="o">&gt;</span><span class="p">...</span><span class="o">&gt;&gt;</span>
+  <span class="n">to_variant</span><span class="p">(</span> <span class="n">TryBlock</span> <span class="o">&amp;&amp;</span> <span class="n">try_block</span> <span class="p">);</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Requires: </dt>
+<dd>
+<div class="ulist">
+<ul>
+<li>
+<p>This function is only available under C&#43;&#43;-17 or newer.</p>
+</li>
+<li>
+<p>The <code>try_block</code> function may not take any arguments.</p>
+</li>
+<li>
+<p>The type returned by the <code>try_block</code> function must be a <code>result&lt;T&gt;</code> type (see <a href="#is_result_type"><code>is_result_type</code></a>). It is valid for the <code>try_block</code> to return <code>leaf::<a href="#result">result</a>&lt;T&gt;</code>, however this is not a requirement.</p>
+</li>
+</ul>
+</div>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>The <code>to_variant</code> function uses <a href="#try_handle_all"><code>try_handle_all</code></a> internally to invoke the <code>try_block</code> and capture the result in a <code>std::variant</code>. On success, the variant contains the <code>T</code> object from the produced <code>result&lt;T&gt;</code>. Otherwise, the variant contains a <code>std::tuple</code> where each <code>std::optional</code> element contains an object of type <code>E<sub>i</sub></code> from the user-supplied sequence <code>E&#8230;&#8203;</code>, or is empty if the failure did not produce an error object of that type.</p>
+</div>
+<div class="listingblock">
+<div class="title">Example:</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">enum</span> <span class="k">class</span> <span class="nc">E1</span> <span class="p">{</span> <span class="n">e11</span><span class="p">,</span> <span class="n">e12</span><span class="p">,</span> <span class="n">e13</span> <span class="p">};</span>
+<span class="k">enum</span> <span class="k">class</span> <span class="nc">E2</span> <span class="p">{</span> <span class="n">e21</span><span class="p">,</span> <span class="n">e22</span><span class="p">,</span> <span class="n">e23</span> <span class="p">};</span>
+<span class="k">enum</span> <span class="k">class</span> <span class="nc">E3</span> <span class="p">{</span> <span class="n">e31</span><span class="p">,</span> <span class="n">e32</span><span class="p">,</span> <span class="n">e33</span> <span class="p">};</span>
+
+<span class="p">....</span>
+
+<span class="k">auto</span> <span class="n">v</span> <span class="o">=</span> <span class="n">leaf</span><span class="o">::</span><span class="n">to_variant</span><span class="o">&lt;</span><span class="n">E1</span><span class="p">,</span> <span class="n">E2</span><span class="p">,</span> <span class="n">E3</span><span class="o">&gt;</span><span class="p">(</span>
+  <span class="p">[]()</span> <span class="o">-&gt;</span> <span class="n">leaf</span><span class="o">::</span><span class="n">result</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span>
+  <span class="p">{</span>
+    <span class="k">return</span> <span class="n">leaf</span><span class="o">::</span><span class="n">new_error</span><span class="p">(</span> <span class="n">E1</span><span class="o">::</span><span class="n">e12</span><span class="p">,</span> <span class="n">E3</span><span class="o">::</span><span class="n">e33</span> <span class="p">);</span>
+  <span class="p">}</span> <span class="p">);</span>
+
+<span class="n">assert</span><span class="p">(</span><span class="n">v</span><span class="p">.</span><span class="n">index</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span> <i class="conum" data-value="1"></i><b>(1)</b>
+<span class="k">auto</span> <span class="n">t</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">v</span><span class="p">);</span> <i class="conum" data-value="2"></i><b>(2)</b>
+
+<span class="n">assert</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">0</span><span class="o">&gt;</span><span class="p">(</span><span class="n">t</span><span class="p">).</span><span class="n">value</span><span class="p">()</span> <span class="o">==</span> <span class="n">E1</span><span class="o">::</span><span class="n">e12</span><span class="p">);</span> <i class="conum" data-value="3"></i><b>(3)</b>
+<span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">t</span><span class="p">).</span><span class="n">has_value</span><span class="p">());</span> <i class="conum" data-value="4"></i><b>(4)</b>
+<span class="n">assert</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="n">t</span><span class="p">).</span><span class="n">value</span><span class="p">()</span> <span class="o">==</span> <span class="n">E3</span><span class="o">::</span><span class="n">e33</span><span class="p">);</span> <i class="conum" data-value="3"></i><b>(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>We report a failure, so the variant must contain the error object tuple, rather than an <code>int</code>.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>Grab the error tuple.</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>We communicated an <code>E1</code> and an <code>E3</code> error object&#8230;&#8203;</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="4"></i><b>4</b></td>
+<td>&#8230;&#8203;but not an <code>E2</code> error object.</td>
+</tr>
+</table>
+</div>
+<hr>
+</div>
+<div class="sect2">
 <h3 id="try_catch"><code>try_catch</code></h3>
 <div class="listingblock">
 <div class="title">#include &lt;boost/leaf/handle_errors.hpp&gt;</div>
@@ -4390,7 +4638,7 @@ See <a href="#tutorial-on_error">Using <code>on_error</code></a> from the Tutori
 <i class="fa icon-tip" title="Tip"></i>
 </td>
 <td class="content">
-See also <a href="#tutorial-eh">Exception Handling</a> from the <a href="#tutorial">Tutorial</a> section.
+See <a href="#tutorial-exception_handling">Exception Handling</a>.
 </td>
 </tr>
 </table>
@@ -4434,7 +4682,7 @@ See also <a href="#tutorial-eh">Exception Handling</a> from the <a href="#tutori
 <i class="fa icon-tip" title="Tip"></i>
 </td>
 <td class="content">
-See also <a href="#tutorial-result">Error Handling</a> from the <a href="#tutorial">Tutorial</a> section.
+See <a href="#tutorial-error_handling">Error Handling</a>.
 </td>
 </tr>
 </table>
@@ -4838,7 +5086,7 @@ The contents of each Reference section are organized alphabetically.
     <span class="kt">void</span> <span class="n">deactivate</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="kt">bool</span> <span class="n">is_active</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
 
-    <span class="kt">void</span> <span class="n">propagate</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="n">propagate</span><span class="p">(</span> <span class="n">error_id</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="kt">void</span> <span class="n">print</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span> <span class="p">)</span> <span class="k">const</span><span class="p">;</span>
 
@@ -5100,7 +5348,7 @@ The caller is required to specify the return type <code>R</code>. This is becaus
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
 
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">E</span><span class="p">&gt;</span>
-  <span class="kt">void</span> <span class="n">context</span><span class="o">&lt;</span><span class="n">E</span><span class="p">...</span><span class="o">&gt;::</span><span class="n">propagate</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
+  <span class="kt">void</span> <span class="n">context</span><span class="o">&lt;</span><span class="n">E</span><span class="p">...</span><span class="o">&gt;::</span><span class="n">propagate</span><span class="p">(</span> <span class="n">error_id</span> <span class="n">id</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
 <span class="p">}</span> <span class="p">}</span></code></pre>
 </div>
@@ -5113,7 +5361,7 @@ The caller is required to specify the return type <code>R</code>. This is becaus
 </dd>
 <dt class="hdlist1">Effects: </dt>
 <dd>
-<p>Each stored error object of some type <code>E</code> is moved into another <code>context</code> object active in the call stack that provides storage for objects of type <code>E</code>, if any, or discarded.</p>
+<p>Each stored error object of some type <code>E</code> is moved into another <code>context</code> object active in the call stack that provides storage for objects of type <code>E</code>, if any, or discarded. Target objects are not overwritten if they are associated with the specified <code>id</code>, except if <code>id.value() == 0</code>.</p>
 </dd>
 </dl>
 </div>
@@ -5162,7 +5410,7 @@ The caller is required to specify the return type <code>R</code>. This is becaus
 <p>Has no effects if <code>ctx.is_active()</code> is <code>false</code> (that is, it is valid to call <a href="#context::deactivate"><code>deactivate</code></a> manually, before the <code>context_activator</code> object expires);</p>
 </li>
 <li>
-<p>Otherwise, calls <code><a href="#context::deactivate">ctx.deactivate</a></code>() and, if there are new uncaught exceptions since the constructor was called, the destructor calls <code><a href="#context::propagate">ctx.propagate</a></code>().</p>
+<p>Otherwise, calls <code><a href="#context::deactivate">ctx.deactivate</a></code>().</p>
 </li>
 </ul>
 </div>
@@ -5208,7 +5456,7 @@ The caller is required to specify the return type <code>R</code>. This is becaus
 </td>
 <td class="content">
 <div class="paragraph">
-<p>The behavior of <code>diagnostic_info</code> (and <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a>) is affected by the value of the macro <code>BOOST_LEAF_DIAGNOSTICS</code>:</p>
+<p>The behavior of <code>diagnostic_info</code> (and <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a>) is affected by the value of the macro <code>BOOST_LEAF_CFG_DIAGNOSTICS</code>:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -5727,6 +5975,7 @@ The passed value is stored as a C string (<code>char const *</code>), so <code>v
   <span class="k">struct</span> <span class="nc">e_errno</span>
   <span class="p">{</span>
     <span class="kt">int</span> <span class="n">value</span><span class="p">;</span>
+    <span class="k">explicit</span> <span class="n">e_errno</span><span class="p">(</span><span class="kt">int</span> <span class="n">value</span><span class="o">=</span><span class="n">errno</span><span class="p">);</span>
     <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">e_errno</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">err</span> <span class="p">);</span>
   <span class="p">};</span>
 
@@ -5734,7 +5983,7 @@ The passed value is stored as a C string (<code>char const *</code>), so <code>v
 </div>
 </div>
 <div class="paragraph">
-<p>To capture <code>errno</code>, use <code>e_errno</code>. When printed in automatically-generated diagnostic messages, <code>e_errno</code> objects use <code>strerror</code> to convert the <code>errno</code> code to string.</p>
+<p>By default, the constructor initializes <code>value</code> with <code>errno</code>, but the caller can pass a specific error code instead. When printed in automatically-generated diagnostic messages, <code>e_errno</code> objects use <code>strerror</code> to convert the error code to string.</p>
 </div>
 <hr>
 </div>
@@ -5779,15 +6028,21 @@ It is probably better to define your own file name wrappers to avoid clashes if 
     <span class="k">struct</span> <span class="nc">e_LastError</span>
     <span class="p">{</span>
       <span class="kt">unsigned</span> <span class="n">value</span><span class="p">;</span>
-      <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">e_LastError</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">err</span> <span class="p">);</span>
-    <span class="p">};</span>
+
+      <span class="k">explicit</span> <span class="n">e_LastError</span><span class="p">(</span><span class="kt">unsigned</span> <span class="n">value</span><span class="p">);</span>
+
+<span class="cp">#if BOOST_LEAF_CFG_WIN32
+</span>      <span class="n">e_LastError</span><span class="p">();</span>
+      <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="n">e_LastError</span> <span class="k">const</span> <span class="o">&amp;</span><span class="p">);</span>
+<span class="cp">#endif
+</span>    <span class="p">};</span>
   <span class="p">}</span>
 
 <span class="p">}</span> <span class="p">}</span></code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p><code>e_LastError</code> is designed to communicate <code>GetLastError()</code> values on Windows.</p>
+<p><code>e_LastError</code> is designed to communicate <code>GetLastError()</code> values on Windows. The default constructor initializes <code>value</code> via <code>GetLastError()</code>. See <a href="#configuration">Configuration</a>.</p>
 </div>
 <hr>
 </div>
@@ -5800,9 +6055,9 @@ It is probably better to define your own file name wrappers to avoid clashes if 
 
   <span class="k">struct</span> <span class="nc">e_source_location</span>
   <span class="p">{</span>
-    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="k">const</span> <span class="n">file</span><span class="p">;</span>
-    <span class="kt">int</span> <span class="k">const</span> <span class="n">line</span><span class="p">;</span>
-    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="k">const</span> <span class="n">function</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">file</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">line</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">function</span><span class="p">;</span>
 
     <span class="k">friend</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">e_source_location</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">x</span> <span class="p">);</span>
   <span class="p">};</span>
@@ -5905,7 +6160,7 @@ It is illegal to call the <code>exception</code> member function unless <code>ex
     <span class="k">virtual</span> <span class="kt">void</span> <span class="n">deactivate</span><span class="p">()</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
     <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">is_active</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
-    <span class="k">virtual</span> <span class="kt">void</span> <span class="n">propagate</span><span class="p">()</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">virtual</span> <span class="kt">void</span> <span class="n">propagate</span><span class="p">(</span> <span class="n">error_id</span> <span class="p">)</span> <span class="k">noexcept</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
     <span class="k">virtual</span> <span class="kt">void</span> <span class="n">print</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="p">)</span> <span class="k">const</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
   <span class="p">};</span>
@@ -5955,16 +6210,18 @@ It is illegal to call the <code>exception</code> member function unless <code>ex
     <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">U</span><span class="p">&gt;</span>
     <span class="n">result</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">=</span><span class="p">(</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="o">&amp;&amp;</span> <span class="n">r</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
+    <span class="kt">bool</span> <span class="n">has_value</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">bool</span> <span class="n">has_error</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="k">explicit</span> <span class="k">operator</span> <span class="kt">bool</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
     <span class="n">T</span> <span class="o">&amp;</span> <span class="n">value</span><span class="p">();</span>
 
-    <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
-    <span class="n">T</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">();</span>
+    <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="n">T</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
-    <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
-    <span class="n">T</span> <span class="o">*</span> <span class="k">operator</span><span class="o">-&gt;</span><span class="p">();</span>
+    <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="n">T</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="o">&lt;&lt;</span><span class="n">unspecified</span><span class="o">-</span><span class="n">type</span><span class="o">&gt;&gt;</span> <span class="n">error</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
 
@@ -5997,6 +6254,8 @@ It is illegal to call the <code>exception</code> member function unless <code>ex
     <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">U</span><span class="p">&gt;</span>
     <span class="n">result</span> <span class="o">&amp;</span> <span class="k">operator</span><span class="o">=</span><span class="p">(</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span> <span class="o">&amp;&amp;</span> <span class="n">r</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
+    <span class="kt">bool</span> <span class="n">has_value</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">bool</span> <span class="n">has_error</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="k">explicit</span> <span class="k">operator</span> <span class="kt">bool</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="kt">void</span> <span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
@@ -6013,7 +6272,7 @@ It is illegal to call the <code>exception</code> member function unless <code>ex
 </div>
 </div>
 <div class="paragraph text-right">
-<p><a href="#result::result">Constructors</a> | <a href="#result::operator_eq"><code>operator=</code></a> | <a href="#result::operator_bool"><code>operator bool</code></a> | <a href="#result::value"><code>value</code>, <code>operator*</code>, <code>-></code></a> | <a href="#result::error"><code>error</code></a> | <a href="#result::load"><code>load</code></a></p>
+<p><a href="#result::result">Constructors</a> | <a href="#result::operator_eq"><code>operator=</code></a> | <a href="#result::has_value"><code>has_value</code></a> | <a href="#result::has_error"><code>has_error</code></a> | <a href="#result::operator_bool"><code>operator bool</code></a> | <a href="#result::value"><code>value</code></a> | <a href="#result::operator_ptr"><code>operator-></code></a> | <a href="#result::operator_deref"><code>operator*</code></a> | <a href="#result::error"><code>error</code></a> | <a href="#result::load"><code>load</code></a></p>
 </div>
 <div class="paragraph">
 <p>The <code>result&lt;T&gt;</code> type can be returned by functions which produce a value of type <code>T</code> but may fail doing so.</p>
@@ -6030,10 +6289,10 @@ It is illegal to call the <code>exception</code> member function unless <code>ex
 <div class="ulist">
 <ul>
 <li>
-<p>Value state, in which case it contains an object of type <code>T</code>, and <code><a href="#result::value">value</a></code>/<code><a href="#result::value">operator*</a></code>/<code><a href="#result::value">operator-></a></code> can be used to access the contained value.</p>
+<p>Value state, in which case it contains an object of type <code>T</code>, and <a href="#result::value"><code>value</code></a>/<a href="#result::operator_deref"><code>operator*</code></a>/<a href="#result::operator_ptr"><code>operator-></code></a> can be used to access the contained value.</p>
 </li>
 <li>
-<p>Error state, in which case it contains an error ID, and calling <code><a href="#result::value">value</a></code>/<code><a href="#result::value">operator*</a></code>/<code><a href="#result::value">operator-></a></code> throws <code>leaf::bad_result</code>.</p>
+<p>Error state, in which case it contains an error ID, and calling <a href="#result::value"><code>value</code></a> throws <code>leaf::bad_result</code>.</p>
 </li>
 <li>
 <p>Error capture state, which is the same as the Error state, but in addition to the error ID, it holds a <code>std::shared_ptr&lt;<a href="#polymorphic_context">polymorphic_context</a>&gt;</code>.</p>
@@ -6326,6 +6585,52 @@ The returned proxy object refers to <code>*this</code>; avoid holding on to it.
 <hr>
 </div>
 <div class="sect3">
+<h4 id="result::has_value"><code>has_value</code></h4>
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="kt">bool</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">has_value</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Returns: </dt>
+<dd>
+<p>If <code>*this</code> is in <a href="#result">value state</a>, returns <code>true</code>, otherwise returns <code>false</code>.</p>
+</dd>
+</dl>
+</div>
+<hr>
+</div>
+<div class="sect3">
+<h4 id="result::has_error"><code>has_error</code></h4>
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="kt">bool</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">has_error</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Returns: </dt>
+<dd>
+<p>If <code>*this</code> is in <a href="#result">value state</a>, returns <code>false</code>, otherwise returns <code>true</code>.</p>
+</dd>
+</dl>
+</div>
+<hr>
+</div>
+<div class="sect3">
 <h4 id="result::operator_bool"><code>operator bool</code></h4>
 <div class="listingblock">
 <div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
@@ -6349,54 +6654,86 @@ The returned proxy object refers to <code>*this</code>; avoid holding on to it.
 <hr>
 </div>
 <div class="sect3">
-<h4 id="result::value"><code>value</code>, <code>operator*</code>, <code>-></code></h4>
+<h4 id="result::value"><code>value</code></h4>
 <div class="listingblock">
 <div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
 <div class="content">
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
 
-  <span class="kt">void</span> <span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span> <i class="conum" data-value="1"></i><b>(1)</b>
+  <span class="kt">void</span> <span class="n">result</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
 
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span> <i class="conum" data-value="2"></i><b>(2)</b>
+  <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
 
   <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
   <span class="n">T</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="p">();</span>
-
-  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span> <i class="conum" data-value="2"></i><b>(2)</b>
-
-  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">T</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">*</span><span class="p">();</span>
-
-  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span> <i class="conum" data-value="2"></i><b>(2)</b>
-
-  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">T</span> <span class="o">*</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">-&gt;</span><span class="p">();</span> <i class="conum" data-value="2"></i><b>(2)</b>
 
   <span class="k">struct</span> <span class="nc">bad_result</span><span class="o">:</span> <span class="n">std</span><span class="o">::</span><span class="n">exception</span> <span class="p">{</span> <span class="p">};</span>
 
 <span class="p">}</span> <span class="p">}</span></code></pre>
 </div>
 </div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>Only when <code>T</code> is <code>void</code>.</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td>Only when <code>T</code> is not <code>void</code>.</td>
-</tr>
-</table>
-</div>
 <div id="result::bad_result" class="dlist">
 <dl>
 <dt class="hdlist1">Effects: </dt>
 <dd>
-<p>If <code>*this</code> is in <a href="#result">value state</a>, returns a reference (or pointer) to the stored value, otherwise throws <code>bad_result</code>.</p>
+<p>If <code>*this</code> is in <a href="#result">value state</a>, returns a reference to the stored value, otherwise throws <code>bad_result</code>.</p>
+</dd>
+</dl>
+</div>
+<hr>
+</div>
+<div class="sect3">
+<h4 id="result::operator_ptr"><code>operator-></code></h4>
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">T</span> <span class="k">const</span> <span class="o">*</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">T</span> <span class="o">*</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">-&gt;</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Returns </dt>
+<dd>
+<p>If <code>*this</code> is in <a href="#result">value state</a>, returns a pointer to the stored value; otherwise returns 0.</p>
+</dd>
+</dl>
+</div>
+<hr>
+</div>
+<div class="sect3">
+<h4 id="result::operator_deref"><code>operator*</code></h4>
+<div class="listingblock">
+<div class="title">#include &lt;boost/leaf/result.hpp&gt;</div>
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
+
+  <span class="k">template</span> <span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">T</span> <span class="o">&amp;</span> <span class="n">result</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="k">operator</span><span class="o">*</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Requires: </dt>
+<dd>
+<p><code>*this</code> must be in <a href="#result">value state</a>.</p>
+</dd>
+<dt class="hdlist1">Returns </dt>
+<dd>
+<p>a reference to the stored value.</p>
 </dd>
 </dl>
 </div>
@@ -6437,7 +6774,7 @@ The returned proxy object refers to <code>*this</code>; avoid holding on to it.
 </td>
 <td class="content">
 <div class="paragraph">
-<p>The behavior of <code>verbose_diagnostic_info</code> (and <a href="#diagnostic_info"><code>diagnostic_info</code></a>) is affected by the value of the macro <code>BOOST_LEAF_DIAGNOSTICS</code>:</p>
+<p>The behavior of <code>verbose_diagnostic_info</code> (and <a href="#diagnostic_info"><code>diagnostic_info</code></a>) is affected by the value of the macro <code>BOOST_LEAF_CFG_DIAGNOSTICS</code>:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -6460,7 +6797,7 @@ The returned proxy object refers to <code>*this</code>; avoid holding on to it.
 <i class="fa icon-warning" title="Warning"></i>
 </td>
 <td class="content">
-Using <code>verbose_diagnostic_info</code> will likely allocate memory dynamically.
+Using <code>verbose_diagnostic_info</code> may allocate memory dynamically, but only if an active error handler takes an argument of type <code>verbose_diagnostic_info</code>.
 </td>
 </tr>
 </table>
@@ -6846,13 +7183,13 @@ See also <a href="#tutorial-predicates">Using Predicates to Handle Errors</a>.
 <p><code>p<sub>1</sub> || p<sub>2</sub> || &#8230;&#8203; p<sub>n</sub></code>.</p>
 </div>
 <div class="paragraph">
-<p>Generally, <code>p<sub>i</sub></code> is equivalent to <code>e == V<sub>i</sub></code>, except if <code>V<sub>i</sub></code> is pointer to a function</p>
+<p>Where <code>p<sub>i</sub></code> is equivalent to <code>e == V<sub>i</sub></code>, except if <code>V<sub>i</sub></code> is pointer to a function</p>
 </div>
 <div class="paragraph text-center">
 <p><code>bool (*V<sub>i</sub>)(T x)</code>.</p>
 </div>
 <div class="paragraph">
-<p>In this case it is required that <code>V<sub>i</sub> != 0</code> and that <code>x</code> can be initialized with <code>E const &amp;</code>, and <code>p<sub>i</sub></code> is equivalent to:</p>
+<p>In this case it is required that <code>V<sub>i</sub> != 0</code> and that <code>x</code> can be initialized with <code>E const &amp;</code>, and then <code>p<sub>i</sub></code> is equivalent to:</p>
 </div>
 <div class="paragraph text-center">
 <p><code>V<sub>i</sub>(e)</code>.</p>
@@ -7367,12 +7704,26 @@ See also <a href="#BOOST_LEAF_ASSIGN"><code>BOOST_LEAF_ASSIGN</code></a>.
 <div class="listingblock">
 <div class="title">#include &lt;boost/leaf/error.hpp&gt;</div>
 <div class="content">
-<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="cp">#define BOOST_LEAF_CHECK(r)\
-    auto &amp;&amp; &lt;&lt;temp&gt;&gt; = r;\
-    if( &lt;&lt;temp&gt;&gt; )\
-      ;\
-    else\
-      return &lt;&lt;temp&gt;&gt;.error()</span></code></pre>
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="cp">#if BOOST_LEAF_CFG_GNUC_STMTEXPR
+</span>
+<span class="cp">#define BOOST_LEAF_CHECK(r)\
+  ({\
+    auto &amp;&amp; &lt;&lt;temp&gt;&gt; = (r);\
+    if( !&lt;&lt;temp&gt;&gt; )\
+      return &lt;&lt;temp&gt;&gt;.error();\
+    std::move(&lt;&lt;temp&gt;&gt;);\
+  }).value()
+</span>
+<span class="cp">#else
+</span>
+<span class="cp">#define BOOST_LEAF_CHECK(r)\
+  {\
+    auto &amp;&amp; &lt;&lt;temp&gt;&gt; = (r);\
+    if( !&lt;&lt;temp&gt;&gt; )\
+      return &lt;&lt;temp&gt;&gt;.error();\
+  }
+</span>
+<span class="cp">#endif</span></code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -7414,6 +7765,9 @@ See also <a href="#BOOST_LEAF_ASSIGN"><code>BOOST_LEAF_ASSIGN</code></a>.
   return compute_value();
 }</pre>
 </div>
+</div>
+<div class="paragraph">
+<p>If <code>BOOST_LEAF_CFG_GNUC_STMTEXPR</code> is <code>1</code> (which is the default under <code>__GNUC__</code>), <code>BOOST_LEAF_CHECK</code> expands to a <a href="https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html">GNU C statement expression</a>, which allows its use with non-<code>void</code> result types in any expression; see <a href="#checking_for_errors">Checking for Errors</a>.</p>
 </div>
 <hr>
 </div>
@@ -8454,7 +8808,7 @@ meson <span class="nb">test</span></code></pre>
 </div>
 </div>
 <div class="sect1">
-<h2 id="configuration">Configuration Macros</h2>
+<h2 id="configuration">Configuration</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>The following configuration macros are recognized:</p>
@@ -8462,24 +8816,152 @@ meson <span class="nb">test</span></code></pre>
 <div class="ulist">
 <ul>
 <li>
-<p><code>BOOST_LEAF_DIAGNOSTICS</code>: Defining this macro to <code>0</code> stubs out both <a href="#diagnostic_info"><code>diagnostic_info</code></a> and <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a>, which could improve the performance of the error path in some programs (if the macro is left undefined, LEAF defines it as <code>1</code>).</p>
+<p><code>BOOST_LEAF_CFG_DIAGNOSTICS</code>: Defining this macro as <code>0</code> stubs out both <a href="#diagnostic_info"><code>diagnostic_info</code></a> and <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a> (if the macro is left undefined, LEAF defines it as <code>1</code>).</p>
 </li>
 <li>
-<p><code>BOOST_LEAF_NO_EXCEPTIONS</code>: Disables all exception handling support. If left undefined, LEAF defines it based on the compiler configuration (e.g. <code>-fno-exceptions</code>).</p>
+<p><code>BOOST_LEAF_CFG_STD_SYSTEM_ERROR</code>: Defining this macro as <code>0</code> disables the <code>std::error_code</code> / <code>std::error_condition</code> integration. In this case LEAF does not <code>#include &lt;system_error&gt;</code>, which may be too heavy for embedded platforms (if the macro is left undefined, LEAF defines it as <code>1</code>).</p>
 </li>
 <li>
-<p><code>BOOST_LEAF_NO_THREADS</code>: Disable all multi-thread support.</p>
+<p><code>BOOST_LEAF_CFG_STD_STRING</code>: Defining this macro as <code>0</code> disables all use of <code>std::string</code> (this requires <code>BOOST_LEAF_CFG_DIAGNOSTICS=0</code> as well). In this case LEAF does not <code>#include &lt;string&gt;</code> which may be too heavy for embedded platforms (if the macro is left undefined, LEAF defines it as <code>1</code>).</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_CFG_CAPTURE</code>: Defining this macro as <code>0</code> disables the ability of <code>leaf::result</code> to transport errors between threads. In this case LEAF does not <code>#include &lt;memory&gt;</code>, which may be too heavy for embedded platforms (if the macro is left undefined, LEAF defines it as <code>1</code>).</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_CFG_GNUC_STMTEXPR</code>: This macro controls whether or not <a href="#BOOST_LEAF_CHECK"><code>BOOST_LEAF_CHECK</code></a> is defined in terms of a <a href="https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html">GNU C statement expression</a>, which enables its use to check for errors similarly to how the questionmark operator works in some languages (see <a href="#checking_for_errors">Checking for Errors</a>). By default the macro is defined as <code>1</code> under <code>__GNUC__</code>, otherwise as <code>0</code>.</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_CFG_WIN32</code>: Defining this macro as 1 enables the default constructor in <a href="#e_LastError"><code>e_LastError</code></a>, and the automatic conversion to string (via <code>FormatMessageA</code>) when <a href="#verbose_diagnostic_info"><code>verbose_diagnostic_info</code></a> is printed. If the macro is left undefined, LEAF defines it as <code>0</code> (even on windows, since including <code>windows.h</code> is generally not desirable). Note that the <code>e_LastError</code> type itself is available on all platforms, there is no need for conditional compilation in error handlers that use it.</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_NO_EXCEPTIONS</code>: Disables all exception handling support. If left undefined, LEAF defines it automatically based on the compiler configuration (e.g. <code>-fno-exceptions</code>).</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_NO_THREADS</code>: Disables all thread safety in LEAF.</p>
 </li>
 </ul>
+</div>
+<div class="sect2">
+<h3 id="configuring_tls_access">Configuring TLS Access</h3>
+<div class="paragraph">
+<p>LEAF requires support for thread-local <code>void</code> pointers. By default, this is implemented by means of the C&#43;&#43;11 <code>thread_local</code> keyword, but in order to support <a href="#embedded_platforms">embedded platforms</a>, it is possible to configure LEAF to use an array of thread local pointers instead, by defining <code>BOOST_LEAF_USE_TLS_ARRAY</code>. In this case, the user is required to define the following two functions to implement the required TLS access:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="k">namespace</span> <span class="n">boost</span> <span class="p">{</span> <span class="k">namespace</span> <span class="n">leaf</span> <span class="p">{</span>
+
+<span class="k">namespace</span> <span class="n">tls</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span> <span class="n">read_void_ptr</span><span class="p">(</span> <span class="kt">int</span> <span class="n">tls_index</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="n">write_void_ptr</span><span class="p">(</span> <span class="kt">int</span> <span class="n">tls_index</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span> <span class="n">p</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">}</span> <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+For efficiency, <code>read_void_ptr</code> and <code>write_void_ptr</code> should be defined <code>inline</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Under <code>BOOST_LEAF_USE_TLS_ARRAY</code> the following additional configuration macros are recognized:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>BOOST_LEAF_CFG_TLS_ARRAY_START_INDEX</code> specifies the start TLS array index available to LEAF (if the macro is left undefined, LEAF defines it as <code>0</code>).</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_CFG_TLS_ARRAY_SIZE</code> may be defined to specify the size of the TLS array. In this case TLS indices are validated via <code>BOOST_LEAF_ASSERT</code> before being passed to <code>read_void_ptr</code> / <code>write_void_ptr</code>.</p>
+</li>
+<li>
+<p><code>BOOST_LEAF_CFG_TLS_INDEX_TYPE</code> may be defined to specify the integral type used to store assigned TLS indices (if the macro is left undefined, LEAF defines it as <code>unsigned char</code>).</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Reporting error objects of types that are not used by the program to handle failures does not consume TLS pointers. The minimum size of the TLS pointer array required by LEAF is the total number of different types used as arguments to error handlers (in the entire program), plus one.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+Beware of <code>read_void_ptr</code>/<code>write_void_ptr</code> accessing thread local pointers beyond the static boundaries of the thread local pointer array; this will likely result in undefined behavior.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="embedded_platforms">Embedded Platforms</h3>
+<div class="paragraph">
+<p>Defining <code>BOOST_LEAF_EMBEDDED</code> is equivalent to the following:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight nowrap"><code data-lang="c++"><span class="cp">#ifndef BOOST_LEAF_CFG_DIAGNOSTICS
+#   define BOOST_LEAF_CFG_DIAGNOSTICS 0
+#endif
+</span>
+<span class="cp">#ifndef BOOST_LEAF_CFG_STD_SYSTEM_ERROR
+#   define BOOST_LEAF_CFG_STD_SYSTEM_ERROR 0
+#endif
+</span>
+<span class="cp">#ifndef BOOST_LEAF_CFG_STD_STRING
+#   define BOOST_LEAF_CFG_STD_STRING 0
+#endif
+</span>
+<span class="cp">#ifndef BOOST_LEAF_CFG_CAPTURE
+#   define BOOST_LEAF_CFG_CAPTURE 0
+#endif</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>LEAF supports FreeRTOS out of the box, please define <code>BOOST_LEAF_TLS_FREERTOS</code> (in which case LEAF automatically defines <code>BOOST_LEAF_EMBEDDED</code>, if it is not defined already).</p>
+</div>
+<div class="paragraph">
+<p>For other embedded platforms, please define <code>BOOST_LEAF_USE_TLS_ARRAY</code>, see <a href="#configuring_tls_access">Configuring TLS Access</a>.</p>
+</div>
+<div class="paragraph">
+<p>If your program does not use concurrency at all, simply define <code>BOOST_LEAF_NO_THREADS</code>, which requires no TLS support at all (but is NOT thread-safe).</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="portability">Portability</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The source code is compatible with C&#43;&#43;11 or newer.</p>
+</div>
+<div class="paragraph">
+<p>LEAF uses thread-local storage (only for pointers). By default, this is implemented via the C&#43;&#43;11 <code>thread_local</code> storage class specifier, but the library is easily configurable to use any platform-specific TLS API instead (it ships with built-in support for FreeRTOS). See <a href="#configuration">Configuration</a>.</p>
 </div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="_limitations">Limitations</h2>
 <div class="sectionbody">
-<div class="paragraph">
-<p>LEAF requires C&#43;&#43;11, including <code>thread_local</code> support, except when compiled with <code>BOOST_LEAF_NO_THREADS</code> (which can be useful on some embedded platforms).</p>
-</div>
 <div class="paragraph">
 <p>When using dynamic linking, it is required that error types are declared with <code>default</code> visibility, e.g.:</p>
 </div>

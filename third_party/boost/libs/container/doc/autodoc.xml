@@ -4346,7 +4346,7 @@
 <constructor><template>
           <template-type-parameter name="RelatedIt"/>
           <template-type-parameter name="RelatedNode"/>
-        </template><parameter name="insert"><paramtype>bool</paramtype></parameter><parameter name="it"><paramtype>RelatedIt</paramtype></parameter><parameter name="node"><paramtype>RelatedNode &amp;&amp;</paramtype></parameter></constructor>
+        </template><parameter name="insert"><paramtype>bool</paramtype></parameter><parameter name="it"><paramtype>RelatedIt</paramtype></parameter><parameter name="n"><paramtype>RelatedNode &amp;&amp;</paramtype></parameter></constructor>
 <copy-assignment><type><classname>insert_return_type_base</classname> &amp;</type><parameter name="other"><paramtype><classname>insert_return_type_base</classname> &amp;&amp;</paramtype></parameter></copy-assignment>
 </struct><class name="node_handle"><template>
       <template-type-parameter name="NodeAllocator"/>
@@ -8112,7 +8112,7 @@ void some_function()
 <class name="static_vector"><template>
       <template-type-parameter name="T"><purpose><para>The type of element that will be stored. </para></purpose></template-type-parameter>
       <template-nontype-parameter name="Capacity"><type>std::size_t</type><purpose><para>The maximum number of elements <classname alt="boost::container::static_vector">static_vector</classname> can store, fixed at compile time. </para></purpose></template-nontype-parameter>
-      <template-type-parameter name="Options"><default>void</default><purpose><para>A type produced from <computeroutput><classname alt="boost::container::static_vector_options">boost::container::static_vector_options</classname></computeroutput>. </para></purpose></template-type-parameter>
+      <template-type-parameter name="Options"><default>void</default><purpose><para>A type produced from <computeroutput><classname alt="boost::container::static_vector_options">boost::container::static_vector_options</classname></computeroutput>. If no option is specified, by default throw_on_overflow&lt;true&gt; option is set. </para></purpose></template-type-parameter>
     </template><inherit access="public">boost::container::vector&lt; T, dtl::get_static_vector_allocator&lt; T, Capacity, Options &gt;::type &gt;</inherit><purpose>A variable-size array container with fixed capacity. </purpose><description><para><classname alt="boost::container::static_vector">static_vector</classname> is a sequence container like <classname alt="boost::container::vector">boost::container::vector</classname> with contiguous storage that can change in size, along with the static allocation, low overhead, and fixed capacity of boost::array.</para><para>A <classname alt="boost::container::static_vector">static_vector</classname> is a sequence that supports random access to elements, constant time insertion and removal of elements at the end, and linear time insertion and removal of elements at the beginning or in the middle. The number of elements in a <classname alt="boost::container::static_vector">static_vector</classname> may vary dynamically up to a fixed capacity because elements are stored within the object itself similarly to an array. However, objects are initialized as they are inserted into <classname alt="boost::container::static_vector">static_vector</classname> unlike C arrays or std::array which must construct all elements on instantiation. The behavior of <classname alt="boost::container::static_vector">static_vector</classname> enables the use of statically allocated elements in cases with complex object lifetime requirements that would otherwise not be trivially possible.</para><para><formalpara><title>Error Handling</title><para>Insertion beyond the capacity result in throwing bad_alloc() if exceptions are enabled or calling throw_bad_alloc() if not enabled.</para>
 </formalpara>
 <classname alt="boost::container::out_of_range">out_of_range</classname> is thrown if out of bounds access is performed in <computeroutput>at()</computeroutput> if exceptions are enabled, throw_out_of_range() if not enabled.</para><para>
@@ -8149,7 +8149,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>true</computeroutput> and T's move constructor or move assignment throws, </para>
 </listitem>
-<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor or copy assignment throws,</para>
+<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor or copy assignment throws, </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8160,7 +8162,13 @@ void some_function()
 </requires></method>
 <method name="resize"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of elements which will be stored in the container.</para></description></parameter><purpose>Inserts or erases elements at the end such that the size becomes count. New elements are value initialized. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's value initialization throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's value initialization throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8168,7 +8176,13 @@ void some_function()
 </requires></method>
 <method name="resize"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of elements which will be stored in the container.</para></description></parameter><parameter name=""><paramtype><classname>default_init_t</classname></paramtype></parameter><purpose>Inserts or erases elements at the end such that the size becomes count. New elements are default initialized. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's default initialization throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's default initialization throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N).</para>
 </formalpara>
@@ -8178,15 +8192,21 @@ void some_function()
 </requires></method>
 <method name="resize"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of elements which will be stored in the container. </para></description></parameter><parameter name="value"><paramtype>value_type const &amp;</paramtype><description><para>The value used to copy construct the new element.</para></description></parameter><purpose>Inserts or erases elements at the end such that the size becomes count. New elements are copy constructed from value. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>count &lt;= capacity()</computeroutput></para>
 </requires></method>
-<method name="reserve" cv="noexcept"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of elements which the container should be able to contain.</para></description></parameter><purpose>This call has no effect because the Capacity of this container is constant. </purpose><description><para>
+<method name="reserve"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of elements which the container should be able to contain.</para></description></parameter><purpose>This call has no effect because the Capacity of this container is constant. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>Nothing.</para>
+<formalpara><title>Throws</title><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
@@ -8194,7 +8214,13 @@ void some_function()
 </requires></method>
 <method name="push_back"><type>void</type><parameter name="value"><paramtype>value_type const &amp;</paramtype><description><para>The value used to copy construct the new element.</para></description></parameter><purpose>Adds a copy of value at the end. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
@@ -8202,14 +8228,20 @@ void some_function()
 </requires></method>
 <method name="push_back"><type>void</type><parameter name="value"><paramtype>value_type &amp;&amp;</paramtype><description><para>The value to move construct the new element.</para></description></parameter><purpose>Moves value to the end. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's move constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's move constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>size() &lt; capacity()</computeroutput></para>
 </requires></method>
-<method name="pop_back"><type>void</type><purpose>Destroys last value and decreases the size. </purpose><description><para>
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<method name="pop_back" cv="noexcept"><type>void</type><purpose>Destroys last value and decreases the size. </purpose><description><para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
@@ -8220,7 +8252,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If T's copy constructor or copy assignment throws </para>
 </listitem>
-<listitem><para>If T's move constructor or move assignment throws.</para>
+<listitem><para>If T's move constructor or move assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8237,7 +8271,13 @@ void some_function()
 </requires></method>
 <method name="insert"><type>iterator</type><parameter name="p"><paramtype>const_iterator</paramtype><description><para>The position at which the new value will be inserted. </para></description></parameter><parameter name="value"><paramtype>value_type &amp;&amp;</paramtype><description><para>The value used to move construct the new element.</para></description></parameter><purpose>Inserts a move-constructed element at p. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's move constructor or move assignment throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's move constructor or move assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant or linear. </para>
 </formalpara>
@@ -8254,7 +8294,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If T's copy constructor or copy assignment throws. </para>
 </listitem>
-<listitem><para>If T's move constructor or move assignment throws.</para>
+<listitem><para>If T's move constructor or move assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8276,7 +8318,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If T's constructor and assignment taking a dereferenced <computeroutput>Iterator</computeroutput>. </para>
 </listitem>
-<listitem><para>If T's move constructor or move assignment throws.</para>
+<listitem><para>If T's move constructor or move assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8296,7 +8340,9 @@ void some_function()
 <method name="insert"><type>iterator</type><parameter name="p"><paramtype>const_iterator</paramtype><description><para>The position at which new elements will be inserted. </para></description></parameter><parameter name="il"><paramtype>std::initializer_list&lt; value_type &gt;</paramtype><description><para>The std::initializer_list which contains elements that will be inserted.</para></description></parameter><purpose>Inserts a copy of a range <computeroutput>[il.begin(), il.end())</computeroutput> at p. </purpose><description><para>
 
 <formalpara><title>Throws</title><para><itemizedlist>
-<listitem><para>If T's constructor and assignment taking a dereferenced std::initializer_list iterator.</para>
+<listitem><para>If T's constructor and assignment taking a dereferenced std::initializer_list iterator. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8337,7 +8383,13 @@ void some_function()
           <template-type-parameter name="Iterator"/>
         </template><parameter name="first"><paramtype>Iterator</paramtype><description><para>The iterator to the first element of a range used to construct new content of this container. </para></description></parameter><parameter name="last"><paramtype>Iterator</paramtype><description><para>The iterator to the one after the last element of a range used to construct new content of this container.</para></description></parameter><purpose>Assigns a range <computeroutput>[first, last)</computeroutput> of Values to this container. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor or copy assignment throws,</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor or copy assignment throws, </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8345,7 +8397,13 @@ void some_function()
 </requires></method>
 <method name="assign"><type>void</type><parameter name="il"><paramtype>std::initializer_list&lt; value_type &gt;</paramtype><description><para>std::initializer_list with values used to construct new content of this container.</para></description></parameter><purpose>Assigns a range <computeroutput>[il.begin(), il.end())</computeroutput> of Values to this container. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor or copy assignment throws,</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor or copy assignment throws, </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8353,7 +8411,13 @@ void some_function()
 </requires></method>
 <method name="assign"><type>void</type><parameter name="count"><paramtype>size_type</paramtype><description><para>The new number of elements which will be container in the container. </para></description></parameter><parameter name="value"><paramtype>value_type const &amp;</paramtype><description><para>The value which will be used to copy construct the new content.</para></description></parameter><purpose>Assigns a count copies of value to this container. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor or copy assignment throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor or copy assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8364,7 +8428,13 @@ void some_function()
         </template><parameter name="args"><paramtype>Args &amp;&amp;...</paramtype><description><para>The arguments of the constructor of the new element which will be created at the end of the container.</para></description></parameter><purpose>Inserts a T constructed with <computeroutput>std::forward&lt;Args&gt;(args)</computeroutput>... in the end of the container. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>If in-place constructor throws or T's move constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If in-place constructor throws or T's move constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
@@ -8375,7 +8445,13 @@ void some_function()
           <template-nontype-parameter name="Args"><type>class ...</type></template-nontype-parameter>
         </template><parameter name="p"><paramtype>const_iterator</paramtype><description><para>The position at which new elements will be inserted. </para></description></parameter><parameter name="args"><paramtype>Args &amp;&amp;...</paramtype><description><para>The arguments of the constructor of the new element.</para></description></parameter><purpose>Inserts a T constructed with <computeroutput>std::forward&lt;Args&gt;(args)</computeroutput>... before p. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If in-place constructor throws or if T's move constructor or move assignment throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If in-place constructor throws or if T's move constructor or move assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant or linear. </para>
 </formalpara>
@@ -8412,37 +8488,37 @@ void some_function()
 </para></description><requires><para><computeroutput>i &lt; size()</computeroutput></para>
 </requires><returns><para>const reference to the i-th element from the beginning of the container.</para>
 </returns></method>
-<method name="operator[]"><type>reference</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns reference to the i-th element. </purpose><description><para>
+<method name="operator[]" cv="noexcept"><type>reference</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns reference to the i-th element. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>i &lt; size()</computeroutput></para>
 </requires><returns><para>reference to the i-th element from the beginning of the container.</para>
 </returns></method>
-<method name="operator[]" cv="const"><type>const_reference</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns const reference to the i-th element. </purpose><description><para>
+<method name="operator[]" cv="const noexcept"><type>const_reference</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns const reference to the i-th element. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>i &lt; size()</computeroutput></para>
 </requires><returns><para>const reference to the i-th element from the beginning of the container.</para>
 </returns></method>
-<method name="nth"><type>iterator</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns a iterator to the i-th element. </purpose><description><para>
+<method name="nth" cv="noexcept"><type>iterator</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns a iterator to the i-th element. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>i =&lt; size()</computeroutput></para>
 </requires><returns><para>a iterator to the i-th element.</para>
 </returns></method>
-<method name="nth" cv="const"><type>const_iterator</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns a const_iterator to the i-th element. </purpose><description><para>
+<method name="nth" cv="const noexcept"><type>const_iterator</type><parameter name="i"><paramtype>size_type</paramtype><description><para>The element's index.</para></description></parameter><purpose>Returns a const_iterator to the i-th element. </purpose><description><para>
 
 
 <formalpara><title>Throws</title><para>Nothing by default.</para>
@@ -8452,56 +8528,56 @@ void some_function()
 </para></description><requires><para><computeroutput>i =&lt; size()</computeroutput></para>
 </requires><returns><para>a const_iterator to the i-th element.</para>
 </returns></method>
-<method name="index_of"><type>size_type</type><parameter name="p"><paramtype>iterator</paramtype><description><para>An iterator to the element.</para></description></parameter><purpose>Returns the index of the element pointed by p. </purpose><description><para>
+<method name="index_of" cv="noexcept"><type>size_type</type><parameter name="p"><paramtype>iterator</paramtype><description><para>An iterator to the element.</para></description></parameter><purpose>Returns the index of the element pointed by p. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>begin() &lt;= p &lt;= end()</computeroutput></para>
 </requires><returns><para>The index of the element pointed by p.</para>
 </returns></method>
-<method name="index_of" cv="const"><type>size_type</type><parameter name="p"><paramtype>const_iterator</paramtype><description><para>A const_iterator to the element.</para></description></parameter><purpose>Returns the index of the element pointed by p. </purpose><description><para>
+<method name="index_of" cv="const noexcept"><type>size_type</type><parameter name="p"><paramtype>const_iterator</paramtype><description><para>A const_iterator to the element.</para></description></parameter><purpose>Returns the index of the element pointed by p. </purpose><description><para>
 
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>begin() &lt;= p &lt;= end()</computeroutput></para>
 </requires><returns><para>a const_iterator to the i-th element.</para>
 </returns></method>
-<method name="front"><type>reference</type><purpose>Returns reference to the first element. </purpose><description><para>
+<method name="front" cv="noexcept"><type>reference</type><purpose>Returns reference to the first element. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>!empty</computeroutput>()</para>
 </requires><returns><para>reference to the first element from the beginning of the container.</para>
 </returns></method>
-<method name="front" cv="const"><type>const_reference</type><purpose>Returns const reference to the first element. </purpose><description><para>
+<method name="front" cv="const noexcept"><type>const_reference</type><purpose>Returns const reference to the first element. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>!empty</computeroutput>()</para>
 </requires><returns><para>const reference to the first element from the beginning of the container.</para>
 </returns></method>
-<method name="back"><type>reference</type><purpose>Returns reference to the last element. </purpose><description><para>
+<method name="back" cv="noexcept"><type>reference</type><purpose>Returns reference to the last element. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
 </para></description><requires><para><computeroutput>!empty</computeroutput>()</para>
 </requires><returns><para>reference to the last element from the beginning of the container.</para>
 </returns></method>
-<method name="back" cv="const"><type>const_reference</type><purpose>Returns const reference to the first element. </purpose><description><para>
+<method name="back" cv="const noexcept"><type>const_reference</type><purpose>Returns const reference to the first element. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>Nothing by default.</para>
+<formalpara><title>Throws</title><para>Nothing.</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Constant O(1). </para>
 </formalpara>
@@ -8624,7 +8700,13 @@ void some_function()
 </para></description></constructor>
 <constructor specifiers="explicit"><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of values which will be contained in the container.</para></description></parameter><purpose>Constructs a <classname alt="boost::container::static_vector">static_vector</classname> containing count value initialized values. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's value initialization throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's value initialization throws </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8632,7 +8714,13 @@ void some_function()
 </requires></constructor>
 <constructor><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of values which will be contained in the container.</para></description></parameter><parameter name=""><paramtype><classname>default_init_t</classname></paramtype></parameter><purpose>Constructs a <classname alt="boost::container::static_vector">static_vector</classname> containing count default initialized values. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's default initialization throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's default initialization throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N).</para>
 </formalpara>
@@ -8642,7 +8730,13 @@ void some_function()
 </requires></constructor>
 <constructor><parameter name="count"><paramtype>size_type</paramtype><description><para>The number of copies of a values that will be contained in the container. </para></description></parameter><parameter name="value"><paramtype>value_type const &amp;</paramtype><description><para>The value which will be used to copy construct values.</para></description></parameter><purpose>Constructs a <classname alt="boost::container::static_vector">static_vector</classname> containing count copies of value. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8652,7 +8746,13 @@ void some_function()
           <template-type-parameter name="Iterator"/>
         </template><parameter name="first"><paramtype>Iterator</paramtype><description><para>The iterator to the first element in range. </para></description></parameter><parameter name="last"><paramtype>Iterator</paramtype><description><para>The iterator to the one after the last element in range.</para></description></parameter><purpose>Constructs a <classname alt="boost::container::static_vector">static_vector</classname> containing copy of a range <computeroutput>[first, last)</computeroutput>. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's constructor taking a dereferenced Iterator throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's constructor taking a dereferenced Iterator throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8666,7 +8766,13 @@ void some_function()
 </requires></constructor>
 <constructor><parameter name="il"><paramtype>std::initializer_list&lt; value_type &gt;</paramtype><description><para>std::initializer_list with values to initialize vector.</para></description></parameter><purpose>Constructs a <classname alt="boost::container::static_vector">static_vector</classname> containing copy of a range <computeroutput>[il.begin(), il.end())</computeroutput>. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's constructor taking a dereferenced std::initializer_list throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's constructor taking a dereferenced std::initializer_list throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8690,7 +8796,13 @@ void some_function()
           <template-type-parameter name="O"/>
         </template><parameter name="other"><paramtype><classname>static_vector</classname>&lt; T, C, O &gt; const &amp;</paramtype><description><para>The <classname alt="boost::container::static_vector">static_vector</classname> which content will be copied to this one.</para></description></parameter><purpose>Constructs a copy of other <classname alt="boost::container::static_vector">static_vector</classname>. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8716,7 +8828,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>true</computeroutput> and T's move constructor throws. </para>
 </listitem>
-<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor throws.</para>
+<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>
@@ -8732,7 +8846,13 @@ void some_function()
 </formalpara>
 </para></description></copy-assignment>
 <copy-assignment><type><classname>static_vector</classname> &amp;</type><parameter name="il"><paramtype>std::initializer_list&lt; value_type &gt;</paramtype><description><para>The std::initializer_list which content will be copied to this one.</para></description></parameter><purpose>Copy assigns Values stored in std::initializer_list to *this. </purpose><description><para>
-<formalpara><title>Throws</title><para>If T's copy constructor or copy assignment throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor or copy assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8742,7 +8862,13 @@ void some_function()
           <template-type-parameter name="O"/>
         </template><parameter name="other"><paramtype><classname>static_vector</classname>&lt; T, C, O &gt; const &amp;</paramtype><description><para>The <classname alt="boost::container::static_vector">static_vector</classname> which content will be copied to this one.</para></description></parameter><purpose>Copy assigns Values stored in the other <classname alt="boost::container::static_vector">static_vector</classname> to this one. </purpose><description><para>
 
-<formalpara><title>Throws</title><para>If T's copy constructor or copy assignment throws.</para>
+<formalpara><title>Throws</title><para><itemizedlist>
+<listitem><para>If T's copy constructor or copy assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
+</listitem>
+</itemizedlist>
+</para>
 </formalpara>
 <formalpara><title>Complexity</title><para>Linear O(N). </para>
 </formalpara>
@@ -8768,7 +8894,9 @@ void some_function()
 <formalpara><title>Throws</title><para><itemizedlist>
 <listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>true</computeroutput> and T's move constructor or move assignment throws. </para>
 </listitem>
-<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor or copy assignment throws.</para>
+<listitem><para>If <computeroutput>has_nothrow_move&lt;T&gt;::value</computeroutput> is <computeroutput>false</computeroutput> and T's copy constructor or copy assignment throws. </para>
+</listitem>
+<listitem><para>If <computeroutput>throw_on_overflow&lt;true&gt;</computeroutput> option is set and the container runs out of capacity.</para>
 </listitem>
 </itemizedlist>
 </para>

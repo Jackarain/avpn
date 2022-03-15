@@ -1,7 +1,7 @@
 [/
     Boost.Optional
 
-    Copyright (c) 2015 - 2018 Andrzej Krzemienski
+    Copyright (c) 2015 - 2021 Andrzej Krzemienski
 
     Distributed under the Boost Software License, Version 1.0.
     (See accompanying file LICENSE_1_0.txt or copy at
@@ -10,6 +10,14 @@
 
 
 [section:relnotes Release Notes]
+
+[heading Boost Release 1.79]
+
+* Fixed [@https://github.com/boostorg/optional/issues/98 issue #98].
+
+[heading Boost Release 1.77]
+
+* Fixed [@https://github.com/boostorg/optional/issues/92 issue #92].
 
 [heading Boost Release 1.76]
 
@@ -24,7 +32,7 @@
 [heading Boost Release 1.73]
 
 * Fixed [@https://github.com/boostorg/optional/issues/78 issue #78].
-* `boost::none` is now declared as an inline variable (on compilers that support it): there is only one instance of `boost::none` across all translation units.
+* `boost::none` is now declared as an inline variable (on compilers taht support it): there is only one instance of `boost::none` across all translation units.
 * Fixed a number of compilation errors in GCC 4.4.7 in `optional<T>` for trivial `T`s. Thanks to Robert Leahy for the fix. For details see [@https://github.com/boostorg/optional/pull/80 pr #78].
 * Now surpressing warning `-Wweak-vtables`.
 

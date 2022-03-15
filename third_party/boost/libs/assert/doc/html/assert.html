@@ -688,6 +688,7 @@ pre.rouge {
 </li>
 <li><a href="#changes">Revision History</a>
 <ul class="sectlevel2">
+<li><a href="#changes_in_1_79_0">Changes in 1.79.0</a></li>
 <li><a href="#changes_in_1_78_0">Changes in 1.78.0</a></li>
 <li><a href="#changes_in_1_73_0">Changes in 1.73.0</a></li>
 </ul>
@@ -732,8 +733,8 @@ affecting the definition of the standard <code>assert</code>.</p>
 is included, <code>BOOST_ASSERT(expr)</code> expands to</p>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight"><code data-lang="c++"><span class="p">(</span><span class="n">BOOST_LIKELY</span><span class="p">(</span><span class="o">!!</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span><span class="o">?</span> <span class="p">((</span><span class="kt">void</span><span class="p">)</span><span class="mi">0</span><span class="p">)</span><span class="o">:</span> <span class="o">::</span><span class="n">boost</span><span class="o">::</span><span class="n">assertion_failed</span><span class="p">(</span><span class="err">#</span><span class="n">expr</span><span class="p">,</span>
-    <span class="n">BOOST_CURRENT_FUNCTION</span><span class="p">,</span> <span class="n">__FILE__</span><span class="p">,</span> <span class="n">__LINE__</span><span class="p">))</span></code></pre>
+<pre class="rouge highlight"><code data-lang="none">(BOOST_LIKELY(!!(expr))? ((void)0): ::boost::assertion_failed(#expr,
+    BOOST_CURRENT_FUNCTION, __FILE__, __LINE__))</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -791,8 +792,8 @@ the macro <code>NDEBUG</code> is defined.</p>
 is included, <code>BOOST_ASSERT_MSG(expr,msg)</code> expands to</p>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight"><code data-lang="c++"><span class="p">(</span><span class="n">BOOST_LIKELY</span><span class="p">(</span><span class="o">!!</span><span class="p">(</span><span class="n">expr</span><span class="p">))</span><span class="o">?</span> <span class="p">((</span><span class="kt">void</span><span class="p">)</span><span class="mi">0</span><span class="p">)</span><span class="o">:</span> <span class="o">::</span><span class="n">boost</span><span class="o">::</span><span class="n">assertion_failed_msg</span><span class="p">(</span><span class="err">#</span><span class="n">expr</span><span class="p">,</span>
-    <span class="n">msg</span><span class="p">,</span> <span class="n">BOOST_CURRENT_FUNCTION</span><span class="p">,</span> <span class="n">__FILE__</span><span class="p">,</span> <span class="n">__LINE__</span><span class="p">))</span></code></pre>
+<pre class="rouge highlight"><code data-lang="none">(BOOST_LIKELY(!!(expr))? ((void)0): ::boost::assertion_failed_msg(#expr,
+    msg, BOOST_CURRENT_FUNCTION, __FILE__, __LINE__))</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -934,9 +935,10 @@ Its purpose is to avoid compiling and potentially running code that is only inte
 similar to the C99 predefined identifier <code>__func__</code>.</p>
 </div>
 <div class="paragraph">
-<p><code>BOOST_CURRENT_FUNCTION</code> expands to a string literal containing
-the (fully qualified, if possible) name of the enclosing function. If there is
-no enclosing function, the behavior is unspecified.</p>
+<p><code>BOOST_CURRENT_FUNCTION</code> expands to either a string literal, or the name of a
+character array local to the current function, containing the (fully qualified,
+if possible) name of the enclosing function. If there is no enclosing function,
+the behavior varies by compiler, but is usually a compile error.</p>
 </div>
 <div class="paragraph">
 <p>Some compilers do not provide a way to obtain the name of the current enclosing
@@ -964,7 +966,86 @@ but only requires C&#43;&#43;03.</p>
 </div>
 <div class="paragraph">
 <p>The macro <code>BOOST_CURRENT_LOCATION</code> creates a <code>source_location</code> object
-containing information about the current source location.</p>
+containing information about the current source location. It can be used
+roughly in the same way <code>std::source_location::current()</code> can be used,
+such as in the declaration of a function default argument:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#include &lt;boost/assert/source_location.hpp&gt;
+#include &lt;iostream&gt;
+</span>
+<span class="kt">void</span> <span class="nf">f</span><span class="p">(</span> <span class="n">boost</span><span class="o">::</span><span class="n">source_location</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">loc</span> <span class="o">=</span> <span class="n">BOOST_CURRENT_LOCATION</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"f() called from: "</span> <span class="o">&lt;&lt;</span> <span class="n">loc</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">f</span><span class="p">();</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The output of this example varies by compiler and C++ standard level, but
+it&#8217;s generally one of</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="none">f() called from: example.cpp:11:6 in function 'int main()'</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="none">f() called from: example.cpp:11:5 in function 'main'</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="none">f() called from: example.cpp:11 in function 'main'</code></pre>
+</div>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="none">f() called from: example.cpp:4</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This is useful if, for example, you want to declare a function that throws
+an exception, such that the source location of the caller is attached to
+the thrown exception:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="n">BOOST_NORETURN</span> <span class="n">BOOST_NOINLINE</span> <span class="kt">void</span> <span class="nf">throw_invalid_argument</span><span class="p">(</span>
+    <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">message</span><span class="p">,</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">source_location</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">loc</span> <span class="o">=</span> <span class="n">BOOST_CURRENT_LOCATION</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">throw_exception</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">invalid_argument</span><span class="p">(</span> <span class="n">message</span> <span class="p">),</span> <span class="n">loc</span> <span class="p">);</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now you could use this helper function in, say, the implementation of
+<code>at</code> to signal an index that is out of range:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="n">T</span><span class="o">&amp;</span> <span class="n">my_class</span><span class="o">::</span><span class="n">at</span><span class="p">(</span> <span class="kt">size_t</span> <span class="n">i</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="n">size</span><span class="p">()</span> <span class="p">)</span> <span class="n">throw_invalid_argument</span><span class="p">(</span> <span class="s">"index out of range"</span> <span class="p">);</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">()[</span> <span class="n">i</span> <span class="p">];</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This would attach the source location of the line in <code>at</code> that calls
+<code>throw_invalid_argument</code> to the thrown exception.</p>
+</div>
+<div class="paragraph">
+<p>Note that if instead you use <code>BOOST_THROW_EXCEPTION</code> in
+<code>throw_invalid_argument</code>, the location will be that of
+<code>throw_invalid_argument</code> and not of its caller.</p>
 </div>
 </div>
 <div class="sect2">
@@ -977,8 +1058,9 @@ containing information about the current source location.</p>
 <span class="k">struct</span> <span class="nc">source_location</span>
 <span class="p">{</span>
     <span class="k">constexpr</span> <span class="n">source_location</span><span class="p">()</span> <span class="k">noexcept</span><span class="p">;</span>
-    <span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span><span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">line</span><span class="p">,</span>
-      <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">function</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">column</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span> <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">line</span><span class="p">,</span>
+      <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">function</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">column</span> <span class="o">=</span> <span class="mi">0</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
+    <span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">source_location</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">loc</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 
     <span class="k">constexpr</span> <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">file_name</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
     <span class="k">constexpr</span> <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">function_name</span><span class="p">()</span> <span class="k">const</span> <span class="k">noexcept</span><span class="p">;</span>
@@ -994,8 +1076,7 @@ containing information about the current source location.</p>
 
 <span class="p">}</span> <span class="c1">// namespace boost</span>
 
-<span class="cp">#define BOOST_CURRENT_LOCATION \
-  ::boost::source_location(__FILE__, __LINE__, BOOST_CURRENT_FUNCTION)</span></code></pre>
+<span class="cp">#define BOOST_CURRENT_LOCATION </span><span class="cm">/* see below */</span></code></pre>
 </div>
 </div>
 </div>
@@ -1011,15 +1092,14 @@ containing information about the current source location.</p>
 <dt class="hdlist1">Effects: </dt>
 <dd>
 <p>Constructs a <code>source_location</code> object for which <code>file_name()</code>
-and <code>function_name()</code> return <code>"(unknown)"</code>, and <code>line()</code> and <code>column()</code>
-return <code>0</code>.</p>
+and <code>function_name()</code> return <code>""</code>, and <code>line()</code> and <code>column()</code> return <code>0</code>.</p>
 </dd>
 </dl>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="rouge highlight"><code data-lang="c++"><span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span><span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">line</span><span class="p">,</span>
-  <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">function</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">column</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span></code></pre>
+<pre class="rouge highlight"><code data-lang="c++"><span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span> <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">line</span><span class="p">,</span>
+  <span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">function</span><span class="p">,</span> <span class="kt">uint_least32_t</span> <span class="n">column</span> <span class="o">=</span> <span class="mi">0</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span></code></pre>
 </div>
 </div>
 <div class="dlist">
@@ -1029,6 +1109,21 @@ return <code>0</code>.</p>
 <p>Constructs a <code>source_location</code> object for which <code>file_name()</code>
 returns <code>file</code>, <code>function_name()</code> returns <code>function</code>, <code>line()</code> returns the
 <code>line</code> argument and <code>column()</code> returns the <code>column</code> argument.</p>
+</dd>
+</dl>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="k">constexpr</span> <span class="n">source_location</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">source_location</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">loc</span> <span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span></code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Effects: </dt>
+<dd>
+<p>Constructs a <code>source_location</code> object for which <code>file_name()</code>
+returns <code>loc.file_name()</code>, <code>function_name()</code> returns <code>loc.function_name()</code>,
+<code>line()</code> returns <code>loc.line()</code> and <code>column()</code> returns <code>loc.column()</code>.</p>
 </dd>
 </dl>
 </div>
@@ -1074,17 +1169,8 @@ returns <code>file</code>, <code>function_name()</code> returns <code>function</
 <div class="sect2">
 <h3 id="boost_current_location">BOOST_CURRENT_LOCATION</h3>
 <div class="paragraph">
-<p>When <code>BOOST_DISABLE_CURRENT_LOCATION</code> is not defined, the definition of
+<p>When <code>BOOST_DISABLE_CURRENT_LOCATION</code> is defined, the definition of
 <code>BOOST_CURRENT_LOCATION</code> is:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#define BOOST_CURRENT_LOCATION \
-  ::boost::source_location(__FILE__, __LINE__, BOOST_CURRENT_FUNCTION)</span></code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Otherwise, <code>BOOST_CURRENT_LOCATION</code> is defined as:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1095,12 +1181,41 @@ returns <code>file</code>, <code>function_name()</code> returns <code>function</
 <p>This allows producing executables that contain no identifying information,
 for security reasons.</p>
 </div>
+<div class="paragraph">
+<p>Otherwise, <code>BOOST_CURRENT_LOCATION</code> is defined as the approximate equivalent
+of</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#define BOOST_CURRENT_LOCATION \
+    ::boost::source_location(::std::source_location::current())</span></code></pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div class="sect1">
 <h2 id="changes">Revision History</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="changes_in_1_79_0">Changes in 1.79.0</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>source_location().file_name()</code> and <code>source_location().function_name()</code>
+now return <code>""</code> instead of <code>"(unknown)"</code>.</p>
+</li>
+<li>
+<p>Added a <code>source_location</code> constructor from <code>std::source_location</code>.</p>
+</li>
+<li>
+<p>Changed <code>BOOST_CURRENT_LOCATION</code> to more closely match the behavior of
+<code>std::source_location::current()</code>, such as being usable at top level or
+as a default function argument.</p>
+</li>
+</ul>
+</div>
+</div>
 <div class="sect2">
 <h3 id="changes_in_1_78_0">Changes in 1.78.0</h3>
 <div class="ulist">
@@ -1132,7 +1247,7 @@ for security reasons.</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Copyright 2002, 2007, 2014, 2017, 2019-2021 Peter Dimov</p>
+<p>Copyright 2002, 2007, 2014, 2017, 2019-2022 Peter Dimov</p>
 </li>
 <li>
 <p>Copyright 2011 Beman Dawes</p>
@@ -1150,7 +1265,7 @@ for security reasons.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:47:51 UTC
+Last updated 2022-03-13 09:02:28 UTC
 </div>
 </div>
 <style>

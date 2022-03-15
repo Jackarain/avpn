@@ -34,7 +34,7 @@
 </dl></div>
 <div class="simplesect">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="idm9184"></a>Authors</h3></div></div></div>
+<a name="idm9424"></a>Authors</h3></div></div></div>
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem">
           Glen Fernandes
         </li></ul></div>
@@ -76,35 +76,58 @@
 <a name="core.pointer_traits.reference"></a><a class="link" href="pointer_traits.html#core.pointer_traits.reference" title="Reference">Reference</a>
 </h3></div></div></div>
 <pre class="programlisting"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
-  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">struct</span> <span class="identifier">pointer_traits</span> <span class="special">{</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">struct</span> <span class="identifier">pointer_traits</span> <span class="special">{</span>
     <span class="keyword">typedef</span> <span class="identifier">T</span> <span class="identifier">pointer</span><span class="special">;</span>
     <span class="keyword">typedef</span> <span class="emphasis"><em>see below</em></span> <span class="identifier">element_type</span><span class="special">;</span>
     <span class="keyword">typedef</span> <span class="emphasis"><em>see below</em></span> <span class="identifier">difference_type</span><span class="special">;</span>
 
-    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span> <span class="keyword">struct</span> <span class="identifier">rebind_to</span> <span class="special">{</span> <span class="keyword">typedef</span> <span class="emphasis"><em>see below</em></span> <span class="identifier">type</span><span class="special">;</span> <span class="special">};</span>
-    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span> <span class="keyword">using</span> <span class="identifier">rebind</span> <span class="special">=</span> <span class="keyword">typename</span> <span class="identifier">rebind_to</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">&gt;::</span><span class="identifier">type</span><span class="special">;</span>
+    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span>
+    <span class="keyword">struct</span> <span class="identifier">rebind_to</span> <span class="special">{</span>
+        <span class="keyword">typedef</span> <span class="emphasis"><em>see below</em></span> <span class="identifier">type</span><span class="special">;</span>
+    <span class="special">};</span>
 
-    <span class="keyword">static</span> <span class="identifier">pointer</span> <span class="identifier">pointer_to</span><span class="special">(</span><span class="emphasis"><em>see below</em></span> <span class="identifier">v</span><span class="special">);</span>
-  <span class="special">};</span>
+    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span>
+    <span class="keyword">using</span> <span class="identifier">rebind</span> <span class="special">=</span> <span class="keyword">typename</span> <span class="identifier">rebind_to</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">&gt;::</span><span class="identifier">type</span><span class="special">;</span>
 
-  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">struct</span> <span class="identifier">pointer_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">*&gt;</span> <span class="special">{</span>
+    <span class="keyword">static</span> <span class="identifier">pointer</span> <span class="identifier">pointer_to</span><span class="special">(</span><span class="identifier">element_type</span><span class="special">&amp;</span> <span class="identifier">v</span><span class="special">);</span>
+<span class="special">};</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">struct</span> <span class="identifier">pointer_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">*&gt;</span> <span class="special">{</span>
     <span class="keyword">typedef</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">pointer</span><span class="special">;</span>
     <span class="keyword">typedef</span> <span class="identifier">T</span> <span class="identifier">element_type</span><span class="special">;</span>
     <span class="keyword">typedef</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">ptrdiff_t</span> <span class="identifier">difference_type</span><span class="special">;</span>
 
-    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span> <span class="keyword">struct</span> <span class="identifier">rebind_to</span> <span class="special">{</span> <span class="keyword">typedef</span> <span class="identifier">U</span><span class="special">*</span> <span class="identifier">type</span><span class="special">;</span> <span class="special">};</span>
-    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span> <span class="keyword">using</span> <span class="identifier">rebind</span> <span class="special">=</span> <span class="keyword">typename</span> <span class="identifier">rebind_to</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">&gt;::</span><span class="identifier">type</span><span class="special">;</span>
+    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span>
+    <span class="keyword">struct</span> <span class="identifier">rebind_to</span> <span class="special">{</span>
+        <span class="keyword">typedef</span> <span class="identifier">U</span><span class="special">*</span> <span class="identifier">type</span><span class="special">;</span>
+    <span class="special">};</span>
+
+    <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">U</span><span class="special">&gt;</span>
+    <span class="keyword">using</span> <span class="identifier">rebind</span> <span class="special">=</span> <span class="keyword">typename</span> <span class="identifier">rebind_to</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">&gt;::</span><span class="identifier">type</span><span class="special">;</span>
 
     <span class="keyword">static</span> <span class="identifier">pointer</span> <span class="identifier">pointer_to</span><span class="special">(</span><span class="emphasis"><em>see below</em></span> <span class="identifier">v</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
-  <span class="special">};</span>
+<span class="special">};</span>
 
-  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-  <span class="keyword">constexpr</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">to_address</span><span class="special">(</span><span class="identifier">T</span><span class="special">*</span> <span class="identifier">v</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">constexpr</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">to_address</span><span class="special">(</span><span class="identifier">T</span><span class="special">*</span> <span class="identifier">v</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
 
-  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-  <span class="keyword">auto</span> <span class="identifier">to_address</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">v</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
-<span class="special">}</span>
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">auto</span> <span class="identifier">to_address</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">v</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+
+<span class="special">}</span> <span class="comment">// boost</span>
 </pre>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="core.pointer_traits.reference.overview"></a><a class="link" href="pointer_traits.html#core.pointer_traits.reference.overview" title="Overview">Overview</a>
+</h4></div></div></div>
+<p>
+          If the member type <code class="computeroutput"><span class="identifier">element_type</span></code>
+          is not defined, then all other members are also not defined (<code class="computeroutput"><span class="identifier">pointer_traits</span></code> is SFINAE-friendly).
+        </p>
+</div>
 <div class="section">
 <div class="titlepage"><div><div><h4 class="title">
 <a name="core.pointer_traits.reference.member_types"></a><a class="link" href="pointer_traits.html#core.pointer_traits.reference.member_types" title="Member types">Member
@@ -119,7 +142,7 @@
                 <code class="computeroutput"><span class="identifier">T</span><span class="special">::</span><span class="identifier">element_type</span></code> if such a type exists;
                 otherwise <code class="computeroutput"><span class="identifier">U</span></code> if <code class="computeroutput"><span class="identifier">T</span></code> is a class template instantiation
                 of the form <code class="computeroutput"><span class="identifier">Pointer</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">,</span> <span class="identifier">Args</span><span class="special">&gt;</span></code>, where <code class="computeroutput"><span class="identifier">Args</span></code>
-                is zero or more type arguments; otherwise the specialization is ill-formed.
+                is zero or more type arguments; otherwise the member is not defined.
               </p></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">typedef</span></code> <span class="emphasis"><em>see
             below</em></span> <code class="computeroutput"><span class="identifier">difference_type</span><span class="special">;</span></code></span></dt>
@@ -136,8 +159,7 @@
                 <code class="computeroutput"><span class="identifier">type</span></code> is <code class="computeroutput"><span class="identifier">T</span><span class="special">::</span><span class="identifier">rebind</span><span class="special">&lt;</span><span class="identifier">U</span><span class="special">&gt;</span></code>
                 if such a type exists; otherwise, <code class="computeroutput"><span class="identifier">Pointer</span><span class="special">&lt;</span><span class="identifier">V</span><span class="special">,</span> <span class="identifier">Args</span><span class="special">&gt;</span></code> if <code class="computeroutput"><span class="identifier">T</span></code>
                 is a class template instantiation of the form <code class="computeroutput"><span class="identifier">Pointer</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">,</span> <span class="identifier">Args</span><span class="special">&gt;</span></code>, where <code class="computeroutput"><span class="identifier">Args</span></code>
-                is zero or more type arguments; otherwise, the instantiation of
-                <code class="computeroutput"><span class="identifier">rebind_to</span></code> is ill-formed.
+                is zero or more type arguments; otherwise, the member is not defined.
               </p></dd>
 </dl>
 </div>
@@ -151,16 +173,16 @@
 <p class="title"><b></b></p>
 <dl class="variablelist">
 <dt><span class="term"><code class="computeroutput"><span class="keyword">static</span> <span class="identifier">pointer</span>
-            <span class="identifier">pointer_traits</span><span class="special">::</span><span class="identifier">pointer_to</span><span class="special">(</span></code><span class="emphasis"><em>see
-            below</em></span> <code class="computeroutput"><span class="identifier">v</span><span class="special">);</span></code></span></dt>
+            <span class="identifier">pointer_traits</span><span class="special">::</span><span class="identifier">pointer_to</span><span class="special">(</span><span class="identifier">element_type</span><span class="special">&amp;</span>
+            <span class="identifier">v</span><span class="special">);</span></code></span></dt>
 <dd><div class="variablelist">
 <p class="title"><b></b></p>
 <dl class="variablelist">
 <dt><span class="term">Remark</span></dt>
 <dd><p>
                       If <code class="computeroutput"><span class="identifier">element_type</span></code>
-                      is a void type, the type of <code class="computeroutput"><span class="identifier">v</span></code>
-                      is unspecified; otherwise, it is <code class="computeroutput"><span class="identifier">element_type</span><span class="special">&amp;</span></code>.
+                      is a void type, or if <code class="computeroutput"><span class="identifier">T</span><span class="special">::</span><span class="identifier">pointer_to</span><span class="special">(</span><span class="identifier">v</span><span class="special">)</span></code> is not well formed, this member
+                      is not defined.
                     </p></dd>
 <dt><span class="term">Returns</span></dt>
 <dd><p>
@@ -170,8 +192,8 @@
 </dl>
 </div></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">static</span> <span class="identifier">pointer</span>
-            <span class="identifier">pointer_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">*&gt;::</span><span class="identifier">pointer_to</span><span class="special">(</span></code><span class="emphasis"><em>see
-            below</em></span> <code class="computeroutput"><span class="identifier">v</span><span class="special">)</span>
+            <span class="identifier">pointer_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">*&gt;::</span><span class="identifier">pointer_to</span><span class="special">(</span><span class="identifier">element_type</span><span class="special">&amp;</span>
+            <span class="identifier">v</span><span class="special">)</span>
             <span class="keyword">noexcept</span><span class="special">;</span></code></span></dt>
 <dd><div class="variablelist">
 <p class="title"><b></b></p>
@@ -179,8 +201,7 @@
 <dt><span class="term">Remark</span></dt>
 <dd><p>
                       If <code class="computeroutput"><span class="identifier">element_type</span></code>
-                      is a void type, the type of <code class="computeroutput"><span class="identifier">v</span></code>
-                      is unspecified; otherwise, it is <code class="computeroutput"><span class="identifier">element_type</span><span class="special">&amp;</span></code>.
+                      is a void type, this member is not defined.
                     </p></dd>
 <dt><span class="term">Returns</span></dt>
 <dd><p>

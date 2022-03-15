@@ -1,0 +1,137 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Class shared_spin_mutex</title>
+<link rel="stylesheet" href="../../../../../../doc/src/boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
+<link rel="home" href="../../index.html" title="Chapter 1. Boost.Sync v1">
+<link rel="up" href="../../mutexes.html#header.boost.sync.mutexes.shared_spin_mutex_hpp" title="Header &lt;boost/sync/mutexes/shared_spin_mutex.hpp&gt;">
+<link rel="prev" href="mutex.html" title="Class mutex">
+<link rel="next" href="spin_mutex.html" title="Class spin_mutex">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table cellpadding="2" width="100%"><tr><td valign="top"><img alt="Boost C++ Libraries" width="277" height="86" src="../../../../../../boost.png"></td></tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="mutex.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../mutexes.html#header.boost.sync.mutexes.shared_spin_mutex_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spin_mutex.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="boost.sync.shared_spin_mutex"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class shared_spin_mutex</span></h2>
+<p>boost::sync::shared_spin_mutex</p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../../mutexes.html#header.boost.sync.mutexes.shared_spin_mutex_hpp" title="Header &lt;boost/sync/mutexes/shared_spin_mutex.hpp&gt;">boost/sync/mutexes/shared_spin_mutex.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="shared_spin_mutex.html" title="Class shared_spin_mutex">shared_spin_mutex</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="shared_spin_mutex.html#boost.sync.shared_spin_mutexconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="shared_spin_mutex.html#idm963-bb"><span class="identifier">shared_spin_mutex</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <a class="link" href="shared_spin_mutex.html#idm974-bb"><span class="identifier">shared_spin_mutex</span></a><span class="special">(</span><span class="identifier">mutex</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <span class="identifier">shared_spin_mutex</span> <span class="special">&amp;</span> <a class="link" href="shared_spin_mutex.html#idm977-bb"><span class="keyword">operator</span><span class="special">=</span></a><span class="special">(</span><span class="identifier">mutex</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <a class="link" href="shared_spin_mutex.html#idm967-bb"><span class="special">~</span><span class="identifier">shared_spin_mutex</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="shared_spin_mutex.html#idm922-bb">public member functions</a></span>
+  <span class="keyword">void</span> <a class="link" href="shared_spin_mutex.html#idm923-bb"><span class="identifier">lock</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="shared_spin_mutex.html#idm928-bb"><span class="identifier">try_lock</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="shared_spin_mutex.html#idm935-bb"><span class="identifier">unlock</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="shared_spin_mutex.html#idm943-bb"><span class="identifier">lock_shared</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">bool</span> <a class="link" href="shared_spin_mutex.html#idm948-bb"><span class="identifier">try_lock</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="shared_spin_mutex.html#idm955-bb"><span class="identifier">unlock_shared</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idm3693"></a><h2>Description</h2>
+<div class="refsect2">
+<a name="idm3695"></a><h3>
+<a name="boost.sync.shared_spin_mutexconstruct-copy-destruct"></a><code class="computeroutput">shared_spin_mutex</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a name="idm963-bb"></a><span class="identifier">shared_spin_mutex</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Default constructor. <p>Creates a mutual exclusion primitive in the unlocked state. </p>
+</li>
+<li class="listitem"><pre class="literallayout"><a name="idm974-bb"></a><span class="identifier">shared_spin_mutex</span><span class="special">(</span><span class="identifier">mutex</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout"><span class="identifier">shared_spin_mutex</span> <span class="special">&amp;</span> <a name="idm977-bb"></a><span class="keyword">operator</span><span class="special">=</span><span class="special">(</span><span class="identifier">mutex</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem">
+<pre class="literallayout"><a name="idm967-bb"></a><span class="special">~</span><span class="identifier">shared_spin_mutex</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Destructor. <p>Destroys the mutual exclusion primitive.</p>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>The primitive is in the unlocked state. </p></td>
+</tr></tbody>
+</table></div>
+</li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idm3755"></a><h3>
+<a name="idm922-bb"></a><code class="computeroutput">shared_spin_mutex</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm923-bb"></a><span class="identifier">lock</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Exclusively locks the mutex. <p>If the mutex is not locked, the method acquires an exclusive lock and returns. Otherwise the method blocks until the mutex is unlocked. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idm928-bb"></a><span class="identifier">try_lock</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Attempts to exclusively lock the mutex. <p>If the mutex is not locked, the method acquires an exclusive lock and returns <code class="computeroutput">true</code>. Otherwise the method returns <code class="computeroutput">false</code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm935-bb"></a><span class="identifier">unlock</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Unlocks the mutex. <p>Releases the mutex that has been exclusively locked by the current thread.</p>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>The mutex is exclusively locked by the current thread. </p></td>
+</tr></tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm943-bb"></a><span class="identifier">lock_shared</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Shared locks the mutex. <p>If the mutex is not exclusively locked or shared locked, the method acquires a shared lock and returns. Otherwise the method blocks until the mutex is unlocked. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">bool</span> <a name="idm948-bb"></a><span class="identifier">try_lock</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Attempts to exclusively lock the mutex. <p>If the mutex is not exclusively locked or shared locked, the method acquires a shared lock and returns <code class="computeroutput">true</code>. Otherwise the method returns <code class="computeroutput">false</code>. </p>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm955-bb"></a><span class="identifier">unlock_shared</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Unlocks the mutex. <p>Releases the mutex that has been shared locked by the current thread.</p>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>The mutex is shared locked by the current thread. </p></td>
+</tr></tbody>
+</table></div>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright © 2013 Vicente J. Botet Escriba, Tim Blechmann<br>Copyright © 2013-2019 Andrey Semashev<p>
+        Distributed under the Boost Software License, Version 1.0. (See accompanying
+        file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>).
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="mutex.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../mutexes.html#header.boost.sync.mutexes.shared_spin_mutex_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spin_mutex.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

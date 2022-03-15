@@ -1,0 +1,26 @@
+[/
+                 Copyright Andrey Semashev 2019.
+     Distributed under the Boost Software License, Version 1.0.
+        (See accompanying file LICENSE_1_0.txt or copy at
+              http://www.boost.org/LICENSE_1_0.txt)
+
+    This document is a part of Boost.Sync library documentation.
+
+     This document was automatically generated,  DO NOT EDIT!
+/]
+
+[template boost_sync_mutexes_mutex_hpp[][headerref boost/sync/mutexes/mutex.hpp]]
+
+[template class_sync_mutex[][classref boost::sync::mutex mutex]]
+
+[template boost_sync_mutexes_shared_spin_mutex_hpp[][headerref boost/sync/mutexes/shared_spin_mutex.hpp]]
+
+[template class_sync_shared_spin_mutex[][classref boost::sync::shared_spin_mutex shared_spin_mutex]]
+
+[template boost_sync_mutexes_spin_mutex_hpp[][headerref boost/sync/mutexes/spin_mutex.hpp]]
+
+[template class_sync_spin_mutex[][classref boost::sync::spin_mutex spin_mutex]]
+
+[template boost_sync_mutexes_timed_mutex_hpp[][headerref boost/sync/mutexes/timed_mutex.hpp]]
+
+[template class_sync_timed_mutex[][classref boost::sync::timed_mutex timed_mutex]]

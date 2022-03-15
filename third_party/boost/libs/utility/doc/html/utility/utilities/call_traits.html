@@ -6,8 +6,8 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../../index.html" title="Chapter 1. Boost.Utility">
 <link rel="up" href="../utilities.html" title="Utilities">
-<link rel="prev" href="binary_integer_literals.html" title="Binary Integer Literals">
-<link rel="next" href="compressed_pair.html" title="Compressed Pair">
+<link rel="prev" href="../../BOOST_BINARY_LITERAL_D.html" title="Macro BOOST_BINARY_LITERAL_D">
+<link rel="next" href="../../boost/call_traits.html" title="Struct template call_traits">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <table cellpadding="2" width="100%"><tr>
@@ -20,7 +20,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="binary_integer_literals.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="compressed_pair.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../BOOST_BINARY_LITERAL_D.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/call_traits.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -39,31 +39,31 @@
 <a name="utility.utilities.call_traits.introduction"></a><a class="link" href="call_traits.html#utility.utilities.call_traits.introduction" title="Introduction">Introduction</a>
 </h4></div></div></div>
 <p>
-          All of the contents of <a href="../../../../../include/boost/call_traits.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">call_traits</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> are defined inside <code class="computeroutput"><span class="keyword">namespace</span> <span class="identifier">boost</span></code>.
+          All of the contents of <a href="../../../../../../boost/call_traits.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">call_traits</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> are defined inside <code class="computeroutput"><span class="keyword">namespace</span> <span class="identifier">boost</span></code>.
         </p>
 <p>
-          The template class <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a> encapsulates the "best"
+          The template class <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a> encapsulates the "best"
           method to pass a parameter of some type <code class="computeroutput"><span class="identifier">T</span></code>
           to or from a function, and consists of a collection of <code class="computeroutput"><span class="keyword">typedef</span></code>s
-          defined as in the table below. The purpose of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> is to ensure that
+          defined as in the table below. The purpose of <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> is to ensure that
           problems like <a class="link" href="call_traits.html#sec:refs">"references to references"</a>
           never occur, and that parameters are passed in the most efficient manner
           possible, as in the <a class="link" href="call_traits.html#sec:examples">examples</a>. In each
           case, if your existing practice is to use the type defined on the left,
-          then replace it with the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> defined type on the
+          then replace it with the <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> defined type on the
           right.
         </p>
 <p>
           Note that for compilers that do not support either partial specialization
-          or member templates, no benefit will occur from using <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>: the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> defined types will
+          or member templates, no benefit will occur from using <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>: the <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> defined types will
           always be the same as the existing practice in this case. In addition if
           only member templates and not partial template specialisation is support
-          by the compiler (for example Visual C++ 6) then <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> cannot be used with
+          by the compiler (for example Visual C++ 6) then <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> cannot be used with
           array types, although it can still be used to solve the reference to reference
           problem.
         </p>
 <div class="table">
-<a name="utility.utilities.call_traits.introduction.call_traits_types"></a><p class="title"><b>Table 1.2. <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+<a name="utility.utilities.call_traits.introduction.call_traits_types"></a><p class="title"><b>Table 1.2. <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           types</b></p>
 <div class="table-contents"><table class="table" summary="call_traits
           types">
@@ -81,7 +81,7 @@
                 </th>
 <th>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
                     equivalent
                   </p>
                 </th>
@@ -108,7 +108,7 @@
                 </td>
 <td>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">value_type</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">value_type</span></code>
                   </p>
                 </td>
 <td>
@@ -138,7 +138,7 @@
                 </td>
 <td>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">reference</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">reference</span></code>
                   </p>
                 </td>
 <td>
@@ -166,7 +166,7 @@
                 </td>
 <td>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">const_reference</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">const_reference</span></code>
                   </p>
                 </td>
 <td>
@@ -195,7 +195,7 @@
                 </td>
 <td>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">param_type</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">param_type</span></code>
                   </p>
                 </td>
 <td>
@@ -220,13 +220,13 @@
 <div class="orderedlist"><ol class="orderedlist" type="1">
 <li class="listitem">
               If <code class="computeroutput"><span class="identifier">T</span></code> is already reference
-              type, then <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+              type, then <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
               is defined such that <a class="link" href="call_traits.html#sec:refs">"references to references"</a>
               do not occur (requires partial specialization).
             </li>
 <li class="listitem">
               If <code class="computeroutput"><span class="identifier">T</span></code> is an array type,
-              then <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+              then <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
               defines <code class="computeroutput"><span class="identifier">value_type</span></code>
               as a "constant pointer to type" rather than an "array
               of type" (requires partial specialization). Note that if you are
@@ -253,11 +253,11 @@
         constructibility</a>
 </h4></div></div></div>
 <p>
-          The following table defines which <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> types can always be
+          The following table defines which <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> types can always be
           copy-constructed from which other types:
         </p>
 <div class="table">
-<a name="utility.utilities.call_traits.copy_constructibility.which_call_traits_types_can_alwa"></a><p class="title"><b>Table 1.3. Which <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+<a name="utility.utilities.call_traits.copy_constructibility.which_call_traits_types_can_alwa"></a><p class="title"><b>Table 1.3. Which <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           types can always be copy-constructed from which other types</b></p>
 <div class="table-contents"><table class="table" summary="Which call_traits
           types can always be copy-constructed from which other types">
@@ -476,7 +476,7 @@
           the following assignments are possible:
         </p>
 <div class="table">
-<a name="utility.utilities.call_traits.copy_constructibility.which_call_traits_types_are_assi"></a><p class="title"><b>Table 1.4. Which <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+<a name="utility.utilities.call_traits.copy_constructibility.which_call_traits_types_are_assi"></a><p class="title"><b>Table 1.4. Which <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           types are assignable from which other types</b></p>
 <div class="table-contents"><table class="table" summary="Which call_traits
           types are assignable from which other types">
@@ -688,10 +688,10 @@
 <a name="utility.utilities.call_traits.examples"></a><a name="sec:examples"></a><a class="link" href="call_traits.html#utility.utilities.call_traits.examples" title="Examples">Examples</a>
 </h4></div></div></div>
 <p>
-          The following table shows the effect that <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> has on various types.
+          The following table shows the effect that <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> has on various types.
         </p>
 <div class="table">
-<a name="utility.utilities.call_traits.examples.examples_of_call_traits_types"></a><p class="title"><b>Table 1.5. Examples of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+<a name="utility.utilities.call_traits.examples.examples_of_call_traits_types"></a><p class="title"><b>Table 1.5. Examples of <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           types</b></p>
 <div class="table-contents"><table class="table" summary="Examples of call_traits
           types">
@@ -708,22 +708,22 @@
                 </th>
 <th>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">value_type</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">value_type</span></code>
                   </p>
                 </th>
 <th>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">reference</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">reference</span></code>
                   </p>
                 </th>
 <th>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">const_reference</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">const_reference</span></code>
                   </p>
                 </th>
 <th>
                   <p>
-                    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">param_type</span></code>
+                    <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>::<code class="computeroutput"><span class="identifier">param_type</span></code>
                   </p>
                 </th>
 <th>
@@ -950,8 +950,7 @@
                 </td>
 <td>
                   <p>
-                    <code class="computeroutput"><span class="keyword">const</span> <span class="keyword">int</span>
-                    <span class="special">*</span><span class="keyword">const</span></code>
+                    <code class="computeroutput"><span class="keyword">const</span> <span class="keyword">int</span><span class="special">*</span> <span class="keyword">const</span></code>
                   </p>
                 </td>
 <td>
@@ -965,7 +964,7 @@
 </div>
 <br class="table-break"><p>
           The table assumes the compiler supports partial specialization: if it does
-          not then all types behave in the same way as the entry for "<code class="computeroutput"><span class="identifier">my_class</span></code>", and <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> can not be used with
+          not then all types behave in the same way as the entry for "<code class="computeroutput"><span class="identifier">my_class</span></code>", and <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> can not be used with
           reference or array types.
         </p>
 <div class="section">
@@ -975,7 +974,7 @@
 </h5></div></div></div>
 <p>
             The following class is a trivial class that stores some type <code class="computeroutput"><span class="identifier">T</span></code> by value (see the <a href="../../../../../test/call_traits_test.cpp" target="_top"><code class="computeroutput"><span class="identifier">call_traits_test</span><span class="special">.</span><span class="identifier">cpp</span></code></a> file). The aim is to illustrate
-            how each of the available <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> <code class="computeroutput"><span class="keyword">typedef</span></code>s
+            how each of the available <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> <code class="computeroutput"><span class="keyword">typedef</span></code>s
             may be used:
           </p>
 <pre class="programlisting"><span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
@@ -983,11 +982,11 @@
 <span class="special">{</span>
    <span class="comment">// define our typedefs first, arrays are stored by value</span>
    <span class="comment">// so value_type is not the same as result_type:</span>
-   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">param_type</span>       <span class="identifier">param_type</span><span class="special">;</span>
-   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">reference</span>        <span class="identifier">reference</span><span class="special">;</span>
-   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">const_reference</span>  <span class="identifier">const_reference</span><span class="special">;</span>
+   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">param_type</span>       <span class="identifier">param_type</span><span class="special">;</span>
+   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">reference</span>        <span class="identifier">reference</span><span class="special">;</span>
+   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">const_reference</span>  <span class="identifier">const_reference</span><span class="special">;</span>
    <span class="keyword">typedef</span> <span class="identifier">T</span>                                                <span class="identifier">value_type</span><span class="special">;</span>
-   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span>       <span class="identifier">result_type</span><span class="special">;</span>
+   <span class="keyword">typedef</span> <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span>       <span class="identifier">result_type</span><span class="special">;</span>
 
    <span class="comment">// stored value:</span>
    <span class="identifier">value_type</span> <span class="identifier">v_</span><span class="special">;</span>
@@ -1032,9 +1031,9 @@
             type, <code class="computeroutput"><span class="keyword">operator</span><span class="special">()</span></code>
             will now end up taking a reference to a reference as an argument, and
             that is not currently legal. The solution here is to modify <code class="computeroutput"><span class="keyword">operator</span><span class="special">()</span></code>
-            to use <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
+            to use <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
           </p>
-<pre class="programlisting"><span class="keyword">typename</span> <span class="identifier">Operation</span><span class="special">::</span><span class="identifier">result_type</span> <span class="keyword">operator</span><span class="special">()(</span><span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="keyword">typename</span> <span class="identifier">Operation</span><span class="special">::</span><span class="identifier">second_argument_type</span><span class="special">&gt;::</span><span class="identifier">param_type</span> <span class="identifier">x</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
+<pre class="programlisting"><span class="keyword">typename</span> <span class="identifier">Operation</span><span class="special">::</span><span class="identifier">result_type</span> <span class="keyword">operator</span><span class="special">()(</span><span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="keyword">typename</span> <span class="identifier">Operation</span><span class="special">::</span><span class="identifier">second_argument_type</span><span class="special">&gt;::</span><span class="identifier">param_type</span> <span class="identifier">x</span><span class="special">)</span> <span class="keyword">const</span><span class="special">;</span>
 </pre>
 <p>
             Now in the case that <code class="computeroutput"><span class="identifier">Operation</span><span class="special">::</span><span class="identifier">second_argument_type</span></code>
@@ -1056,19 +1055,19 @@
             a pair of arrays, and since an array type is not copy-constructible the
             code fails to compile. One solution is to explicitly cast the arguments
             to <a href="https://en.cppreference.com/w/cpp/utility/pair/make_pair" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">make_pair</span></code></a> to pointers, but
-            <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+            <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
             provides a better automatic solution that works safely even in generic
             code where the cast might do the wrong thing:
           </p>
 <pre class="programlisting"><span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T1</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T2</span><span class="special">&gt;</span>
 <a href="https://en.cppreference.com/w/cpp/utility/pair" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">pair</span></code></a><span class="special">&lt;</span>
-   <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T1</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">,</span>
-   <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T2</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">&gt;</span>
+   <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T1</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">,</span>
+   <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T2</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">&gt;</span>
       <span class="identifier">make_pair</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">T1</span><span class="special">&amp;</span> <span class="identifier">t1</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T2</span><span class="special">&amp;</span> <span class="identifier">t2</span><span class="special">)</span>
 <span class="special">{</span>
    <span class="keyword">return</span> <a href="https://en.cppreference.com/w/cpp/utility/pair" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">pair</span></code></a><span class="special">&lt;</span>
-      <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T1</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">,</span>
-      <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T2</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">&gt;(</span><span class="identifier">t1</span><span class="special">,</span> <span class="identifier">t2</span><span class="special">);</span>
+      <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T1</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">,</span>
+      <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T2</span><span class="special">&gt;::</span><span class="identifier">value_type</span><span class="special">&gt;(</span><span class="identifier">t1</span><span class="special">,</span> <span class="identifier">t2</span><span class="special">);</span>
 <span class="special">}</span>
 </pre>
 <p>
@@ -1077,7 +1076,7 @@
             binders and adapters: in principle in any function that "wraps"
             a temporary whose type is deduced. Note that the function arguments to
             <a href="https://en.cppreference.com/w/cpp/utility/pair/make_pair" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">make_pair</span></code></a> are not expressed
-            in terms of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
+            in terms of <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
             doing so would prevent template argument deduction from functioning.
           </p>
 </div>
@@ -1087,22 +1086,22 @@
           4 (optimising fill):</a>
 </h5></div></div></div>
 <p>
-            The <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+            The <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
             template will "optimize" the passing of a small built-in type
             as a function parameter. This mainly has an effect when the parameter
             is used within a loop body.
           </p>
 <p>
-            In the following example (see <a href="../../../../../../doc/html/type_traits/examples/fill_example.cpp" target="_top"><code class="computeroutput"><span class="identifier">fill_example</span><span class="special">.</span><span class="identifier">cpp</span></code></a>), a version of <a href="https://en.cppreference.com/w/cpp/algorithm/fill" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">fill</span></code></a> is optimized in two ways:
+            In the following example (see <a href="../../../../../../libs/type_traits/examples/fill_example.cpp" target="_top"><code class="computeroutput"><span class="identifier">fill_example</span><span class="special">.</span><span class="identifier">cpp</span></code></a>), a version of <a href="https://en.cppreference.com/w/cpp/algorithm/fill" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">fill</span></code></a> is optimized in two ways:
             if the type passed is a single byte built-in type then <a href="https://en.cppreference.com/w/cpp/string/byte/memset" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">memset</span></code></a> is used to effect the
             fill, otherwise a conventional C++ implementation is used, but with the
-            passed parameter "optimized" using <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
+            passed parameter "optimized" using <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
           </p>
 <pre class="programlisting"><span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">bool</span> <span class="identifier">opt</span><span class="special">&gt;</span>
 <span class="keyword">struct</span> <span class="identifier">filler</span>
 <span class="special">{</span>
    <span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">typename</span> <span class="identifier">I</span><span class="special">,</span> <span class="keyword">typename</span> <span class="identifier">T</span><span class="special">&gt;</span>
-   <span class="keyword">static</span> <span class="keyword">void</span> <span class="identifier">do_fill</span><span class="special">(</span><span class="identifier">I</span> <span class="identifier">first</span><span class="special">,</span> <span class="identifier">I</span> <span class="identifier">last</span><span class="special">,</span> <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">param_type</span> <span class="identifier">val</span><span class="special">)</span>
+   <span class="keyword">static</span> <span class="keyword">void</span> <span class="identifier">do_fill</span><span class="special">(</span><span class="identifier">I</span> <span class="identifier">first</span><span class="special">,</span> <span class="identifier">I</span> <span class="identifier">last</span><span class="special">,</span> <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">param_type</span> <span class="identifier">val</span><span class="special">)</span>
    <span class="special">{</span>
       <span class="keyword">while</span><span class="special">(</span><span class="identifier">first</span> <span class="special">!=</span> <span class="identifier">last</span><span class="special">)</span>
       <span class="special">{</span>
@@ -1145,12 +1144,12 @@
           </p>
 <p>
             Note that the function arguments to fill are not expressed in terms of
-            <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
+            <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>:
             doing so would prevent template argument deduction from functioning.
             Instead fill acts as a "thin wrapper" that is there to perform
             template argument deduction, the compiler will optimise away the call
             to fill all together, replacing it with the call to <code class="computeroutput"><span class="identifier">filler</span><span class="special">&lt;&gt;::</span><span class="identifier">do_fill</span></code>,
-            which does use <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>.
+            which does use <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>.
           </p>
 </div>
 </div>
@@ -1160,7 +1159,7 @@
 </h4></div></div></div>
 <p>
           The following notes are intended to briefly describe the rationale behind
-          choices made in <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>.
+          choices made in <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>.
         </p>
 <p>
           All user-defined types follow "existing practice" and need no
@@ -1178,11 +1177,11 @@
         </p>
 <p>
           For reference types the rationale follows <a class="link" href="call_traits.html#sec:refs">Example
-          2</a> - references to references are not allowed, so the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> members must be defined
+          2</a> - references to references are not allowed, so the <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> members must be defined
           such that these problems do not occur. There is a proposal to modify the
           language such that "a reference to a reference is a reference"
-          (issue #106, submitted by Bjarne Stroustrup). <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">value_type</span></code>
-          and <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">param_type</span></code> both provide the same effect
+          (issue #106, submitted by Bjarne Stroustrup). <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">value_type</span></code>
+          and <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code></a><code class="computeroutput"><span class="special">::</span><span class="identifier">param_type</span></code> both provide the same effect
           as that proposal, without the need for a language change. In other words,
           it's a workaround.
         </p>
@@ -1217,41 +1216,52 @@
 <span class="special">}</span>
 </pre>
 <p>
-          By using <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+          By using <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           the degradation from array to pointer is explicit, and the type of the
           parameter is the same as it's declared type:
         </p>
 <pre class="programlisting"><span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
 <span class="keyword">struct</span> <span class="identifier">A</span>
 <span class="special">{</span>
-   <span class="keyword">void</span> <span class="identifier">foo</span><span class="special">(</span><span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">t</span><span class="special">);</span>
+   <span class="keyword">void</span> <span class="identifier">foo</span><span class="special">(</span><span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">t</span><span class="special">);</span>
 <span class="special">};</span>
 
 <span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="keyword">void</span> <span class="identifier">A</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">foo</span><span class="special">(</span><span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">t</span><span class="special">)</span>
+<span class="keyword">void</span> <span class="identifier">A</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">foo</span><span class="special">(</span><span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">t</span><span class="special">)</span>
 <span class="special">{</span>
-   <span class="keyword">typename</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">dup</span><span class="special">(</span><span class="identifier">t</span><span class="special">);</span> <span class="comment">// OK even if T is an array type.</span>
+   <span class="keyword">typename</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;::</span><span class="identifier">value_type</span> <span class="identifier">dup</span><span class="special">(</span><span class="identifier">t</span><span class="special">);</span> <span class="comment">// OK even if T is an array type.</span>
 <span class="special">}</span>
 </pre>
 <p>
           For <code class="computeroutput"><span class="identifier">value_type</span></code> (return
           by value), again only a pointer may be returned, not a copy of the whole
-          array, and again <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+          array, and again <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           makes the degradation explicit. The <code class="computeroutput"><span class="identifier">value_type</span></code>
           member is useful whenever an array must be explicitly degraded to a pointer
           - <a class="link" href="call_traits.html#sec:example3">Example 3</a> provides the test case.
         </p>
 <p>
-          Footnote: the array specialisation for <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> is the least well
-          understood of all the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
+          Footnote: the array specialisation for <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a> is the least well
+          understood of all the <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits"><code class="computeroutput"><span class="identifier">call_traits</span></code></a>
           specialisations. If the given semantics cause specific problems for you,
           or does not solve a particular array-related problem, then I would be interested
           to hear about it. Most people though will probably never need to use this
           specialisation.
         </p>
 </div>
-<div class="section"><div class="titlepage"><div><div><h4 class="title">
-<a name="call_traits.reference"></a>Reference</h4></div></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="call_traits.reference"></a>Reference</h4></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="header.boost.detail.call_traits_hpp"></a>Header &lt;<a href="../../../../../../boost/detail/call_traits.hpp" target="_top">boost/detail/call_traits.hpp</a>&gt;</h5></div></div></div>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">struct</span> <a class="link" href="../../boost/call_traits.html" title="Struct template call_traits">call_traits</a><span class="special">;</span>
+
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">struct</span> <a class="link" href="../../boost/call_traits_T___idm2906.html" title="Struct template call_traits&lt;T &amp;&gt;">call_traits</a><span class="special">&lt;</span><span class="identifier">T</span> <span class="special">&amp;</span><span class="special">&gt;</span><span class="special">;</span>
+<span class="special">}</span></pre>
+</div>
+</div>
 </div>
 <table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
 <td align="left"></td>
@@ -1263,7 +1273,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="binary_integer_literals.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="compressed_pair.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../BOOST_BINARY_LITERAL_D.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/call_traits.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

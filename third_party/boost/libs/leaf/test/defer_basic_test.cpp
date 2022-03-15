@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc.
 
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -52,13 +52,15 @@ int main()
         []( info<42> const & i42, leaf::diagnostic_info const & di )
         {
             BOOST_TEST_EQ(i42.value, 42);
+#if BOOST_LEAF_CFG_STD_STRING
             std::stringstream ss; ss << di;
             std::string s = ss.str();
             std::cout << s;
-#if BOOST_LEAF_DIAGNOSTICS
+#if BOOST_LEAF_CFG_DIAGNOSTICS
             BOOST_TEST(s.find("info<-42>")!=s.npos);
 #else
-            BOOST_TEST(s.find("BOOST_LEAF_DIAGNOSTICS")!=s.npos);
+            BOOST_TEST(s.find("BOOST_LEAF_CFG_DIAGNOSTICS")!=s.npos);
+#endif
 #endif
             return 1;
         },

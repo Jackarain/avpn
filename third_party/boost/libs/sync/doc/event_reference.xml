@@ -1,0 +1,91 @@
+<?xml version="1.0" standalone="yes"?>
+<library-reference id="events"><title>Events</title><header name="boost/sync/events/auto_reset_event.hpp">
+<para>This header defines an automatically reset event. </para><namespace name="boost">
+<namespace name="sync">
+<class name="auto_reset_event"><method-group name="public member functions">
+<method name="post"><type>void</type><description><para>If one or more threads are blocked on the event, releases one thread from its wait function. It is unspecified which thread is released. After releasing the thread the object is left in a non-signalled state. If no threads are blocked on the event, the object is left in a signalled state. The object remains signalled until exactly one thread completes waiting on this object. Posting an already signalled event has no effect.</para><para><emphasis role="bold">Memory</emphasis> Ordering: release</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></method>
+<method name="wait"><type>void</type><description><para>If the event is signalled, the call makes the object non-signalled and returns. Otherwise the call blocks until the event is posted. When a waiting thread is released, the state of the event is automatically reset to the non-signaled state.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></method>
+<method name="try_wait"><type>bool</type><description><para>Tries to wait for the event. If successful, the state of the event is automatically reset to the non-signaled state.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+<emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description><returns><para><computeroutput>true</computeroutput> if the event had been signalled and was reset to the non-signalled state by this call, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="timed_wait"><type>bool</type><template>
+          <template-type-parameter name="Time"/>
+        </template><parameter name="timeout"><paramtype>const Time &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout can be specified either as an absolute time point or as a duration. In the latter case the time is measured according to the system clock.</para></description></parameter><description><para>If the event is signalled, the call makes the object non-signalled and returns. Otherwise the call blocks until the event is posted or the timeout expires. When a waiting thread is released due to a post, the state of the event is automatically reset to the non-signaled state.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event had been signalled and was reset to the non-signalled state by this call, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="wait_for"><type>bool</type><template>
+          <template-type-parameter name="Duration"/>
+        </template><parameter name="duration"><paramtype>const Duration &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout should be a duration, which is measured according to the system clock.</para></description></parameter><description><para>If the event is signalled, the call makes the object non-signalled and returns. Otherwise the call blocks until the event is posted or the timeout expires. When a waiting thread is released due to a post, the state of the event is automatically reset to the non-signaled state.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event had been signalled and was reset to the non-signalled state by this call, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="wait_until"><type>bool</type><template>
+          <template-type-parameter name="TimePoint"/>
+        </template><parameter name="timeout"><paramtype>const TimePoint &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout should be an absolute time point.</para></description></parameter><description><para>If the event is signalled, the call makes the object non-signalled and returns. Otherwise the call blocks until the event is posted or the timeout expires. When a waiting thread is released due to a post, the state of the event is automatically reset to the non-signaled state.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event had been signalled and was reset to the non-signalled state by this call, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+</method-group>
+<constructor><description><para>Constructs an event object in a non-signalled state.</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></constructor>
+<constructor cv="= delete"><parameter name=""><paramtype>auto_reset_event const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>auto_reset_event &amp;</type><parameter name=""><paramtype>auto_reset_event const &amp;</paramtype></parameter></copy-assignment>
+<destructor><description><para>Destroys the event object.</para><para>
+</para></description><requires><para>No threads are blocked on this object. </para>
+</requires></destructor>
+</class></namespace>
+</namespace>
+</header>
+<header name="boost/sync/events/manual_reset_event.hpp">
+<para>This header defines a manually reset event. </para><namespace name="boost">
+<namespace name="sync">
+<class name="manual_reset_event"><method-group name="public member functions">
+<method name="set"><type>void</type><description><para>Sets the event object to the signalled state. While the event is set, any number of threads that are or would be blocked in one of the wait functions can be released while the event is in signalled state. Setting an already signalled event has no effect.</para><para><emphasis role="bold">Memory</emphasis> Ordering: release</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>If multiple threads are waiting on the event, this call does not guarantee that all these threads will be unblocked. It is possible that some of the woken threads resets the event to the non-signalled state before the other threads are unblocked. </para>
+</note>
+</para></description></method>
+<method name="reset"><type>void</type><description><para>Resets the event to the non-signaled state. Resetting a non-signalled event has no effect.</para><para><emphasis role="bold">Memory</emphasis> Ordering: relaxed</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></method>
+<method name="wait"><type>void</type><description><para>If the event is signalled, returns. Otherwise waits for the event to become signalled.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></method>
+<method name="try_wait"><type>bool</type><description><para>Attempts to wait for the event to become signalled.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+<emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description><returns><para><computeroutput>true</computeroutput> if the event is signalled, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="timed_wait"><type>bool</type><template>
+          <template-type-parameter name="Time"/>
+        </template><parameter name="timeout"><paramtype>const Time &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout can be specified either as an absolute time point or as a duration. In the latter case the time is measured according to the system clock.</para></description></parameter><description><para>If the event is signalled, the call returns. Otherwise the call blocks until the event is set to the signalled state or the timeout expires.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event is signalled, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="wait_for"><type>bool</type><template>
+          <template-type-parameter name="Duration"/>
+        </template><parameter name="duration"><paramtype>const Duration &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout should be a duration, which is measured according to the system clock.</para></description></parameter><description><para>If the event is signalled, the call returns. Otherwise the call blocks until the event is set to the signalled state or the timeout expires.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event is signalled, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+<method name="wait_until"><type>bool</type><template>
+          <template-type-parameter name="TimePoint"/>
+        </template><parameter name="timeout"><paramtype>const TimePoint &amp;</paramtype><description><para>The timeout for the operation to complete. The timeout should be an absolute time point.</para></description></parameter><description><para>If the event is signalled, the call returns. Otherwise the call blocks until the event is set to the signalled state or the timeout expires.</para><para><emphasis role="bold">Memory</emphasis> Ordering: acquire, if successful, relaxed otherwise</para><para>
+
+<emphasis role="bold">Throws:</emphasis> if an error occurs.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description><returns><para><computeroutput>true</computeroutput> if the event is signalled, otherwise <computeroutput>false</computeroutput>.</para>
+</returns></method>
+</method-group>
+<constructor><description><para>Constructs an event object in a non-signalled state.</para><para><emphasis role="bold">Throws:</emphasis> if an error occurs. </para></description></constructor>
+<constructor cv="= delete"><parameter name=""><paramtype>manual_reset_event const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>manual_reset_event &amp;</type><parameter name=""><paramtype>manual_reset_event const &amp;</paramtype></parameter></copy-assignment>
+<destructor><description><para>Destroys the event object.</para><para>
+</para></description><requires><para>No threads are blocked on this object. </para>
+</requires></destructor>
+</class></namespace>
+</namespace>
+</header>
+</library-reference>

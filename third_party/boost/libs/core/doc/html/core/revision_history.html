@@ -27,6 +27,7 @@
 <a name="core.revision_history"></a><a class="link" href="revision_history.html" title="Revision History">Revision History</a>
 </h2></div></div></div>
 <div class="toc"><dl class="toc">
+<dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_79_0">Changes in 1.79.0</a></span></dt>
 <dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_78_0">Changes in 1.78.0</a></span></dt>
 <dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_77_0">Changes in 1.77.0</a></span></dt>
 <dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_76_0">Changes in 1.76.0</a></span></dt>
@@ -36,6 +37,33 @@
 <dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_67_0">Changes in 1.67.0</a></span></dt>
 <dt><span class="section"><a href="revision_history.html#core.revision_history.changes_in_1_65_0">Changes in 1.65.0</a></span></dt>
 </dl></div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="core.revision_history.changes_in_1_79_0"></a><a class="link" href="revision_history.html#core.revision_history.changes_in_1_79_0" title="Changes in 1.79.0">Changes in 1.79.0</a>
+</h3></div></div></div>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+            Added <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_traits</span></code>, an implementation
+            of <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">allocator_traits</span></code>.
+          </li>
+<li class="listitem">
+            Made <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">pointer_traits</span></code> SFINAE friendly.
+          </li>
+<li class="listitem">
+            <code class="computeroutput"><span class="identifier">boost</span><span class="special">/</span><span class="identifier">iterator</span><span class="special">.</span><span class="identifier">hpp</span></code> is deprecated and will be removed
+            in a future release. The header defines <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">iterator</span></code>
+            template, which is equivalent to <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">iterator</span></code>
+            in <code class="computeroutput"><span class="special">&lt;</span><span class="identifier">iterator</span><span class="special">&gt;</span></code> header. However, since <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">iterator</span></code> is itself deprecated in C++17,
+            users are advised to remove <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">iterator</span></code>
+            or <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">iterator</span></code> use from their code.
+          </li>
+<li class="listitem">
+            Added <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">core</span><span class="special">::</span><span class="identifier">verbose_terminate_handler</span></code>, a utility
+            function intended to be passed to <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">set_terminate</span></code>
+            that prints information about the uncaught exception to <code class="computeroutput"><span class="identifier">stderr</span></code>.
+          </li>
+</ul></div>
+</div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="core.revision_history.changes_in_1_78_0"></a><a class="link" href="revision_history.html#core.revision_history.changes_in_1_78_0" title="Changes in 1.78.0">Changes in 1.78.0</a>

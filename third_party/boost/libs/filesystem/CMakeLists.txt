@@ -1,5 +1,5 @@
 # Copyright 2019 Mike Dev
-# Copyright 2020, 2021 Andrey Semashev
+# Copyright 2020-2022 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt
@@ -20,28 +20,13 @@ set(BOOST_FILESYSTEM_DISABLE_GETRANDOM OFF CACHE BOOL "Disable usage of getrando
 set(BOOST_FILESYSTEM_DISABLE_ARC4RANDOM OFF CACHE BOOL "Disable usage of arc4random API in Boost.Filesystem")
 set(BOOST_FILESYSTEM_DISABLE_BCRYPT OFF CACHE BOOL "Disable usage of BCrypt API in Boost.Filesystem")
 
-# Generates a list of include paths for all Boost libraries in \a result variable. Uses unified Boost include tree, if available.
-function(generate_boost_include_paths result)
-    if (IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../../boost" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../boost/version.hpp")
-        set(${result} "${CMAKE_CURRENT_SOURCE_DIR}/../.." PARENT_SCOPE)
-        return()
-    endif()
-    file(GLOB path_list LIST_DIRECTORIES True "${CMAKE_CURRENT_SOURCE_DIR}/../*")
-    foreach(path IN LISTS path_list)
-        if (IS_DIRECTORY "${path}/include")
-            list(APPEND include_list "${path}/include")
-        endif()
-    endforeach()
-    set(${result} ${include_list} PARENT_SCOPE)
-endfunction()
-
 # Note: We can't use the Boost::library targets in the configure checks as they may not yet be included
 # by the superproject when this CMakeLists.txt is included. We also don't want to hardcode include paths
 # of the needed libraries and their dependencies, recursively, as this is too fragile and requires maintenance.
 # Instead, we collect include paths of all libraries and use them in the configure checks. This works faster
 # if there is a unified Boost include tree in the filesystem (i.e. if `b2 headers` was run or we're in the
 # official monolithic Boost distribution tree).
-generate_boost_include_paths(BOOST_LIBRARY_INCLUDES)
+include(cmake/BoostLibraryIncludes.cmake)
 
 set(CMAKE_REQUIRED_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src" ${BOOST_LIBRARY_INCLUDES})
 
@@ -59,6 +44,7 @@ if(NOT BOOST_FILESYSTEM_DISABLE_STATX)
         check_cxx_source_compiles("#include <${CMAKE_CURRENT_SOURCE_DIR}/config/has_statx_syscall.cpp>" BOOST_FILESYSTEM_HAS_STATX_SYSCALL)
     endif()
 endif()
+check_cxx_source_compiles("#include <${CMAKE_CURRENT_SOURCE_DIR}/config/has_fdopendir_nofollow.cpp>" BOOST_FILESYSTEM_HAS_FDOPENDIR_NOFOLLOW)
 if(WIN32 AND NOT BOOST_FILESYSTEM_DISABLE_BCRYPT)
     set(CMAKE_REQUIRED_LIBRARIES bcrypt)
     check_cxx_source_compiles("#include <${CMAKE_CURRENT_SOURCE_DIR}/config/has_bcrypt.cpp>" BOOST_FILESYSTEM_HAS_BCRYPT)
@@ -170,6 +156,9 @@ endif()
 if(BOOST_FILESYSTEM_HAS_STATX_SYSCALL)
     target_compile_definitions(boost_filesystem PRIVATE BOOST_FILESYSTEM_HAS_STATX_SYSCALL)
 endif()
+if(BOOST_FILESYSTEM_HAS_FDOPENDIR_NOFOLLOW)
+    target_compile_definitions(boost_filesystem PRIVATE BOOST_FILESYSTEM_HAS_FDOPENDIR_NOFOLLOW)
+endif()
 
 target_link_libraries(boost_filesystem
     PUBLIC
@@ -190,7 +179,10 @@ target_link_libraries(boost_filesystem
 
 if(NOT BOOST_FILESYSTEM_HAS_CXX20_ATOMIC_REF)
     target_compile_definitions(boost_filesystem PRIVATE BOOST_FILESYSTEM_NO_CXX20_ATOMIC_REF)
-    target_link_libraries(boost_filesystem PRIVATE Boost::atomic)
+    target_link_libraries(boost_filesystem
+        PRIVATE
+            Boost::atomic
+    )
 endif()
 
 if(WIN32)

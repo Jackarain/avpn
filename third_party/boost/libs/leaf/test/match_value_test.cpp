@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc.
 
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -21,7 +21,9 @@ enum class my_error { e1=1, e2, e3 };
 
 struct e_my_error { my_error value; };
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
 struct e_error_code { std::error_code value; };
+#endif
 
 struct my_exception: std::exception
 {
@@ -51,6 +53,7 @@ int main()
         BOOST_TEST(( test<leaf::match_value<e_my_error, my_error::e2, my_error::e1>>(e) ));
     }
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     {
         e_error_code e = { errc_a::a0 };
 
@@ -64,6 +67,7 @@ int main()
         BOOST_TEST(( test<leaf::match_value<e_error_code, errc_a::a2, errc_a::a0>>(e) ));
 #endif
     }
+#endif
 
     {
         int r = leaf::try_handle_all(

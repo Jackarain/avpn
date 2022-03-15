@@ -99,6 +99,9 @@ geometry/reference/algorithms/centroid/centroid_2.html
 geometry/reference/algorithms/centroid/return_centroid_1.html
 geometry/reference/algorithms/centroid/return_centroid_2_with_strategy.html
 geometry/reference/algorithms/clear.html
+geometry/reference/algorithms/closest_points.html
+geometry/reference/algorithms/closest_points/closest_points_4_with_strategy.html
+geometry/reference/algorithms/closest_points/closest_points_3.html
 geometry/reference/algorithms/convert.html
 geometry/reference/algorithms/convex_hull.html
 geometry/reference/algorithms/convex_hull/convex_hull_3_with_strategy.html

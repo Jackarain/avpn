@@ -746,6 +746,8 @@ pre.rouge {
 <li><a href="#mp_valid_qq_t">mp_valid_q&lt;Q, T&#8230;&#8203;&gt;</a></li>
 <li><a href="#mp_eval_ort_f_u">mp_eval_or&lt;T, F, U&#8230;&#8203;&gt;</a></li>
 <li><a href="#mp_eval_or_qt_q_u">mp_eval_or_q&lt;T, Q, U&#8230;&#8203;&gt;</a></li>
+<li><a href="#mp_valid_and_truef_t">mp_valid_and_true&lt;F, T&#8230;&#8203;&gt;</a></li>
+<li><a href="#mp_valid_and_true_qq_t">mp_valid_and_true_q&lt;Q, T&#8230;&#8203;&gt;</a></li>
 <li><a href="#mp_condc_t_r">mp_cond&lt;C, T, R&#8230;&#8203;&gt;</a></li>
 <li><a href="#mp_deferf_t">mp_defer&lt;F, T&#8230;&#8203;&gt;</a></li>
 <li><a href="#mp_quotef">mp_quote&lt;F&gt;</a></li>
@@ -2690,6 +2692,30 @@ is to avoid evaluating <code>F&lt;U&#8230;&#8203;&gt;</code> when the condition 
 </div>
 <div class="paragraph">
 <p>Like <code>mp_eval_or</code>, but takes a quoted metafunction.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="mp_valid_and_truef_t">mp_valid_and_true&lt;F, T&#8230;&#8203;&gt;</h4>
+<div class="literalblock">
+<div class="content">
+<pre>template&lt;template&lt;class...&gt; class F, class... T&gt; using mp_valid_and_true =
+    mp_eval_or&lt;mp_false, F, T...&gt;;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>mp_valid_and_true&lt;F, T&#8230;&#8203;&gt;</code> is an alias for <code>F&lt;T&#8230;&#8203;&gt;</code> when this expression is valid, for <code>mp_false</code> otherwise.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="mp_valid_and_true_qq_t">mp_valid_and_true_q&lt;Q, T&#8230;&#8203;&gt;</h4>
+<div class="literalblock">
+<div class="content">
+<pre>template&lt;class Q, class... T&gt; using mp_valid_and_true_q =
+    mp_valid_and_true&lt;Q::template fn, T...&gt;;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Like <code>mp_valid_and_true</code>, but takes a quoted metafunction.</p>
 </div>
 </div>
 <div class="sect3">
@@ -5444,7 +5470,7 @@ into this documentation by Glen Fernandes.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:47:57 UTC
+Last updated 2022-03-13 09:02:33 UTC
 </div>
 </div>
 <style>

@@ -1,0 +1,18 @@
+[/
+                 Copyright Andrey Semashev 2019.
+     Distributed under the Boost Software License, Version 1.0.
+        (See accompanying file LICENSE_1_0.txt or copy at
+              http://www.boost.org/LICENSE_1_0.txt)
+
+    This document is a part of Boost.Sync library documentation.
+
+     This document was automatically generated,  DO NOT EDIT!
+/]
+
+[template boost_sync_events_auto_reset_event_hpp[][headerref boost/sync/events/auto_reset_event.hpp]]
+
+[template class_sync_auto_reset_event[][classref boost::sync::auto_reset_event auto_reset_event]]
+
+[template boost_sync_events_manual_reset_event_hpp[][headerref boost/sync/events/manual_reset_event.hpp]]
+
+[template class_sync_manual_reset_event[][classref boost::sync::manual_reset_event manual_reset_event]]

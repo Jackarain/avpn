@@ -56,7 +56,6 @@ public:
     {
         _buffer = _load();
         _impl = _load_var(_buffer);
-        _env_impl = _impl.data();
     }
 
     string_type get(const pointer_type id) { return get(string_type(id)); }

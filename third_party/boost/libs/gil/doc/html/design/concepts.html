@@ -74,7 +74,7 @@ algorithmic guarantees. For example, GIL class <code class="docutils literal"><s
 <code class="docutils literal"><span class="pre">PixelConcept</span></code>. The user may substitute the pixel class with one of their
 own, and, as long as it satisfies the requirements of <code class="docutils literal"><span class="pre">PixelConcept</span></code>,
 all other GIL classes and algorithms can be used with it.
-See more about concepts is avaialble at
+See more about concepts at
 <a class="reference external" href="https://web.archive.org/web/20160324115943/http://www.generic-programming.org/languages/conceptcpp/">Generic Programming in ConceptC++</a></p>
 <p>In this document we will use a syntax for defining concepts that is described
 in the C++ standard proposal paper
@@ -82,7 +82,7 @@ in the C++ standard proposal paper
 <p>Here are some common concepts that will be used in GIL.
 Most of them are defined at the
 <a class="reference external" href="https://web.archive.org/web/20160326060858/http://www.generic-programming.org/languages/conceptcpp/concept_web.php">ConceptC++ Concept Web</a>:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">auto</span> <span class="n">concept</span> <span class="n">DefaultConstructible</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">auto</span> <span class="n">concept</span> <span class="n">DefaultConstructible</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
 <span class="p">{</span>
     <span class="n">T</span><span class="o">::</span><span class="n">T</span><span class="p">();</span>
 <span class="p">};</span>
@@ -115,7 +115,7 @@ Most of them are defined at the
 </pre></div>
 </div>
 <p>Here are some additional basic concepts that GIL needs:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">auto</span> <span class="n">concept</span> <span class="n">Regular</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">:</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">auto</span> <span class="n">concept</span> <span class="n">Regular</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span> <span class="o">:</span>
     <span class="n">DefaultConstructible</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">CopyConstructible</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="n">EqualityComparable</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span>
@@ -142,7 +142,7 @@ Most of them are defined at the
     </div>
     </div>
     <div class="footer" role="contentinfo">
-      Last updated on 2021-12-02 06:12:31.
+      Last updated on 2022-03-13 09:03:54.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
     </div>
   </body>

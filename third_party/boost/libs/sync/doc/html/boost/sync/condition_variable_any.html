@@ -1,0 +1,422 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Class condition_variable_any</title>
+<link rel="stylesheet" href="../../../../../../doc/src/boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
+<link rel="home" href="../../index.html" title="Chapter 1. Boost.Sync v1">
+<link rel="up" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_any_hpp" title="Header &lt;boost/sync/condition_variables/condition_variable_any.hpp&gt;">
+<link rel="prev" href="condition_variable.html" title="Class condition_variable">
+<link rel="next" href="notify_all_at_thread_exit.html" title="Function notify_all_at_thread_exit">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table cellpadding="2" width="100%"><tr><td valign="top"><img alt="Boost C++ Libraries" width="277" height="86" src="../../../../../../boost.png"></td></tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="condition_variable.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_any_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="notify_all_at_thread_exit.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="boost.sync.condition_variable_any"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class condition_variable_any</span></h2>
+<p>boost::sync::condition_variable_any — The condition variable class. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_any_hpp" title="Header &lt;boost/sync/condition_variables/condition_variable_any.hpp&gt;">boost/sync/condition_variables/condition_variable_any.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="condition_variable_any.html#boost.sync.condition_variable_anyconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="condition_variable_any.html#idm1711-bb"><span class="identifier">condition_variable_any</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="condition_variable_any.html#idm1723-bb"><span class="identifier">condition_variable_any</span></a><span class="special">(</span><a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="special">&amp;</span> <a class="link" href="condition_variable_any.html#idm1727-bb"><span class="keyword">operator</span><span class="special">=</span></a><span class="special">(</span><a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <a class="link" href="condition_variable_any.html#idm1716-bb"><span class="special">~</span><span class="identifier">condition_variable_any</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="condition_variable_any.html#idm1501-bb">public member functions</a></span>
+  <span class="keyword">void</span> <a class="link" href="condition_variable_any.html#idm1502-bb"><span class="identifier">notify_one</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="condition_variable_any.html#idm1505-bb"><span class="identifier">notify_all</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="condition_variable_any.html#idm1508-bb"><span class="identifier">wait</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="condition_variable_any.html#idm1524-bb"><span class="identifier">wait</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">&gt;</span> <span class="keyword">bool</span> <a class="link" href="condition_variable_any.html#idm1545-bb"><span class="identifier">timed_wait</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable_any.html#idm1573-bb"><span class="identifier">timed_wait</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">&gt;</span> 
+    <span class="identifier">cv_status</span> <a class="link" href="condition_variable_any.html#idm1605-bb"><span class="identifier">wait_for</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable_any.html#idm1631-bb"><span class="identifier">wait_for</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">&gt;</span> 
+    <span class="identifier">cv_status</span> <a class="link" href="condition_variable_any.html#idm1658-bb"><span class="identifier">wait_until</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable_any.html#idm1684-bb"><span class="identifier">wait_until</span></a><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idm5589"></a><h2>Description</h2>
+<div class="refsect2">
+<a name="idm5591"></a><h3>
+<a name="boost.sync.condition_variable_anyconstruct-copy-destruct"></a><code class="computeroutput">condition_variable_any</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a name="idm1711-bb"></a><span class="identifier">condition_variable_any</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Default constructor. <p><span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to create the primitive (e.g. due to insufficient resources). </p>
+</li>
+<li class="listitem"><pre class="literallayout"><a name="idm1723-bb"></a><span class="identifier">condition_variable_any</span><span class="special">(</span><a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout"><a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="special">&amp;</span> <a name="idm1727-bb"></a><span class="keyword">operator</span><span class="special">=</span><span class="special">(</span><a class="link" href="condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem">
+<pre class="literallayout"><a name="idm1716-bb"></a><span class="special">~</span><span class="identifier">condition_variable_any</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Destructor. <p>Destroys the condition variable.</p>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no threads blocked on the object. </p></td>
+</tr></tbody>
+</table></div>
+</li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idm5651"></a><h3>
+<a name="idm1501-bb"></a><code class="computeroutput">condition_variable_any</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm1502-bb"></a><span class="identifier">notify_one</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Wakes up one thread blocked on the object. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm1505-bb"></a><span class="identifier">notify_all</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Wakes up all threads blocked on the object. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idm1508-bb"></a><span class="identifier">wait</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object. <p>Atomically unlocks the lock and blocks on the object. When unblocked, it locks the lock and returns. The function can unblock upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously.</p>
+<p>
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception. </p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>.</p></td>
+</tr></tbody>
+</table></div></td>
+</tr></tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">void</span> <a name="idm1524-bb"></a><span class="identifier">wait</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the predicate is satisfied. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) wait(lock); </code></p>
+<p>
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception. </p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate.</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr></tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1545-bb"></a><span class="identifier">timed_wait</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span> timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the lock and blocks on the object. When unblocked, it locks the lock and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout can be specified as an absolute time point or duration.</p>
+<p>
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">timeout</code></span></p></td>
+<td><p>Relative or absolute timeout. If timeout is relative, the time is measured according to the system clock.</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">true</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">false</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1573-bb"></a><span class="identifier">timed_wait</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span> timeout<span class="special">,</span> <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the predicate is satisfied or the timeout expires. <p>If the timeout is an absolute time point, works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) if (!timed_wait(lock, timeout)) return pred(); </code></p>
+<p>otherwise works as if equivalent to:</p>
+<p><code class="computeroutput"> auto abs_timeout = chrono::system_clock::now() + timeout; while (!pred()) if (!timed_wait(lock, abs_timeout)) return pred(); </code></p>
+<p>
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate.</p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">timeout</code></span></p></td>
+<td><p>Relative or absolute timeout. If timeout is relative, the time is measured according to the system clock. </p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr></tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">&gt;</span> 
+  <span class="identifier">cv_status</span> <a name="idm1605-bb"></a><span class="identifier">wait_for</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span> rel_timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the lock and blocks on the object. When unblocked, it locks the lock and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout must be specified as a time duration.</p>
+<p>
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr></tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">cv_status::no_timeout</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">cv_status::timeout</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1631-bb"></a><span class="identifier">wait_for</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span> rel_timeout<span class="special">,</span> <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> return wait_until(lock, chrono::system_clock::now() + rel_timeout, pred); </code></p>
+<p>
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate.</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr></tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">&gt;</span> 
+  <span class="identifier">cv_status</span> <a name="idm1658-bb"></a><span class="identifier">wait_until</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span> abs_timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the lock and blocks on the object. When unblocked, it locks the lock and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout must be specified as an absolute time point.</p>
+<p>
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr></tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">cv_status::no_timeout</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">cv_status::timeout</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Lock<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1684-bb"></a><span class="identifier">wait_until</span><span class="special">(</span><span class="identifier">Lock</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span> abs_timeout<span class="special">,</span> <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) if (wait_until(lock, timeout) == cv_status::timeout) return pred(); </code></p>
+<p>
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The lock is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object. Must be a model of <code class="computeroutput">BasicLockable</code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate.</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr></tbody>
+</table></div>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright © 2013 Vicente J. Botet Escriba, Tim Blechmann<br>Copyright © 2013-2019 Andrey Semashev<p>
+        Distributed under the Boost Software License, Version 1.0. (See accompanying
+        file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>).
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="condition_variable.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_any_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="notify_all_at_thread_exit.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

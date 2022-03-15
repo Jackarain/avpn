@@ -113,8 +113,10 @@
                   that can indicate an <span class="emphasis"><em>infinite</em></span> dataset size.
                 </li>
 <li class="listitem">
-                  an enum called <code class="computeroutput"><span class="identifier">arity</span></code>
-                  indicating the arity of the samples returned by the dataset
+                  a <code class="computeroutput"><span class="keyword">static</span> <span class="keyword">const</span>
+                  <span class="keyword">int</span></code> data member called
+                  <code class="computeroutput"><span class="identifier">arity</span></code> indicating
+                  the arity of the samples returned by the dataset
                 </li>
 </ul></div>
 <p>
@@ -159,7 +161,7 @@
 <span class="keyword">class</span> <span class="identifier">fibonacci_dataset</span> <span class="special">{</span>
 <span class="keyword">public</span><span class="special">:</span>
     <span class="comment">// the type of the samples is deduced</span>
-    <span class="keyword">enum</span> <span class="special">{</span> <span class="identifier">arity</span> <span class="special">=</span> <span class="number">1</span> <span class="special">};</span>
+    <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">int</span> <span class="identifier">arity</span> <span class="special">=</span> <span class="number">1</span><span class="special">;</span>
 
     <span class="keyword">struct</span> <span class="identifier">iterator</span> <span class="special">{</span>
 
@@ -293,7 +295,7 @@
 </div>
 <table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
 <td align="left"></td>
-<td align="right"><div class="copyright-footer">Copyright © 2001-2020 Boost.Test contributors<p>
+<td align="right"><div class="copyright-footer">Copyright © 2001-2022 Boost.Test contributors<p>
         Distributed under the Boost Software License, Version 1.0. (See accompanying
         file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
       </p>

@@ -39,6 +39,21 @@
     </td>
 </table>
 
+<h2>1.79.0</h2>
+<ul>
+  <li><b>v3:</b> <code>path::replace_extension</code> now works in terms of <b>v3</b> definition of <code>path::extension</code> rather than <b>v4</b>.</li>
+  <li>Fixed compilation of path appending and concatenation operators with arguments of types convertible to <code>path</code> or compatible string type. (<a href="https://github.com/boostorg/filesystem/issues/223">#223</a>)</li>
+  <li>On POSIX systems that support <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/fdopendir.html"><code>fdopendir</code></a> and <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html"><code>O_NOFOLLOW</code></a> and on Windows, <code>remove_all</code> is now protected against <a href="https://www.cve.org/CVERecord?id=CVE-2022-21658">CVE-2022-21658</a>. The vulnerability is a race condition that allows a third party process to replace a directory that is being concurrently processed by <code>remove_all</code> with a directory symlink and cause <code>remove_all</code> to follow the symlink and remove files in the linked directory instead of removing the symlink itself. (<a href="https://github.com/boostorg/filesystem/issues/224">#224</a>)</li>
+  <li>On Windows, in <code>remove</code> and <code>remove_all</code> implementation, use POSIX semantics for file removal, when supported by the OS (Windows 10 1709 and later). When POSIX semantics is supported, the file name is removed from the filesystem namespace as soon as the file is marked for deletion, even if it is still open and in use. With legacy Windows semantics, the file name remains present in the the filesystem namespace until the last file handle to the file is closed, which allows the file marked for deletion to be opened and prevents creating new files with the same name. (<a href="https://github.com/boostorg/filesystem/issues/216">#216</a>)</li>
+  <li>On Windows, <code>remove</code> and <code>remove_all</code> now support deleting read-only directories. Support for removing read-only non-directory files was added previously.</li>
+  <li>On Windows, <code>directory_iterator</code> internal implementation has been reworked to better utilize modern Windows APIs, which may improve performance while handling symlinks.</li>
+  <li>On Windows, initialize internal WinAPI function pointers early, if possible, to allow Boost.Filesystem operations to be invoked in global constructors. This is only supported on MSVC, GCC, Clang and compatible compilers.</li>
+  <li>On Windows, <code>resize_file</code> should no longer fail with an error if the file to be resized is opened.</li>
+  <li>Disabled use of the <code>statx</code> syscall on Android prior to 11.0 (API version 30). The syscall is blacklisted by seccomp and causes process termination in runtime. (<a href="https://github.com/boostorg/filesystem/issues/229">#229</a>)</li>
+  <li><b>Deprecated:</b> <code>boost/filesystem/string_file.hpp</code> header is deprecated and will be removed in a future release. The header is no longer included by <code>boost/filesystem.hpp</code> by default. Users are advised to implement the functionality themselves or migrate to other implementations.</li>
+  <li><b>Deprecated:</b> Windows CE support is deprecated and will be removed in a future release. Windows CE has been untested for many years and is likely non-functional.</li>
+</ul>
+
 <h2>1.78.0</h2>
 <ul>
   <li><b>v4:</b> <code>path::filename</code> and <code>path::iterator</code> no longer return an implicit trailing dot (".") element if the path ends with a directory separator. Instead, an empty path is returned, similar to C++17 std::filesystem. This also affects other methods that are defined in terms of iterators or filename, such as <code>path::stem</code>, <code>path::compare</code> or <code>lexicographical_compare</code>. For example, <code>path("a/b/") == path("a/b/.")</code> no longer holds true. (<a href="https://github.com/boostorg/filesystem/issues/193">#193</a>)</li>

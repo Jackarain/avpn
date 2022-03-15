@@ -6,8 +6,8 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../../index.html" title="Chapter 1. Boost.Utility">
 <link rel="up" href="../utilities.html" title="Utilities">
-<link rel="prev" href="string_view.html" title="String View">
-<link rel="next" href="../utilities0.html" title="More Utilities">
+<link rel="prev" href="../../boost/basic_string_view.html" title="Class template basic_string_view">
+<link rel="next" href="../../boost/initialized.html" title="Class template initialized">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <table cellpadding="2" width="100%"><tr>
@@ -20,7 +20,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="string_view.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../utilities0.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/basic_string_view.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/initialized.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -46,16 +46,16 @@
           initialization. Depending on the type, the value of a newly constructed
           object can be zero-initialized (logically 0), default-constructed (using
           the default constructor), or indeterminate. When writing generic code,
-          this problem must be addressed. The template <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> provides a solution
+          this problem must be addressed. The template <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> provides a solution
           with consistent syntax for value initialization of scalar, union and class
-          types. Moreover, <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> offers a workaround
+          types. Moreover, <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> offers a workaround
           to various compiler issues regarding value-initialization.
         </p>
 <p>
           Furthermore, a <code class="computeroutput"><span class="keyword">const</span></code> object
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
+          <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
           is provided, to avoid repeating the type name when retrieving the value
-          from a <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> object.
+          from a <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> object.
         </p>
 <p>
           There are various ways to initialize a variable, in C++. The following
@@ -122,7 +122,7 @@
           specific cases.
         </p>
 <p>
-          The template <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+          The template <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
           offers a generic way to initialize an object, like <code class="computeroutput"><span class="identifier">T4</span>
           <span class="identifier">var4</span> <span class="special">=</span>
           <span class="identifier">T4</span><span class="special">()</span></code>,
@@ -135,13 +135,13 @@
 <pre class="programlisting"><span class="identifier">value_initialized</span><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span> <span class="identifier">var</span><span class="special">;</span>
 </pre>
 <p>
-          The template <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a>
+          The template <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a>
           offers both value-initialization and direct-initialization. It is especially
           useful as a data member type, allowing the very same object to be either
           direct-initialized or value-initialized.
         </p>
 <p>
-          The <code class="computeroutput"><span class="keyword">const</span></code> object <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a> allows value-initializing
+          The <code class="computeroutput"><span class="keyword">const</span></code> object <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a> allows value-initializing
           a variable as follows:
         </p>
 <pre class="programlisting"><span class="identifier">T</span> <span class="identifier">var</span> <span class="special">=</span> <span class="identifier">initialized_value</span><span class="special">;</span>
@@ -161,9 +161,9 @@
           definitions of <code class="computeroutput"><span class="identifier">zero</span><span class="special">-</span><span class="identifier">initialization</span></code> and <code class="computeroutput"><span class="keyword">default</span><span class="special">-</span><span class="identifier">initialization</span></code>.
           Informally, zero-initialization means that the object is given the initial
           value <code class="computeroutput"><span class="number">0</span></code> converted to the type
-          and default-initialization means that POD [<a class="link" href="value_init.html#sec:references">4</a>]
-          types are zero-initialized, while non-POD class types are initialized with
-          their corresponding default constructors.
+          and default-initialization means that <a href="https://en.cppreference.com/w/cpp/named_req/PODType" target="_top">POD</a>
+          [<a class="link" href="value_init.html#sec:references">4</a>] types are zero-initialized, while
+          non-POD class types are initialized with their corresponding default constructors.
         </p>
 <p>
           A <span class="emphasis"><em>declaration</em></span> can contain an <span class="emphasis"><em>initializer</em></span>,
@@ -172,8 +172,7 @@
           below). However, if a <span class="emphasis"><em>declaration</em></span> has no <span class="emphasis"><em>initializer</em></span>
           and it is of a non-<code class="computeroutput"><span class="keyword">const</span></code>,
           non-<code class="computeroutput"><span class="keyword">static</span></code> POD type, the initial
-          value is indeterminate: (see &amp;sect;8.5, [dcl.init], for the accurate
-          definitions).
+          value is indeterminate: (see §8.5, [dcl.init], for the accurate definitions).
         </p>
 <pre class="programlisting"><span class="keyword">int</span> <span class="identifier">x</span><span class="special">;</span> <span class="comment">// no initializer. x value is indeterminate.</span>
 <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="identifier">s</span><span class="special">;</span> <span class="comment">// no initializer, s is default-constructed.</span>
@@ -282,7 +281,7 @@
 <span class="comment">// w.data is value-initialized for any type.</span>
 </pre>
 <p>
-          This is the solution as it was supplied by earlier versions of the <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> template class. Unfortunately this
+          This is the solution as it was supplied by earlier versions of the <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> template class. Unfortunately this
           approach suffered from various compiler issues.
         </p>
 <a name="sec:compiler_issues"></a><h6>
@@ -363,12 +362,12 @@
           Bug 7139</a> is fixed.
         </p>
 <p>
-          New versions of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+          New versions of <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
           (Boost release version 1.35 or higher) offer a workaround to these issues:
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+          <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
           may now clear its internal data, prior to constructing the object that
           it contains. It will do so for those compilers that need to have such a
-          workaround, based on the <a href="../../../../../../doc/html/config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_defects" target="_top">compiler
+          workaround, based on the <a href="../../../../../../libs/config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_defects" target="_top">compiler
           defect macro</a> <code class="computeroutput"><span class="identifier">BOOST_NO_COMPLETE_VALUE_INITIALIZATION</span></code>.
         </p>
 </div>
@@ -385,12 +384,12 @@
 <pre class="programlisting"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="keyword">class</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+<span class="keyword">class</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
 <span class="special">{</span>
 
   <span class="keyword">public</span> <span class="special">:</span>
 
-    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">()</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">()</span> <span class="special">{}</span>
+    <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">()</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">()</span> <span class="special">{}</span>
 
     <span class="keyword">operator</span> <span class="identifier">T</span> <span class="keyword">const</span> <span class="special">&amp;()</span> <span class="keyword">const</span> <span class="special">{</span> <span class="keyword">return</span> <span class="identifier">x</span> <span class="special">;</span> <span class="special">}</span>
 
@@ -400,7 +399,7 @@
 
     <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">data</span><span class="special">()</span> <span class="special">{</span> <span class="keyword">return</span> <span class="identifier">x</span> <span class="special">;</span> <span class="special">}</span>
 
-    <span class="keyword">void</span> <span class="identifier">swap</span><span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&amp;</span> <span class="special">);</span>
+    <span class="keyword">void</span> <span class="identifier">swap</span><span class="special">(</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&amp;</span> <span class="special">);</span>
 
   <span class="keyword">private</span> <span class="special">:</span>
 
@@ -410,19 +409,19 @@
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
 
-<span class="identifier">T</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">x</span> <span class="special">)</span>
+<span class="identifier">T</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">x</span> <span class="special">)</span>
 <span class="special">{</span>
   <span class="keyword">return</span> <span class="identifier">x</span><span class="special">.</span><span class="identifier">data</span><span class="special">();</span>
 <span class="special">}</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">x</span> <span class="special">)</span>
+<span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">x</span> <span class="special">)</span>
 <span class="special">{</span>
   <span class="keyword">return</span> <span class="identifier">x</span><span class="special">.</span><span class="identifier">data</span><span class="special">();</span>
 <span class="special">}</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="keyword">void</span> <span class="identifier">swap</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">lhs</span><span class="special">,</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">rhs</span> <span class="special">)</span>
+<span class="keyword">void</span> <span class="identifier">swap</span> <span class="special">(</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">lhs</span><span class="special">,</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">rhs</span> <span class="special">)</span>
 <span class="special">{</span>
   <span class="identifier">lhs</span><span class="special">.</span><span class="identifier">swap</span><span class="special">(</span><span class="identifier">rhs</span><span class="special">);</span>
 <span class="special">}</span>
@@ -437,11 +436,11 @@
             of this wrapper class:
           </p>
 <pre class="programlisting"><span class="keyword">int</span> <span class="identifier">zero</span> <span class="special">=</span> <span class="number">0</span><span class="special">;</span>
-<a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
+<a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
 <span class="identifier">assert</span><span class="special">(</span> <span class="identifier">x</span> <span class="special">==</span> <span class="identifier">zero</span> <span class="special">)</span> <span class="special">;</span>
 
 <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="identifier">def</span><span class="special">;</span>
-<a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span> <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">&gt;</span> <span class="identifier">y</span><span class="special">;</span>
+<a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span> <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">&gt;</span> <span class="identifier">y</span><span class="special">;</span>
 <span class="identifier">assert</span><span class="special">(</span> <span class="identifier">y</span> <span class="special">==</span> <span class="identifier">def</span> <span class="special">)</span> <span class="special">;</span>
 </pre>
 <p>
@@ -457,7 +456,7 @@
           </p>
 <pre class="programlisting"><span class="keyword">void</span> <span class="identifier">watch</span><span class="special">(</span><span class="keyword">int</span><span class="special">);</span>
 
-<a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
+<a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
 
 <span class="identifier">watch</span><span class="special">(</span><span class="identifier">x</span><span class="special">)</span> <span class="special">;</span> <span class="comment">// operator T&amp; used.</span>
 <span class="identifier">watch</span><span class="special">(</span><span class="identifier">x</span><span class="special">.</span><span class="identifier">data</span><span class="special">());</span>
@@ -470,15 +469,15 @@
           </p>
 <p>
             When <code class="computeroutput"><span class="identifier">T</span></code> is a <a href="https://en.cppreference.com/w/cpp/named_req/Swappable" target="_top"><span class="emphasis"><em>Swappable</em></span></a>
-            type, <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> is swappable as well, by calling
+            type, <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> is swappable as well, by calling
             its <code class="computeroutput"><span class="identifier">swap</span></code> member function
             as well as by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">swap</span></code>.
           </p>
-<pre class="programlisting"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
+<pre class="programlisting"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="identifier">x</span><span class="special">;</span>
 <span class="keyword">static_cast</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&amp;&gt;(</span><span class="identifier">x</span><span class="special">)</span> <span class="special">=</span> <span class="number">1</span> <span class="special">;</span> <span class="comment">// OK</span>
 <span class="identifier">get</span><span class="special">(</span><span class="identifier">x</span><span class="special">)</span> <span class="special">=</span> <span class="number">1</span> <span class="special">;</span> <span class="comment">// OK</span>
 
-<a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span> <span class="keyword">const</span><span class="special">&gt;</span> <span class="identifier">y</span> <span class="special">;</span>
+<a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span> <span class="keyword">const</span><span class="special">&gt;</span> <span class="identifier">y</span> <span class="special">;</span>
 <span class="keyword">static_cast</span><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&amp;&gt;(</span><span class="identifier">y</span><span class="special">)</span> <span class="special">=</span> <span class="number">1</span> <span class="special">;</span> <span class="comment">// ERROR: cannot cast to int&amp;</span>
 <span class="keyword">static_cast</span><span class="special">&lt;</span><span class="keyword">int</span> <span class="keyword">const</span><span class="special">&amp;&gt;(</span><span class="identifier">y</span><span class="special">)</span> <span class="special">=</span> <span class="number">1</span> <span class="special">;</span> <span class="comment">// ERROR: cannot modify a const value</span>
 <span class="identifier">get</span><span class="special">(</span><span class="identifier">y</span><span class="special">)</span> <span class="special">=</span> <span class="number">1</span> <span class="special">;</span> <span class="comment">// ERROR: cannot modify a const value</span>
@@ -490,7 +489,7 @@
 </tr>
 <tr><td align="left" valign="top">
 <p>
-              The <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+              The <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
               implementation of Boost version 1.40.0 and older allowed <span class="emphasis"><em>non-const</em></span>
               access to the wrapped object, from a constant wrapper, both by its
               conversion operator and its <code class="computeroutput"><span class="identifier">data</span><span class="special">()</span></code> member function.
@@ -498,7 +497,7 @@
 <p>
               For example:
             </p>
-<pre class="programlisting"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="keyword">const</span> <span class="identifier">x_c</span><span class="special">;</span>
+<pre class="programlisting"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="keyword">int</span><span class="special">&gt;</span> <span class="keyword">const</span> <span class="identifier">x_c</span><span class="special">;</span>
 <span class="keyword">int</span><span class="special">&amp;</span> <span class="identifier">xr</span> <span class="special">=</span> <span class="identifier">x_c</span> <span class="special">;</span> <span class="comment">// OK, conversion to int&amp; available even though x_c is itself const.</span>
 <span class="identifier">xr</span> <span class="special">=</span> <span class="number">2</span> <span class="special">;</span>
 </pre>
@@ -515,7 +514,7 @@
   <span class="special">(</span><span class="identifier">x</span> <span class="special">==</span> <span class="number">1</span><span class="special">)</span> <span class="special">;</span> <span class="comment">// ERROR HERE!</span>
 </pre>
 <p>
-              The current version of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> no longer
+              The current version of <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a> no longer
               has this obscure behavior. As compilers nowadays widely support overloading
               the conversion operator by having a <code class="computeroutput"><span class="keyword">const</span></code>
               and a <code class="computeroutput"><span class="identifier">non</span><span class="special">-</span><span class="keyword">const</span></code> version, we have decided to fix
@@ -532,7 +531,7 @@
 <p>
             The obscure behavior of being able to modify a non-<code class="computeroutput"><span class="keyword">const</span></code>
             wrapped object from within a constant wrapper (as was supported by previous
-            versions of <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>)
+            versions of <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>)
             can be avoided if access to the wrapped object is always performed with
             the <code class="computeroutput"><span class="identifier">get</span><span class="special">()</span></code>
             idiom:
@@ -557,14 +556,14 @@
 <pre class="programlisting"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="keyword">class</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a>
+<span class="keyword">class</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a>
 <span class="special">{</span>
 
   <span class="keyword">public</span> <span class="special">:</span>
 
-    <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">()</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">()</span> <span class="special">{}</span>
+    <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">()</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">()</span> <span class="special">{}</span>
 
-    <span class="keyword">explicit</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">(</span><span class="identifier">T</span> <span class="keyword">const</span> <span class="special">&amp;</span> <span class="identifier">arg</span><span class="special">)</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">(</span><span class="identifier">arg</span><span class="special">)</span> <span class="special">{}</span>
+    <span class="keyword">explicit</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">(</span><span class="identifier">T</span> <span class="keyword">const</span> <span class="special">&amp;</span> <span class="identifier">arg</span><span class="special">)</span> <span class="special">:</span> <span class="identifier">x</span><span class="special">(</span><span class="identifier">arg</span><span class="special">)</span> <span class="special">{}</span>
 
     <span class="keyword">operator</span> <span class="identifier">T</span> <span class="keyword">const</span> <span class="special">&amp;()</span> <span class="keyword">const</span><span class="special">;</span>
 
@@ -574,7 +573,7 @@
 
     <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">data</span><span class="special">();</span>
 
-    <span class="keyword">void</span> <span class="identifier">swap</span><span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&amp;</span> <span class="special">);</span>
+    <span class="keyword">void</span> <span class="identifier">swap</span><span class="special">(</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&amp;</span> <span class="special">);</span>
 
   <span class="keyword">private</span> <span class="special">:</span>
 
@@ -583,35 +582,35 @@
 <span class="special">};</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="identifier">T</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">x</span> <span class="special">);</span>
+<span class="identifier">T</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">x</span> <span class="special">);</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">x</span> <span class="special">);</span>
+<span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">get</span> <span class="special">(</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">x</span> <span class="special">);</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
-<span class="keyword">void</span> <span class="identifier">swap</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">lhs</span><span class="special">,</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">rhs</span> <span class="special">);</span>
+<span class="keyword">void</span> <span class="identifier">swap</span> <span class="special">(</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">lhs</span><span class="special">,</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;&amp;</span> <span class="identifier">rhs</span> <span class="special">);</span>
 
 <span class="special">}</span> <span class="comment">// namespace boost</span>
 </pre>
 <p>
-            The template class <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
+            The template class <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
             supports both value-initialization and direct-initialization, so its
-            interface is a superset of the interface of <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>:
+            interface is a superset of the interface of <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>:
             Its default-constructor value-initializes the wrapped object just like
-            the default-constructor of <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>,
-            but <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> also offers an extra <code class="computeroutput"><span class="keyword">explicit</span></code> constructor, which direct-initializes
+            the default-constructor of <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>,
+            but <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> also offers an extra <code class="computeroutput"><span class="keyword">explicit</span></code> constructor, which direct-initializes
             the wrapped object by the specified value.
           </p>
 <p>
-            <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> is especially useful when the wrapped
+            <code class="computeroutput"><a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code> is especially useful when the wrapped
             object must be either value-initialized or direct-initialized, depending
-            on runtime conditions. For example, <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
+            on runtime conditions. For example, <code class="computeroutput"><a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
             could hold the value of a data member that may be value-initialized by
             some constructors, and direct-initialized by others.
           </p>
 <p>
             On the other hand, if it is known beforehand that the object must <span class="emphasis"><em>always</em></span>
-            be value-initialized, <code class="computeroutput"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
+            be value-initialized, <code class="computeroutput"><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;</span></code>
             may be preferable. And if the object must always be direct-initialized,
             none of the two wrappers really needs to be used.
           </p>
@@ -621,18 +620,18 @@
 <a name="utility.utilities.value_init.types_and_objects.initialized_value"></a><a name="sec:initialized_value"></a><a class="link" href="value_init.html#utility.utilities.value_init.types_and_objects.initialized_value" title="initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
 </h5></div></div></div>
 <pre class="programlisting"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
-<span class="keyword">class</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value_t</span></code></a>
+<span class="keyword">class</span> <a class="link" href="../../boost/initialized_value_t.html" title="Class initialized_value_t"><code class="computeroutput"><span class="identifier">initialized_value_t</span></code></a>
 <span class="special">{</span>
   <span class="keyword">public</span> <span class="special">:</span>
     <span class="keyword">template</span> <span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">operator</span> <span class="identifier">T</span><span class="special">()</span> <span class="keyword">const</span> <span class="special">;</span>
 <span class="special">};</span>
 
-<a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value_t</span></code></a> <span class="keyword">const</span> <span class="identifier">initialized_value</span> <span class="special">=</span> <span class="special">{}</span> <span class="special">;</span>
+<a class="link" href="../../boost/initialized_value_t.html" title="Class initialized_value_t"><code class="computeroutput"><span class="identifier">initialized_value_t</span></code></a> <span class="keyword">const</span> <span class="identifier">initialized_value</span> <span class="special">=</span> <span class="special">{}</span> <span class="special">;</span>
 
 <span class="special">}</span> <span class="comment">// namespace boost</span>
 </pre>
 <p>
-            <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
+            <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
             provides a convenient way to get an initialized value: its conversion
             operator provides an appropriate <span class="emphasis"><em>value-initialized</em></span>
             object for any <a href="https://en.cppreference.com/w/cpp/named_req/CopyConstructible" target="_top"><span class="emphasis"><em>CopyConstructible</em></span></a>
@@ -645,10 +644,10 @@
 </pre>
 <p>
             But as mentioned before, this form suffers from various compiler issues.
-            The template <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+            The template <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
             offers a workaround:
           </p>
-<pre class="programlisting"><span class="identifier">T</span> <span class="identifier">var</span> <span class="special">=</span> <span class="identifier">get</span><span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;()</span> <span class="special">);</span>
+<pre class="programlisting"><span class="identifier">T</span> <span class="identifier">var</span> <span class="special">=</span> <span class="identifier">get</span><span class="special">(</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a><span class="special">&lt;</span><span class="identifier">T</span><span class="special">&gt;()</span> <span class="special">);</span>
 </pre>
 <p>
             Unfortunately both forms repeat the type name, which is rather short
@@ -656,9 +655,9 @@
             course be more like <code class="computeroutput"><span class="identifier">Namespace</span><span class="special">::</span><span class="identifier">Template</span><span class="special">&lt;</span><span class="identifier">Arg</span><span class="special">&gt;::</span><span class="identifier">Type</span></code>.
           </p>
 <p>
-            Instead, one could use <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a> as follows:
+            Instead, one could use <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a> as follows:
           </p>
-<pre class="programlisting"><span class="identifier">T</span> <span class="identifier">var</span> <span class="special">=</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a><span class="special">;</span>
+<pre class="programlisting"><span class="identifier">T</span> <span class="identifier">var</span> <span class="special">=</span> <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a><span class="special">;</span>
 </pre>
 </div>
 </div>
@@ -688,18 +687,40 @@
               The C++ Standard, Second edition (2003), ISO/IEC 14882:2003
             </li>
 <li class="listitem">
-              POD stands for "Plain Old Data"
+              POD stands for <a href="https://en.cppreference.com/w/cpp/named_req/PODType" target="_top">"Plain
+              Old Data"</a>
             </li>
 </ol></div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h4 class="title">
-<a name="value_init.reference"></a>Reference</h4></div></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="value_init.reference"></a>Reference</h4></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="header.boost.utility.value_init_hpp"></a>Header &lt;<a href="../../../../../../boost/utility/value_init.hpp" target="_top">boost/utility/value_init.hpp</a>&gt;</h5></div></div></div>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">class</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized">initialized</a><span class="special">;</span>
+  <span class="keyword">class</span> <a class="link" href="../../boost/initialized_value_t.html" title="Class initialized_value_t">initialized_value_t</a><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="keyword">class</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized">value_initialized</a><span class="special">;</span>
+
+  <a class="link" href="../../boost/initialized_value_t.html" title="Class initialized_value_t">initialized_value_t</a> <span class="keyword">const</span> <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value">initialized_value</a><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="keyword">const</span>  <span class="special">&amp;</span> <a name="boost.get_idm13187"></a><span class="identifier">get</span><span class="special">(</span><a class="link" href="../../boost/initialized.html" title="Class template initialized">initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="keyword">const</span> <span class="special">&amp;</span> x<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="special">&amp;</span> <a name="boost.get_idm13194"></a><span class="identifier">get</span><span class="special">(</span><a class="link" href="../../boost/initialized.html" title="Class template initialized">initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> 
+    <span class="keyword">void</span> <a name="boost.swap_idm13201"></a><span class="identifier">swap</span><span class="special">(</span><a class="link" href="../../boost/initialized.html" title="Class template initialized">initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lhs<span class="special">,</span> <a class="link" href="../../boost/initialized.html" title="Class template initialized">initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> rhs<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="keyword">const</span>  <span class="special">&amp;</span> <a name="boost.get_idm13211"></a><span class="identifier">get</span><span class="special">(</span><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized">value_initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="keyword">const</span> <span class="special">&amp;</span> x<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> <span class="identifier">T</span> <span class="special">&amp;</span> <a name="boost.get_idm13218"></a><span class="identifier">get</span><span class="special">(</span><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized">value_initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> T<span class="special">&gt;</span> 
+    <span class="keyword">void</span> <a name="boost.swap_idm13225"></a><span class="identifier">swap</span><span class="special">(</span><a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized">value_initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lhs<span class="special">,</span> <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized">value_initialized</a><span class="special">&lt;</span> <span class="identifier">T</span> <span class="special">&gt;</span> <span class="special">&amp;</span> rhs<span class="special">)</span><span class="special">;</span>
+<span class="special">}</span></pre>
+</div>
+</div>
 <div class="section">
 <div class="titlepage"><div><div><h4 class="title">
 <a name="utility.utilities.value_init.acknowledgements"></a><a name="sec:acknowledgements"></a><a class="link" href="value_init.html#utility.utilities.value_init.acknowledgements" title="Acknowledgements">Acknowledgements</a>
 </h4></div></div></div>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+          <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
           was developed by Fernando Cacciola, with help and suggestions from David
           Abrahams and Darin Adler.
         </p>
@@ -708,16 +729,16 @@
           documentation.
         </p>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
+          <a class="link" href="../../boost/value_initialized.html" title="Class template value_initialized"><code class="computeroutput"><span class="identifier">value_initialized</span></code></a>
           was reimplemented by Fernando Cacciola and Niels Dekker for Boost release
           version 1.35 (2008), offering a workaround to various compiler issues.
         </p>
 <p>
-          <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized</span></code></a></code>
+          <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../boost/initialized.html" title="Class template initialized"><code class="computeroutput"><span class="identifier">initialized</span></code></a></code>
           was very much inspired by feedback from Edward Diener and Jeffrey Hellrung.
         </p>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
+          <a class="link" href="../../boost/initialized_value.html" title="Global initialized_value"><code class="computeroutput"><span class="identifier">initialized_value</span></code></a>
           was written by Niels Dekker, and added to Boost release version 1.36 (2008).
         </p>
 <p>
@@ -736,7 +757,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="string_view.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../utilities0.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/basic_string_view.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/initialized.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

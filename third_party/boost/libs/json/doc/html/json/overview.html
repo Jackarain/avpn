@@ -79,10 +79,6 @@
           Easy and safe modern API with allocator support
         </li>
 <li class="listitem">
-          Compile without Boost, define <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-          (<span class="emphasis"><em>deprecated</em></span>)
-        </li>
-<li class="listitem">
           Optional header-only, without linking to a library
         </li>
 </ul></div>
@@ -90,6 +86,18 @@
 <div class="titlepage"><div><div><h3 class="title">
 <a name="json.overview.requirements"></a><a class="link" href="overview.html#json.overview.requirements" title="Requirements">Requirements</a>
 </h3></div></div></div>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+            Requires only C++11
+          </li>
+<li class="listitem">
+            Link to a built static or dynamic Boost library, or use header-only (see
+            below)
+          </li>
+<li class="listitem">
+            Supports -fno-exceptions, detected automatically
+          </li>
+</ul></div>
 <p>
         The library relies heavily on these well known C++ types in its interfaces
         (henceforth termed <span class="emphasis"><em>standard types</em></span>):
@@ -109,75 +117,8 @@
             <a class="link" href="ref/boost__json__system_error.html" title="system_error"><code class="computeroutput"><span class="identifier">system_error</span></code></a>
           </li>
 </ul></div>
-<p>
-        The requirements for Boost.JSON depend on whether the library is used as
-        part of Boost, or in the standalone flavor (without Boost):
-      </p>
 <h5>
 <a name="json.overview.requirements.h0"></a>
-        <span class="phrase"><a name="json.overview.requirements.using_boost"></a></span><a class="link" href="overview.html#json.overview.requirements.using_boost">Using
-        Boost</a>
-      </h5>
-<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
-<li class="listitem">
-            Requires only C++11
-          </li>
-<li class="listitem">
-            The default configuration
-          </li>
-<li class="listitem">
-            Aliases for standard types use their Boost equivalents
-          </li>
-<li class="listitem">
-            Link to a built static or dynamic Boost library, or use header-only (see
-            below)
-          </li>
-<li class="listitem">
-            Supports -fno-exceptions, detected automatically
-          </li>
-</ul></div>
-<h5>
-<a name="json.overview.requirements.h1"></a>
-        <span class="phrase"><a name="json.overview.requirements.without_boost"></a></span><a class="link" href="overview.html#json.overview.requirements.without_boost">Without
-        Boost</a>
-      </h5>
-<div class="warning"><table border="0" summary="Warning">
-<tr>
-<td rowspan="2" align="center" valign="top" width="25"><img alt="[Warning]" src="../../../../../doc/src/images/warning.png"></td>
-<th align="left">Warning</th>
-</tr>
-<tr><td align="left" valign="top"><p>
-          standalone use is deprecated and will be removed in a future release of
-          Boost.JSON.
-        </p></td></tr>
-</table></div>
-<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
-<li class="listitem">
-            Requires C++17
-          </li>
-<li class="listitem">
-            Aliases for standard types use their <code class="computeroutput"><span class="identifier">std</span></code>
-            equivalents
-          </li>
-<li class="listitem">
-            Obtained when defining the macro <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-          </li>
-<li class="listitem">
-            Link to a built static or dynamic standalone library, or use header-only
-            (see below)
-          </li>
-<li class="listitem">
-            Supports -fno-exceptions: define <code class="computeroutput"><span class="identifier">BOOST_NO_EXCEPTIONS</span></code>
-            and <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">throw_exception</span></code> manually
-          </li>
-</ul></div>
-<p>
-        When using without Boost, support for <code class="computeroutput"><span class="special">&lt;</span><span class="identifier">memory_resource</span><span class="special">&gt;</span></code>
-        is required. In particular, if using libstdc++ then version 8.3 or later
-        is needed.
-      </p>
-<h5>
-<a name="json.overview.requirements.h2"></a>
         <span class="phrase"><a name="json.overview.requirements.header_only"></a></span><a class="link" href="overview.html#json.overview.requirements.header_only">Header-Only</a>
       </h5>
 <p>
@@ -188,35 +129,7 @@
 <pre class="programlisting"><span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">json</span><span class="special">/</span><span class="identifier">src</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
 </pre>
 <h5>
-<a name="json.overview.requirements.h3"></a>
-        <span class="phrase"><a name="json.overview.requirements.standalone_shared_library"></a></span><a class="link" href="overview.html#json.overview.requirements.standalone_shared_library">Standalone
-        Shared Library</a>
-      </h5>
-<div class="warning"><table border="0" summary="Warning">
-<tr>
-<td rowspan="2" align="center" valign="top" width="25"><img alt="[Warning]" src="../../../../../doc/src/images/warning.png"></td>
-<th align="left">Warning</th>
-</tr>
-<tr><td align="left" valign="top"><p>
-          standalone use is deprecated and will be removed in a future release of
-          Boost.JSON.
-        </p></td></tr>
-</table></div>
-<p>
-        To build a standalone shared library, it is necessary to define the macros
-        <code class="computeroutput"><span class="identifier">BOOST_JSON_DECL</span></code> and <code class="computeroutput"><span class="identifier">BOOST_JSON_CLASS_DECL</span></code> as appropriate for
-        your toolchain. Example for MSVC:
-      </p>
-<pre class="programlisting"><span class="comment">// When building the DLL</span>
-<span class="preprocessor">#define</span> <span class="identifier">BOOST_JSON_DECL</span>       <span class="identifier">__declspec</span><span class="special">(</span><span class="identifier">dllexport</span><span class="special">)</span>
-<span class="preprocessor">#define</span> <span class="identifier">BOOST_JSON_CLASS_DECL</span> <span class="identifier">__declspec</span><span class="special">(</span><span class="identifier">dllexport</span><span class="special">)</span>
-
-<span class="comment">// When building the application which uses the DLL</span>
-<span class="preprocessor">#define</span> <span class="identifier">BOOST_JSON_DECL</span>       <span class="identifier">__declspec</span><span class="special">(</span><span class="identifier">dllimport</span><span class="special">)</span>
-<span class="preprocessor">#define</span> <span class="identifier">BOOST_JSON_CLASS_DECL</span> <span class="identifier">__declspec</span><span class="special">(</span><span class="identifier">dllimport</span><span class="special">)</span>
-</pre>
-<h5>
-<a name="json.overview.requirements.h4"></a>
+<a name="json.overview.requirements.h1"></a>
         <span class="phrase"><a name="json.overview.requirements.embedded"></a></span><a class="link" href="overview.html#json.overview.requirements.embedded">Embedded</a>
       </h5>
 <p>
@@ -229,18 +142,6 @@
 <pre class="programlisting"><span class="preprocessor">#define</span> <span class="identifier">BOOST_JSON_STACK_BUFFER_SIZE</span> <span class="number">1024</span>
 <span class="preprocessor">#include</span> <span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">json</span><span class="special">/</span><span class="identifier">src</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span>
 </pre>
-<div class="note"><table border="0" summary="Note">
-<tr>
-<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../doc/src/images/note.png"></td>
-<th align="left">Note</th>
-</tr>
-<tr><td align="left" valign="top"><p>
-          This library uses separate inline namespacing for the standalone mode to
-          allow libraries which use different modes to compose without causing link
-          errors. Linking to both modes of Boost.JSON (Boost and standalone) is possible,
-          but not recommended.
-        </p></td></tr>
-</table></div>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -251,13 +152,13 @@
       </p>
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
 <li class="listitem">
-            clang: 3.8, 4, 5, 6, 7, 8, 9, 10, 11
+            clang: 3.5, 3.6, 3.7, 3.8, 4, 5, 6, 7, 8, 9, 10, 11, 12
           </li>
 <li class="listitem">
-            gcc: 4.8, 4.9, 5, 6, 7, 8, 9, 10
+            gcc: 4.8, 4.9, 5, 6, 7, 8, 9, 10, 11
           </li>
 <li class="listitem">
-            msvc: 14.0, 14.1, 14.2
+            msvc: 14.0, 14.1, 14.2, 14.3
           </li>
 </ul></div>
 <h4>

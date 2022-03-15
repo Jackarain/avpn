@@ -1,12 +1,15 @@
-# Copyright (c) 2018-2019 Emil Dotchevski and Reverge Studios, Inc.
+# Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc.
 
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 import testing ;
 
-variant leaf_debug_diag0 : debug : <define>BOOST_LEAF_DIAGNOSTICS=0 ;
-variant leaf_release_diag0 : release : <define>BOOST_LEAF_DIAGNOSTICS=0 ;
+variant leaf_debug_diag0 : debug : <define>BOOST_LEAF_CFG_DIAGNOSTICS=0 ;
+variant leaf_release_diag0 : release : <define>BOOST_LEAF_CFG_DIAGNOSTICS=0 ;
+
+variant leaf_debug_embedded : debug : <define>BOOST_LEAF_EMBEDDED <rtti>off <exception-handling>off ;
+variant leaf_release_embedded : release : <define>BOOST_LEAF_EMBEDDED <rtti>off <exception-handling>off ;
 
 variant leaf_debug_leaf_hpp : debug : <define>BOOST_LEAF_TEST_SINGLE_HEADER ;
 variant leaf_release_leaf_hpp : release : <define>BOOST_LEAF_TEST_SINGLE_HEADER ;
@@ -20,20 +23,22 @@ project
         <toolset>gcc:<cxxflags>"-Wno-delete-non-virtual-dtor -Wno-parentheses"
         <toolset>clang:<cxxflags>"-Wno-dangling-else"
         <toolset>darwin:<cxxflags>"-Wno-unused-variable -Wno-delete-non-virtual-dtor -Wno-non-virtual-dtor -Wno-dangling-else"
-		<toolset>msvc:<cxxflags>"-wd 4267 -wd 4996 -wd 4244"
-		<include>../../..
+        <toolset>msvc:<cxxflags>"-wd 4267 -wd 4996 -wd 4244"
+        <include>../../..
     ;
 
 compile _hpp_capture_test.cpp ;
 compile _hpp_common_test.cpp ;
+compile _hpp_config_test.cpp ;
 compile _hpp_context_test.cpp ;
 compile _hpp_error_test.cpp ;
 compile _hpp_exception_test.cpp ;
 compile _hpp_handle_errors_test.cpp ;
 compile _hpp_on_error_test.cpp ;
-compile _hpp_leaf_test.cpp ;
 compile _hpp_pred_test.cpp ;
 compile _hpp_result_test.cpp ;
+compile _hpp_to_variant_test.cpp ;
+compile _hpp_leaf_test.cpp ;
 
 run accumulate_basic_test.cpp ;
 run accumulate_nested_error_exception_test.cpp ;
@@ -44,6 +49,7 @@ run accumulate_nested_success_exception_test.cpp ;
 run accumulate_nested_success_result_test.cpp ;
 run BOOST_LEAF_AUTO_test.cpp ;
 run BOOST_LEAF_ASSIGN_test.cpp ;
+run BOOST_LEAF_CHECK_test.cpp ;
 run boost_exception_test.cpp ;
 run capture_exception_async_test.cpp ;
 run capture_exception_result_async_test.cpp ;
@@ -64,6 +70,7 @@ run defer_nested_new_error_result_test.cpp ;
 run defer_nested_success_exception_test.cpp ;
 run defer_nested_success_result_test.cpp ;
 run diagnostic_info_test.cpp ;
+run diagnostic_info_test2.cpp ;
 run e_errno_test.cpp ;
 run e_LastError_test.cpp ;
 run error_code_test.cpp ;
@@ -96,6 +103,11 @@ run result_load_test.cpp ;
 run result_ref_test.cpp ;
 run result_state_test.cpp ;
 run context_deduction_test.cpp ;
+run tls_array_alloc_test1.cpp ;
+run tls_array_alloc_test2.cpp ;
+run tls_array_alloc_test3.cpp ;
+run tls_array_test.cpp ;
+run to_variant_test.cpp ;
 run try_catch_error_id_test.cpp ;
 run try_catch_test.cpp ;
 run try_exception_and_result_test.cpp ;

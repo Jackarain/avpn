@@ -100,7 +100,7 @@ color space (see typedefs.h).</p>
 <h2><a class="toc-backref" href="#id3">Defining new channel types</a></h2>
 <p>Most of the time you don&#8217;t need to do anything special to use a new
 channel type. You can just use it:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">typedef</span> <span class="n">pixel</span><span class="o">&lt;</span><span class="kt">double</span><span class="p">,</span><span class="n">rgb_layout_t</span><span class="o">&gt;</span>   <span class="n">rgb64_pixel_t</span><span class="p">;</span>    <span class="c1">// 64 bit RGB pixel</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">typedef</span> <span class="n">pixel</span><span class="o">&lt;</span><span class="kt">double</span><span class="p">,</span><span class="n">rgb_layout_t</span><span class="o">&gt;</span>   <span class="n">rgb64_pixel_t</span><span class="p">;</span>    <span class="c1">// 64 bit RGB pixel</span>
 <span class="k">typedef</span> <span class="n">rgb64_pixel</span><span class="o">*</span>                 <span class="n">rgb64_pixel_ptr_t</span><span class="p">;</span><span class="c1">// pointer to 64-bit interleaved data</span>
 <span class="k">typedef</span> <span class="n">image_type</span><span class="o">&lt;</span><span class="kt">double</span><span class="p">,</span><span class="n">rgb_layout_t</span><span class="o">&gt;::</span><span class="n">type</span> <span class="n">rgb64_image_t</span><span class="p">;</span>    <span class="c1">// 64-bit interleaved image</span>
 </pre></div>
@@ -119,7 +119,7 @@ some instances and default to GIL&#8217;s color conversion in all other
 cases. Here is, for example, how to overload color conversion so that
 color conversion to gray inverts the result but everything else
 remains the same:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// make the default use GIL&#39;s default</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// make the default use GIL&#39;s default</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">SrcColorSpace</span><span class="p">,</span> <span class="k">typename</span> <span class="n">DstColorSpace</span><span class="o">&gt;</span>
 <span class="k">struct</span> <span class="nl">my_color_converter_impl</span>
 <span class="p">:</span> <span class="k">public</span> <span class="n">default_color_converter_impl</span><span class="o">&lt;</span><span class="n">SrcColorSpace</span><span class="p">,</span><span class="n">DstColorSpace</span><span class="o">&gt;</span> <span class="p">{};</span>
@@ -152,7 +152,7 @@ remains the same:</p>
 </div>
 <p>GIL color conversion functions take the color converter as an
 optional parameter. You can pass your own color converter:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">color_converted_view</span><span class="o">&lt;</span><span class="n">gray8_pixel_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">img_view</span><span class="p">,</span><span class="n">my_color_converter</span><span class="p">());</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">color_converted_view</span><span class="o">&lt;</span><span class="n">gray8_pixel_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">img_view</span><span class="p">,</span><span class="n">my_color_converter</span><span class="p">());</span>
 </pre></div>
 </div>
 </div>
@@ -168,7 +168,7 @@ pixel access). First we need to define a model of
 <code class="docutils literal"><span class="pre">PixelDereferenceAdaptorConcept</span></code>; a function object that will be
 called when we dereference a pixel iterator. It will call
 <code class="docutils literal"><span class="pre">color_convert</span></code> to convert to the destination pixel type:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">SrcConstRefP</span><span class="p">,</span>  <span class="c1">// const reference to the source pixel</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">SrcConstRefP</span><span class="p">,</span>  <span class="c1">// const reference to the source pixel</span>
         <span class="k">typename</span> <span class="n">DstP</span><span class="o">&gt;</span>          <span class="c1">// Destination pixel value (models PixelValueConcept)</span>
 <span class="k">class</span> <span class="nc">color_convert_deref_fn</span>
 <span class="p">{</span>
@@ -192,7 +192,7 @@ called when we dereference a pixel iterator. It will call
 <p>We then use the <code class="docutils literal"><span class="pre">add_deref</span></code> member struct of image views to construct the
 type of a view that invokes a given function object (<code class="docutils literal"><span class="pre">deref_t</span></code>) upon
 dereferencing. In our case, it performs color conversion:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">SrcView</span><span class="p">,</span> <span class="k">typename</span> <span class="n">DstP</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">SrcView</span><span class="p">,</span> <span class="k">typename</span> <span class="n">DstP</span><span class="o">&gt;</span>
 <span class="k">struct</span> <span class="n">color_converted_view_type</span>
 <span class="p">{</span>
 <span class="k">private</span><span class="o">:</span>
@@ -207,7 +207,7 @@ dereferencing. In our case, it performs color conversion:</p>
 </div>
 <p>Finally our <code class="docutils literal"><span class="pre">color_converted_view</span></code> code simply creates color-converted view
 from the source view:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">DstP</span><span class="p">,</span> <span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span> <span class="kr">inline</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">DstP</span><span class="p">,</span> <span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span> <span class="kr">inline</span>
 <span class="k">typename</span> <span class="n">color_converted_view_type</span><span class="o">&lt;</span><span class="n">View</span><span class="p">,</span><span class="n">DstP</span><span class="o">&gt;::</span><span class="n">type</span> <span class="n">color_convert_view</span><span class="p">(</span><span class="k">const</span> <span class="n">View</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="k">return</span> <span class="n">color_converted_view_type</span><span class="o">&lt;</span><span class="n">View</span><span class="p">,</span><span class="n">DstP</span><span class="o">&gt;::</span><span class="n">make</span><span class="p">(</span><span class="n">src</span><span class="p">);</span>
@@ -233,7 +233,7 @@ defines the Mandelbrot set.</p>
     </div>
     </div>
     <div class="footer" role="contentinfo">
-      Last updated on 2021-12-02 06:12:31.
+      Last updated on 2022-03-13 09:03:54.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
     </div>
   </body>

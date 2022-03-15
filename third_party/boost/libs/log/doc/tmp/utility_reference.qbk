@@ -117,6 +117,10 @@
 
 [template class_log_dump_manip[][classref boost::log::dump_manip dump_manip]]
 
+[template boost_log_utility_manipulators_invoke_hpp[][headerref boost/log/utility/manipulators/invoke.hpp]]
+
+[template class_log_invoke_manipulator[][classref boost::log::invoke_manipulator invoke_manipulator]]
+
 [template boost_log_utility_manipulators_optional_hpp[][headerref boost/log/utility/manipulators/optional.hpp]]
 
 [template class_log_optional_manipulator[][classref boost::log::optional_manipulator optional_manipulator]]

@@ -129,6 +129,8 @@
 
 [template class_file_rotation_at_time_point[][classref boost::log::sinks::file::rotation_at_time_point rotation_at_time_point]]
 
+[template class_file_scan_result[][classref boost::log::sinks::file::scan_result scan_result]]
+
 [template boost_log_sinks_text_ipc_message_queue_backend_hpp[][headerref boost/log/sinks/text_ipc_message_queue_backend.hpp]]
 
 [template class_sinks_text_ipc_message_queue_backend[][classref boost::log::sinks::text_ipc_message_queue_backend text_ipc_message_queue_backend]]

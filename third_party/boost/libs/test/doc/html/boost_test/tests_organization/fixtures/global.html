@@ -41,9 +41,9 @@
           on the <a class="link" href="models.html" title="Fixture models">generic
           test class fixture model</a>. The global fixture design allows any number
           of global fixtures to be defined in any test file that constitutes a test
-          module. Though some initialization can be implemented in the test module
-          initialization function, there are several reasons to prefer the global
-          fixture approach:
+          module. Though some initialization can be implemented in the <a class="link" href="../../adv_scenarios/test_module_init_overview.html" title="Test module's initialization">test
+          module initialization function</a>, there are several reasons to prefer
+          the global fixture approach:
         </p>
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
 <li class="listitem">
@@ -88,11 +88,36 @@
             </li>
 </ol></div>
 <pre class="programlisting"><span class="identifier">BOOST_TEST_GLOBAL_FIXTURE</span><span class="special">(</span> <span class="identifier">fixture_name</span> <span class="special">);</span>
+
+<span class="comment">// if your fixture is within a namespace</span>
+<span class="keyword">namespace</span> <span class="identifier">enclosing_namespace</span> <span class="special">{</span>
+  <span class="keyword">struct</span> <span class="identifier">fixture_in_namespace</span> <span class="special">{</span> <span class="comment">/* ... */</span> <span class="special">};</span>
+<span class="special">}</span>
+
+<span class="keyword">namespace</span> <span class="identifier">enclosing_namespace</span> <span class="special">{</span>
+  <span class="identifier">BOOST_TEST_GLOBAL_FIXTURE</span><span class="special">(</span> <span class="identifier">fixture_in_namespace</span> <span class="special">);</span>
+<span class="special">}</span>
 </pre>
-<p>
-          The statement, that performs global fixture definition, has to reside at
-          a test file scope.
-        </p>
+<div class="caution"><table border="0" summary="Caution">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Caution]" src="../../../../../../../doc/src/images/caution.png"></td>
+<th align="left">Caution</th>
+</tr>
+<tr><td align="left" valign="top"><p>
+            The statement defining the global fixture has to reside in a single compilation
+            unit (no header).
+          </p></td></tr>
+</table></div>
+<div class="caution"><table border="0" summary="Caution">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Caution]" src="../../../../../../../doc/src/images/caution.png"></td>
+<th align="left">Caution</th>
+</tr>
+<tr><td align="left" valign="top"><p>
+            Beware of other fixtures in other compilation units having the same name:
+            if the fixtures have different definition, this leads to an ODR violation.
+          </p></td></tr>
+</table></div>
 <h6>
 <a name="boost_test.tests_organization.fixtures.global.h0"></a>
           <span class="phrase"><a name="boost_test.tests_organization.fixtures.global.example_descr"></a></span><a class="link" href="global.html#boost_test.tests_organization.fixtures.global.example_descr">Example:
@@ -169,7 +194,7 @@
 </div>
 <table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
 <td align="left"></td>
-<td align="right"><div class="copyright-footer">Copyright © 2001-2020 Boost.Test contributors<p>
+<td align="right"><div class="copyright-footer">Copyright © 2001-2022 Boost.Test contributors<p>
         Distributed under the Boost Software License, Version 1.0. (See accompanying
         file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>)
       </p>

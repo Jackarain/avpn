@@ -65,7 +65,21 @@ public:
         check(condition::assign_error, error::not_number);
         check(condition::assign_error, error::not_exact);
 
+        check(condition::pointer_parse_error, error::missing_slash);
+        check(condition::pointer_parse_error, error::invalid_escape);
+
+        check(condition::pointer_use_error, error::token_not_number);
+        check(condition::pointer_use_error, error::value_is_scalar);
+        check(condition::pointer_use_error, error::not_found);
+        check(condition::pointer_use_error, error::token_overflow);
+        check(condition::pointer_use_error, error::past_the_end);
+
         check(error::test_failure);
+
+        // check std interop
+        std::error_code const ec = error::syntax;
+        BOOST_TEST(ec == error::syntax);
+        BOOST_TEST(ec == condition::parse_error);
     }
 };
 

@@ -27,7 +27,7 @@
 <a name="json.ref.boost__json__error_category"></a><a class="link" href="boost__json__error_category.html" title="error_category">error_category</a>
 </h4></div></div></div>
 <p>
-        <a class="indexterm" name="idm58354"></a>
+        <a class="indexterm" name="idm61152"></a>
       </p>
 <p>
         The type of error category used by the library.
@@ -41,43 +41,6 @@
       </p>
 <pre class="programlisting"><span class="keyword">using</span> <span class="identifier">error_category</span> <span class="special">=</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">system</span><span class="special">::</span><span class="identifier">error_category</span><span class="special">;</span>
 </pre>
-<h5>
-<a name="json.ref.boost__json__error_category.h1"></a>
-        <span class="phrase"><a name="json.ref.boost__json__error_category.description"></a></span><a class="link" href="boost__json__error_category.html#json.ref.boost__json__error_category.description">Description</a>
-      </h5>
-<p>
-        This type alias is set depending on how the library is configured:
-      </p>
-<h5>
-<a name="json.ref.boost__json__error_category.h2"></a>
-        <span class="phrase"><a name="json.ref.boost__json__error_category.use_with_boost"></a></span><a class="link" href="boost__json__error_category.html#json.ref.boost__json__error_category.use_with_boost">Use
-        with Boost</a>
-      </h5>
-<p>
-        If the macro <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-        is not defined, this type will be an alias for <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">system</span><span class="special">::</span><span class="identifier">error_category</span></code>.
-        Compiling a program using the library will require Boost, and a compiler
-        conforming to C++11 or later.
-      </p>
-<h5>
-<a name="json.ref.boost__json__error_category.h3"></a>
-        <span class="phrase"><a name="json.ref.boost__json__error_category.use_without_boost"></a></span><a class="link" href="boost__json__error_category.html#json.ref.boost__json__error_category.use_without_boost">Use without
-        Boost</a>
-      </h5>
-<p>
-        If the macro <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-        is defined, this type will be an alias for <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">error_category</span></code>.
-        Compiling a program using the library will require only a compiler conforming
-        to C++17 or later.
-      </p>
-<h5>
-<a name="json.ref.boost__json__error_category.h4"></a>
-        <span class="phrase"><a name="json.ref.boost__json__error_category.see_also"></a></span><a class="link" href="boost__json__error_category.html#json.ref.boost__json__error_category.see_also">See
-        Also</a>
-      </h5>
-<p>
-        <a href="https://en.cppreference.com/w/cpp/error/error_category" target="_top">https://en.cppreference.com/w/cpp/error/error_category</a>
-      </p>
 <p>
         Convenience header <code class="literal">&lt;<a href="https://github.com/cppalliance/json/blob/master/include/boost/json.hpp" target="_top">boost/json.hpp</a>&gt;</code>
       </p>

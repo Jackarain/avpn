@@ -1,5 +1,5 @@
-//Copyright (c) 2008-2016 Emil Dotchevski and Reverge Studios, Inc.
-//Copyright (c) 2019 agate-pris
+// Copyright 2008-2022 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2019 agate-pris
 
 //Distributed under the Boost Software License, Version 1.0. (See accompanying
 //file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,6 +20,37 @@
 
 namespace
     {
+    template <class T>
+    struct
+    test_scalar
+        {
+        T value_;
+        test_scalar( T value ): value_(value) {}
+        }; //No operator==
+
+    struct
+    equal_to
+        {
+        template <class T,class U>
+        bool
+        operator()( T const & a, U const & b )
+            {
+            return a.value_==b.value_;
+            }
+        };
+    }
+
+namespace boost { namespace qvm {
+    template <class T>
+    struct
+    is_scalar<test_scalar<T> >
+        {
+        static bool const value = is_scalar<T>::value;
+        };
+} }
+
+namespace
+    {
     template <int Dim>
     void
     test()
@@ -36,24 +67,6 @@ namespace
                 }
             }
         }
-
-    template <class T>
-    struct test_scalar
-    {
-        T value_;
-        test_scalar( T value ): value_(value) {}
-    }; //No operator==
-
-    struct
-    equal_to
-    {
-        template <class T,class U>
-        bool
-        operator()( T const & a, U const & b )
-        {
-            return a.value_==b.value_;
-        }
-    };
 
     template <class A, class B>
     void

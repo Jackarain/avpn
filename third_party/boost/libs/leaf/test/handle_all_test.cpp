@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc.
 
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -28,7 +28,9 @@ enum class my_error_code
 
 struct e_my_error_code { my_error_code value; };
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
 struct e_std_error_code { std::error_code value; };
+#endif
 
 template <class R>
 leaf::result<R> f( my_error_code ec )
@@ -39,6 +41,7 @@ leaf::result<R> f( my_error_code ec )
         return leaf::new_error(ec, e_my_error_code{ec}, info<1>{1}, info<2>{2}, info<3>{3});
 }
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
 template <class R, class Errc>
 leaf::result<R> f_errc( Errc ec )
 {
@@ -50,13 +53,17 @@ leaf::result<R> f_errc_wrapped( Errc ec )
 {
     return leaf::new_error(e_std_error_code{make_error_code(ec)}, info<1>{1}, info<2>{2}, info<3>{3});
 }
+#endif
 
 struct move_only
 {
-    move_only( move_only const & ) = delete;
-    move_only( move_only && ) = default;
     explicit move_only( int value ): value(value) { }
     int value;
+
+#ifndef BOOST_LEAF_NO_CXX11_REF_QUALIFIERS
+    move_only( move_only const & ) = delete;
+    move_only( move_only && ) = default;
+#endif
 };
 
 int main()
@@ -105,6 +112,7 @@ int main()
         BOOST_TEST_EQ(c, 1);
     }
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // void, try_handle_all (failure), match cond_x (single enum value)
     {
         int c=0;
@@ -135,7 +143,9 @@ int main()
             } );
         BOOST_TEST_EQ(c, 2);
     }
+#endif
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // void, try_handle_all (failure), match cond_x (wrapped std::error_code)
     {
         int c=0;
@@ -166,6 +176,7 @@ int main()
             } );
         BOOST_TEST_EQ(c, 2);
     }
+#endif
 
     // void, try_handle_all (failure), match enum (single enum value)
     {
@@ -330,6 +341,7 @@ int main()
         BOOST_TEST_EQ(r, 1);
     }
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // int, try_handle_all (failure), match cond_x (single enum value)
     {
         int r = leaf::try_handle_all(
@@ -355,7 +367,9 @@ int main()
             } );
         BOOST_TEST_EQ(r, 2);
     }
+#endif
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // int, try_handle_all (failure), match cond_x (wrapped std::error_code)
     {
         int r = leaf::try_handle_all(
@@ -381,6 +395,7 @@ int main()
             } );
         BOOST_TEST_EQ(r, 2);
     }
+#endif
 
     // int, try_handle_all (failure), match enum (single enum value)
     {
@@ -525,6 +540,7 @@ int main()
         BOOST_TEST_EQ(r.value, 1);
     }
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // move_only, try_handle_all (failure), match cond_x (single enum value)
     {
         move_only r = leaf::try_handle_all(
@@ -550,7 +566,9 @@ int main()
             } );
         BOOST_TEST_EQ(r.value, 2);
     }
+#endif
 
+#if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
     // move_only, try_handle_all (failure), match cond_x (wrapped std::error_code)
     {
         move_only r = leaf::try_handle_all(
@@ -576,6 +594,7 @@ int main()
             } );
         BOOST_TEST_EQ(r.value, 2);
     }
+#endif
 
     // move_only, try_handle_all (failure), match enum (single enum value)
     {

@@ -167,6 +167,8 @@ This header contains tools for exception handlers support in different parts of 
 
 
 
+
+
 </namespace>
 </namespace>
 <macro name="BOOST_LOG_MAX_EXCEPTION_TYPES"><purpose>Maximum number of exception types that can be specified for exception handlers. </purpose></macro>
@@ -228,6 +230,8 @@ The header contains implementation of a string stream used for log record format
           <template-type-parameter name="StreamT"/>
           <template-type-parameter name="T"/>
         </template><parameter name="strm"><paramtype>StreamT &amp;&amp;</paramtype></parameter><parameter name="value"><paramtype>T &amp;</paramtype></parameter></function>
+
+
 
 
 
@@ -561,6 +565,8 @@ Although <computeroutput><classname alt="boost::log::basic_formatting_ostream">b
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -702,6 +708,8 @@ This header contains function object adapter for compatibility with Boost.Spirit
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -720,6 +728,8 @@ This header contains a predicate for checking if the provided string begins with
         </template><parameter name="left"><paramtype>T const &amp;</paramtype></parameter><parameter name="right"><paramtype>U const &amp;</paramtype></parameter></method>
 </method-group>
 </struct>
+
+
 
 
 
@@ -1053,6 +1063,8 @@ This header contains function object adapters. This is a lightweight alternative
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -1185,6 +1197,8 @@ This header contains a function object that assigns the received value to the bo
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -1275,6 +1289,8 @@ This header contains a function object that puts the received value to the bound
 <function name="bind_output"><type><classname>binder1st</classname>&lt; <classname>output_fun</classname>, StreamT &amp; &gt;</type><template>
           <template-type-parameter name="StreamT"/>
         </template><parameter name="strm"><paramtype>StreamT &amp;</paramtype></parameter></function>
+
+
 
 
 
@@ -1462,6 +1478,8 @@ This header contains a function object that puts the received value to the bound
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -1592,6 +1610,8 @@ This header contains a predicate for checking if the provided string contains a 
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -1610,6 +1630,8 @@ This header contains a predicate for checking if the provided string ends with a
         </template><parameter name="left"><paramtype>T const &amp;</paramtype></parameter><parameter name="right"><paramtype>U const &amp;</paramtype></parameter></method>
 </method-group>
 </struct>
+
+
 
 
 
@@ -1857,6 +1879,8 @@ This header contains function object reference adapter. The adapter stores a ref
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -1885,6 +1909,8 @@ This header contains a predicate for checking if the provided value is within a 
         </template><parameter name="value"><paramtype>T const &amp;</paramtype></parameter><parameter name="rng"><paramtype>std::pair&lt; U, U &gt; const &amp;</paramtype></parameter><parameter name=""><paramtype>true_type</paramtype></parameter></method>
 </method-group>
 </struct>
+
+
 
 
 
@@ -2224,6 +2250,8 @@ This header contains logical predicates for value comparison, analogous to <comp
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -2359,6 +2387,8 @@ This header contains a predicate for checking if the provided string matches a r
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -2377,6 +2407,8 @@ This header contains a function object that does nothing. </para><namespace name
         </template><parameter name="..."><paramtype>ArgsT const &amp;</paramtype></parameter></method>
 </method-group>
 </struct>
+
+
 
 
 
@@ -2625,6 +2657,8 @@ This header contains function object adapter that saves the result of the adopte
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -2691,6 +2725,8 @@ The scopes are not overlapping. For instance, if an object is created in the glo
         </template><parameter name="strm"><paramtype>std::basic_ostream&lt; CharT, TraitsT &gt; &amp;</paramtype></parameter><parameter name="name"><paramtype><classname>object_name</classname> const &amp;</paramtype></parameter><description><para>Stream ouput operator </para></description></method>
 </method-group>
 </class></namespace>
+
+
 
 
 
@@ -3082,6 +3118,8 @@ The header contains declaration of a reliable interprocess message queue. </para
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -3108,6 +3146,8 @@ This header contains the <computeroutput>add_value</computeroutput> manipulator.
 </method-group>
 <constructor><parameter name="name"><paramtype>attribute_name const &amp;</paramtype></parameter><parameter name="value"><paramtype>reference_type</paramtype></parameter><purpose>Initializing constructor. </purpose></constructor>
 </class>
+
+
 
 
 
@@ -3352,6 +3392,8 @@ The header contains implementation of a stream manipulator for inserting a newli
 
 
 
+
+
 <function name="operator&lt;&lt;"><type><classname>basic_formatting_ostream</classname>&lt; CharT, TraitsT, AllocatorT &gt; &amp;</type><template>
           <template-type-parameter name="CharT"/>
           <template-type-parameter name="TraitsT"/>
@@ -3484,6 +3526,8 @@ This header contains the <computeroutput>dump</computeroutput> output manipulato
 
 
 
+
+
 <function name="operator&lt;&lt;"><type>std::basic_ostream&lt; CharT, TraitsT &gt; &amp;</type><template>
           <template-type-parameter name="CharT"/>
           <template-type-parameter name="TraitsT"/>
@@ -3516,6 +3560,151 @@ This header contains the <computeroutput>dump</computeroutput> output manipulato
 
 </para></description><returns><para>The manipulator that is to be put to a stream </para>
 </returns></function>
+
+
+
+
+
+
+</namespace>
+</namespace>
+</header>
+<header name="boost/log/utility/manipulators/invoke.hpp">
+<para><para>Andrey Semashev </para>
+
+<para>27.02.2022</para>
+
+The header contains implementation of a stream manipulator for invoking a user-defined function. </para><namespace name="boost">
+<namespace name="log">
+<class name="invoke_manipulator"><template>
+      <template-type-parameter name="FunctionT"/>
+    </template><description><para>Stream manipulator for invoking a user-defined function as part of stream output. </para></description><method-group name="public member functions">
+<method name="output" cv="const"><type>void</type><template>
+          <template-type-parameter name="StreamT"/>
+        </template><parameter name="stream"><paramtype>StreamT &amp;</paramtype></parameter><purpose>The method invokes the saved function with the output stream. </purpose></method>
+</method-group>
+<constructor specifiers="explicit"><parameter name="func"><paramtype>FunctionT const &amp;</paramtype></parameter><purpose>Initializing constructor. </purpose></constructor>
+<constructor specifiers="explicit"><parameter name="func"><paramtype>FunctionT &amp;&amp;</paramtype></parameter><purpose>Initializing constructor. </purpose></constructor>
+</class>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<function name="operator&lt;&lt;"><type><emphasis>unspecified</emphasis></type><template>
+          <template-type-parameter name="StreamT"/>
+          <template-type-parameter name="FunctionT"/>
+        </template><parameter name="stream"><paramtype>StreamT &amp;</paramtype></parameter><parameter name="manip"><paramtype><classname>invoke_manipulator</classname>&lt; FunctionT &gt; const &amp;</paramtype></parameter><description><para>Stream output operator for <computeroutput><classname alt="boost::log::invoke_manipulator">invoke_manipulator</classname></computeroutput>. Invokes the function saved in the manipulator. </para></description></function>
+<function name="invoke_manip"><type><classname>invoke_manipulator</classname>&lt; unspecified &gt;</type><template>
+          <template-type-parameter name="FunctionT"/>
+          <template-nontype-parameter name="Args"><type>typename...</type></template-nontype-parameter>
+        </template><parameter name="func"><paramtype>FunctionT &amp;&amp;</paramtype><description><para>User-defined function to invoke on output. The function must be callable with a reference to the output stream as the first argument, followed by <emphasis>args</emphasis>. </para></description></parameter><parameter name="args"><paramtype>Args &amp;&amp;...</paramtype><description><para>Additional arguments to pass to <emphasis>func</emphasis>. </para></description></parameter><description><para>Invoke manipulator generator function.</para><para>
+
+<note><para><emphasis>args</emphasis> are only supported since C++14. </para>
+</note>
+</para></description><returns><para>Manipulator to be inserted into the stream.</para>
+</returns></function>
+
+
+
+
+
+
 
 
 
@@ -3730,6 +3919,8 @@ The header contains implementation of a stream manipulator for inserting an opti
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -3906,6 +4097,8 @@ The header contains implementation of a stream manipulator for inserting a range
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -4022,6 +4215,8 @@ This header contains the <computeroutput>to_log</computeroutput> output manipula
           <template-type-parameter name="TagT"/>
           <template-type-parameter name="T"/>
         </template><parameter name="value"><paramtype>T const &amp;</paramtype></parameter></function>
+
+
 
 
 
@@ -4245,6 +4440,8 @@ The header contains implementation of a stream manipulator for inserting a tuple
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -4256,6 +4453,8 @@ The header contains implementation of a stream manipulator for inserting a tuple
 </para><namespace name="boost">
 <namespace name="log">
 <struct name="once_block_flag"><purpose>A flag to detect if a code block has already been executed. </purpose><description><para>This structure should be used in conjunction with the <computeroutput>BOOST_LOG_ONCE_BLOCK_FLAG</computeroutput> macro. Usage example:</para><para><computeroutput> <classname alt="boost::log::once_block_flag">once_block_flag</classname> flag = BOOST_LOG_ONCE_BLOCK_INIT;</computeroutput></para><para><computeroutput>void foo() { BOOST_LOG_ONCE_BLOCK_FLAG(flag) { puts("Hello, world once!"); } } </computeroutput> </para></description></struct>
+
+
 
 
 
@@ -4499,6 +4698,8 @@ The header defines resource opening modes. </para><namespace name="boost">
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -4533,6 +4734,8 @@ The header contains an abstraction wrapper for security permissions. </para><nam
 <method name="swap" cv="noexcept"><type>friend void</type><parameter name="a"><paramtype><classname>permissions</classname> &amp;</paramtype></parameter><parameter name="b"><paramtype><classname>permissions</classname> &amp;</paramtype></parameter><purpose>Swaps the two <computeroutput>permissions</computeroutput> objects. </purpose></method>
 </method-group>
 </class>
+
+
 
 
 
@@ -4807,6 +5010,8 @@ This header contains ordering predicates for logging records. </para><namespace 
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -4898,6 +5103,8 @@ The header contains implementation of convenience functions for registering comm
 </listitem>
 </itemizedlist>
 </para></description></function>
+
+
 
 
 
@@ -5092,6 +5299,8 @@ The header contains implementation of convenience functions for enabling logging
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -5199,6 +5408,8 @@ The header contains implementation of convenience functions for enabling logging
 </note>
 </para></description><returns><para>Pointer to the constructed sink.</para>
 </returns></function>
+
+
 
 
 
@@ -5457,6 +5668,8 @@ The header contains definition of a filter parser function. </para><namespace na
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -5578,6 +5791,8 @@ The header contains definition of a formatter parser function, along with facili
 <emphasis role="bold">Throws:</emphasis> An <computeroutput>std::exception</computeroutput>-based exception, if a formatter cannot be recognized in the character sequence. </para></description><requires><para><computeroutput>str != NULL</computeroutput>, <computeroutput>str</computeroutput> points to a zero-terminated string </para>
 </requires><returns><para>The parsed formatter.</para>
 </returns></function>
+
+
 
 
 
@@ -5790,6 +6005,8 @@ The header contains definition of facilities that allows to initialize the libra
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -5843,6 +6060,8 @@ The header contains definition of facilities that allows to initialize the libra
           <template-type-parameter name="CharT"/>
         </template><parameter name="strm"><paramtype>std::basic_istream&lt; CharT &gt; &amp;</paramtype><description><para>Stream, that provides library settings</para></description></parameter><description><para>The function initializes the logging library from a stream containing logging settings</para><para>
 <emphasis role="bold">Throws:</emphasis> An <computeroutput>std::exception</computeroutput>-based exception if the read data cannot be interpreted as the library settings </para></description></function>
+
+
 
 
 
@@ -6114,6 +6333,8 @@ settings["Section2"]["Param2"] = 10; // sets the parameter "Param2" in section "
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -6165,6 +6386,8 @@ The header contains definition of a settings parser function. </para><namespace 
           <template-type-parameter name="CharT"/>
         </template><parameter name="strm"><paramtype>std::basic_istream&lt; CharT &gt; &amp;</paramtype><description><para>Stream, that provides library settings</para></description></parameter><description><para>The function parses library settings from an input stream</para><para>
 <emphasis role="bold">Throws:</emphasis> An <computeroutput>std::exception</computeroutput>-based exception if the read data cannot be interpreted as the library settings </para></description></function>
+
+
 
 
 
@@ -6388,6 +6611,8 @@ The header contains definition of the <computeroutput>strictest_lock</computerou
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -6432,6 +6657,8 @@ The header contains implementation of a constant string literal wrapper. </para>
           <template-type-parameter name="T"/>
           <template-nontype-parameter name="LenV"><type>std::size_t</type></template-nontype-parameter>
         </template><parameter name="p"><paramtype>T(&amp;)</paramtype></parameter><purpose>Creates a string literal wrapper from a constant string literal. </purpose></function>
+
+
 
 
 
@@ -6839,6 +7066,8 @@ The header contains forward declaration of a constant string literal wrapper. </
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -6863,6 +7092,8 @@ The header contains definition of date and time-related types supported by the l
 <typedef name="time_duration_types"><description><para>An MPL-sequence with the complete list of the supported time duration types </para></description><type>mpl::vector&lt;&gt;</type></typedef>
 <typedef name="boost_time_period_types"><description><para>An MPL-sequence of Boost time duration types of attributes </para></description><type>mpl::vector&lt;&gt;</type></typedef>
 <typedef name="time_period_types"><description><para>An MPL-sequence with the complete list of the supported time period types </para></description><type>boost_time_period_types</type></typedef>
+
+
 
 
 
@@ -7121,6 +7352,8 @@ The header contains implementation of the run-time type dispatcher. </para><name
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -7250,6 +7483,8 @@ The header contains definition of standard types supported by the library by def
 
 
 
+
+
 </namespace>
 </namespace>
 <macro name="BOOST_LOG_AUX_STANDARD_TYPE_WCHAR_T" kind="functionlike"><macro-parameter name=""/></macro>
@@ -7283,6 +7518,8 @@ The header contains implementation of a compile-time type dispatcher. </para><na
 <constructor cv="= delete"><parameter name=""><paramtype><classname>static_type_dispatcher</classname> const &amp;</paramtype></parameter></constructor>
 <copy-assignment cv="= delete"><type><classname>static_type_dispatcher</classname> &amp;</type><parameter name=""><paramtype><classname>static_type_dispatcher</classname> const &amp;</paramtype></parameter></copy-assignment>
 </class>
+
+
 
 
 
@@ -7532,6 +7769,8 @@ The header contains definition of generic type dispatcher interfaces. </para><na
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -7662,6 +7901,8 @@ The header contains definition of a macro to suppress compiler warnings about un
 
 
 
+
+
 </namespace>
 </namespace>
 <macro name="BOOST_LOG_UNUSED_VARIABLE" kind="functionlike"><macro-parameter name="type"/><macro-parameter name="var"/><macro-parameter name="initializer"/><purpose>The macro suppresses compiler warnings for <computeroutput>var</computeroutput> being unused. </purpose></macro>
@@ -7674,6 +7915,8 @@ The header contains definition of a macro to suppress compiler warnings about un
 The header defines <computeroutput>use_std_allocator</computeroutput> tag type. </para><namespace name="boost">
 <namespace name="log">
 <struct name="use_std_allocator"><purpose>Tag type that indicates that a specialization of <computeroutput>std::allocator</computeroutput> should be used for allocating memory. </purpose><description><para>This tag type can be used in template parameters in various components of Boost.Log. The type itself is not an allocator type. </para></description></struct>
+
+
 
 
 
@@ -8001,6 +8244,8 @@ The header contains implementation of a value reference wrapper. </para><namespa
 
 
 
+
+
 </namespace>
 </namespace>
 </header>
@@ -8024,6 +8269,8 @@ The header contains forward declaration of a value reference wrapper. </para><na
 <method name="swap" cv="noexcept"><type>void</type><parameter name="that"><paramtype><classname>value_ref</classname> &amp;</paramtype></parameter><description><para>Swaps two reference wrappers </para></description></method>
 </method-group>
 </class>
+
+
 
 
 

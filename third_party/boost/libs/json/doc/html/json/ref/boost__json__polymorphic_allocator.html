@@ -45,35 +45,7 @@
         <span class="phrase"><a name="json.ref.boost__json__polymorphic_allocator.description"></a></span><a class="link" href="boost__json__polymorphic_allocator.html#json.ref.boost__json__polymorphic_allocator.description">Description</a>
       </h5>
 <p>
-        This type alias is set depending on how the library is configured:
-      </p>
-<h5>
-<a name="json.ref.boost__json__polymorphic_allocator.h2"></a>
-        <span class="phrase"><a name="json.ref.boost__json__polymorphic_allocator.use_with_boost"></a></span><a class="link" href="boost__json__polymorphic_allocator.html#json.ref.boost__json__polymorphic_allocator.use_with_boost">Use
-        with Boost</a>
-      </h5>
-<p>
-        If the macro <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-        is not defined, this type will be an alias template for <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">container</span><span class="special">::</span><span class="identifier">pmr</span><span class="special">::</span><span class="identifier">polymorphic_allocator</span></code>. Compiling a program
-        using the library will require Boost, and a compiler conforming to C++11
-        or later.
-      </p>
-<h5>
-<a name="json.ref.boost__json__polymorphic_allocator.h3"></a>
-        <span class="phrase"><a name="json.ref.boost__json__polymorphic_allocator.use_without_boost"></a></span><a class="link" href="boost__json__polymorphic_allocator.html#json.ref.boost__json__polymorphic_allocator.use_without_boost">Use
-        without Boost</a>
-      </h5>
-<p>
-        If the macro <code class="computeroutput"><span class="identifier">BOOST_JSON_STANDALONE</span></code>
-        is defined, this type will be an alias template for <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">pmr</span><span class="special">::</span><span class="identifier">polymorphic_allocator</span></code>. Compiling a program
-        using the library will require only a compiler conforming to C++17 or later.
-      </p>
-<h5>
-<a name="json.ref.boost__json__polymorphic_allocator.h4"></a>
-        <span class="phrase"><a name="json.ref.boost__json__polymorphic_allocator.see_also"></a></span><a class="link" href="boost__json__polymorphic_allocator.html#json.ref.boost__json__polymorphic_allocator.see_also">See Also</a>
-      </h5>
-<p>
-        <a href="https://en.cppreference.com/w/cpp/memory/polymorphic_allocator" target="_top">https://en.cppreference.com/w/cpp/memory/polymorphic_allocator</a>
+        Alias template for <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">container</span><span class="special">::</span><span class="identifier">pmr</span><span class="special">::</span><span class="identifier">polymorphic_allocator</span></code>.
       </p>
 <p>
         Convenience header <code class="literal">&lt;<a href="https://github.com/cppalliance/json/blob/master/include/boost/json.hpp" target="_top">boost/json.hpp</a>&gt;</code>

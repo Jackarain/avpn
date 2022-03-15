@@ -6,8 +6,8 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../../index.html" title="Chapter 1. Boost.Utility">
 <link rel="up" href="../utilities.html" title="Utilities">
-<link rel="prev" href="result_of.html" title="Result of">
-<link rel="next" href="value_init.html" title="Value Init">
+<link rel="prev" href="../../boost/tr1_result_of.html" title="Struct template tr1_result_of">
+<link rel="next" href="../../boost/basic_string_view.html" title="Class template basic_string_view">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <table cellpadding="2" width="100%"><tr>
@@ -20,7 +20,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="result_of.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="value_init.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/tr1_result_of.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/basic_string_view.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -39,8 +39,8 @@
 <a name="utility.utilities.string_view.introduction"></a><a class="link" href="string_view.html#utility.utilities.string_view.introduction" title="Introduction">Introduction</a>
 </h4></div></div></div>
 <p>
-          The class <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
-          and other classes derived from <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a> represent references
+          The class <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
+          and other classes derived from <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a> represent references
           to strings or substrings. When you are parsing/processing strings from
           some external source, frequently you want to pass a piece of text to a
           procedure for specialized processing. Before <a href="https://en.cppreference.com/w/cpp/string/basic_string_view" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string_view</span></code></a>, the canonical way
@@ -62,22 +62,22 @@
           portion of the string, then it must create a new string to return.
         </p>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
-          is designed to solve these efficiency problems. A <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is a read-only reference
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
+          is designed to solve these efficiency problems. A <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is a read-only reference
           to a contiguous sequence of characters, and provides much of the functionality
-          of <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a>. A <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is cheap to create,
+          of <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a>. A <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is cheap to create,
           copy and pass by value, because it does not actually own the storage that
           it points to.
         </p>
 <p>
-          A <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
+          A <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
           is implemented as a small struct that contains a pointer to the start of
           the character <code class="computeroutput"><span class="identifier">data</span></code> and
-          a <code class="computeroutput"><span class="identifier">count</span></code>. A <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is cheap to create
+          a <code class="computeroutput"><span class="identifier">count</span></code>. A <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> is cheap to create
           and cheap to copy.
         </p>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
           acts as a container; it includes all the methods that you would expect
           in a container, including iteration support, <code class="computeroutput"><span class="keyword">operator</span><span class="special">[]</span></code>, <code class="computeroutput"><span class="identifier">at</span></code>
           and <code class="computeroutput"><span class="identifier">size</span></code>. It can be used
@@ -85,12 +85,12 @@
           not need to change the underlying data. For example, <a href="https://en.cppreference.com/w/cpp/algorithm/sort" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">sort</span></code></a> and <a href="https://en.cppreference.com/w/cpp/algorithm/remove" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">remove</span></code></a> will not work.
         </p>
 <p>
-          Besides generic container functionality, <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> provides a subset
+          Besides generic container functionality, <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> provides a subset
           of the interface of <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a>. This makes it easy to
           replace parameters of type <code class="computeroutput"><span class="keyword">const</span>
           <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">&amp;</span></code>
-          with <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>.
-          Like <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a>, <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> has a static member
+          with <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>.
+          Like <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a>, <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> has a static member
           variable named <code class="computeroutput"><span class="identifier">npos</span></code> to
           denote the result of failed searches, and to mean "the end".
         </p>
@@ -100,11 +100,11 @@
 <th align="left">Caution</th>
 </tr>
 <tr><td align="left" valign="top"><p>
-            Because a <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
+            Because a <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>
             does not own the data that it refers to, it introduces lifetime issues
             into code that uses it. The programmer must ensure that the data that
-            a <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
-            refers to exists as long as the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a> does.
+            a <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+            refers to exists as long as the <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a> does.
           </p></td></tr>
 </table></div>
 <div class="note"><table border="0" summary="Note">
@@ -114,39 +114,39 @@
 </tr>
 <tr><td align="left" valign="top">
 <p>
-            Boost.Utility also includes the class <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>:
+            Boost.Utility also includes the class <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>:
           </p>
 <p>
-            - <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>
+            - <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>
             is the initial implementation of Jeffrey Yaskin's <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2012/n3442.html" target="_top">N3442:
             string_ref: a non-owning reference to a string</a>.
           </p>
 <p>
-            - <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+            - <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
             is an updated implementation to reflect the Library Fundamentals TS
             <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/n4480.html" target="_top">N4480:
-            [string.view]</a>
+            [string.view]</a>.
           </p>
 <p>
-            Please prefer <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
-            / <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
-            over <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>
-            / <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a>:
+            Please prefer <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+            / <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
+            over <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_ref</span></code></a>
+            / <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a>:
           </p>
 <p>
-            - The <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
-            class better matches <a href="https://en.cppreference.com/w/cpp/string/basic_string_view" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string_view</span></code></a>
+            - The <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
+            class better matches <a href="https://en.cppreference.com/w/cpp/string/basic_string_view" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string_view</span></code></a>.
           </p>
 <p>
-            - <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
+            - <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_view</span></code></a>
             has WAY more constexpr support.
           </p>
 <p>
-            - Code that uses <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a> should continue
+            - Code that uses <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a> should continue
             to work.
           </p>
 <p>
-            - No much code depends on <a class="link" href="../../"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a> anymore
+            - Not much code depends on <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">basic_string_ref</span></code></a> anymore.
           </p>
 </td></tr>
 </table></div>
@@ -156,11 +156,11 @@
 <a name="utility.utilities.string_view.examples"></a><a class="link" href="string_view.html#utility.utilities.string_view.examples" title="Examples">Examples</a>
 </h4></div></div></div>
 <p>
-          Integrating <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+          Integrating <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
           into your code is fairly simple. Wherever you pass a <code class="computeroutput"><span class="keyword">const</span>
           <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">&amp;</span></code>
           or <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> as a parameter, that's
-          a candidate for passing a <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>.
+          a candidate for passing a <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a>.
         </p>
 <pre class="programlisting"><a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="identifier">extract_part</span> <span class="special">(</span> <span class="keyword">const</span> <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">&amp;</span><span class="identifier">bar</span> <span class="special">)</span> <span class="special">{</span>
     <span class="keyword">return</span> <span class="identifier">bar</span><span class="special">.</span><span class="identifier">substr</span> <span class="special">(</span> <span class="number">2</span><span class="special">,</span> <span class="number">3</span> <span class="special">);</span>
@@ -195,9 +195,9 @@
           and the associated copying of data.
         </p>
 <p>
-          Now let's look at the same code with <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>:
+          Now let's look at the same code with <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>:
         </p>
-<pre class="programlisting"><a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> <span class="identifier">extract_part</span> <span class="special">(</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> <span class="identifier">bar</span> <span class="special">)</span> <span class="special">{</span>
+<pre class="programlisting"><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> <span class="identifier">extract_part</span> <span class="special">(</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">string_view</span></code></a> <span class="identifier">bar</span> <span class="special">)</span> <span class="special">{</span>
     <span class="keyword">return</span> <span class="identifier">bar</span><span class="special">.</span><span class="identifier">substr</span> <span class="special">(</span> <span class="number">2</span><span class="special">,</span> <span class="number">3</span> <span class="special">);</span>
 <span class="special">}</span>
 
@@ -205,8 +205,8 @@
 </pre>
 <p>
           No memory allocations. No copying of character data. No changes to the
-          code other than the types. There are two <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a> s created, and two
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+          code other than the types. There are two <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a> s created, and two
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
           s copied, but those are cheap operations.
         </p>
 </div>
@@ -215,11 +215,11 @@
 <a name="utility.utilities.string_view.reference"></a><a class="link" href="string_view.html#utility.utilities.string_view.reference" title="Synopsis">Synopsis</a>
 </h4></div></div></div>
 <p>
-          The header file <a href="../../../../../include/boost/utility/string_view.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">string_view</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> defines a template <a class="link" href="../../"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">basic_string_view</span></code></a>, and four specializations
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>,
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">wstring_view</span></code></a>,
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">u16string_view</span></code></a>,
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">u32string_view</span></code></a>
+          The header file <a href="../../../../../../boost/utility/string_view.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">string_view</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> defines a template <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">basic_string_view</span></code></a>, and four specializations
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>,
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">wstring_view</span></code></a>,
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">u16string_view</span></code></a>,
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">u32string_view</span></code></a>
           - for <code class="computeroutput"><span class="keyword">char</span></code> / <code class="computeroutput"><span class="keyword">wchar_t</span></code> / <code class="computeroutput"><span class="keyword">char16_t</span></code>
           / <code class="computeroutput"><span class="keyword">char32_t</span></code>.
         </p>
@@ -238,9 +238,9 @@
 <span class="identifier">basic_string_view</span><span class="special">&amp;</span> <span class="keyword">operator</span><span class="special">=(</span><span class="keyword">const</span> <span class="identifier">basic_string_view</span> <span class="special">&amp;</span><span class="identifier">rhs</span><span class="special">);</span>
 </pre>
 <p>
-          <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+          <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
           does not define a move constructor nor a move-assignment operator because
-          copying a <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+          copying a <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
           is just a cheap as moving one.
         </p>
 <p>
@@ -271,7 +271,7 @@
 <span class="keyword">constexpr</span> <span class="keyword">const</span> <span class="identifier">charT</span><span class="special">*</span> <span class="identifier">data</span><span class="special">()</span>  <span class="keyword">const</span> <span class="special">;</span>
 </pre>
 <p>
-          Modifying the <a class="link" href="../../"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
+          Modifying the <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view"><code class="computeroutput"><span class="identifier">string_view</span></code></a>
           (but not the underlying data):
         </p>
 <pre class="programlisting"><span class="keyword">void</span> <span class="identifier">clear</span><span class="special">();</span>
@@ -328,8 +328,132 @@
               Introduced
             </li></ul></div>
 </div>
-<div class="section"><div class="titlepage"><div><div><h4 class="title">
-<a name="string_view.reference"></a>Reference</h4></div></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="string_view.reference"></a>Reference</h4></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="header.boost.utility.string_view_hpp"></a>Header &lt;<a href="../../../../../../boost/utility/string_view.hpp" target="_top">boost/utility/string_view.hpp</a>&gt;</h5></div></div></div>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> <span class="keyword">class</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator==_idm11539"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator!=_idm11550"></a><span class="keyword">operator</span><span class="special">!=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11561"></a><span class="keyword">operator</span><span class="special">&lt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+              <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11572"></a><span class="keyword">operator</span><span class="special">&gt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+              <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11583"></a><span class="keyword">operator</span><span class="special">&lt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11594"></a><span class="keyword">operator</span><span class="special">&gt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator==_idm11605"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator==_idm11616"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator==_idm11627"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator==_idm11637"></a><span class="keyword">operator</span><span class="special">==</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator!=_idm11647"></a><span class="keyword">operator</span><span class="special">!=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator!=_idm11658"></a><span class="keyword">operator</span><span class="special">!=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator!=_idm11669"></a><span class="keyword">operator</span><span class="special">!=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator!=_idm11679"></a><span class="keyword">operator</span><span class="special">!=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11689"></a><span class="keyword">operator</span><span class="special">&lt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+              <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11700"></a><span class="keyword">operator</span><span class="special">&lt;</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+              <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11711"></a><span class="keyword">operator</span><span class="special">&lt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11721"></a><span class="keyword">operator</span><span class="special">&lt;</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11731"></a><span class="keyword">operator</span><span class="special">&gt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+              <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11742"></a><span class="keyword">operator</span><span class="special">&gt;</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+              <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11753"></a><span class="keyword">operator</span><span class="special">&gt;</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_idm11763"></a><span class="keyword">operator</span><span class="special">&gt;</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11773"></a><span class="keyword">operator</span><span class="special">&lt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11784"></a><span class="keyword">operator</span><span class="special">&lt;=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11795"></a><span class="keyword">operator</span><span class="special">&lt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11805"></a><span class="keyword">operator</span><span class="special">&lt;=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11815"></a><span class="keyword">operator</span><span class="special">&gt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> 
+               <span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">,</span> <span class="keyword">typename</span> Allocator<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11826"></a><span class="keyword">operator</span><span class="special">&gt;=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_string</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span><span class="special">,</span> <span class="identifier">Allocator</span> <span class="special">&gt;</span> <span class="special">&amp;</span> x<span class="special">,</span> 
+               <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11837"></a><span class="keyword">operator</span><span class="special">&gt;=</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> x<span class="special">,</span> <span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="keyword">constexpr</span> <span class="keyword">bool</span> 
+    <a name="boost.operator_=_idm11847"></a><span class="keyword">operator</span><span class="special">&gt;=</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">charT</span> <span class="special">*</span> x<span class="special">,</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> y<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_ostream</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> <span class="special">&amp;</span> 
+    <a name="boost.operator_idm11857"></a><span class="keyword">operator</span><span class="special">&lt;&lt;</span><span class="special">(</span><span class="identifier">std</span><span class="special">::</span><span class="identifier">basic_ostream</span><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> <span class="special">&amp;</span> os<span class="special">,</span> 
+               <span class="keyword">const</span> <a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> <span class="special">&amp;</span> str<span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> It<span class="special">&gt;</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <a name="boost.hash_range"></a><span class="identifier">hash_range</span><span class="special">(</span><span class="identifier">It</span><span class="special">,</span> <span class="identifier">It</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> charT<span class="special">,</span> <span class="keyword">typename</span> traits<span class="special">&gt;</span> 
+    <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <a name="boost.hash_value"></a><span class="identifier">hash_value</span><span class="special">(</span><a class="link" href="../../boost/basic_string_view.html" title="Class template basic_string_view">basic_string_view</a><span class="special">&lt;</span> <span class="identifier">charT</span><span class="special">,</span> <span class="identifier">traits</span> <span class="special">&gt;</span> s<span class="special">)</span><span class="special">;</span>
+<span class="special">}</span></pre>
+</div>
+</div>
 <div class="section">
 <div class="titlepage"><div><div><h4 class="title">
 <a name="utility.utilities.string_view.acknowledgments"></a><a class="link" href="string_view.html#utility.utilities.string_view.acknowledgments" title="Acknowledgments">Acknowledgments</a>
@@ -352,7 +476,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="result_of.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="value_init.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/tr1_result_of.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/basic_string_view.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /* Proposed SG14 status_code
-(C) 2018-2021 Niall Douglas <http://www.nedproductions.biz/> (5 commits)
+(C) 2018-2022 Niall Douglas <http://www.nedproductions.biz/> (5 commits)
 File Created: Jun 2018
 
 
@@ -261,6 +261,12 @@ public:
   BOOST_OUTCOME_SYSTEM_ERROR2_TREQUIRES(BOOST_OUTCOME_SYSTEM_ERROR2_TPRED(std::is_constructible<errored_status_code, QuickStatusCodeType>::value))    // Its status code is compatible
   errored_status_code(Enum &&v) noexcept(std::is_nothrow_constructible<errored_status_code, QuickStatusCodeType>::value)  // NOLINT
       : errored_status_code(QuickStatusCodeType(static_cast<Enum &&>(v)))
+  {
+    _check();
+  }
+  //! Explicit copy construction from an unknown status code. Note that this will be empty if its value type is not trivially copyable or would not fit into our storage or the source domain's `_do_erased_copy()` refused the copy.
+  explicit errored_status_code(const status_code<void> &v)  // NOLINT
+      : _base(v)
   {
     _check();
   }

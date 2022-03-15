@@ -665,6 +665,7 @@ pre.rouge {
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#changelog">Revision History</a>
 <ul class="sectlevel2">
+<li><a href="#changelog_changes_in_1_79_0">Changes in 1.79.0</a></li>
 <li><a href="#changelog_changes_in_1_74_0">Changes in 1.74.0</a></li>
 <li><a href="#changelog_changes_in_1_72_0">Changes in 1.72.0</a></li>
 <li><a href="#changelog_changes_in_1_71_0">Changes in 1.71.0</a></li>
@@ -975,6 +976,16 @@ are not allowed to throw exceptions.</p>
 <div class="sect1">
 <h2 id="changelog">Revision History</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="changelog_changes_in_1_79_0">Changes in 1.79.0</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Added <code>get_allocator_pointer</code></p>
+</li>
+</ul>
+</div>
+</div>
 <div class="sect2">
 <h3 id="changelog_changes_in_1_74_0">Changes in 1.74.0</h3>
 <div class="ulist">
@@ -5567,6 +5578,11 @@ library to use an allocator for the creation of the objects managed by
   <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">A</span><span class="p">&gt;</span>
     <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">remove_extent_t</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">[],</span> <span class="n">alloc_noinit_deleter</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">A</span><span class="o">&gt;&gt;</span>
       <span class="n">allocate_unique_noinit</span><span class="p">(</span><span class="k">const</span> <span class="n">A</span><span class="o">&amp;</span> <span class="n">a</span><span class="p">);</span>
+
+  <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">U</span><span class="p">,</span> <span class="k">class</span> <span class="nc">A</span><span class="p">&gt;</span>
+    <span class="n">allocator_pointer_t</span><span class="o">&lt;</span><span class="n">allocator_rebind_t</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">remove_cv_t</span><span class="o">&lt;</span><span class="n">remove_extent_t</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;&gt;&gt;</span>
+      <span class="n">get_allocator_pointer</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
+        <span class="n">alloc_deleter</span><span class="o">&lt;</span><span class="n">U</span><span class="p">,</span> <span class="n">A</span><span class="o">&gt;&gt;&amp;</span> <span class="n">p</span><span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span>
 <span class="p">}</span></code></pre>
 </div>
 </div>
@@ -5952,6 +5968,33 @@ default-initialized objects of type <code>remove_extent_t&lt;T&gt;</code>.</p>
 <dt class="hdlist1">Example</dt>
 <dd>
 <p><code>auto p = allocate_unique_noinit&lt;double[1024]&gt;(a);</code></p>
+</dd>
+</dl>
+</div>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">U</span><span class="p">,</span> <span class="k">class</span> <span class="nc">A</span><span class="p">&gt;</span>
+  <span class="n">allocator_pointer_t</span><span class="o">&lt;</span><span class="n">allocator_rebind_t</span><span class="o">&lt;</span><span class="n">A</span><span class="p">,</span> <span class="n">remove_cv_t</span><span class="o">&lt;</span><span class="n">remove_extent_t</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;&gt;&gt;</span>
+    <span class="n">get_allocator_pointer</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
+      <span class="n">alloc_deleter</span><span class="o">&lt;</span><span class="n">U</span><span class="p">,</span> <span class="n">A</span><span class="o">&gt;&gt;&amp;</span> <span class="n">p</span><span class="p">)</span> <span class="k">noexcept</span><span class="p">;</span></code></pre>
+</div>
+</div>
+<div class="ulist none">
+<ul class="none">
+<li>
+<p></p>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Returns</dt>
+<dd>
+<p>The allocator pointer to the allocation.</p>
+</dd>
+<dt class="hdlist1">Example</dt>
+<dd>
+<p><code>auto r = boost::get_allocator_ptr(p);</code></p>
 </dd>
 </dl>
 </div>
@@ -11515,7 +11558,7 @@ mandates that relational operations on pointers are unspecified (5.9
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:48:00 UTC
+Last updated 2022-03-13 09:02:35 UTC
 </div>
 </div>
 <style>

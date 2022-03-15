@@ -1340,6 +1340,7 @@ public:
             error_code ec;
             p.write(s.data(), s.size(), ec);
             BOOST_TEST(ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
         {
             string_view s = "[[[[]]], [[[[]]]]]";
@@ -1349,6 +1350,7 @@ public:
             error_code ec;
             p.write(s.data(), s.size(), ec);
             BOOST_TEST(ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
         {
             string_view s =
@@ -1359,6 +1361,7 @@ public:
             error_code ec;
             p.write(s.data(), s.size(), ec);
             BOOST_TEST(ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
         {
             string_view s =
@@ -1369,6 +1372,7 @@ public:
             error_code ec;
             p.write(s.data(), s.size(), ec);
             BOOST_TEST(ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
     }
 
@@ -1531,7 +1535,89 @@ public:
                 error_code ec;
                 p.write(false, "null", 4, ec);
                 BOOST_TEST(ec == error::exception);
+                BOOST_TEST(ec.has_location());
             }
+        }
+    }
+
+#ifndef BOOST_NO_CXX17_HDR_STRING_VIEW
+    using SV = std::string_view;
+#else
+    using SV = string_view;
+#endif
+    // The null parser, but uses std type equivalents
+    class std_null_parser
+    {
+        struct handler
+        {
+            constexpr static std::size_t max_object_size = std::size_t(-1);
+            constexpr static std::size_t max_array_size = std::size_t(-1);
+            constexpr static std::size_t max_key_size = std::size_t(-1);
+            constexpr static std::size_t max_string_size = std::size_t(-1);
+
+            bool on_document_begin( std::error_code& ) { return true; }
+            bool on_document_end( std::error_code& ) { return true; }
+            bool on_object_begin( std::error_code& ) { return true; }
+            bool on_object_end( std::size_t, std::error_code& ) { return true; }
+            bool on_array_begin( std::error_code& ) { return true; }
+            bool on_array_end( std::size_t, std::error_code& ) { return true; }
+            bool on_key_part( SV, std::size_t, std::error_code& ) { return true; }
+            bool on_key( SV, std::size_t, std::error_code& ) { return true; }
+            bool on_string_part( SV, std::size_t, std::error_code& ) { return true; }
+            bool on_string( SV, std::size_t, std::error_code& ) { return true; }
+            bool on_number_part( SV, std::error_code&) { return true; }
+            bool on_int64( std::int64_t, SV, std::error_code& ) { return true; }
+            bool on_uint64( std::uint64_t, SV, std::error_code& ) { return true; }
+            bool on_double( double, SV, std::error_code& ) { return true; }
+            bool on_bool( bool, std::error_code& ) { return true; }
+            bool on_null( std::error_code& ) { return true; }
+            bool on_comment_part( SV, std::error_code& ) { return true; }
+            bool on_comment( SV, std::error_code& ) { return true; }
+        };
+
+        basic_parser<handler> p_;
+
+    public:
+        std_null_parser()
+            : p_(parse_options())
+        {
+        }
+
+        explicit
+        std_null_parser(parse_options po)
+            : p_(po)
+        {
+        }
+
+        void
+        reset()
+        {
+            p_.reset();
+        }
+
+        std::size_t
+        write(
+            SV s,
+            std::error_code& ec)
+        {
+            auto const n = p_.write_some(
+                false, s.data(), s.size(), ec);
+            if(! ec && n < s.size())
+                ec = error::extra_data;
+            return n;
+        }
+    };
+
+    void testStdTypes()
+    {
+        std_null_parser p;
+        std::error_code ec;
+        std::string const doc = "{}";
+        p.write(doc, ec);
+        if(! BOOST_TEST(! ec))
+        {
+            log << "    failed to parse: " << doc << '\n';
+            return;
         }
     }
 
@@ -1556,6 +1642,7 @@ public:
         testMaxDepth();
         testNumberLiteral();
         testStickyErrors();
+        testStdTypes();
     }
 };
 

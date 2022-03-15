@@ -52,13 +52,21 @@ run test_fstream.cpp file_test_helpers ;
 run test_fstream.cpp file_test_helpers : : : <define>BOOST_NOWIDE_USE_FILEBUF_REPLACEMENT=1 <target-os>windows:<build>no : test_fstream_internal ;
 run test_fstream_special.cpp file_test_helpers ;
 run test_fstream_special.cpp file_test_helpers : : : <define>BOOST_NOWIDE_USE_FILEBUF_REPLACEMENT=1 <target-os>windows:<build>no : test_fstream_special_internal ;
-run test_iostream.cpp file_test_helpers ;
-compile test_iostream.cpp file_test_helpers : <define>BOOST_NOWIDE_TEST_INTERACTIVE=1 : test_iostream_interactive ;
+run test_iostream.cpp file_test_helpers : : : <target-os>windows:<find-static-library>user32 ;
+if [ MATCH (--nowide-enable-cmake) : [ modules.peek : ARGV ] ]
+{
+  # Use CMake as a cross-platform scripting language for this test
+  path-constant CMakeScript : test_iostream_passthrough.cmake ;
+  run test_iostream.cpp file_test_helpers : : : <define>BOOST_NOWIDE_TEST_INTERACTIVE=1 <testing.launcher>"cmake -P $(CMakeScript)" : test_iostream_passthrough ;
+}
+
 run test_stackstring.cpp ;
 run test_stat.cpp ;
 run test_stdio.cpp ;
 run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=1 <target-os>windows:<library>shell32 <target-os>darwin,<link>shared:<build>no : test_system_n ;
-run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <target-os>windows:<library>shell32 <conditional>@require-windows : test_system_w ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <library>shell32 <conditional>@require-windows : test_system_w ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <define>BOOST_USE_WINDOWS_H <library>shell32 <conditional>@require-windows : test_system_use_windows_h ;
+run test_system.cpp : : : <define>BOOST_NOWIDE_TEST_USE_NARROW=0 <define>BOOST_USE_WINDOWS_H <define>WIN32_LEAN_AND_MEAN <library>shell32 <conditional>@require-windows : test_system_use_windows_h_lean ;
 run test_traits.cpp : : : <define>BOOST_NOWIDE_TEST_BFS_PATH <library>/boost/filesystem//boost_filesystem/<warnings-as-errors>off ;
 
 compile benchmark_fstream.cpp : <define>BOOST_NOWIDE_USE_WIN_FSTREAM=1 [ requires cxx11_hdr_chrono ] ;

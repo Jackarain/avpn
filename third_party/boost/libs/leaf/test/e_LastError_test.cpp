@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc.
 
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -14,6 +14,8 @@ int main()
 }
 
 #else
+
+#define BOOST_LEAF_CFG_WIN32 1
 
 #ifdef BOOST_LEAF_TEST_SINGLE_HEADER
 #   include "leaf.hpp"
@@ -31,9 +33,11 @@ namespace leaf = boost::leaf;
 int main()
 {
     SetLastError(ERROR_FILE_NOT_FOUND);
+#if BOOST_LEAF_CFG_STD_STRING
     std::stringstream ss;
     ss << leaf::windows::e_LastError{};
     BOOST_TEST(ss.str().find("The system cannot find the file specified") != std::string::npos);
+#endif
 
     int r = leaf::try_handle_all(
         []() -> leaf::result<int>

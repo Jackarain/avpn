@@ -674,6 +674,7 @@ pre.rouge {
 </li>
 <li><a href="#changelog">Revision History</a>
 <ul class="sectlevel2">
+<li><a href="#changelog_changes_in_1_79_0">Changes in 1.79.0</a></li>
 <li><a href="#changelog_changes_in_1_78_0">Changes in 1.78.0</a></li>
 <li><a href="#changelog_changes_in_1_76_0">Changes in 1.76.0</a></li>
 <li><a href="#changelog_changes_in_1_74_0">Changes in 1.74.0</a></li>
@@ -723,10 +724,10 @@ pre.rouge {
 <li><a href="#ref_get_if">get_if</a></li>
 <li><a href="#ref_unsafe_get_extension">unsafe_get (extension)</a></li>
 <li><a href="#ref_relational_operators">Relational Operators</a></li>
-<li><a href="#ref_stream_insertion_extension">Stream Insertion (extension)</a></li>
 <li><a href="#ref_swap_2">swap</a></li>
 <li><a href="#ref_visit">visit</a></li>
 <li><a href="#ref_visit_by_index_extension">visit_by_index (extension)</a></li>
+<li><a href="#ref_stream_insertion_extension">Stream Insertion (extension)</a></li>
 <li><a href="#ref_bad_variant_access">bad_variant_access</a></li>
 </ul>
 </li>
@@ -1113,6 +1114,16 @@ which is basically a no-op, as <code>monostate</code> is effectively an empty <c
 <div class="sect1">
 <h2 id="changelog">Revision History</h2>
 <div class="sectionbody">
+<div class="sect2">
+<h3 id="changelog_changes_in_1_79_0">Changes in 1.79.0</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Added <code>operator&lt;&lt;</code> for <code>monostate</code>.</p>
+</li>
+</ul>
+</div>
+</div>
 <div class="sect2">
 <h3 id="changelog_changes_in_1_78_0">Changes in 1.78.0</h3>
 <div class="ulist">
@@ -1599,12 +1610,6 @@ its own.</p>
 <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
   <span class="k">constexpr</span> <span class="kt">bool</span> <span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="k">const</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;&amp;</span> <span class="n">v</span><span class="p">,</span> <span class="k">const</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;&amp;</span> <span class="n">w</span><span class="p">);</span>
 
-<span class="c1">// stream insertion (extension)</span>
-
-<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">,</span> <span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
-    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span>
-
 <span class="c1">// swap</span>
 
 <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
@@ -1630,6 +1635,16 @@ its own.</p>
 <span class="k">constexpr</span> <span class="kt">bool</span> <span class="k">operator</span><span class="o">&gt;</span><span class="p">(</span><span class="n">monostate</span><span class="p">,</span> <span class="n">monostate</span><span class="p">)</span> <span class="k">noexcept</span> <span class="p">{</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span> <span class="p">}</span>
 <span class="k">constexpr</span> <span class="kt">bool</span> <span class="k">operator</span><span class="o">&lt;=</span><span class="p">(</span><span class="n">monostate</span><span class="p">,</span> <span class="n">monostate</span><span class="p">)</span> <span class="k">noexcept</span> <span class="p">{</span> <span class="k">return</span> <span class="nb">true</span><span class="p">;</span> <span class="p">}</span>
 <span class="k">constexpr</span> <span class="kt">bool</span> <span class="k">operator</span><span class="o">&gt;=</span><span class="p">(</span><span class="n">monostate</span><span class="p">,</span> <span class="n">monostate</span><span class="p">)</span> <span class="k">noexcept</span> <span class="p">{</span> <span class="k">return</span> <span class="nb">true</span><span class="p">;</span> <span class="p">}</span>
+
+<span class="c1">// stream insertion (extension)</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">,</span> <span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
+    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
+    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">monostate</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span>
 
 <span class="c1">// bad_variant_access</span>
 
@@ -3069,35 +3084,6 @@ where <code>I</code> is <code>v.index()</code>.</p>
 </div>
 </div>
 <div class="sect3">
-<h4 id="ref_stream_insertion_extension">Stream Insertion (extension)</h4>
-<div class="listingblock">
-<div class="content">
-<pre class="rouge highlight"><code data-lang="c++"><span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">,</span> <span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
-  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
-    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span></code></pre>
-</div>
-</div>
-<div class="ulist none">
-<ul class="none">
-<li>
-<p></p>
-<div class="dlist">
-<dl>
-<dt class="hdlist1">Requires: </dt>
-<dd>
-<p><code>sizeof&#8230;&#8203;(T) != 0</code>.</p>
-</dd>
-<dt class="hdlist1">Returns: </dt>
-<dd>
-<p><code>os &lt;&lt; get&lt;I&gt;(v)</code>, where <code>I</code> is <code>v.index()</code>.</p>
-</dd>
-</dl>
-</div>
-</li>
-</ul>
-</div>
-</div>
-<div class="sect3">
 <h4 id="ref_swap_2">swap</h4>
 <div class="listingblock">
 <div class="content">
@@ -3191,6 +3177,61 @@ for this deduction to succeed.</p>
 </div>
 </div>
 <div class="sect3">
+<h4 id="ref_stream_insertion_extension">Stream Insertion (extension)</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">,</span> <span class="k">class</span><span class="o">...</span> <span class="nc">T</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
+    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">variant</span><span class="o">&lt;</span><span class="n">T</span><span class="p">...</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span></code></pre>
+</div>
+</div>
+<div class="ulist none">
+<ul class="none">
+<li>
+<p></p>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Requires: </dt>
+<dd>
+<p><code>sizeof&#8230;&#8203;(T) != 0</code>.</p>
+</dd>
+<dt class="hdlist1">Returns: </dt>
+<dd>
+<p><code>os &lt;&lt; get&lt;I&gt;(v)</code>, where <code>I</code> is <code>v.index()</code>.</p>
+</dd>
+</dl>
+</div>
+</li>
+</ul>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">Ch</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Tr</span><span class="p">&gt;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span>
+    <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">basic_ostream</span><span class="o">&lt;</span><span class="n">Ch</span><span class="p">,</span> <span class="n">Tr</span><span class="o">&gt;&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">monostate</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">);</span></code></pre>
+</div>
+</div>
+<div class="ulist none">
+<ul class="none">
+<li>
+<p></p>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Effects: </dt>
+<dd>
+<p><code>os &lt;&lt; "monostate"</code>.</p>
+</dd>
+<dt class="hdlist1">Returns: </dt>
+<dd>
+<p><code>os</code>.</p>
+</dd>
+</dl>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect3">
 <h4 id="ref_bad_variant_access">bad_variant_access</h4>
 <div class="listingblock">
 <div class="content">
@@ -3229,7 +3270,7 @@ the <a href="http://www.boost.org/LICENSE_1_0.txt">Boost Software License, Versi
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:48:02 UTC
+Last updated 2022-03-13 09:02:36 UTC
 </div>
 </div>
 <style>

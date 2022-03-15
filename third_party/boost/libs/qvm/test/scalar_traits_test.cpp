@@ -1,7 +1,7 @@
-//Copyright (c) 2008-2016 Emil Dotchevski and Reverge Studios, Inc.
+// Copyright 2008-2022 Emil Dotchevski and Reverge Studios, Inc.
 
-//Distributed under the Boost Software License, Version 1.0. (See accompanying
-//file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #ifdef BOOST_QVM_TEST_SINGLE_HEADER
 #   include BOOST_QVM_TEST_SINGLE_HEADER
@@ -23,7 +23,7 @@ tester<true>
     };
 
 using namespace boost::qvm;
-tester<is_scalar<char>::value> t1;
+tester<!is_scalar<char>::value> t1;
 tester<is_scalar<signed char>::value> t2;
 tester<is_scalar<unsigned char>::value> t3;
 tester<is_scalar<signed short>::value> t4;

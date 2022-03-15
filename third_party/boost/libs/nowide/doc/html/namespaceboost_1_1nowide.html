@@ -115,7 +115,7 @@ Typedefs</h2></td></tr>
 <tr class="separator:ac35dfc05b17d222ac9a484e2cff07932"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a61eecc2b14a6045459fc7adc4d53017c"><td class="memItemLeft" align="right" valign="top"><a id="a61eecc2b14a6045459fc7adc4d53017c"></a>
 typedef struct ::__stat64&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceboost_1_1nowide.html#a61eecc2b14a6045459fc7adc4d53017c">stat_t</a></td></tr>
-<tr class="memdesc:a61eecc2b14a6045459fc7adc4d53017c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Typedef for the file info structure. Able to hold 64 bit filesize and timestamps on Windows and usually also on other 64 Bit systems This allows to write portable code with option LFS support. <br /></td></tr>
+<tr class="memdesc:a61eecc2b14a6045459fc7adc4d53017c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Typedef for the file info structure. Able to hold 64 bit file size and timestamps on Windows and usually also on other 64 Bit systems This allows to write portable code with optional LFS support. <br /></td></tr>
 <tr class="separator:a61eecc2b14a6045459fc7adc4d53017c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4992fd8039bd8478db74e5aa0c92e63"><td class="memItemLeft" align="right" valign="top"><a id="ab4992fd8039bd8478db74e5aa0c92e63"></a>
 typedef struct ::_stat&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceboost_1_1nowide.html#ab4992fd8039bd8478db74e5aa0c92e63">posix_stat_t</a></td></tr>
@@ -620,7 +620,7 @@ template&lt;typename StringOrStringView , typename  = detail::requires_wide_stri
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Install <a class="el" href="classboost_1_1nowide_1_1utf8__codecvt.html">utf8_codecvt</a> facet into boost::filesystem::path such all char strings are interpreted as utf-8 strings </p>
+<p>Install <a class="el" href="classboost_1_1nowide_1_1utf8__codecvt.html">utf8_codecvt</a> facet into boost::filesystem::path such that all char strings are interpreted as UTF-8 strings </p><dl class="section return"><dt>Returns</dt><dd>The previous imbued path locale. </dd></dl>
 
 </div>
 </div>
@@ -688,6 +688,9 @@ template&lt;typename StringOrStringView , typename  = detail::requires_wide_stri
 
 <div class="memitem">
 <div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">int boost::nowide::stat </td>
@@ -707,6 +710,11 @@ template&lt;typename StringOrStringView , typename  = detail::requires_wide_stri
           <td></td><td></td>
         </tr>
       </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 <p>UTF-8 aware stat function, returns 0 on success. </p>

@@ -88,7 +88,7 @@ For example, a constant image view cannot be resized, but may allow modifying
 the pixels. For pixel-immutable operations, use constant-value image view
 (also called non-mutable image view). Most general N-dimensional views satisfy
 the following concept:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">RandomAccessNDImageViewConcept</span><span class="o">&lt;</span><span class="n">Regular</span> <span class="n">View</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">RandomAccessNDImageViewConcept</span><span class="o">&lt;</span><span class="n">Regular</span> <span class="n">View</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="k">typename</span> <span class="n">value_type</span><span class="p">;</span>      <span class="c1">// for pixel-based views, the pixel type</span>
   <span class="k">typename</span> <span class="n">reference</span><span class="p">;</span>       <span class="c1">// result of dereferencing</span>
@@ -142,7 +142,7 @@ the following concept:</p>
 </pre></div>
 </div>
 <p>Two-dimensional image views have the following extra requirements:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">RandomAccess2DImageViewConcept</span><span class="o">&lt;</span><span class="n">RandomAccessNDImageViewConcept</span> <span class="n">View</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">RandomAccess2DImageViewConcept</span><span class="o">&lt;</span><span class="n">RandomAccessNDImageViewConcept</span> <span class="n">View</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="n">where</span> <span class="n">num_dimensions</span><span class="o">==</span><span class="mi">2</span><span class="p">;</span>
 
@@ -183,7 +183,7 @@ the following concept:</p>
 </div>
 <p>Image views that GIL typically uses operate on value types that model
 <code class="docutils literal"><span class="pre">PixelValueConcept</span></code> and have some additional requirements:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">ImageViewConcept</span><span class="o">&lt;</span><span class="n">RandomAccess2DImageViewConcept</span> <span class="n">View</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">ImageViewConcept</span><span class="o">&lt;</span><span class="n">RandomAccess2DImageViewConcept</span> <span class="n">View</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="n">where</span> <span class="n">PixelValueConcept</span><span class="o">&lt;</span><span class="n">value_type</span><span class="o">&gt;</span><span class="p">;</span>
   <span class="n">where</span> <span class="n">PixelIteratorConcept</span><span class="o">&lt;</span><span class="n">x_iterator</span><span class="o">&gt;</span><span class="p">;</span>
@@ -203,7 +203,7 @@ the following concept:</p>
 </div>
 <p>Two image views are compatible if they have compatible pixels and the same
 number of dimensions:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">concept</span> <span class="n">ViewsCompatibleConcept</span><span class="o">&lt;</span><span class="n">ImageViewConcept</span> <span class="n">V1</span><span class="p">,</span> <span class="n">ImageViewConcept</span> <span class="n">V2</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">concept</span> <span class="n">ViewsCompatibleConcept</span><span class="o">&lt;</span><span class="n">ImageViewConcept</span> <span class="n">V1</span><span class="p">,</span> <span class="n">ImageViewConcept</span> <span class="n">V2</span><span class="o">&gt;</span>
 <span class="p">{</span>
   <span class="n">where</span> <span class="n">PixelsCompatibleConcept</span><span class="o">&lt;</span><span class="n">V1</span><span class="o">::</span><span class="n">value_type</span><span class="p">,</span> <span class="n">V2</span><span class="o">::</span><span class="n">value_type</span><span class="o">&gt;</span><span class="p">;</span>
   <span class="n">where</span> <span class="n">V1</span><span class="o">::</span><span class="n">num_dimensions</span> <span class="o">==</span> <span class="n">V2</span><span class="o">::</span><span class="n">num_dimensions</span><span class="p">;</span>
@@ -232,7 +232,7 @@ compatible.</p>
 templated over a model of <code class="docutils literal"><span class="pre">PixelLocatorConcept</span></code>. (If instantiated with a
 model of <code class="docutils literal"><span class="pre">MutablePixelLocatorConcept</span></code>, it models
 <code class="docutils literal"><span class="pre">MutableImageViewConcept</span></code>). Synopsis:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Locator models PixelLocatorConcept, could be MutablePixelLocatorConcept</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Locator models PixelLocatorConcept, could be MutablePixelLocatorConcept</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Locator</span><span class="o">&gt;</span>
 <span class="k">class</span> <span class="nc">image_view</span>
 <span class="p">{</span>
@@ -260,14 +260,14 @@ pointer to the beginning of the pixel block.</p>
 space, bit depth, channel ordering or planar vs. interleaved structure.
 Interleaved views are constructed using <code class="docutils literal"><span class="pre">interleaved_view</span></code>, supplying the
 image dimensions, number of bytes per row, and a pointer to the first pixel:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Iterator models pixel iterator (e.g. rgb8_ptr_t or rgb8c_ptr_t)</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Iterator models pixel iterator (e.g. rgb8_ptr_t or rgb8c_ptr_t)</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="n">image_view</span><span class="o">&lt;</span><span class="p">...</span><span class="o">&gt;</span> <span class="n">interleaved_view</span><span class="p">(</span><span class="kt">ptrdiff_t</span> <span class="n">width</span><span class="p">,</span> <span class="kt">ptrdiff_t</span> <span class="n">height</span><span class="p">,</span> <span class="n">Iterator</span> <span class="n">pixels</span><span class="p">,</span> <span class="kt">ptrdiff_t</span> <span class="n">rowsize</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Planar views are defined for every color space and take each plane separately.
 Here is the RGB one:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Iterator models channel iterator (e.g. bits8* or bits8 const*)</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Iterator models channel iterator (e.g. bits8* or bits8 const*)</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Iterator</span><span class="o">&gt;</span>
 <span class="n">image_view</span><span class="o">&lt;</span><span class="p">...</span><span class="o">&gt;</span> <span class="n">planar_rgb_view</span><span class="p">(</span>
     <span class="kt">ptrdiff_t</span> <span class="n">width</span><span class="p">,</span> <span class="kt">ptrdiff_t</span> <span class="n">height</span><span class="p">,</span>
@@ -283,7 +283,7 @@ in which case the returned view is a constant-value (immutable) view.</p>
 policy of how image data is interpreted. The result could be a view whose type
 is derived from the type of the source. GIL uses the following metafunctions
 to get the derived types:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Some result view types</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Some result view types</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span>
 <span class="k">struct</span> <span class="nl">dynamic_xy_step_type</span> <span class="p">:</span> <span class="k">public</span> <span class="n">dynamic_y_step_type</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">dynamic_x_step_type</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;::</span><span class="n">type</span><span class="o">&gt;</span> <span class="p">{};</span>
 
@@ -308,7 +308,7 @@ to get the derived types:</p>
 </pre></div>
 </div>
 <p>GIL Provides the following view transformations:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// flipped upside-down, left-to-right, transposed view</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// flipped upside-down, left-to-right, transposed view</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span> <span class="k">typename</span> <span class="n">dynamic_y_step_type</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;::</span><span class="n">type</span>             <span class="n">flipped_up_down_view</span><span class="p">(</span><span class="k">const</span> <span class="n">View</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">);</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span> <span class="k">typename</span> <span class="n">dynamic_x_step_type</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;::</span><span class="n">type</span>             <span class="n">flipped_left_right_view</span><span class="p">(</span><span class="k">const</span> <span class="n">View</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">);</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span> <span class="k">typename</span> <span class="n">dynamic_xy_step_transposed_type</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;::</span><span class="n">type</span> <span class="n">transposed_view</span><span class="p">(</span><span class="k">const</span> <span class="n">View</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">);</span>
@@ -339,7 +339,7 @@ to get the derived types:</p>
 Here is, for example, how the flip views are implemented. The flip upside-down
 view creates a view whose first pixel is the bottom left pixel of the original
 view and whose y-step is the negated step of the source.</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">View</span><span class="o">&gt;</span>
 <span class="k">typename</span> <span class="n">dynamic_y_step_type</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;::</span><span class="n">type</span> <span class="n">flipped_up_down_view</span><span class="p">(</span><span class="k">const</span> <span class="n">View</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="n">gil_function_requires</span><span class="o">&lt;</span><span class="n">ImageViewConcept</span><span class="o">&lt;</span><span class="n">View</span><span class="o">&gt;</span> <span class="o">&gt;</span><span class="p">();</span>
@@ -359,7 +359,7 @@ skip <code class="docutils literal"><span class="pre">gil_function_requires</spa
 of succinctness.</p>
 <p>Image views can be freely composed (see section <a class="reference internal" href="metafunctions.html"><span class="doc">Metafunctions</span></a> for
 explanation of the typedefs <code class="docutils literal"><span class="pre">rgb16_image_t</span></code> and <code class="docutils literal"><span class="pre">gray16_step_view_t)</span></code>:</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="n">rgb16_image_t</span> <span class="nf">img</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">);</span>    <span class="c1">// an RGB interleaved image</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="n">rgb16_image_t</span> <span class="nf">img</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">);</span>    <span class="c1">// an RGB interleaved image</span>
 
 <span class="c1">// grayscale view over the green (index 1) channel of img</span>
 <span class="n">gray16_step_view_t</span> <span class="n">green</span><span class="o">=</span><span class="n">nth_channel_view</span><span class="p">(</span><span class="n">view</span><span class="p">(</span><span class="n">img</span><span class="p">),</span><span class="mi">1</span><span class="p">);</span>
@@ -379,7 +379,7 @@ methods, which makes it possible to use STL algorithms with them. However,
 using nested loops over X and Y is in many cases more efficient.
 The algorithms in this section resemble STL algorithms, but they abstract away
 the nested loops and take views (as opposed to ranges) as input.</p>
-<div class="highlight-cpp"><div class="highlight"><pre><span class="c1">// Equivalents of std::copy and std::uninitialized_copy</span>
+<div class="highlight-cpp"><div class="highlight"><pre><span></span><span class="c1">// Equivalents of std::copy and std::uninitialized_copy</span>
 <span class="c1">// where ImageViewConcept&lt;V1&gt;, MutableImageViewConcept&lt;V2&gt;, ViewsCompatibleConcept&lt;V1,V2&gt;</span>
 <span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">V1</span><span class="p">,</span> <span class="k">typename</span> <span class="n">V2</span><span class="o">&gt;</span>
 <span class="kt">void</span> <span class="n">copy_pixels</span><span class="p">(</span><span class="k">const</span> <span class="n">V1</span><span class="o">&amp;</span> <span class="n">src</span><span class="p">,</span> <span class="k">const</span> <span class="n">V2</span><span class="o">&amp;</span> <span class="n">dst</span><span class="p">);</span>
@@ -485,7 +485,7 @@ development and is not optimized for speed</p>
     </div>
     </div>
     <div class="footer" role="contentinfo">
-      Last updated on 2021-12-02 06:12:31.
+      Last updated on 2022-03-13 09:03:54.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.6.
     </div>
   </body>

@@ -665,6 +665,7 @@ pre.rouge {
 <li><a href="#overview">Overview</a></li>
 <li><a href="#changes">Revision History</a>
 <ul class="sectlevel2">
+<li><a href="#changes_in_boost_1_79_0">Changes in Boost 1.79.0</a></li>
 <li><a href="#changes_in_boost_1_78_0">Changes in Boost 1.78.0</a></li>
 </ul>
 </li>
@@ -692,6 +693,9 @@ pre.rouge {
 <li><a href="#example_serialization">Automatic Serialization</a></li>
 <li><a href="#example_json_rpc">Automatic JSON RPC</a></li>
 <li><a href="#example_console">Interactive Variable Console</a></li>
+<li><a href="#example_fmtlib_class_formatter"><code>fmtlib</code> Class Formatter</a></li>
+<li><a href="#example_fmtlib_enum_formatter"><code>fmtlib</code> Enum Formatter</a></li>
+<li><a href="#example_pm_to_string">Printing Pointers to Members</a></li>
 </ul>
 </li>
 <li><a href="#implementation">Implementation Features</a>
@@ -819,6 +823,25 @@ the types, making manual macro annotation unnecessary.</p>
 <h2 id="changes">Revision History</h2>
 <div class="sectionbody">
 <div class="sect2">
+<h3 id="changes_in_boost_1_79_0">Changes in Boost 1.79.0</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>Enabled unions in <code>BOOST_DESCRIBE_STRUCT</code> and updated examples to check <code>std::is_union&lt;T&gt;</code>.</p>
+</li>
+<li>
+<p>Added example of defining a <code>fmtlib</code> class formatter.</p>
+</li>
+<li>
+<p>Added example of defining a <code>fmtlib</code> enum formatter.</p>
+</li>
+<li>
+<p>Added example of printing pointers to members.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
 <h3 id="changes_in_boost_1_78_0">Changes in Boost 1.78.0</h3>
 <div class="ulist">
 <ul>
@@ -833,6 +856,9 @@ the types, making manual macro annotation unnecessary.</p>
 </li>
 <li>
 <p>Added <code>descriptor_by_name</code>, <code>descriptor_by_pointer</code>.</p>
+</li>
+<li>
+<p>Added <code>struct_to_tuple</code> example.</p>
 </li>
 </ul>
 </div>
@@ -1208,6 +1234,16 @@ descriptors using <code>mp11::mp_for_each</code> and prints them.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>v1: 11
+v2: 12
+v3: 5</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_printing_enums_rt">Printing Enumerators with a Run Time Loop</h3>
@@ -1253,6 +1289,19 @@ an ordinary <code>for</code> loop, instead of <code>mp_for_each</code>.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>v1: 0
+v2: 1
+v3: 2
+v4: 3
+v5: 4
+v6: 5</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_enum_to_string">enum_to_string</h3>
@@ -1295,6 +1344,15 @@ to a named value, the function returns <code>"(unnamed)"</code>.</p>
     <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"E("</span> <span class="o">&lt;&lt;</span> <span class="n">v1</span> <span class="o">&lt;&lt;</span> <span class="s">"): "</span> <span class="o">&lt;&lt;</span> <span class="n">enum_to_string</span><span class="p">(</span> <span class="n">v1</span> <span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
     <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">"E("</span> <span class="o">&lt;&lt;</span> <span class="mi">0</span> <span class="o">&lt;&lt;</span> <span class="s">"): "</span> <span class="o">&lt;&lt;</span> <span class="n">enum_to_string</span><span class="p">(</span> <span class="n">E</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
 <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>E(3): v1
+E(0): (unnamed)</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1373,6 +1431,17 @@ does not correspond to any enumerator name, throws an exception.</p>
 </div>
 </div>
 <div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>v1: 0
+v2: 1
+v3: 2
+v4: Invalid enumerator name 'v4' for enum type 'enum E'</pre>
+</div>
+</div>
+<div class="paragraph">
 <p>Since release 1.78.0, the library provides <code>enum_from_string</code>.
 It differs from the function in the example by signaling failure
 by a <code>bool</code> return value instead of using exceptions. The
@@ -1406,7 +1475,8 @@ change its state and hence cannot violate its invariant.)</p>
 
 <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span>
     <span class="k">class</span> <span class="nc">Bd</span> <span class="o">=</span> <span class="n">describe_bases</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="p">&gt;,</span>
-    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;&gt;</span>
+    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
     <span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span> <span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">t</span> <span class="p">)</span>
 <span class="p">{</span>
     <span class="n">os</span> <span class="o">&lt;&lt;</span> <span class="s">"{"</span><span class="p">;</span>
@@ -1465,6 +1535,14 @@ change its state and hence cannot violate its invariant.)</p>
 </div>
 </div>
 <div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>{{.m1 = 1}, {.m2 = 2}, .m1 = 3, .m2 = 4}</pre>
+</div>
+</div>
+<div class="paragraph">
 <p>Since release 1.78.0, this universal <code>operator&lt;&lt;</code> is supplied
 by the library, in the <code>boost::describe::operators</code> namespace.
 It&#8217;s enabled by means of a using declaration in the namespace
@@ -1516,7 +1594,8 @@ to all annotated classes also defined in <code>app</code>.</p>
 
 <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span>
     <span class="k">class</span> <span class="nc">Bd</span> <span class="o">=</span> <span class="n">describe_bases</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="p">&gt;,</span>
-    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;&gt;</span>
+    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
     <span class="n">std</span><span class="o">::</span><span class="kt">size_t</span> <span class="n">hash_value</span><span class="p">(</span> <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">t</span> <span class="p">)</span>
 <span class="p">{</span>
     <span class="n">std</span><span class="o">::</span><span class="kt">size_t</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
@@ -1573,6 +1652,14 @@ to all annotated classes also defined in <code>app</code>.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>12526671134390370097</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_equality">Implementing operator==</h3>
@@ -1598,7 +1685,8 @@ to all annotated classes also defined in <code>app</code>.</p>
 <span class="p">{</span>
 <span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span>
     <span class="k">class</span> <span class="nc">Bd</span> <span class="o">=</span> <span class="n">describe_bases</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="p">&gt;,</span>
-    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;&gt;</span>
+    <span class="k">class</span> <span class="nc">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;</span><span class="p">,</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
     <span class="kt">bool</span> <span class="k">operator</span><span class="o">==</span><span class="p">(</span> <span class="n">T</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">t1</span><span class="p">,</span> <span class="n">T</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">t2</span> <span class="p">)</span>
 <span class="p">{</span>
     <span class="kt">bool</span> <span class="n">r</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
@@ -1659,6 +1747,14 @@ to all annotated classes also defined in <code>app</code>.</p>
 </div>
 </div>
 <div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>true false</pre>
+</div>
+</div>
+<div class="paragraph">
 <p>Since release 1.78.0, this universal <code>operator==</code> is supplied
 by the library, in the <code>boost::describe::operators</code> namespace.
 It&#8217;s enabled by means of a using declaration in the namespace
@@ -1707,8 +1803,10 @@ all its public members.</p>
     <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">make_tuple</span><span class="p">(</span> <span class="n">t</span><span class="p">.</span><span class="o">*</span><span class="n">D</span><span class="o">::</span><span class="n">pointer</span><span class="p">...</span> <span class="p">);</span>
 <span class="p">}</span>
 
-<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">Dm</span> <span class="o">=</span> <span class="n">desc</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
-    <span class="n">desc</span><span class="o">::</span><span class="n">mod_public</span> <span class="o">|</span> <span class="n">desc</span><span class="o">::</span><span class="n">mod_inherited</span><span class="p">&gt;</span><span class="o">&gt;</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span>
+    <span class="k">class</span> <span class="nc">Dm</span> <span class="o">=</span> <span class="n">desc</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
+        <span class="n">desc</span><span class="o">::</span><span class="n">mod_public</span> <span class="o">|</span> <span class="n">desc</span><span class="o">::</span><span class="n">mod_inherited</span><span class="p">&gt;,</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
 <span class="k">auto</span> <span class="nf">struct_to_tuple</span><span class="p">(</span> <span class="n">T</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">t</span> <span class="p">)</span>
 <span class="p">{</span>
     <span class="k">return</span> <span class="n">struct_to_tuple_impl</span><span class="p">(</span> <span class="n">t</span><span class="p">,</span> <span class="n">Dm</span><span class="p">()</span> <span class="p">);</span>
@@ -1749,6 +1847,14 @@ all its public members.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>std::tuple&lt;int, float&gt;: 1, 3.14</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_to_json">Automatic Conversion to JSON</h3>
@@ -1784,7 +1890,7 @@ disabled in this case using <code>std::enable_if_t</code>.</p>
     <span class="k">class</span> <span class="nc">D1</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
         <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_public</span> <span class="o">|</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_protected</span><span class="p">&gt;,</span>
     <span class="k">class</span> <span class="nc">D2</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_private</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
 
     <span class="kt">void</span> <span class="n">tag_invoke</span><span class="p">(</span> <span class="n">boost</span><span class="o">::</span><span class="n">json</span><span class="o">::</span><span class="n">value_from_tag</span> <span class="k">const</span><span class="o">&amp;</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">json</span><span class="o">::</span><span class="n">value</span><span class="o">&amp;</span> <span class="n">v</span><span class="p">,</span> <span class="n">T</span> <span class="k">const</span> <span class="o">&amp;</span> <span class="n">t</span> <span class="p">)</span>
 <span class="p">{</span>
@@ -1825,6 +1931,14 @@ disabled in this case using <code>std::enable_if_t</code>.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>{"v":[{"x":1,"y":2},{"x":3,"y":4}],"m":{"k1":{"x":5,"y":6},"k2":{"x":7,"y":8}}}</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_from_json">Automatic Conversion from JSON</h3>
@@ -1852,7 +1966,7 @@ an annotated struct.</p>
     <span class="k">class</span> <span class="nc">D1</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
         <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_public</span> <span class="o">|</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_protected</span><span class="p">&gt;,</span>
     <span class="k">class</span> <span class="nc">D2</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_private</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span><span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
 
     <span class="n">T</span> <span class="n">tag_invoke</span><span class="p">(</span> <span class="n">boost</span><span class="o">::</span><span class="n">json</span><span class="o">::</span><span class="n">value_to_tag</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span> <span class="k">const</span><span class="o">&amp;</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">json</span><span class="o">::</span><span class="n">value</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">v</span> <span class="p">)</span>
 <span class="p">{</span>
@@ -1893,6 +2007,15 @@ an annotated struct.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>jv: {"x":1,"y":2}
+a: { 1, 2 }</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_serialization">Automatic Serialization</h3>
@@ -1925,8 +2048,8 @@ support to annotated classes.</p>
     <span class="k">class</span> <span class="nc">D3</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span>
         <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_public</span> <span class="o">|</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_protected</span><span class="o">&gt;</span><span class="p">,</span>
     <span class="k">class</span> <span class="nc">D4</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">mod_private</span><span class="o">&gt;</span><span class="p">,</span>
-    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span>
-        <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span> <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D4</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
+    <span class="k">class</span> <span class="nc">En</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span> <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D2</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span>
+        <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_empty</span><span class="o">&lt;</span><span class="n">D4</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;</span> <span class="o">&gt;</span>
 
     <span class="kt">void</span> <span class="n">serialize</span><span class="p">(</span> <span class="n">Archive</span> <span class="o">&amp;</span> <span class="n">ar</span><span class="p">,</span> <span class="n">T</span> <span class="o">&amp;</span> <span class="n">t</span><span class="p">,</span> <span class="n">boost</span><span class="o">::</span><span class="n">serialization</span><span class="o">::</span><span class="n">version_type</span> <span class="p">)</span>
 <span class="p">{</span>
@@ -2023,6 +2146,50 @@ support to annotated classes.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>&lt;?xml version="1.0" encoding="UTF-8" standalone="yes" ?&gt;
+&lt;!DOCTYPE boost_serialization&gt;
+&lt;boost_serialization signature="serialization::archive" version="19"&gt;
+&lt;c1 class_id="0" tracking_level="0" version="0"&gt;
+        &lt;v class_id="1" tracking_level="0" version="0"&gt;
+                &lt;count&gt;3&lt;/count&gt;
+                &lt;item_version&gt;0&lt;/item_version&gt;
+                &lt;item class_id="2" tracking_level="0" version="0"&gt;
+                        &lt;base.1 class_id="3" tracking_level="0" version="0"&gt;
+                                &lt;x&gt;1&lt;/x&gt;
+                        &lt;/base.1&gt;
+                        &lt;base.2 class_id="4" tracking_level="0" version="0"&gt;
+                                &lt;y&gt;2&lt;/y&gt;
+                        &lt;/base.2&gt;
+                &lt;/item&gt;
+                &lt;item&gt;
+                        &lt;base.1&gt;
+                                &lt;x&gt;3&lt;/x&gt;
+                        &lt;/base.1&gt;
+                        &lt;base.2&gt;
+                                &lt;y&gt;4&lt;/y&gt;
+                        &lt;/base.2&gt;
+                &lt;/item&gt;
+                &lt;item&gt;
+                        &lt;base.1&gt;
+                                &lt;x&gt;5&lt;/x&gt;
+                        &lt;/base.1&gt;
+                        &lt;base.2&gt;
+                                &lt;y&gt;6&lt;/y&gt;
+                        &lt;/base.2&gt;
+                &lt;/item&gt;
+        &lt;/v&gt;
+&lt;/c1&gt;
+&lt;/boost_serialization&gt;
+
+
+22 serialization::archive 19 0 0 0 0 3 0 0 0 0 0 1 0 0 2 3 4 5 6</pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="example_json_rpc">Automatic JSON RPC</h3>
@@ -2115,6 +2282,15 @@ in a <code>boost::json::value</code>.</p>
     <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">call</span><span class="p">(</span> <span class="n">obj</span><span class="p">,</span> <span class="s">"greet"</span><span class="p">,</span> <span class="p">{</span> <span class="s">"world"</span> <span class="p">}</span> <span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
     <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">call</span><span class="p">(</span> <span class="n">obj</span><span class="p">,</span> <span class="s">"add"</span><span class="p">,</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">}</span> <span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
 <span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>"Hello, world!"
+3</pre>
 </div>
 </div>
 </div>
@@ -2250,6 +2426,396 @@ for converting the variables to and from a string form.</p>
 <span class="p">}</span></code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>&gt; help
+"Enter a variable name ('x', 'y', 'v', or 'm') to print its value; enter variable=value to assign a new value to a variable. Values are in JSON format."
+
+&gt; x
+1
+
+&gt; y
+3.14E0
+
+&gt; v
+[1,2,3]
+
+&gt; m
+{"BTC":4.489868E4,"ETH":1.38657E3}
+
+&gt; x="hello"
+Error: not a number [boost.json:15]
+
+&gt; x=3.14
+Error: not exact [boost.json:16]
+
+&gt; x=4
+
+&gt; x
+4
+
+&gt; y=6.28
+
+&gt; y
+6.28E0
+
+&gt; v=["hello", "world"]
+Error: not a number [boost.json:15]
+
+&gt; v=[1.2, 3.4]
+Error: not exact [boost.json:16]
+
+&gt; v=[11, 27]
+
+&gt; c
+Error: 'c': no such variable
+
+&gt; v
+[11,27]
+
+&gt; m={"BTC": 42139.07, "ETH": 2912.00}
+
+&gt; m
+{"BTC":4.213907E4,"ETH":2.912E3}</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="example_fmtlib_class_formatter"><code>fmtlib</code> Class Formatter</h3>
+<div class="paragraph">
+<p>This example defines a universal <a href="https://github.com/fmtlib/fmt"><code>fmtlib</code></a>
+formatter that works on any class or struct type that has been described
+with <code>BOOST_DESCRIBE_STRUCT</code> or <code>BOOST_DESCRIBE_CLASS</code>. It&#8217;s similar to
+<a href="#example_print_function">the universal print function shown above</a>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#include &lt;boost/describe.hpp&gt;
+#include &lt;boost/mp11.hpp&gt;
+#include &lt;fmt/format.h&gt;
+#include &lt;type_traits&gt;
+</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span> <span class="k">struct</span> <span class="nc">fmt</span><span class="o">::</span><span class="n">formatter</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="kt">char</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">has_describe_bases</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">has_describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span> <span class="o">&amp;&amp;</span>
+    <span class="o">!</span><span class="n">std</span><span class="o">::</span><span class="n">is_union</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;&gt;</span>
+<span class="p">{</span>
+    <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">parse</span><span class="p">(</span> <span class="n">format_parse_context</span><span class="o">&amp;</span> <span class="n">ctx</span> <span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">auto</span> <span class="n">it</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">end</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">.</span><span class="n">end</span><span class="p">();</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="n">it</span> <span class="o">!=</span> <span class="n">end</span> <span class="o">&amp;&amp;</span> <span class="o">*</span><span class="n">it</span> <span class="o">!=</span> <span class="sc">'}'</span> <span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ctx</span><span class="p">.</span><span class="n">error_handler</span><span class="p">().</span><span class="n">on_error</span><span class="p">(</span> <span class="s">"invalid format"</span> <span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">it</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">auto</span> <span class="n">format</span><span class="p">(</span> <span class="n">T</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">t</span><span class="p">,</span> <span class="n">format_context</span><span class="o">&amp;</span> <span class="n">ctx</span> <span class="p">)</span> <span class="k">const</span>
+    <span class="p">{</span>
+        <span class="k">using</span> <span class="k">namespace</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="p">;</span>
+
+        <span class="k">using</span> <span class="n">Bd</span> <span class="o">=</span> <span class="n">describe_bases</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;</span><span class="p">;</span>
+        <span class="k">using</span> <span class="n">Md</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">mod_any_access</span><span class="o">&gt;</span><span class="p">;</span>
+
+        <span class="k">auto</span> <span class="n">out</span> <span class="o">=</span> <span class="n">ctx</span><span class="p">.</span><span class="n">out</span><span class="p">();</span>
+
+        <span class="o">*</span><span class="n">out</span><span class="o">++</span> <span class="o">=</span> <span class="sc">'{'</span><span class="p">;</span>
+
+        <span class="kt">bool</span> <span class="n">first</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+
+        <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_for_each</span><span class="o">&lt;</span><span class="n">Bd</span><span class="o">&gt;</span><span class="p">([</span><span class="o">&amp;</span><span class="p">](</span><span class="k">auto</span> <span class="n">D</span><span class="p">){</span>
+
+            <span class="k">if</span><span class="p">(</span> <span class="o">!</span><span class="n">first</span> <span class="p">)</span>
+            <span class="p">{</span>
+                <span class="o">*</span><span class="n">out</span><span class="o">++</span> <span class="o">=</span> <span class="sc">','</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="n">first</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+            <span class="n">out</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">::</span><span class="n">format_to</span><span class="p">(</span> <span class="n">out</span><span class="p">,</span> <span class="s">" {}"</span><span class="p">,</span>
+                <span class="p">(</span><span class="k">typename</span> <span class="k">decltype</span><span class="p">(</span><span class="n">D</span><span class="p">)</span><span class="o">::</span><span class="n">type</span> <span class="k">const</span><span class="o">&amp;</span><span class="p">)</span><span class="n">t</span> <span class="p">);</span>
+        <span class="p">});</span>
+
+        <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_for_each</span><span class="o">&lt;</span><span class="n">Md</span><span class="o">&gt;</span><span class="p">([</span><span class="o">&amp;</span><span class="p">](</span><span class="k">auto</span> <span class="n">D</span><span class="p">){</span>
+
+            <span class="k">if</span><span class="p">(</span> <span class="o">!</span><span class="n">first</span> <span class="p">)</span>
+            <span class="p">{</span>
+                <span class="o">*</span><span class="n">out</span><span class="o">++</span> <span class="o">=</span> <span class="sc">','</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="n">first</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+            <span class="n">out</span> <span class="o">=</span> <span class="n">fmt</span><span class="o">::</span><span class="n">format_to</span><span class="p">(</span> <span class="n">out</span><span class="p">,</span> <span class="s">" .{}={}"</span><span class="p">,</span>
+                <span class="n">D</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="p">.</span><span class="o">*</span><span class="n">D</span><span class="p">.</span><span class="n">pointer</span> <span class="p">);</span>
+        <span class="p">});</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="o">!</span><span class="n">first</span> <span class="p">)</span>
+        <span class="p">{</span>
+            <span class="o">*</span><span class="n">out</span><span class="o">++</span> <span class="o">=</span> <span class="sc">' '</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="o">*</span><span class="n">out</span><span class="o">++</span> <span class="o">=</span> <span class="sc">'}'</span><span class="p">;</span>
+
+        <span class="k">return</span> <span class="n">out</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">struct</span> <span class="nc">point</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_STRUCT</span><span class="p">(</span> <span class="n">point</span><span class="p">,</span> <span class="p">(),</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="p">)</span>
+
+<span class="k">struct</span> <span class="nc">color</span>
+<span class="p">{</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">b</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_STRUCT</span><span class="p">(</span> <span class="n">color</span><span class="p">,</span> <span class="p">(),</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="p">)</span>
+
+<span class="k">struct</span> <span class="nc">line</span><span class="o">:</span> <span class="n">color</span>
+<span class="p">{</span>
+    <span class="n">point</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_STRUCT</span><span class="p">(</span> <span class="n">line</span><span class="p">,</span> <span class="p">(</span><span class="n">color</span><span class="p">),</span> <span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">)</span> <span class="p">)</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">fmt</span><span class="o">::</span><span class="n">print</span><span class="p">(</span> <span class="s">"{}</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">line</span><span class="p">{</span> <span class="p">{</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">192</span><span class="p">,</span> <span class="mi">16</span> <span class="p">},</span> <span class="p">{</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">},</span> <span class="p">{</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span> <span class="p">}</span> <span class="p">}</span> <span class="p">);</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>{ { .r=255, .g=192, .b=16 }, .first={ .x=1, .y=2 }, .last={ .x=3, .y=4 } }</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="example_fmtlib_enum_formatter"><code>fmtlib</code> Enum Formatter</h3>
+<div class="paragraph">
+<p>This example defines a <a href="https://github.com/fmtlib/fmt"><code>fmtlib</code></a> formatter
+for described enums.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#include &lt;boost/describe.hpp&gt;
+#include &lt;fmt/format.h&gt;
+#include &lt;type_traits&gt;
+</span>
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">&gt;</span> <span class="k">struct</span> <span class="nc">fmt</span><span class="o">::</span><span class="n">formatter</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="kt">char</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">enable_if_t</span><span class="o">&lt;</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">has_describe_enumerators</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">value</span><span class="o">&gt;&gt;</span>
+<span class="p">{</span>
+<span class="nl">private:</span>
+
+    <span class="k">using</span> <span class="n">U</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">underlying_type_t</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">;</span>
+
+    <span class="n">fmt</span><span class="o">::</span><span class="n">formatter</span><span class="o">&lt;</span><span class="n">fmt</span><span class="o">::</span><span class="n">string_view</span><span class="p">,</span> <span class="kt">char</span><span class="o">&gt;</span> <span class="n">sf_</span><span class="p">;</span>
+    <span class="n">fmt</span><span class="o">::</span><span class="n">formatter</span><span class="o">&lt;</span><span class="n">U</span><span class="p">,</span> <span class="kt">char</span><span class="o">&gt;</span> <span class="n">nf_</span><span class="p">;</span>
+
+<span class="nl">public:</span>
+
+    <span class="k">constexpr</span> <span class="k">auto</span> <span class="n">parse</span><span class="p">(</span> <span class="n">format_parse_context</span><span class="o">&amp;</span> <span class="n">ctx</span> <span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">auto</span> <span class="n">i1</span> <span class="o">=</span> <span class="n">sf_</span><span class="p">.</span><span class="n">parse</span><span class="p">(</span> <span class="n">ctx</span> <span class="p">);</span>
+        <span class="k">auto</span> <span class="n">i2</span> <span class="o">=</span> <span class="n">nf_</span><span class="p">.</span><span class="n">parse</span><span class="p">(</span> <span class="n">ctx</span> <span class="p">);</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="n">i1</span> <span class="o">!=</span> <span class="n">i2</span> <span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ctx</span><span class="p">.</span><span class="n">error_handler</span><span class="p">().</span><span class="n">on_error</span><span class="p">(</span> <span class="s">"invalid format"</span> <span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">i1</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">auto</span> <span class="n">format</span><span class="p">(</span> <span class="n">T</span> <span class="k">const</span><span class="o">&amp;</span> <span class="n">t</span><span class="p">,</span> <span class="n">format_context</span><span class="o">&amp;</span> <span class="n">ctx</span> <span class="p">)</span> <span class="k">const</span>
+    <span class="p">{</span>
+        <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">s</span> <span class="o">=</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="o">::</span><span class="n">enum_to_string</span><span class="p">(</span> <span class="n">t</span><span class="p">,</span> <span class="mi">0</span> <span class="p">);</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="n">s</span> <span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">sf_</span><span class="p">.</span><span class="n">format</span><span class="p">(</span> <span class="n">s</span><span class="p">,</span> <span class="n">ctx</span> <span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">else</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">nf_</span><span class="p">.</span><span class="n">format</span><span class="p">(</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">U</span><span class="o">&gt;</span><span class="p">(</span> <span class="n">t</span> <span class="p">),</span> <span class="n">ctx</span> <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="k">enum</span> <span class="n">E1</span>
+<span class="p">{</span>
+    <span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">v3</span> <span class="o">=</span> <span class="mi">11</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_ENUM</span><span class="p">(</span> <span class="n">E1</span><span class="p">,</span> <span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">v3</span> <span class="p">)</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">fmt</span><span class="o">::</span><span class="n">print</span><span class="p">(</span> <span class="s">"{:_^10}</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">E1</span><span class="o">::</span><span class="n">v1</span> <span class="p">);</span>
+    <span class="n">fmt</span><span class="o">::</span><span class="n">print</span><span class="p">(</span> <span class="s">"{:_^10}</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="p">(</span><span class="n">E1</span><span class="p">)</span><span class="mi">7</span> <span class="p">);</span>
+<span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>____v1____
+____7_____</pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="example_pm_to_string">Printing Pointers to Members</h3>
+<div class="paragraph">
+<p>This example defines an <code>operator&lt;&lt;</code> overload for pointers to members.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="rouge highlight"><code data-lang="c++"><span class="cp">#include &lt;boost/describe.hpp&gt;
+#include &lt;boost/mp11.hpp&gt;
+#include &lt;boost/core/type_name.hpp&gt;
+#include &lt;string&gt;
+#include &lt;ostream&gt;
+</span>
+<span class="k">namespace</span> <span class="n">detail</span>
+<span class="p">{</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T1</span><span class="p">,</span> <span class="k">class</span> <span class="nc">T2</span><span class="p">&gt;</span>
+<span class="k">constexpr</span> <span class="k">auto</span> <span class="n">equals</span><span class="p">(</span> <span class="n">T1</span> <span class="n">t1</span><span class="p">,</span> <span class="n">T2</span> <span class="n">t2</span><span class="p">,</span> <span class="kt">int</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="k">decltype</span><span class="p">(</span> <span class="n">t1</span> <span class="o">==</span> <span class="n">t2</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="n">t1</span> <span class="o">==</span> <span class="n">t2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T1</span><span class="p">,</span> <span class="k">class</span> <span class="nc">T2</span><span class="p">&gt;</span>
+<span class="k">constexpr</span> <span class="kt">bool</span> <span class="n">equals</span><span class="p">(</span> <span class="n">T1</span> <span class="cm">/*t1*/</span><span class="p">,</span> <span class="n">T2</span> <span class="cm">/*t2*/</span><span class="p">,</span> <span class="kt">long</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">boost</span><span class="o">::</span><span class="n">describe</span><span class="p">;</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">C</span><span class="p">,</span>
+    <span class="k">class</span> <span class="nc">L</span> <span class="o">=</span> <span class="n">describe_members</span><span class="o">&lt;</span><span class="n">C</span><span class="p">,</span> <span class="n">mod_any_access</span> <span class="o">|</span> <span class="n">mod_any_member</span><span class="p">&gt;</span><span class="o">&gt;</span>
+<span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">get_member_name</span><span class="p">(</span> <span class="n">T</span> <span class="n">C</span><span class="o">::*</span> <span class="n">pm</span><span class="p">,</span> <span class="kt">int</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">name</span> <span class="o">=</span> <span class="nb">nullptr</span><span class="p">;</span>
+
+    <span class="n">boost</span><span class="o">::</span><span class="n">mp11</span><span class="o">::</span><span class="n">mp_for_each</span><span class="o">&lt;</span><span class="n">L</span><span class="o">&gt;</span><span class="p">([</span><span class="o">&amp;</span><span class="p">](</span><span class="k">auto</span> <span class="n">D</span><span class="p">){</span>
+
+        <span class="k">if</span><span class="p">(</span> <span class="n">equals</span><span class="p">(</span> <span class="n">D</span><span class="p">.</span><span class="n">pointer</span><span class="p">,</span> <span class="n">pm</span><span class="p">,</span> <span class="mi">0</span> <span class="p">)</span> <span class="p">)</span> <span class="n">name</span> <span class="o">=</span> <span class="n">D</span><span class="p">.</span><span class="n">name</span><span class="p">;</span>
+
+    <span class="p">});</span>
+
+    <span class="k">return</span> <span class="n">name</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">C</span><span class="p">&gt;</span>
+<span class="kt">char</span> <span class="k">const</span><span class="o">*</span> <span class="n">get_member_name</span><span class="p">(</span> <span class="n">T</span> <span class="n">C</span><span class="o">::*</span> <span class="cm">/*pm*/</span><span class="p">,</span> <span class="kt">long</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="nb">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">}</span> <span class="c1">// namespace detail</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">C</span><span class="p">&gt;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="nf">pm_to_string</span><span class="p">(</span> <span class="n">T</span> <span class="n">C</span><span class="o">::*</span> <span class="n">pm</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="k">const</span> <span class="o">*</span> <span class="n">name</span> <span class="o">=</span> <span class="o">::</span><span class="n">detail</span><span class="o">::</span><span class="n">get_member_name</span><span class="p">(</span> <span class="n">pm</span><span class="p">,</span> <span class="mi">0</span> <span class="p">);</span>
+
+    <span class="k">if</span><span class="p">(</span> <span class="n">name</span> <span class="o">==</span> <span class="nb">nullptr</span> <span class="p">)</span> <span class="n">name</span> <span class="o">=</span> <span class="s">"(unknown)"</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="s">"&amp;"</span> <span class="o">+</span> <span class="n">boost</span><span class="o">::</span><span class="n">core</span><span class="o">::</span><span class="n">type_name</span><span class="o">&lt;</span><span class="n">C</span><span class="o">&gt;</span><span class="p">()</span> <span class="o">+</span> <span class="s">"::"</span> <span class="o">+</span> <span class="n">name</span>
+        <span class="o">+</span> <span class="s">" ["</span> <span class="o">+</span> <span class="n">boost</span><span class="o">::</span><span class="n">core</span><span class="o">::</span><span class="n">type_name</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">()</span> <span class="o">+</span> <span class="s">"]"</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T</span><span class="p">,</span> <span class="k">class</span> <span class="nc">C</span><span class="p">&gt;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span> <span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span> <span class="n">std</span><span class="o">::</span><span class="n">ostream</span><span class="o">&amp;</span> <span class="n">os</span><span class="p">,</span> <span class="n">T</span> <span class="n">C</span><span class="o">::*</span> <span class="n">pm</span> <span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">os</span> <span class="o">&lt;&lt;</span> <span class="n">pm_to_string</span><span class="p">(</span> <span class="n">pm</span> <span class="p">);</span>
+    <span class="k">return</span> <span class="n">os</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">struct</span> <span class="nc">X</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">m</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">f</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_STRUCT</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="p">(),</span> <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span>
+
+<span class="k">struct</span> <span class="nc">Y</span><span class="o">:</span> <span class="k">public</span> <span class="n">X</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">m</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">g</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="o">-</span><span class="n">m</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="n">BOOST_DESCRIBE_STRUCT</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">g</span><span class="p">))</span>
+
+<span class="k">struct</span> <span class="nc">Z</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="n">h</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">};</span>
+
+<span class="cp">#if !defined(_MSC_VER) || defined(__clang__)
+</span>
+<span class="c1">// MSVC doesn't support BOOST_DESCRIBE_CLASS inside</span>
+<span class="c1">// templates until 2022 in C++20 mode</span>
+
+<span class="k">template</span><span class="o">&lt;</span><span class="k">class</span> <span class="nc">T1</span><span class="p">,</span> <span class="k">class</span> <span class="nc">T2</span><span class="p">&gt;</span> <span class="k">struct</span> <span class="nc">pair</span>
+<span class="p">{</span>
+    <span class="n">T1</span> <span class="n">first</span><span class="p">;</span>
+    <span class="n">T2</span> <span class="n">second</span><span class="p">;</span>
+
+    <span class="n">BOOST_DESCRIBE_CLASS</span><span class="p">(</span><span class="n">pair</span><span class="p">,</span> <span class="p">(),</span> <span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">second</span><span class="p">),</span> <span class="p">(),</span> <span class="p">())</span>
+<span class="p">};</span>
+
+<span class="cp">#endif
+</span>
+<span class="cp">#include &lt;iostream&gt;
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">X</span><span class="o">::</span><span class="n">m</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">X</span><span class="o">::</span><span class="n">f</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">Y</span><span class="o">::</span><span class="n">m</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">Y</span><span class="o">::</span><span class="n">f</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">Y</span><span class="o">::</span><span class="n">g</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">Z</span><span class="o">::</span><span class="n">h</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="cp">#if !defined(_MSC_VER) || defined(__clang__)
+</span>    <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="o">&amp;</span><span class="n">pair</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="kt">float</span><span class="o">&gt;::</span><span class="n">second</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="cp">#endif
+</span><span class="p">}</span></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Sample output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>&amp;X::m [int]
+&amp;X::f [int() const]
+&amp;Y::m [int]
+&amp;X::f [int() const]
+&amp;Y::g [int() const]
+&amp;Z::(unknown) [void()]</pre>
+</div>
+</div>
 </div>
 </div>
 </div>
@@ -2273,7 +2839,7 @@ for converting the variables to and from a string form.</p>
 <p>Clang 3.9 or later with <code>-std=c++14</code> or above</p>
 </li>
 <li>
-<p>Visual Studio 2015, 2017, 2019</p>
+<p>Visual Studio 2015 or later</p>
 </li>
 </ul>
 </div>
@@ -2990,7 +3556,7 @@ the <a href="http://www.boost.org/LICENSE_1_0.txt">Boost Software License, Versi
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:47:53 UTC
+Last updated 2022-03-13 09:02:29 UTC
 </div>
 </div>
 <style>

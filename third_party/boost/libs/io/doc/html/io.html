@@ -483,6 +483,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#acknowledgments_2">Acknowledgments</a></li>
 </ul>
 </li>
+<li><a href="#null_streams_boostionullstream_hpp">Null Streams, &lt;boost/io/nullstream.hpp&gt;</a>
+<ul class="sectlevel2">
+<li><a href="#description_4">Description</a></li>
+<li><a href="#example_4">Example</a></li>
+<li><a href="#reference_3">Reference</a></li>
+<li><a href="#acknowledgments_3">Acknowledgments</a></li>
+</ul>
+</li>
 <li><a href="#copyright_and_license">Copyright and License</a></li>
 </ul>
 </div>
@@ -1378,6 +1386,84 @@ characters starting at <code>data</code>, each widened using <code>os.widen()</c
 </div>
 </div>
 <div class="sect1">
+<h2 id="null_streams_boostionullstream_hpp">Null Streams, &lt;boost/io/nullstream.hpp&gt;</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="description_4">Description</h3>
+<div class="paragraph">
+<p>The header <code>&lt;boost/io/nullstream.hpp&gt;</code> provides the class template
+<code>boost::io::basic_nullbuf</code> which is a null stream buffer and class template
+<code>boost::io::basic_onullstream</code> which is a null stream.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="example_4">Example</h3>
+<div class="paragraph">
+<p>The following program passes a null stream to a function.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cpp" data-lang="cpp">#include &lt;boost/io/ostream_joiner.hpp&gt;
+#include &lt;fstream&gt;
+
+void setup(std::ostream&amp; log);
+
+int main(int argc, char* argv[])
+{
+    if (argc == 2) {
+        std::ofstream file(argv[1]);
+        setup(file);
+    } else {
+        boost::io::onullstream none;
+        setup(none);
+    }
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="reference_3">Reference</h3>
+<div class="sect3">
+<h4 id="header_synopsis_5">Header Synopsis</h4>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cpp" data-lang="cpp">namespace boost {
+namespace io {
+
+template&lt;class CharT, class Traits = std::char_traits&lt;Char&gt; &gt;
+class basic_nullbuf
+    : public std::basic_streambuf&lt;CharT, Traits&gt; {
+protected:
+    typename Traits::int_type overflow(typename Traits::int_type c) override;
+
+    std::streamsize xsputn(const CharT*, std::streamsize n) override;
+};
+
+template&lt;class CharT, class Traits = std::char_traits&lt;CharT&gt; &gt;
+class basic_onullstream
+    : public std::basic_ostream&lt;CharT, Traits&gt; {
+public:
+    basic_onullstream();
+};
+
+typedef basic_onullstream&lt;char&gt; onullstream;
+typedef basic_onullstream&lt;wchar_t&gt; wonullstream;
+
+} // io
+} // boost</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="acknowledgments_3">Acknowledgments</h3>
+<div class="paragraph">
+<p>Glen Fernandes implemented <code>basic_nullbuf</code> and <code>basic_onullstream</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="copyright_and_license">Copyright and License</h2>
 <div class="sectionbody">
 <div class="ulist">
@@ -1402,7 +1488,7 @@ characters starting at <code>data</code>, each widened using <code>os.widen()</c
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-02 06:47:55 UTC
+Last updated 2022-03-13 09:02:31 UTC
 </div>
 </div>
 <style>

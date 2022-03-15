@@ -1,0 +1,36 @@
+# (C) Copyright 2010: Tim Blechmann
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+
+import testing ;
+import path ;
+import regex ;
+
+project
+    : source-location .
+    : requirements
+        <threading>multi
+        <hardcode-dll-paths>true
+        <library>/boost/sync//boost_sync
+        <library>/boost/thread//boost_thread
+        <library>/boost/date_time//boost_date_time
+    ;
+
+
+rule test_all
+{
+    local all_rules ;
+
+    for local file in [ glob run/*.cpp ]
+    {
+        all_rules += [ run $(file)
+            : # additional args
+            : # test-files
+            : # requirements
+        ] ;
+    }
+
+    return $(all_rules) ;
+}
+
+test-suite sync : [ test_all ] : <threading>multi ;

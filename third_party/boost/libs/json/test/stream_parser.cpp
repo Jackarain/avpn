@@ -139,7 +139,9 @@ public:
     testMembers()
     {
         // write_some(char const*, size_t, error_code&)
+        // write_some(char const*, size_t, std::error_code&)
         // write_some(string_view, error_code&)
+        // write_some(string_view, std::error_code&)
         {
             {
                 stream_parser p;
@@ -150,7 +152,21 @@ public:
             }
             {
                 stream_parser p;
+                std::error_code ec;
+                BOOST_TEST(p.write_some(
+                    "[]*", ec) == 2);
+                BOOST_TEST(! ec);
+            }
+            {
+                stream_parser p;
                 error_code ec;
+                BOOST_TEST(p.write_some(
+                    "[*", ec) == 1);
+                BOOST_TEST(ec);
+            }
+            {
+                stream_parser p;
+                std::error_code ec;
                 BOOST_TEST(p.write_some(
                     "[*", ec) == 1);
                 BOOST_TEST(ec);
@@ -174,7 +190,9 @@ public:
         }
 
         // write(char const*, size_t, error_code&)
+        // write(char const*, size_t, std::error_code&)
         // write(string_view, error_code&)
+        // write(string_view, std::error_code&)
         {
             {
                 stream_parser p;
@@ -185,10 +203,24 @@ public:
             }
             {
                 stream_parser p;
+                std::error_code ec;
+                BOOST_TEST(p.write(
+                    "null", ec) == 4);
+                BOOST_TEST(! ec);
+            }
+            {
+                stream_parser p;
                 error_code ec;
                 p.write("[]*", ec),
                 BOOST_TEST(
                     ec == error::extra_data);
+                BOOST_TEST(ec.has_location());
+            }
+            {
+                stream_parser p;
+                std::error_code ec;
+                p.write("[]*", ec),
+                BOOST_TEST(ec == error::extra_data);
             }
         }
 
@@ -208,8 +240,9 @@ public:
             }
         }
 
-        // finish(error_code&)
         // finish()
+        // finish(error_code&)
+        // finish(std::error_code&)
         {
             {
                 stream_parser p;
@@ -233,11 +266,28 @@ public:
                 p.finish(ec);
                 BOOST_TEST(
                     ec == error::incomplete);
+                BOOST_TEST(ec.has_location());
             }
             {
                 stream_parser p;
                 p.write("[1,2");
                 error_code ec;
+                p.finish(ec);
+                BOOST_TEST_THROWS(
+                    p.finish(),
+                    system_error);
+            }
+            {
+                stream_parser p;
+                p.write("[1,2");
+                std::error_code ec;
+                p.finish(ec);
+                BOOST_TEST(ec == error::incomplete);
+            }
+            {
+                stream_parser p;
+                p.write("[1,2");
+                std::error_code ec;
                 p.finish(ec);
                 BOOST_TEST_THROWS(
                     p.finish(),
@@ -277,6 +327,7 @@ public:
                 p.write("[]*", ec);
                 BOOST_TEST(
                     ec == error::extra_data);
+                BOOST_TEST(ec.has_location());
                 BOOST_TEST(! p.done());
                 BOOST_TEST_THROWS(
                     p.release(),
@@ -856,6 +907,7 @@ public:
             p.write("[]", 2, ec);
             BOOST_TEST(
                 ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
     }
 
@@ -922,6 +974,7 @@ public:
             p.write("{}", 2, ec);
             BOOST_TEST(
                 ec == error::too_deep);
+            BOOST_TEST(ec.has_location());
         }
     }
 
@@ -946,6 +999,7 @@ public:
                 error_code ec;
                 auto jv = parse("xxx", ec);
                 BOOST_TEST(ec);
+                BOOST_TEST(ec.has_location());
                 BOOST_TEST(jv.is_null());
             }
         }
@@ -965,6 +1019,7 @@ public:
                 monotonic_resource mr;
                 auto jv = parse("xxx", ec, &mr);
                 BOOST_TEST(ec);
+                BOOST_TEST(ec.has_location());
                 BOOST_TEST(jv.is_null());
             }
         }

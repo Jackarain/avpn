@@ -1,0 +1,84 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Condition Variables</title>
+<link rel="stylesheet" href="../../../../doc/src/boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
+<link rel="home" href="index.html" title="Chapter 1. Boost.Sync v1">
+<link rel="up" href="sync/reference.html" title="Reference">
+<link rel="prev" href="boost/sync/timed_mutex.html" title="Class timed_mutex">
+<link rel="next" href="boost/sync/condition_variable.html" title="Class condition_variable">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table cellpadding="2" width="100%"><tr><td valign="top"><img alt="Boost C++ Libraries" width="277" height="86" src="../../../../boost.png"></td></tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="boost/sync/timed_mutex.html"><img src="../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="sync/reference.html"><img src="../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="index.html"><img src="../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="boost/sync/condition_variable.html"><img src="../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="condition_variables"></a>Condition Variables</h3></div></div></div>
+<div class="toc"><dl class="toc">
+<dt><span class="section"><a href="condition_variables.html#header.boost.sync.condition_variables.condition_variable_hpp">Header &lt;boost/sync/condition_variables/condition_variable.hpp&gt;</a></span></dt>
+<dt><span class="section"><a href="condition_variables.html#header.boost.sync.condition_variables.condition_variable_any_hpp">Header &lt;boost/sync/condition_variables/condition_variable_any.hpp&gt;</a></span></dt>
+<dt><span class="section"><a href="condition_variables.html#header.boost.sync.condition_variables.cv_status_hpp">Header &lt;boost/sync/condition_variables/cv_status.hpp&gt;</a></span></dt>
+<dt><span class="section"><a href="condition_variables.html#header.boost.sync.condition_variables.notify_all_at_thread_exit_hpp">Header &lt;boost/sync/condition_variables/notify_all_at_thread_exit.hpp&gt;</a></span></dt>
+</dl></div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="header.boost.sync.condition_variables.condition_variable_hpp"></a>Header &lt;<a href="../../../../boost/sync/condition_variables/condition_variable.hpp" target="_top">boost/sync/condition_variables/condition_variable.hpp</a>&gt;</h4></div></div></div>
+<p>This header defines a basic condition variable primitive. </p>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">namespace</span> <span class="identifier">sync</span> <span class="special">{</span>
+    <span class="keyword">class</span> <a class="link" href="boost/sync/condition_variable.html" title="Class condition_variable">condition_variable</a><span class="special">;</span>
+  <span class="special">}</span>
+<span class="special">}</span></pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="header.boost.sync.condition_variables.condition_variable_any_hpp"></a>Header &lt;<a href="../../../../boost/sync/condition_variables/condition_variable_any.hpp" target="_top">boost/sync/condition_variables/condition_variable_any.hpp</a>&gt;</h4></div></div></div>
+<p>This header defines a basic condition variable primitive. </p>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">namespace</span> <span class="identifier">sync</span> <span class="special">{</span>
+    <span class="keyword">class</span> <a class="link" href="boost/sync/condition_variable_any.html" title="Class condition_variable_any">condition_variable_any</a><span class="special">;</span>
+  <span class="special">}</span>
+<span class="special">}</span></pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="header.boost.sync.condition_variables.cv_status_hpp"></a>Header &lt;<a href="../../../../boost/sync/condition_variables/cv_status.hpp" target="_top">boost/sync/condition_variables/cv_status.hpp</a>&gt;</h4></div></div></div>
+<p>This header defines <code class="computeroutput">cv_status</code> enumeration. </p>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">namespace</span> <span class="identifier">sync</span> <span class="special">{</span>
+
+    <span class="comment">// Condition variable wait status. </span>
+    <span class="keyword">enum</span> <a name="boost.sync.cv_status"></a>cv_status <span class="special">{</span> no_timeout, timeout <span class="special">}</span><span class="special">;</span>
+  <span class="special">}</span>
+<span class="special">}</span></pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="header.boost.sync.condition_variables.notify_all_at_thread_exit_hpp"></a>Header &lt;<a href="../../../../boost/sync/condition_variables/notify_all_at_thread_exit.hpp" target="_top">boost/sync/condition_variables/notify_all_at_thread_exit.hpp</a>&gt;</h4></div></div></div>
+<p>This header defines the <code class="computeroutput">notify_all_at_thread_exit</code> function. </p>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">namespace</span> <span class="identifier">sync</span> <span class="special">{</span>
+    <span class="keyword">void</span> <a class="link" href="boost/sync/notify_all_at_thread_exit.html" title="Function notify_all_at_thread_exit"><span class="identifier">notify_all_at_thread_exit</span></a><span class="special">(</span><a class="link" href="boost/sync/condition_variable.html" title="Class condition_variable">sync::condition_variable</a> <span class="special">&amp;</span><span class="special">,</span> 
+                                   <span class="identifier">sync</span><span class="special">::</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">sync</span><span class="special">::</span><span class="identifier">mutex</span> <span class="special">&gt;</span><span class="special">)</span><span class="special">;</span>
+  <span class="special">}</span>
+<span class="special">}</span></pre>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright © 2013 Vicente J. Botet Escriba, Tim Blechmann<br>Copyright © 2013-2019 Andrey Semashev<p>
+        Distributed under the Boost Software License, Version 1.0. (See accompanying
+        file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>).
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="boost/sync/timed_mutex.html"><img src="../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="sync/reference.html"><img src="../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="index.html"><img src="../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="boost/sync/condition_variable.html"><img src="../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

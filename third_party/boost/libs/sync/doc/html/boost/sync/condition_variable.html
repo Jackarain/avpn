@@ -1,0 +1,593 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Class condition_variable</title>
+<link rel="stylesheet" href="../../../../../../doc/src/boostbook.css" type="text/css">
+<meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
+<link rel="home" href="../../index.html" title="Chapter 1. Boost.Sync v1">
+<link rel="up" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_hpp" title="Header &lt;boost/sync/condition_variables/condition_variable.hpp&gt;">
+<link rel="prev" href="../../condition_variables.html" title="Condition Variables">
+<link rel="next" href="condition_variable_any.html" title="Class condition_variable_any">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table cellpadding="2" width="100%"><tr><td valign="top"><img alt="Boost C++ Libraries" width="277" height="86" src="../../../../../../boost.png"></td></tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="../../condition_variables.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="condition_variable_any.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+<div class="refentry">
+<a name="boost.sync.condition_variable"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2><span class="refentrytitle">Class condition_variable</span></h2>
+<p>boost::sync::condition_variable — The condition variable class. </p>
+</div>
+<h2 xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv-title">Synopsis</h2>
+<div xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" class="refsynopsisdiv"><pre class="synopsis"><span class="comment">// In header: &lt;<a class="link" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_hpp" title="Header &lt;boost/sync/condition_variables/condition_variable.hpp&gt;">boost/sync/condition_variables/condition_variable.hpp</a>&gt;
+
+</span>
+<span class="keyword">class</span> <a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="special">{</span>
+<span class="keyword">public</span><span class="special">:</span>
+  <span class="comment">// <a class="link" href="condition_variable.html#boost.sync.condition_variabletypes">types</a></span>
+  <span class="keyword">typedef</span> <span class="identifier">unspecified</span> <a class="link" href="condition_variable.html#boost.sync.condition_variable.native_handle_type"><span class="identifier">native_handle_type</span></a><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="condition_variable.html#boost.sync.condition_variableconstruct-copy-destruct">construct/copy/destruct</a></span>
+  <a class="link" href="condition_variable.html#idm1473-bb"><span class="identifier">condition_variable</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+  <a class="link" href="condition_variable.html#idm1485-bb"><span class="identifier">condition_variable</span></a><span class="special">(</span><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="special">&amp;</span> <a class="link" href="condition_variable.html#idm1489-bb"><span class="keyword">operator</span><span class="special">=</span></a><span class="special">(</span><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span>
+  <a class="link" href="condition_variable.html#idm1478-bb"><span class="special">~</span><span class="identifier">condition_variable</span></a><span class="special">(</span><span class="special">)</span><span class="special">;</span>
+
+  <span class="comment">// <a class="link" href="condition_variable.html#idm1167-bb">public member functions</a></span>
+  <span class="keyword">void</span> <a class="link" href="condition_variable.html#idm1168-bb"><span class="identifier">notify_one</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">void</span> <a class="link" href="condition_variable.html#idm1171-bb"><span class="identifier">notify_all</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">&gt;</span> <span class="keyword">void</span> <a class="link" href="condition_variable.html#idm1174-bb"><span class="identifier">wait</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">void</span> <a class="link" href="condition_variable.html#idm1201-bb"><span class="identifier">wait</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable.html#idm1233-bb"><span class="identifier">timed_wait</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable.html#idm1272-bb"><span class="identifier">timed_wait</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">&gt;</span> 
+    <span class="identifier">cv_status</span> <a class="link" href="condition_variable.html#idm1315-bb"><span class="identifier">wait_for</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable.html#idm1352-bb"><span class="identifier">wait_for</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">&gt;</span> 
+    <span class="identifier">cv_status</span> <a class="link" href="condition_variable.html#idm1390-bb"><span class="identifier">wait_until</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span><span class="special">;</span>
+  <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+    <span class="keyword">bool</span> <a class="link" href="condition_variable.html#idm1427-bb"><span class="identifier">wait_until</span></a><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">,</span> <span class="identifier">Predicate</span><span class="special">)</span><span class="special">;</span>
+  <span class="identifier">native_handle_type</span> <a class="link" href="condition_variable.html#idm1465-bb"><span class="identifier">native_handle</span></a><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span>
+<span class="special">}</span><span class="special">;</span></pre></div>
+<div class="refsect1">
+<a name="idm4711"></a><h2>Description</h2>
+<div class="refsect2">
+<a name="idm4713"></a><h3>
+<a name="boost.sync.condition_variabletypes"></a><code class="computeroutput">condition_variable</code> 
+        public
+       types</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1"><li class="listitem">
+<p>
+<span class="keyword">typedef</span> <span class="identifier">unspecified</span> <a name="boost.sync.condition_variable.native_handle_type"></a><span class="identifier">native_handle_type</span><span class="special">;</span></p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>This type is only available if <code class="computeroutput">BOOST_SYNC_DEFINES_CONDITION_VARIABLE_NATIVE_HANDLE</code> macro is defined by the library. </p></td></tr>
+</table></div>
+<p>
+</p>
+</li></ol></div>
+</div>
+<div class="refsect2">
+<a name="idm4729"></a><h3>
+<a name="boost.sync.condition_variableconstruct-copy-destruct"></a><code class="computeroutput">condition_variable</code> 
+        public
+       construct/copy/destruct</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><a name="idm1473-bb"></a><span class="identifier">condition_variable</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Default constructor. <p><span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to create the primitive (e.g. due to insufficient resources). </p>
+</li>
+<li class="listitem"><pre class="literallayout"><a name="idm1485-bb"></a><span class="identifier">condition_variable</span><span class="special">(</span><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem"><pre class="literallayout"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="special">&amp;</span> <a name="idm1489-bb"></a><span class="keyword">operator</span><span class="special">=</span><span class="special">(</span><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a> <span class="keyword">const</span> <span class="special">&amp;</span><span class="special">)</span> <span class="special">=</span> <span class="keyword">delete</span><span class="special">;</span></pre></li>
+<li class="listitem">
+<pre class="literallayout"><a name="idm1478-bb"></a><span class="special">~</span><span class="identifier">condition_variable</span><span class="special">(</span><span class="special">)</span><span class="special">;</span></pre>Destructor. <p>Destroys the condition variable.</p>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no threads blocked on the object. </p></td>
+</tr></tbody>
+</table></div>
+</li>
+</ol></div>
+</div>
+<div class="refsect2">
+<a name="idm4789"></a><h3>
+<a name="idm1167-bb"></a><code class="computeroutput">condition_variable</code> public member functions</h3>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm1168-bb"></a><span class="identifier">notify_one</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Wakes up one thread blocked on the object. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">void</span> <a name="idm1171-bb"></a><span class="identifier">notify_all</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Wakes up all threads blocked on the object. </li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">&gt;</span> <span class="keyword">void</span> <a name="idm1174-bb"></a><span class="identifier">wait</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object. <p>Atomically unlocks the mutex and blocks on the object. When unblocked, it locks the mutex and returns. The function can unblock upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously.</p>
+<p>
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception. </p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object</p></td>
+</tr></tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">void</span> <a name="idm1201-bb"></a><span class="identifier">wait</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the predicate is satisfied. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) wait(lock); </code></p>
+<p>
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception. </p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1233-bb"></a><span class="identifier">timed_wait</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span> timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the mutex and blocks on the object. When unblocked, it locks the mutex and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout can be specified as an absolute time point or duration.</p>
+<p>
+
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">timeout</code></span></p></td>
+<td><p>Relative or absolute timeout. If timeout is relative, the time is measured according to the system clock.</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">true</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">false</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Time<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1272-bb"></a><span class="identifier">timed_wait</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Time</span> <span class="keyword">const</span> <span class="special">&amp;</span> timeout<span class="special">,</span> 
+                  <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the predicate is satisfied or the timeout expires. <p>If the timeout is an absolute time point, works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) if (!timed_wait(lock, timeout)) return pred(); </code></p>
+<p>otherwise works as if equivalent to:</p>
+<p><code class="computeroutput"> auto abs_timeout = chrono::system_clock::now() + timeout; while (!pred()) if (!timed_wait(lock, abs_timeout)) return pred(); </code></p>
+<p>
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate</p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">timeout</code></span></p></td>
+<td><p>Relative or absolute timeout. If timeout is relative, the time is measured according to the system clock. </p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">&gt;</span> 
+  <span class="identifier">cv_status</span> <a name="idm1315-bb"></a><span class="identifier">wait_for</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> 
+                     <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span> rel_timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the mutex and blocks on the object. When unblocked, it locks the mutex and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout must be specified as a time duration.</p>
+<p>
+
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr></tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">cv_status::no_timeout</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">cv_status::timeout</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> Duration<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1352-bb"></a><span class="identifier">wait_for</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">Duration</span> <span class="keyword">const</span> <span class="special">&amp;</span> rel_timeout<span class="special">,</span> 
+                <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> return wait_until(lock, chrono::system_clock::now() + rel_timeout, pred); </code></p>
+<p>
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">&gt;</span> 
+  <span class="identifier">cv_status</span> <a name="idm1390-bb"></a><span class="identifier">wait_until</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> 
+                       <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span> abs_timeout<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Atomically unlocks the mutex and blocks on the object. When unblocked, it locks the mutex and returns. The function can unblock after the specified timeout expires, upon another thread calling <code class="computeroutput">notify_one()</code>, <code class="computeroutput">notify_all()</code> or spuriously, whichever happens first. The timeout must be specified as an absolute time point.</p>
+<p>
+
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody><tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr></tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+<tr>
+<td><p><span class="term">Returns:</span></p></td>
+<td><p><code class="computeroutput">cv_status::no_timeout</code> if the function returned before the timeout expired, otherwise <code class="computeroutput">cv_status::timeout</code>.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">typename</span> Mutex<span class="special">,</span> <span class="keyword">typename</span> TimePoint<span class="special">,</span> <span class="keyword">typename</span> Predicate<span class="special">&gt;</span> 
+  <span class="keyword">bool</span> <a name="idm1427-bb"></a><span class="identifier">wait_until</span><span class="special">(</span><span class="identifier">unique_lock</span><span class="special">&lt;</span> <span class="identifier">Mutex</span> <span class="special">&gt;</span> <span class="special">&amp;</span> lock<span class="special">,</span> <span class="identifier">TimePoint</span> <span class="keyword">const</span> <span class="special">&amp;</span> abs_timeout<span class="special">,</span> 
+                  <span class="identifier">Predicate</span> pred<span class="special">)</span><span class="special">;</span></pre>Blocks the current thread on the object until the timeout expires. <p>Works equivalent to:</p>
+<p><code class="computeroutput"> while (!pred()) if (wait_until(lock, timeout) == cv_status::timeout) return pred(); </code></p>
+<p>
+
+
+
+<span class="bold"><strong>Throws:</strong></span> An exception in case if the operating system is unable to fulfill the request. The mutex is left in the locked state in case of exception.</p>
+<div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </p></td></tr>
+</table></div>
+<p>
+</p>
+<div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term">Parameters:</span></p></td>
+<td><div class="variablelist"><table border="0" class="variablelist compact">
+<colgroup>
+<col align="left" valign="top">
+<col>
+</colgroup>
+<tbody>
+<tr>
+<td><p><span class="term"><code class="computeroutput">lock</code></span></p></td>
+<td><p>Lock object </p></td>
+</tr>
+<tr>
+<td><p><span class="term"><code class="computeroutput">pred</code></span></p></td>
+<td><p>Condition predicate</p></td>
+</tr>
+</tbody>
+</table></div></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">Mutex</code> is on of the mutex types compatible with <code class="computeroutput"><a class="link" href="condition_variable.html" title="Class condition_variable">condition_variable</a></code>. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p><code class="computeroutput">lock.owns_lock() == true</code> and <code class="computeroutput">lock.mutex()</code> is locked by the current thread. </p></td>
+</tr>
+<tr>
+<td><p><span class="term">Requires:</span></p></td>
+<td><p>There are no other threads blocked on the object or the blocked threads used the same mutex returned by <code class="computeroutput">lock.mutex()</code> to block on this object.</p></td>
+</tr>
+</tbody>
+</table></div>
+</li>
+<li class="listitem">
+<pre class="literallayout"><span class="identifier">native_handle_type</span> <a name="idm1465-bb"></a><span class="identifier">native_handle</span><span class="special">(</span><span class="special">)</span> <span class="keyword">noexcept</span><span class="special">;</span></pre>Returns a handle that represents a native operating system primitive that implements the condition variable. <div class="note"><table border="0" summary="Note">
+<tr>
+<td rowspan="2" align="center" valign="top" width="25"><img alt="[Note]" src="../../../../../../doc/src/images/note.png"></td>
+<th align="left">Note</th>
+</tr>
+<tr><td align="left" valign="top"><p>This method is only available if <code class="computeroutput">BOOST_SYNC_DEFINES_CONDITION_VARIABLE_NATIVE_HANDLE</code> macro is defined by the library. </p></td></tr>
+</table></div>
+<p>
+</p>
+</li>
+</ol></div>
+</div>
+</div>
+</div>
+<table xmlns:rev="http://www.cs.rpi.edu/~gregod/boost/tools/doc/revision" width="100%"><tr>
+<td align="left"></td>
+<td align="right"><div class="copyright-footer">Copyright © 2013 Vicente J. Botet Escriba, Tim Blechmann<br>Copyright © 2013-2019 Andrey Semashev<p>
+        Distributed under the Boost Software License, Version 1.0. (See accompanying
+        file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt" target="_top">http://www.boost.org/LICENSE_1_0.txt</a>).
+      </p>
+</div></td>
+</tr></table>
+<hr>
+<div class="spirit-nav">
+<a accesskey="p" href="../../condition_variables.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../../condition_variables.html#header.boost.sync.condition_variables.condition_variable_hpp"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="condition_variable_any.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+</div>
+</body>
+</html>

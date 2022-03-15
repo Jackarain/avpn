@@ -48,6 +48,9 @@ compile test_d_type.cpp ;
 compile-fail enum_struct_fail.cpp ;
 compile-fail struct_enum_fail.cpp ;
 
+compile-fail enum_nested_fail.cpp ;
+compile-fail nested_enum_fail.cpp ;
+
 run class_template_test.cpp ;
 
 run has_enumerators_test.cpp ;
@@ -65,6 +68,9 @@ run descriptor_by_pointer_test.cpp ;
 
 compile unnamed_namespace_test.cpp ;
 compile unnamed_namespace_test2.cpp ;
+
+run union_test.cpp ;
+run union_test2.cpp ;
 
 # examples
 
@@ -89,3 +95,4 @@ run ../example/hash_value.cpp : : : $(CXX14) ;
 run ../example/equality.cpp : : : $(CXX14) ;
 link ../example/console.cpp : $(CXX14) $(JSON) ;
 run ../example/struct_to_tuple.cpp : : : $(CXX14) ;
+run ../example/pm_to_string.cpp : : : $(CXX14) ;

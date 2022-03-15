@@ -1,13 +1,13 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Allocator Access</title>
+<title>allocator_access</title>
 <link rel="stylesheet" href="../../../../../doc/src/boostbook.css" type="text/css">
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../index.html" title="Chapter 1. Boost.Core">
 <link rel="up" href="../index.html" title="Chapter 1. Boost.Core">
 <link rel="prev" href="addressof.html" title="addressof">
-<link rel="next" href="alloc_construct.html" title="alloc_construct, alloc_destroy">
+<link rel="next" href="allocator_traits.html" title="allocator_traits">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <table cellpadding="2" width="100%"><tr>
@@ -20,11 +20,11 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="addressof.html"><img src="../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="alloc_construct.html"><img src="../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="addressof.html"><img src="../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="allocator_traits.html"><img src="../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="core.allocator_access"></a><a class="link" href="allocator_access.html" title="Allocator Access">Allocator Access</a>
+<a name="core.allocator_access"></a><a class="link" href="allocator_access.html" title="allocator_access">allocator_access</a>
 </h2></div></div></div>
 <div class="toc"><dl class="toc">
 <dt><span class="section"><a href="allocator_access.html#core.allocator_access.overview">Overview</a></span></dt>
@@ -34,7 +34,7 @@
 </dl></div>
 <div class="simplesect">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="idm473"></a>Authors</h3></div></div></div>
+<a name="idm539"></a>Authors</h3></div></div></div>
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem">
           Glen Fernandes
         </li></ul></div>
@@ -48,6 +48,10 @@
         provides the class and function templates to simplify allocator use. It provides
         the same functionality as the C++ standard library <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">allocator_traits</span></code>
         but with individual templates for each allocator feature.
+      </p>
+<p>
+        It also adds additional functionality for allocator aware exception safe
+        construction and destruction of arrays.
       </p>
 <p>
         These facilities also simplify existing libraries by avoiding having to check
@@ -82,6 +86,26 @@
         In C++11 or above, aliases such as <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_pointer_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;</span></code>
         can be used instead of <code class="computeroutput"><span class="keyword">typename</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_pointer</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;::</span><span class="identifier">type</span></code>.
       </p>
+<p>
+        The following example allocates storage for an array of <code class="computeroutput"><span class="identifier">n</span></code>
+        elements of <code class="computeroutput"><span class="identifier">T</span></code> using an allocator
+        <code class="computeroutput"><span class="identifier">a</span></code> and constructs <code class="computeroutput"><span class="identifier">T</span></code> elements in that storage. If any exception
+        was thrown during construction of an element, the constructed elements are
+        destroyed in reverse order.
+      </p>
+<pre class="programlisting"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">&gt;</span>
+<span class="keyword">auto</span> <span class="identifier">create</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">)</span>
+<span class="special">{</span>
+    <span class="keyword">auto</span> <span class="identifier">p</span> <span class="special">=</span> <span class="identifier">a</span><span class="special">.</span><span class="identifier">allocate</span><span class="special">(</span><span class="identifier">n</span><span class="special">);</span>
+    <span class="keyword">try</span> <span class="special">{</span>
+        <span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_construct_n</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="identifier">boost</span><span class="special">::</span><span class="identifier">to_address</span><span class="special">(</span><span class="identifier">p</span><span class="special">),</span> <span class="identifier">n</span><span class="special">);</span>
+    <span class="special">}</span> <span class="keyword">catch</span> <span class="special">(...)</span> <span class="special">{</span>
+        <span class="identifier">a</span><span class="special">.</span><span class="identifier">deallocate</span><span class="special">(</span><span class="identifier">p</span><span class="special">,</span> <span class="identifier">n</span><span class="special">);</span>
+        <span class="keyword">throw</span><span class="special">;</span>
+    <span class="special">}</span>
+    <span class="keyword">return</span> <span class="identifier">p</span><span class="special">;</span>
+<span class="special">}</span>
+</pre>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -182,7 +206,20 @@
 <span class="keyword">void</span> <span class="identifier">allocator_construct</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">Args</span><span class="special">&amp;&amp;...</span> <span class="identifier">args</span><span class="special">);</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">void</span> <span class="identifier">allocator_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">);</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">void</span> <span class="identifier">allocator_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">l</span><span class="special">,</span>
+    <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">m</span><span class="special">);</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">I</span><span class="special">&gt;</span>
+<span class="keyword">void</span> <span class="identifier">allocator_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">,</span> <span class="identifier">I</span> <span class="identifier">begin</span><span class="special">);</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
 <span class="keyword">void</span> <span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">);</span>
+
+<span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span>
+<span class="keyword">void</span> <span class="identifier">allocator_destroy_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">);</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">&gt;</span>
 <span class="identifier">allocator_size_type_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;</span> <span class="identifier">allocator_max_size</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">);</span>
@@ -209,7 +246,7 @@
             <span class="identifier">allocator_pointer</span><span class="special">;</span></code></span></dt>
 <dd><p>
                 The member <code class="computeroutput"><span class="identifier">type</span></code> is
-                <code class="computeroutput"><span class="identifier">A</span><span class="special">::</span><span class="identifier">pointer</span></code> if valid, otherwise <code class="computeroutput"><span class="identifier">A</span><span class="special">::</span><span class="identifier">value_type</span><span class="special">*</span></code>.
+                <code class="computeroutput"><span class="identifier">A</span><span class="special">::</span><span class="identifier">pointer</span></code> if valid, otherwise <code class="computeroutput"><span class="identifier">allocator_value_type_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;*</span></code>.
               </p></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">&gt;</span> <span class="keyword">struct</span>
             <span class="identifier">allocator_const_pointer</span><span class="special">;</span></code></span></dt>
@@ -316,16 +353,47 @@
                 Calls <code class="computeroutput"><span class="identifier">a</span><span class="special">.</span><span class="identifier">construct</span><span class="special">(</span><span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">forward</span><span class="special">&lt;</span><span class="identifier">Args</span><span class="special">&gt;(</span><span class="identifier">args</span><span class="special">)...)</span></code>
                 if valid, otherwise calls <code class="computeroutput"><span class="special">::</span><span class="keyword">new</span><span class="special">(</span><span class="keyword">static_cast</span><span class="special">&lt;</span><span class="keyword">void</span><span class="special">*&gt;(</span><span class="identifier">p</span><span class="special">))</span> <span class="identifier">T</span><span class="special">(</span><span class="identifier">std</span><span class="special">::</span><span class="identifier">forward</span><span class="special">&lt;</span><span class="identifier">Args</span><span class="special">&gt;(</span><span class="identifier">args</span><span class="special">)...)</span></code>.
               </p></dd>
+<dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">void</span> <span class="identifier">alloc_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span>
+            <span class="identifier">n</span><span class="special">);</span></code></span></dt>
+<dd><p>
+                Constructs each <code class="computeroutput"><span class="identifier">i</span></code>-th
+                element in order by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_construct</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">i</span><span class="special">])</span></code>.
+                If an exception is thrown destroys each already constructed <code class="computeroutput"><span class="identifier">j</span></code>-th element in reverse order by
+                calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">j</span><span class="special">])</span></code>.
+              </p></dd>
+<dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">void</span> <span class="identifier">alloc_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span>
+            <span class="identifier">n</span><span class="special">,</span>
+            <span class="keyword">const</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">l</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span>
+            <span class="identifier">m</span><span class="special">);</span></code></span></dt>
+<dd><p>
+                Constructs each <code class="computeroutput"><span class="identifier">i</span></code>-th
+                element in order by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_construct</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">i</span><span class="special">],</span> <span class="identifier">l</span><span class="special">[</span><span class="identifier">i</span> <span class="special">%</span> <span class="identifier">m</span><span class="special">])</span></code>.
+                If an exception is thrown destroys each already constructed <code class="computeroutput"><span class="identifier">j</span></code>-th element in reverse order by
+                calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">j</span><span class="special">])</span></code>.
+              </p></dd>
+<dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">I</span><span class="special">&gt;</span> <span class="keyword">void</span> <span class="identifier">alloc_construct_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span> <span class="identifier">n</span><span class="special">,</span> <span class="identifier">I</span> <span class="identifier">begin</span><span class="special">);</span></code></span></dt>
+<dd><p>
+                Constructs each <code class="computeroutput"><span class="identifier">i</span></code>-th
+                element in order by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_construct</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">i</span><span class="special">],</span> <span class="special">*</span><span class="identifier">begin</span><span class="special">++)</span></code>. If an exception is thrown destroys
+                each already constructed <code class="computeroutput"><span class="identifier">j</span></code>-th
+                element in reverse order by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">j</span><span class="special">])</span></code>.
+              </p></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">void</span> <span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">);</span></code></span></dt>
 <dd><p>
                 Calls <code class="computeroutput"><span class="identifier">a</span><span class="special">.</span><span class="identifier">destroy</span><span class="special">(</span><span class="identifier">p</span><span class="special">)</span></code>
                 if valid, otherwise calls <code class="computeroutput"><span class="identifier">p</span><span class="special">-&gt;~</span><span class="identifier">T</span><span class="special">()</span></code>.
               </p></dd>
+<dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">,</span> <span class="keyword">class</span> <span class="identifier">T</span><span class="special">&gt;</span> <span class="keyword">void</span> <span class="identifier">allocator_destroy_n</span><span class="special">(</span><span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">,</span> <span class="identifier">T</span><span class="special">*</span> <span class="identifier">p</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">size_t</span>
+            <span class="identifier">n</span><span class="special">);</span></code></span></dt>
+<dd><p>
+                Destroys each <code class="computeroutput"><span class="identifier">i</span></code>-th
+                element in reverse order by calling <code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">allocator_destroy</span><span class="special">(</span><span class="identifier">a</span><span class="special">,</span> <span class="special">&amp;</span><span class="identifier">p</span><span class="special">[</span><span class="identifier">i</span><span class="special">])</span></code>.
+              </p></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">&gt;</span> <span class="identifier">allocator_size_type_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;</span> <span class="identifier">allocator_max_size</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">);</span></code></span></dt>
 <dd><p>
                 Returns <code class="computeroutput"><span class="identifier">a</span><span class="special">.</span><span class="identifier">max_size</span><span class="special">()</span></code>
                 if valid, otherwise returns <code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">numeric_limits</span><span class="special">&lt;</span><span class="identifier">allocator_size_type_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;</span> <span class="special">&gt;::</span><span class="identifier">max</span><span class="special">()</span>
-                <span class="special">/</span> <span class="keyword">sizeof</span><span class="special">(</span><span class="identifier">A</span><span class="special">::</span><span class="identifier">value_type</span><span class="special">)</span></code>.
+                <span class="special">/</span> <span class="keyword">sizeof</span><span class="special">(</span><span class="identifier">allocator_value_type_t</span><span class="special">&lt;</span><span class="identifier">A</span><span class="special">&gt;)</span></code>.
               </p></dd>
 <dt><span class="term"><code class="computeroutput"><span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A</span><span class="special">&gt;</span> <span class="identifier">A</span> <span class="identifier">allocator_select_on_container_copy_construction</span><span class="special">(</span><span class="keyword">const</span> <span class="identifier">A</span><span class="special">&amp;</span> <span class="identifier">a</span><span class="special">);</span></code></span></dt>
 <dd><p>
@@ -354,7 +422,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="addressof.html"><img src="../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="alloc_construct.html"><img src="../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="addressof.html"><img src="../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../index.html"><img src="../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../index.html"><img src="../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="allocator_traits.html"><img src="../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

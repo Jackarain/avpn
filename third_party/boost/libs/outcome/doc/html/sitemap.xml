@@ -38,6 +38,16 @@
   </url>
   
   <url>
+    <loc>/alternatives.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/abi-stability.html</loc>
+    <lastmod>2021-12-15T11:47:12+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/tutorial/essential/no-value/custom.html</loc>
     <lastmod>2019-02-08T22:18:08+00:00</lastmod>
   </url>
@@ -105,6 +115,11 @@
   <url>
     <loc>/tutorial/essential/result.html</loc>
     <lastmod>2021-02-23T17:37:27+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/alternatives/exceptions.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
   </url>
   
   <url>
@@ -203,6 +218,11 @@
   </url>
   
   <url>
+    <loc>/alternatives/error_code.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/reference/converters.html</loc>
     <lastmod>2018-12-15T17:49:37+00:00</lastmod>
   </url>
@@ -293,6 +313,11 @@
   </url>
   
   <url>
+    <loc>/alternatives/expected.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/changelog/v22.html</loc>
     <lastmod>2021-02-23T17:37:27+00:00</lastmod>
   </url>
@@ -315,6 +340,11 @@
   <url>
     <loc>/tutorial/advanced/interop/app-map-filelib.html</loc>
     <lastmod>2019-02-11T13:38:04+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/alternatives/outcome.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
   </url>
   
   <url>
@@ -393,6 +423,11 @@
   </url>
   
   <url>
+    <loc>/alternatives/leaf.html</loc>
+    <lastmod>2022-01-10T14:29:13+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/motivation/plug_error_code.html</loc>
     <lastmod>2021-09-10T11:56:40+01:00</lastmod>
   </url>
@@ -459,7 +494,7 @@
   
   <url>
     <loc>/changelog.html</loc>
-    <lastmod>2021-11-01T20:14:02+00:00</lastmod>
+    <lastmod>2021-12-15T11:47:12+00:00</lastmod>
   </url>
   
   <url>
@@ -484,7 +519,7 @@
   
   <url>
     <loc>/history.html</loc>
-    <lastmod>2020-09-16T11:58:04+01:00</lastmod>
+    <lastmod>2021-12-16T11:42:04+00:00</lastmod>
   </url>
   
   <url>
@@ -1513,7 +1548,7 @@
   
   <url>
     <loc>/</loc>
-    <lastmod>2021-02-12T20:25:43+00:00</lastmod>
+    <lastmod>2021-12-15T11:47:12+00:00</lastmod>
   </url>
   
   <url>

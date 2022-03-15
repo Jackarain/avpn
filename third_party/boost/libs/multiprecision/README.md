@@ -25,6 +25,12 @@ for better performance than naive user-defined types.
 
 The full documentation is available on [boost.org](http://www.boost.org/doc/libs/release/libs/multiprecision/index.html).
 
+## Standalone (BETA) ##
+
+Defining BOOST_MP_STANDALONE allows Boost.Multiprecision to be used with the only dependency being [Boost.Config](https://github.com/boostorg/config). Our package on this page
+already includes a copy of Boost.Config so no other donwloads are required. Some functionality is reduced in this mode. A static_assert message will alert you if a particular feature has been disabled by standalone mode.
+[Boost.Math](https://github.com/boostorg/math) standalone mode is compatiable, and recommended if special functions is required.
+
 ## Support, bugs and feature requests ##
 
 Bugs and feature requests can be reported through the [Gitub issue tracker](https://github.com/boostorg/multiprecision/issues)
@@ -47,8 +53,11 @@ Clone the whole boost project, which includes the individual Boost projects as s
 The Boost Multiprecision Library is located in `libs/multiprecision/`. 
 
 ### Running tests ###
-First, make sure you are in `libs/multiprecision/test`. 
-You can either run all the tests listed in `Jamfile.v2` or run a single test:
+First, build the B2 engine by running `bootstrap.sh` in the root of the boost directory. This will generate B2 configuration in `project-config.jam`.
+     
+    ./bootstrap.sh
+
+Now make sure you are in `libs/multiprecision/test`. You can either run all the tests listed in `Jamfile.v2` or run a single test:
 
     ../../../b2                        <- run all tests
     ../../../b2 test_complex           <- single test

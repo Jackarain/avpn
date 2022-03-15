@@ -1,0 +1,113 @@
+<?xml version="1.0" standalone="yes"?>
+<library-reference id="mutexes"><title>Mutexes</title><header name="boost/sync/mutexes/mutex.hpp">
+<para>This header defines a basic mutex primitive. </para><namespace name="boost">
+<namespace name="sync">
+<class name="mutex"><typedef name="native_handle_type"><purpose>A platform-specific type of the low level mutex implementation. </purpose><description><para><note><para>This type is only available if <computeroutput>BOOST_SYNC_DEFINES_MUTEX_NATIVE_HANDLE</computeroutput> macro is defined by the library. </para>
+</note>
+</para></description><type>unspecified</type></typedef>
+<method-group name="public member functions">
+<method name="lock"><type>void</type><purpose>Locks the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns. Otherwise the method blocks until the mutex is unlocked.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request. </para></description></method>
+<method name="try_lock"><type>bool</type><purpose>Attempts to lock the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method returns <computeroutput>false</computeroutput>.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request. </para></description></method>
+<method name="unlock" cv="noexcept"><type>void</type><purpose>Unlocks the mutex. </purpose><description><para>Releases the mutex that has been locked by the current thread.</para><para>
+</para></description><requires><para>The mutex is locked by the current thread. </para>
+</requires></method>
+<method name="native_handle" cv="noexcept"><type>native_handle_type</type><purpose>Returns a handle that represents a native operating system primitive that implements the mutex. </purpose><description><para><note><para>This method is only available if <computeroutput>BOOST_SYNC_DEFINES_MUTEX_NATIVE_HANDLE</computeroutput> macro is defined by the library. </para>
+</note>
+</para></description></method>
+</method-group>
+<constructor><purpose>Default constructor. </purpose><description><para>Creates a mutual exclusion primitive in the unlocked state.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to create the primitive (e.g. due to insufficient resources). </para></description></constructor>
+<destructor><purpose>Destructor. </purpose><description><para>Destroys the mutual exclusion primitive.</para><para>
+</para></description><requires><para>The primitive is in the unlocked state. </para>
+</requires></destructor>
+<constructor cv="= delete"><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>mutex &amp;</type><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></copy-assignment>
+</class></namespace>
+</namespace>
+</header>
+<header name="boost/sync/mutexes/shared_spin_mutex.hpp">
+<namespace name="boost">
+<namespace name="sync">
+<class name="shared_spin_mutex"><method-group name="public member functions">
+<method name="lock" cv="noexcept"><type>void</type><purpose>Exclusively locks the mutex. </purpose><description><para>If the mutex is not locked, the method acquires an exclusive lock and returns. Otherwise the method blocks until the mutex is unlocked. </para></description></method>
+<method name="try_lock" cv="noexcept"><type>bool</type><purpose>Attempts to exclusively lock the mutex. </purpose><description><para>If the mutex is not locked, the method acquires an exclusive lock and returns <computeroutput>true</computeroutput>. Otherwise the method returns <computeroutput>false</computeroutput>. </para></description></method>
+<method name="unlock" cv="noexcept"><type>void</type><purpose>Unlocks the mutex. </purpose><description><para>Releases the mutex that has been exclusively locked by the current thread.</para><para>
+</para></description><requires><para>The mutex is exclusively locked by the current thread. </para>
+</requires></method>
+<method name="lock_shared" cv="noexcept"><type>void</type><purpose>Shared locks the mutex. </purpose><description><para>If the mutex is not exclusively locked or shared locked, the method acquires a shared lock and returns. Otherwise the method blocks until the mutex is unlocked. </para></description></method>
+<method name="try_lock" cv="noexcept"><type>bool</type><purpose>Attempts to exclusively lock the mutex. </purpose><description><para>If the mutex is not exclusively locked or shared locked, the method acquires a shared lock and returns <computeroutput>true</computeroutput>. Otherwise the method returns <computeroutput>false</computeroutput>. </para></description></method>
+<method name="unlock_shared" cv="noexcept"><type>void</type><purpose>Unlocks the mutex. </purpose><description><para>Releases the mutex that has been shared locked by the current thread.</para><para>
+</para></description><requires><para>The mutex is shared locked by the current thread. </para>
+</requires></method>
+</method-group>
+<constructor cv="noexcept"><purpose>Default constructor. </purpose><description><para>Creates a mutual exclusion primitive in the unlocked state. </para></description></constructor>
+<destructor><purpose>Destructor. </purpose><description><para>Destroys the mutual exclusion primitive.</para><para>
+</para></description><requires><para>The primitive is in the unlocked state. </para>
+</requires></destructor>
+<constructor cv="= delete"><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>shared_spin_mutex &amp;</type><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></copy-assignment>
+</class></namespace>
+</namespace>
+</header>
+<header name="boost/sync/mutexes/spin_mutex.hpp">
+<para>This header defines a spin mutex primitive. </para><namespace name="boost">
+<namespace name="sync">
+<class name="spin_mutex"><method-group name="public member functions">
+<method name="lock" cv="noexcept"><type>void</type><purpose>Locks the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns. Otherwise the method blocks until the mutex is unlocked. </para></description></method>
+<method name="try_lock" cv="noexcept"><type>bool</type><purpose>Attempts to lock the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method returns <computeroutput>false</computeroutput>. </para></description></method>
+<method name="unlock" cv="noexcept"><type>void</type><purpose>Unlocks the mutex. </purpose><description><para>Releases the mutex that has been locked by the current thread.</para><para>
+</para></description><requires><para>The mutex is locked by the current thread. </para>
+</requires></method>
+</method-group>
+<constructor cv="noexcept"><purpose>Default constructor. </purpose><description><para>Creates a mutual exclusion primitive in the unlocked state. </para></description></constructor>
+<destructor><purpose>Destructor. </purpose><description><para>Destroys the mutual exclusion primitive.</para><para>
+</para></description><requires><para>The primitive is in the unlocked state. </para>
+</requires></destructor>
+<constructor cv="= delete"><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>spin_mutex &amp;</type><parameter name=""><paramtype>mutex const &amp;</paramtype></parameter></copy-assignment>
+</class></namespace>
+</namespace>
+</header>
+<header name="boost/sync/mutexes/timed_mutex.hpp">
+<para>This header defines a mutex primitive with support for timed operations. </para><namespace name="boost">
+<namespace name="sync">
+<class name="timed_mutex"><typedef name="native_handle_type"><purpose>A platform-specific type of the low level mutex implementation. </purpose><description><para><note><para>This type is only available if <computeroutput>BOOST_SYNC_DEFINES_TIMED_MUTEX_NATIVE_HANDLE</computeroutput> macro is defined by the library. </para>
+</note>
+</para></description><type>unspecified</type></typedef>
+<method-group name="public member functions">
+<method name="lock"><type>void</type><purpose>Locks the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns. Otherwise the method blocks until the mutex is unlocked.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request. </para></description></method>
+<method name="try_lock"><type>bool</type><purpose>Attempts to lock the mutex. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method returns <computeroutput>false</computeroutput>.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request. </para></description></method>
+<method name="timed_lock"><type>bool</type><template>
+          <template-type-parameter name="Time"/>
+        </template><parameter name="time"><paramtype>Time const &amp;</paramtype><description><para>Relative or absolute timeout. If timeout is relative, the time is measured according to the system clock.</para></description></parameter><purpose>Attempts to lock the mutex within the specified timeout. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method blocks for up to <emphasis>time</emphasis> timeout, which can be an absolute time point or a duration. If the operation completes successfully until the timeout expires, <computeroutput>true</computeroutput> is returned. Otherwise, returns <computeroutput>false</computeroutput>.</para><para>
+<emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description></method>
+<method name="try_lock_for"><type>bool</type><template>
+          <template-type-parameter name="Duration"/>
+        </template><parameter name="rel_timeout"><paramtype>Duration const &amp;</paramtype><description><para>Relative timeout. The time is measured according to the system clock.</para></description></parameter><purpose>Attempts to lock the mutex within the specified timeout. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method blocks for up to <emphasis>time</emphasis> timeout, which is a duration. If the operation completes successfully until the timeout expires, <computeroutput>true</computeroutput> is returned. Otherwise, returns <computeroutput>false</computeroutput>.</para><para>
+<emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description></method>
+<method name="try_lock_until"><type>bool</type><template>
+          <template-type-parameter name="TimePoint"/>
+        </template><parameter name="abs_timeout"><paramtype>TimePoint const &amp;</paramtype><description><para>Absolute timeout. If the time point clock is not compatible with system clock the operation may take considerably longer than the specified timeout.</para></description></parameter><purpose>Attempts to lock the mutex within the specified timeout. </purpose><description><para>If the mutex is not locked, the method locks it and returns <computeroutput>true</computeroutput>. Otherwise the method blocks for up to <emphasis>time</emphasis> timeout, which is an absolute time point. If the operation completes successfully until the timeout expires, <computeroutput>true</computeroutput> is returned. Otherwise, returns <computeroutput>false</computeroutput>.</para><para>
+<emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to fulfill the request.</para><para><note><para>In order to use this method, a supplementary header must be included from boost/sync/support to enable support for particular time units. </para>
+</note>
+</para></description></method>
+<method name="unlock" cv="noexcept"><type>void</type><purpose>Unlocks the mutex. </purpose><description><para>Releases the mutex that has been locked by the current thread.</para><para>
+</para></description><requires><para>The mutex is locked by the current thread. </para>
+</requires></method>
+<method name="native_handle" cv="noexcept"><type>native_handle_type</type><purpose>Returns a handle that represents a native operating system primitive that implements the mutex. </purpose><description><para><note><para>This method is only available if <computeroutput>BOOST_SYNC_DEFINES_TIMED_MUTEX_NATIVE_HANDLE</computeroutput> macro is defined by the library. </para>
+</note>
+</para></description></method>
+</method-group>
+<constructor><purpose>Default constructor. </purpose><description><para>Creates a mutual exclusion primitive in the unlocked state.</para><para><emphasis role="bold">Throws:</emphasis> An exception in case if the operating system is unable to create the primitive (e.g. due to insufficient resources). </para></description></constructor>
+<destructor><purpose>Destructor. </purpose><description><para>Destroys the mutual exclusion primitive.</para><para>
+</para></description><requires><para>The primitive is in the unlocked state. </para>
+</requires></destructor>
+<constructor cv="= delete"><parameter name=""><paramtype>timed_mutex const &amp;</paramtype></parameter></constructor>
+<copy-assignment cv="= delete"><type>timed_mutex &amp;</type><parameter name=""><paramtype>timed_mutex const &amp;</paramtype></parameter></copy-assignment>
+</class></namespace>
+</namespace>
+</header>
+</library-reference>

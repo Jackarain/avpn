@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
+<meta name="generator" content="Docutils 0.14: http://docutils.sourceforge.net/" />
 <title>The Boost Parameter Library Reference Documentation</title>
 <meta name="authors" content="David Abrahams  Daniel Wallin" />
 <meta name="organization" content="BoostPro Computing" />
@@ -195,7 +195,7 @@ computes a default argument value.</dd>
 type of its element's <em>value</em>.  The intended argument type of any other
 type <tt class="docutils literal">X</tt> is <tt class="docutils literal">X</tt> itself.</dd>
 </dl>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">In this reference, we will use concept names (and other names) to describe
 both types and objects, depending on context.  So for example, “an
@@ -745,7 +745,7 @@ invocation of <tt class="docutils literal">instance</tt>.</td>
 <pre class="literal-block">
 static keyword&lt;Tag&gt;&amp; get();
 </pre>
-<div class="admonition-deprecated admonition">
+<div class="admonition admonition-deprecated">
 <p class="first admonition-title">Deprecated</p>
 <p class="last">This function has been deprecated in favor of <tt class="docutils literal">instance</tt>.</p>
 </div>
@@ -821,7 +821,7 @@ struct parameters
 </tr>
 </tbody>
 </table>
-<div class="note">
+<div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p>In this section, <tt class="docutils literal">R</tt> ## <em>i</em> and <tt class="docutils literal">K</tt> ## <em>i</em> are defined as
 follows, for any argument type <tt class="docutils literal">A</tt> ## <em>i</em>:</p>
@@ -873,20 +873,16 @@ defined.</td>
 </tbody>
 </table>
 <p>Each element <tt class="docutils literal">P</tt> in <tt class="docutils literal"><span class="pre">Params...</span></tt> is <strong>satisfied</strong> if either:</p>
-<ul>
-<li><p class="first"><tt class="docutils literal">P</tt> is the <em>unspecified</em> default</p>
-</li>
-<li><p class="first"><strong>or</strong>, <tt class="docutils literal">P</tt> is a <em>keyword tag type</em></p>
-</li>
+<ul class="simple">
+<li><tt class="docutils literal">P</tt> is the <em>unspecified</em> default</li>
+<li><strong>or</strong>, <tt class="docutils literal">P</tt> is a <em>keyword tag type</em></li>
 <li><dl class="first docutils">
 <dt><strong>or</strong>, <tt class="docutils literal">P</tt> is <a class="reference internal" href="#optional"><tt class="docutils literal">optional</tt></a> <tt class="docutils literal">&lt;X,F&gt;</tt> and either</dt>
 <dd><ul class="first last">
-<li><p class="first"><tt class="docutils literal">X</tt> is not <tt class="docutils literal">K</tt> ## <em>i</em> for any <em>i</em>,</p>
-</li>
+<li><tt class="docutils literal">X</tt> is not <tt class="docutils literal">K</tt> ## <em>i</em> for any <em>i</em>,</li>
 <li><dl class="first docutils">
 <dt><strong>or</strong> <tt class="docutils literal">X</tt> is some <tt class="docutils literal">K</tt> ## <em>i</em>  and <tt class="docutils literal"><span class="pre">mpl::apply&lt;F,R</span></tt> ## <em>i</em></dt>
-<dd><p class="first last"><tt class="docutils literal"><span class="pre">&gt;::type::value</span></tt> is <tt class="docutils literal">true</tt></p>
-</dd>
+<dd><tt class="docutils literal"><span class="pre">&gt;::type::value</span></tt> is <tt class="docutils literal">true</tt></dd>
 </dl>
 </li>
 </ul>
@@ -895,7 +891,7 @@ defined.</td>
 </li>
 <li><dl class="first docutils">
 <dt><strong>or</strong>, <tt class="docutils literal">P</tt> is <a class="reference internal" href="#required"><tt class="docutils literal">required</tt></a> <tt class="docutils literal">&lt;X,F&gt;</tt>, and</dt>
-<dd><ul class="first last simple">
+<dd><ul class="first last">
 <li><tt class="docutils literal">X</tt> is some <tt class="docutils literal">K</tt> ## <em>i</em>, <strong>and</strong></li>
 <li><tt class="docutils literal"><span class="pre">mpl::apply&lt;F,R</span></tt> ## <em>i</em> <tt class="docutils literal"><span class="pre">&gt;::type::value</span></tt> is <tt class="docutils literal">true</tt></li>
 </ul>
@@ -921,13 +917,11 @@ template &lt;typename ...Args&gt;
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">An <a class="reference internal" href="#argumentpack"><span class="concept">ArgumentPack</span></a> containing, for each <tt class="docutils literal">a</tt> ## <em>i</em>,</p>
-<ul class="last">
-<li><p class="first">if <tt class="docutils literal">a</tt> ## <em>i</em>  is a single-element <span class="concept">ArgumentPack</span>, its element</p>
-</li>
+<ul class="last simple">
+<li>if <tt class="docutils literal">a</tt> ## <em>i</em>  is a single-element <span class="concept">ArgumentPack</span>, its element</li>
 <li><dl class="first docutils">
 <dt>Otherwise, a <a class="reference internal" href="#tagged-reference">tagged reference</a> with <a class="reference internal" href="#kw">keyword</a> <tt class="docutils literal">K</tt> ## <em>i</em> and <em>value</em></dt>
-<dd><p class="first last"><tt class="docutils literal">a</tt> ## <em>i</em></p>
-</dd>
+<dd><tt class="docutils literal">a</tt> ## <em>i</em></dd>
 </dl>
 </li>
 </ul>
@@ -6670,7 +6664,7 @@ this macro.</p>
 </div>
 <div class="section" id="boost-parameter-fun-r-n-l-h-p">
 <span id="boost-parameter-fun"></span><h2><a class="toc-backref" href="#id78">7.22&nbsp;&nbsp;&nbsp;<tt class="docutils literal">BOOST_PARAMETER_FUN(r, n, l, h, p)</tt></a></h2>
-<div class="admonition-deprecated admonition">
+<div class="admonition admonition-deprecated">
 <p class="first admonition-title">Deprecated</p>
 <p class="last">This macro has been deprecated in favor of
 <tt class="docutils literal">BOOST_PARAMETER_FUNCTION</tt>.</p>
@@ -6763,7 +6757,7 @@ usage of this macro.</p>
 </div>
 <div class="section" id="boost-parameter-keyword-n-k">
 <span id="boost-parameter-keyword"></span><h2><a class="toc-backref" href="#id79">7.23&nbsp;&nbsp;&nbsp;<tt class="docutils literal">BOOST_PARAMETER_KEYWORD(n, k)</tt></a></h2>
-<div class="admonition-deprecated admonition">
+<div class="admonition admonition-deprecated">
 <p class="first admonition-title">Deprecated</p>
 <p class="last">This macro has been deprecated in favor of
 <tt class="docutils literal">BOOST_PARAMETER_NAME</tt>.</p>
@@ -6889,7 +6883,7 @@ macros <a class="reference external" href="../../../config/doc/html/boost_config
 <a class="reference external" href="../../../config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_c__11_features_not_supported"><tt class="docutils literal">BOOST_NO_CXX11_STATIC_ASSERT</tt></a>, <a class="reference external" href="../../../config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_c__11_features_not_supported"><tt class="docutils literal">BOOST_NO_CXX11_HDR_TYPE_TRAITS</tt></a>,
 <a class="reference external" href="../../../config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_c__11_features_not_supported"><tt class="docutils literal">BOOST_NO_CXX11_HDR_INITIALIZER_LIST</tt></a>, and <a class="reference external" href="../../../config/doc/html/boost_config/boost_macro_reference.html#boost_config.boost_macro_reference.macros_that_describe_c__11_features_not_supported"><tt class="docutils literal">BOOST_NO_CXX11_HDR_TUPLE</tt></a>
 are not already defined by <a class="reference external" href="../../../config/doc/html/index.html">Boost.Config</a>.</p>
-<div class="admonition-usage-note admonition">
+<div class="admonition admonition-usage-note">
 <p class="first admonition-title">Usage Note</p>
 <p class="last"><a class="reference external" href="../../../mp11/doc/html/mp11.html">Boost.MP11</a> and <a class="reference external" href="../../../mpl/doc/index.html">Boost.MPL</a> are <strong>not</strong> mutually exclusive.  It's
 perfectly acceptable to specify deduced parameters using both quoted
@@ -7306,7 +7300,7 @@ where it could make a difference.</td></tr>
 </div>
 <div class="footer">
 <hr class="footer" />
-Generated on: 2021-12-02 06:51 UTC.
+Generated on: 2022-03-13 09:05 UTC.
 Generated by <a class="reference external" href="http://docutils.sourceforge.net/">Docutils</a> from <a class="reference external" href="http://docutils.sourceforge.net/rst.html">reStructuredText</a> source.
 
 </div>

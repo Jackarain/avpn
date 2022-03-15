@@ -6,7 +6,7 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../../index.html" title="Chapter 1. Boost.Utility">
 <link rel="up" href="../utilities.html" title="Utilities">
-<link rel="prev" href="in_place_factory.html" title="In-place Factory">
+<link rel="prev" href="../../boost/typed_in_place_fac_idm4015.html" title="Class typed_in_place_factory_base">
 <link rel="next" href="result_of.html" title="Result of">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
@@ -20,7 +20,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="in_place_factory.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="result_of.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/typed_in_place_fac_idm4015.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="result_of.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -44,10 +44,11 @@
 <a name="utility.utilities.operators.introduction"></a><a class="link" href="operators.html#utility.utilities.operators.introduction" title="Introduction">Introduction</a>
 </h4></div></div></div>
 <p>
-          The header <a href="../../../../../include/boost/operators.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> supplies several sets of class
-          templates in <code class="computeroutput"><span class="keyword">namespace</span> <span class="identifier">boost</span></code>.
-          These templates define operators at namespace scope in terms of a minimal
-          number of fundamental operators provided by the class.
+          The header <a href="../../../../../../boost/operators.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a>
+          supplies several sets of class templates in <code class="computeroutput"><span class="keyword">namespace</span>
+          <span class="identifier">boost</span></code>. These templates define
+          operators at namespace scope in terms of a minimal number of fundamental
+          operators provided by the class.
         </p>
 </div>
 <div class="section">
@@ -71,7 +72,7 @@
         </p>
 <p>
           Replicating this boilerplate for multiple classes is both tedious and error-prone.
-          The <a href="../../../../../include/boost/operators.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a>
+          The <a href="../../../../../../boost/operators.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a>
           templates help by generating operators for you at namespace scope based
           on other operators you have defined in your class.
         </p>
@@ -376,12 +377,12 @@
             </li>
 </ul></div>
 <p>
-          As Daniel Krugler pointed out, this technique violates 14.6.5/2 and is
-          thus non-portable. The reasoning is, that the operators injected by the
-          instantiation of e.g. <code class="computeroutput"><span class="identifier">less_than_comparable</span><span class="special">&lt;</span><span class="identifier">my_class</span><span class="special">&gt;</span></code> can not be found by ADL according to
-          the rules given by 3.4.2/2, since <code class="computeroutput"><span class="identifier">my_class</span></code>
-          is not an associated class of <code class="computeroutput"><span class="identifier">less_than_comparable</span><span class="special">&lt;</span><span class="identifier">my_class</span><span class="special">&gt;</span></code>. Thus only use this technique if all
-          else fails.
+          As Daniel Krugler pointed out, this technique violates C++11 §14.6.5/2 [temp.inject]
+          and is thus non-portable. The reasoning is, that the operators injected
+          by the instantiation of e.g. <code class="computeroutput"><span class="identifier">less_than_comparable</span><span class="special">&lt;</span><span class="identifier">my_class</span><span class="special">&gt;</span></code> can not be found by ADL according to
+          the rules given by C++11 §3.4.2/2 [basic.lookup.argdep], since <code class="computeroutput"><span class="identifier">my_class</span></code> is not an associated class of
+          <code class="computeroutput"><span class="identifier">less_than_comparable</span><span class="special">&lt;</span><span class="identifier">my_class</span><span class="special">&gt;</span></code>.
+          Thus only use this technique if all else fails.
         </p>
 <a name="sec:portability"></a><h6>
 <a name="utility.utilities.operators.usage.h3"></a>
@@ -1734,26 +1735,41 @@
           The standard doesn't generally allow the intermediate object to be optimized
           away:
         </p>
+<div class="blockquote"><blockquote class="blockquote"><p>
+            <span class="emphasis"><em>C++11 §3.7.3/3 [basic.stc.auto]: Automatic storage duration:</em></span>
+            If a variable with automatic storage duration has initialization or a
+            destructor with side effects, it shall not be destroyed before the end
+            of its block, nor shall it be eliminated as an optimization even if it
+            appears to be unused, except that a class object or its copy/move may
+            be eliminated as specified in 12.8.
+          </p></blockquote></div>
 <p>
-          <span class="quote">“<span class="quote">3.7.2/2: Automatic storage duration: If a named automatic object
-          has initialization or a destructor with side effects, it shall not be destroyed
-          before the end of its block, nor shall it be eliminated as an optimization
-          even if it appears to be unused, except that a class object or its copy
-          may be eliminated as specified in 12.8.</span>”</span>
+          The reference to §12.8 is important for us:
         </p>
+<div class="blockquote"><blockquote class="blockquote">
 <p>
-          The reference to 12.8 is important for us:
-        </p>
+            <span class="emphasis"><em>C++11 §12.8/31 [class.copy]: Copying and moving class objects:</em></span>
+            When certain criteria are met, an implementation is allowed to omit the
+            copy/move construction of a class object, even if the copy/move constructor
+            and/or destructor for the object have side effects. (…) This elision of
+            copy/move operations, called <span class="emphasis"><em>copy elision</em></span>, is permitted
+            in the following circumstances (which may be combined to eliminate multiple
+            copies):
+          </p>
 <p>
-          <span class="quote">“<span class="quote">12.8/15: Copying class objects: (...) For a function with a class
-          return type, if the expression in the return statement is the name of a
-          local object, and the cv-unqualified type of the local object is the same
-          as the function return type, an implementation is permitted to omit creating
-          the temporary object to hold the function return value, even if the class
-          copy constructor or destructor has side effects.</span>”</span>
-        </p>
+            — in a <code class="computeroutput"><span class="keyword">return</span></code> statement in
+            a function with a class return type, when the expression is the name
+            of a non-volatile automatic object (other than a function or catch-clause
+            parameter) with the same cv- unqualified type as the function return
+            type, the copy/move operation can be omitted by constructing the automatic
+            object directly into the function's return value
+          </p>
 <p>
-          This optimization is known as the named return value optimization (NRVO),
+            (…)
+          </p>
+</blockquote></div>
+<p>
+          This optimization is known as the named return value optimization (<a href="https://en.cppreference.com/w/cpp/language/copy_elision#Non-mandatory_elision_of_copy.2Fmove_.28since_C.2B.2B11.29_operations" target="_top">NRVO</a>),
           which leads us to the following implementation for <code class="computeroutput"><span class="keyword">operator</span><span class="special">+</span></code>:
         </p>
 <pre class="programlisting"><span class="identifier">T</span> <span class="keyword">operator</span><span class="special">+(</span> <span class="keyword">const</span> <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">lhs</span><span class="special">,</span> <span class="keyword">const</span> <span class="identifier">T</span><span class="special">&amp;</span> <span class="identifier">rhs</span> <span class="special">)</span>
@@ -1778,8 +1794,8 @@
 <p>
           The difference to the first implementation is that <code class="computeroutput"><span class="identifier">lhs</span></code>
           is not taken as a constant reference used to create a copy; instead, <code class="computeroutput"><span class="identifier">lhs</span></code> is a by-value parameter, thus it
-          is already the copy needed. This allows another optimization (12.2/2) for
-          some cases.
+          is already the copy needed. This allows another optimization (C++11 §12.2/2
+          [class.temporary]) for some cases.
         </p>
 <p>
           Consider <code class="computeroutput"><span class="identifier">a</span> <span class="special">+</span>
@@ -1788,11 +1804,9 @@
           This is more efficient than the original code, but not as efficient as
           a compiler using the NRVO. For most people, it is still preferable for
           compilers that don't implement the NRVO, but the <code class="computeroutput"><span class="keyword">operator</span><span class="special">+</span></code> now has a different function signature.
-          Also, the number of objects created differs for <code class="computeroutput"><span class="special">(</span><span class="identifier">a</span> <span class="special">+</span> <span class="identifier">b</span> <span class="special">)</span> <span class="special">+</span> <span class="identifier">c</span></code> and
-          <code class="computeroutput"><span class="identifier">a</span> <span class="special">+</span>
-          <span class="special">(</span> <span class="identifier">b</span>
-          <span class="special">+</span> <span class="identifier">c</span>
-          <span class="special">)</span></code>.
+          Also, the number of objects created differs for <code class="computeroutput"><span class="special">(</span><span class="identifier">a</span> <span class="special">+</span> <span class="identifier">b</span><span class="special">)</span> <span class="special">+</span>
+          <span class="identifier">c</span></code> and <code class="computeroutput"><span class="identifier">a</span>
+          <span class="special">+</span> <span class="special">(</span><span class="identifier">b</span> <span class="special">+</span> <span class="identifier">c</span><span class="special">)</span></code>.
         </p>
 <p>
           Most probably, this won't be a problem for you, but if your code relies
@@ -3181,21 +3195,22 @@
               requires <code class="computeroutput"><span class="identifier">difference_type</span></code>
               and <code class="computeroutput"><span class="identifier">value_type</span></code> of any
               output iterator to be <code class="computeroutput"><span class="keyword">void</span></code>
-              (24.3.1 [lib.iterator.traits]), and <a class="link" href="operators.html#sec:arithmetic"><code class="computeroutput"><span class="identifier">output_iterator_helper</span></code></a> template
+              (C++11 §24.4.1 [lib.iterator.traits]), and <a class="link" href="operators.html#sec:arithmetic"><code class="computeroutput"><span class="identifier">output_iterator_helper</span></code></a> template
               respects this requirement. Also, output iterators in the standard have
               void <code class="computeroutput"><span class="identifier">pointer</span></code> and <code class="computeroutput"><span class="identifier">reference</span></code> types, so the <a class="link" href="operators.html#sec:arithmetic"><code class="computeroutput"><span class="identifier">output_iterator_helper</span></code></a> does
               the same.
             </li>
 <li class="listitem">
               <a name="note:2"></a>As self-proxying is the easiest and most common
-              way to implement output iterators (see, for example, insert [24.4.2]
-              and stream iterators [24.5] in the standard library), <a class="link" href="operators.html#sec:arithmetic"><code class="computeroutput"><span class="identifier">output_iterator_helper</span></code></a> supports
+              way to implement output iterators (see, for example, insert (C++11
+              §24.5.2 [insert.iterators]) and stream iterators (C++11 §24.6 [stream.iterators])
+              in the standard library), <a class="link" href="operators.html#sec:arithmetic"><code class="computeroutput"><span class="identifier">output_iterator_helper</span></code></a> supports
               the idiom by defining <code class="computeroutput"><span class="keyword">operator</span><span class="special">*</span></code> and <code class="computeroutput"><span class="keyword">operator</span><span class="special">++</span></code> member functions which just return
               a non-const reference to the iterator itself. Support for self-proxying
               allows us, in many cases, to reduce the task of writing an output iterator
               to writing just two member functions - an appropriate constructor and
               a copy-assignment operator. For example, here is a possible implementation
-              of <a href="../../../../../../doc/html/iterator/doc/function_output_iterator.html" target="_top"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">function_output_iterator</span></code></a>
+              of <a href="../../../../../../libs/iterator/doc/function_output_iterator.html" target="_top"><code class="computeroutput"><span class="identifier">boost</span><span class="special">::</span><span class="identifier">function_output_iterator</span></code></a>
               adaptor:
             </li>
 </ol></div>
@@ -3292,11 +3307,12 @@
           bytes.
         </p>
 <p>
-          Strictly speaking, it was not the library's fault -- the language rules
-          allow the compiler to apply the empty base class optimization in that situation.
-          In principle an arbitrary number of empty base classes can be allocated
-          at the same offset, provided that none of them have a common ancestor (see
-          section 10.5 [class.derived] paragraph 5 of the standard).
+          Strictly speaking, it was not the library's fault – the language rules allow
+          the compiler to apply the <a href="https://en.cppreference.com/w/cpp/language/ebo" target="_top">empty
+          base class optimization</a> in that situation. In principle an arbitrary
+          number of empty base classes can be allocated at the same offset, provided
+          that none of them have a common ancestor (see §10 [class.derived] paragraph
+          8 of the C++11 standard).
         </p>
 <p>
           But the language definition also does not <span class="emphasis"><em>require</em></span>
@@ -3306,7 +3322,7 @@
           existing compilers, because it would break binary compatibility between
           code generated by two different versions of the same compiler. As Matt
           Austern said, "One of the few times when you have the freedom to do
-          this sort of thing is when you are targeting a new architecture...".
+          this sort of thing is when you are targeting a new architecture…".
           On the other hand, many common compilers will use the empty base optimization
           for single inheritance hierarchies.
         </p>
@@ -3331,12 +3347,12 @@
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
 <li class="listitem">
               <a href="http://www.boost.org/people/dave_abrahams.htm" target="_top">Dave Abrahams</a>:
-              Started the library and contributed the arithmetic operators in <a href="../../../../../include/boost/operators.hpp" target="_top"><code class="computeroutput"><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span></code></a>.
+              Started the library and contributed the arithmetic operators in <a href="../../../../../../boost/operators.hpp" target="_top"><code class="computeroutput"><span class="identifier">boost</span><span class="special">/</span><span class="identifier">operators</span><span class="special">.</span><span class="identifier">hpp</span></code></a>.
             </li>
 <li class="listitem">
               <a href="http://www.boost.org/people/jeremy_siek.htm" target="_top">Jeremy Siek</a>:
               Contributed the <a class="link" href="operators.html#sec:deref">dereference operators and
-              iterator helpers</a> in <a href="../../../../../include/boost/operators.hpp" target="_top">boost/operators.hpp</a>.
+              iterator helpers</a> in <a href="../../../../../../boost/operators.hpp" target="_top">boost/operators.hpp</a>.
               Also contributed <a href="../../../../../test/iterators_test.cpp" target="_top">iterators_test.cpp</a>.
             </li>
 <li class="listitem">
@@ -3376,7 +3392,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="in_place_factory.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="result_of.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/typed_in_place_fac_idm4015.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="result_of.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

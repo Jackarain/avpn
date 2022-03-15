@@ -6,8 +6,8 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.79.1">
 <link rel="home" href="../../index.html" title="Chapter 1. Boost.Utility">
 <link rel="up" href="../utilities.html" title="Utilities">
-<link rel="prev" href="compressed_pair.html" title="Compressed Pair">
-<link rel="next" href="operators.html" title="Operators">
+<link rel="prev" href="../../boost/compressed_pair_T__idm3185.html" title="Class template compressed_pair&lt;T, T&gt;">
+<link rel="next" href="../../boost/in_place_factory_base.html" title="Class in_place_factory_base">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <table cellpadding="2" width="100%"><tr>
@@ -20,7 +20,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="compressed_pair.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="operators.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/compressed_pair_T__idm3185.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/in_place_factory_base.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
@@ -47,7 +47,7 @@
         </p>
 <pre class="programlisting"><span class="keyword">struct</span> <span class="identifier">X</span>
 <span class="special">{</span>
-  <span class="identifier">X</span> <span class="special">(</span> <span class="keyword">int</span><span class="special">,</span> <span class="identifier">_std__string_</span> <span class="special">)</span> <span class="special">;</span>
+  <span class="identifier">X</span> <span class="special">(</span> <span class="keyword">int</span><span class="special">,</span> <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="special">)</span> <span class="special">;</span>
 <span class="special">};</span>
 </pre>
 <p>
@@ -99,7 +99,7 @@
 <span class="special">{</span>
    <span class="identifier">C</span><span class="special">()</span> <span class="special">:</span> <span class="identifier">contained_</span><span class="special">(</span><span class="number">0</span><span class="special">)</span> <span class="special">{}</span>
    <span class="identifier">C</span> <span class="special">(</span> <span class="identifier">X</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">v</span> <span class="special">)</span> <span class="special">:</span> <span class="identifier">contained_</span> <span class="special">(</span> <span class="keyword">new</span> <span class="identifier">X</span><span class="special">(</span><span class="identifier">v</span><span class="special">)</span> <span class="special">)</span> <span class="special">{}</span>
-   <span class="identifier">C</span> <span class="special">(</span> <span class="keyword">int</span> <span class="identifier">a0</span><span class="special">,</span> <span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span> <span class="identifier">a1</span> <span class="special">)</span> <span class="special">:</span> <span class="identifier">contained_</span> <span class="special">(</span> <span class="keyword">new</span> <span class="identifier">X</span><span class="special">(</span><span class="identifier">a0</span><span class="special">,</span><span class="identifier">a1</span><span class="special">)</span> <span class="special">)</span> <span class="special">{}</span>
+   <span class="identifier">C</span> <span class="special">(</span> <span class="keyword">int</span> <span class="identifier">a0</span><span class="special">,</span> <a href="https://en.cppreference.com/w/cpp/string/basic_string" target="_top"><code class="computeroutput"><span class="identifier">std</span><span class="special">::</span><span class="identifier">string</span></code></a> <span class="identifier">a1</span> <span class="special">)</span> <span class="special">:</span> <span class="identifier">contained_</span> <span class="special">(</span> <span class="keyword">new</span> <span class="identifier">X</span><span class="special">(</span><span class="identifier">a0</span><span class="special">,</span><span class="identifier">a1</span><span class="special">)</span> <span class="special">)</span> <span class="special">{}</span>
   <span class="special">~</span><span class="identifier">C</span><span class="special">()</span> <span class="special">{</span> <span class="keyword">delete</span> <span class="identifier">contained_</span> <span class="special">;</span> <span class="special">}</span>
   <span class="identifier">X</span><span class="special">*</span> <span class="identifier">contained_</span> <span class="special">;</span>
 <span class="special">};</span>
@@ -139,7 +139,7 @@
 <p>
           For this purpose, the framework provides two concepts called: InPlaceFactories
           and TypedInPlaceFactories. Helpers to declare these classes are declared
-          in <a href="../../../../../include/boost/utility/in_place_factory.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">in_place_factory</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> and <a href="../../../../../include/boost/utility/typed_in_place_factory.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">typed_in_place_factory</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a>.
+          in <a href="../../../../../../boost/utility/in_place_factory.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">in_place_factory</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a> and <a href="../../../../../../boost/utility/typed_in_place_factory.hpp" target="_top"><code class="computeroutput"><span class="special">&lt;</span><span class="identifier">boost</span><span class="special">/</span><span class="identifier">utility</span><span class="special">/</span><span class="identifier">typed_in_place_factory</span><span class="special">.</span><span class="identifier">hpp</span><span class="special">&gt;</span></code></a>.
         </p>
 <p>
           Essentially, these classes hold a sequence of actual parameters and a method
@@ -195,10 +195,10 @@
         </p>
 <pre class="programlisting"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
 
-<span class="keyword">struct</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a> <span class="special">{};</span>
+<span class="keyword">struct</span> <a class="link" href="../../boost/in_place_factory_base.html" title="Class in_place_factory_base"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a> <span class="special">{};</span>
 
 <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">A0</span><span class="special">&gt;</span>
-<span class="keyword">class</span> <span class="identifier">in_place_factory</span> <span class="special">:</span> <span class="keyword">public</span> <a class="link" href="../../"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a>
+<span class="keyword">class</span> <span class="identifier">in_place_factory</span> <span class="special">:</span> <span class="keyword">public</span> <a class="link" href="../../boost/in_place_factory_base.html" title="Class in_place_factory_base"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a>
 <span class="special">{</span>
   <span class="keyword">public</span><span class="special">:</span>
     <span class="identifier">in_place_factory</span> <span class="special">(</span> <span class="identifier">A0</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">a0</span> <span class="special">)</span> <span class="special">:</span> <span class="identifier">m_a0</span><span class="special">(</span><span class="identifier">a0</span><span class="special">)</span> <span class="special">{}</span>
@@ -262,7 +262,7 @@
         </p>
 <p>
           When the container holds a unique non-polymorphic type, such as the case
-          of <a href="../../../../../../doc/html/optional/index.html" target="_top">Boost.Optional</a>,
+          of <a href="../../../../../../libs/optional/index.html" target="_top">Boost.Optional</a>,
           it knows the exact dynamic-type of the contained object and can pass it
           to the <code class="computeroutput"><span class="identifier">apply</span><span class="special">()</span></code>
           method of a non-typed factory. In this case, end users can use an <code class="computeroutput"><span class="identifier">in_place_factory</span></code> instance which can be
@@ -270,7 +270,7 @@
         </p>
 <p>
           However, if the container holds heterogeneous or polymorphic objects, such
-          as the case of <a href="../../../../../../doc/html/variant/index.html" target="_top">Boost.Variant</a>,
+          as the case of <a href="../../../../../../libs/variant/index.html" target="_top">Boost.Variant</a>,
           the dynamic-type of the object to be constructed must be known by the factory.
           In this case, end users must use a <code class="computeroutput"><span class="identifier">typed_in_place_factory</span></code>
           instead.
@@ -299,7 +299,7 @@
 <p>
           Depending on the container class, you can use <code class="computeroutput"><span class="identifier">enable_if</span></code>
           to generate the right overload, or use the following dispatch technique,
-          which is used in the <a href="../../../../../../doc/html/optional/index.html" target="_top">Boost.Optional</a>
+          which is used in the <a href="../../../../../../libs/optional/index.html" target="_top">Boost.Optional</a>
           class:
         </p>
 <pre class="programlisting"><span class="keyword">struct</span> <span class="identifier">C</span>
@@ -318,7 +318,7 @@
   <span class="special">~</span><span class="identifier">C</span><span class="special">()</span> <span class="special">{</span> <span class="keyword">delete</span> <span class="identifier">contained_</span> <span class="special">;</span> <span class="special">}</span>
 
   <span class="keyword">template</span><span class="special">&lt;</span><span class="keyword">class</span> <span class="identifier">InPlaceFactory</span><span class="special">&gt;</span>
-  <span class="keyword">void</span> <span class="identifier">construct</span> <span class="special">(</span> <span class="identifier">InPlaceFactory</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">aFactory</span><span class="special">,</span> <span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a><span class="special">*</span> <span class="special">)</span>
+  <span class="keyword">void</span> <span class="identifier">construct</span> <span class="special">(</span> <span class="identifier">InPlaceFactory</span> <span class="keyword">const</span><span class="special">&amp;</span> <span class="identifier">aFactory</span><span class="special">,</span> <span class="identifier">boost</span><span class="special">::</span><a class="link" href="../../boost/in_place_factory_base.html" title="Class in_place_factory_base"><code class="computeroutput"><span class="identifier">in_place_factory_base</span></code></a><span class="special">*</span> <span class="special">)</span>
   <span class="special">{</span>
     <span class="identifier">aFactory</span><span class="special">.</span><span class="keyword">template</span> <span class="identifier">apply</span><span class="special">&lt;</span><span class="identifier">X</span><span class="special">&gt;(</span><span class="identifier">contained_</span><span class="special">);</span>
   <span class="special">}</span>
@@ -362,8 +362,24 @@
 <span class="special">}</span>
 </pre>
 </div>
-<a name="boost.typed_in_place_factory_base"></a><div class="section"><div class="titlepage"><div><div><h4 class="title">
-<a name="in_place_factory.reference"></a>Reference</h4></div></div></div></div>
+<a name="boost.typed_in_place_factory_base"></a><div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="in_place_factory.reference"></a>Reference</h4></div></div></div>
+<div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="header.boost.utility.in_place_factory_hpp"></a>Header &lt;<a href="../../../../../../boost/utility/in_place_factory.hpp" target="_top">boost/utility/in_place_factory.hpp</a>&gt;</h5></div></div></div>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">class</span> <a class="link" href="../../boost/in_place_factory_base.html" title="Class in_place_factory_base">in_place_factory_base</a><span class="special">;</span>
+<span class="special">}</span></pre>
+</div>
+<div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="header.boost.utility.typed_in_place_factory_hpp"></a>Header &lt;<a href="../../../../../../boost/utility/typed_in_place_factory.hpp" target="_top">boost/utility/typed_in_place_factory.hpp</a>&gt;</h5></div></div></div>
+<pre class="synopsis"><span class="keyword">namespace</span> <span class="identifier">boost</span> <span class="special">{</span>
+  <span class="keyword">class</span> <a class="link" href="../../boost/typed_in_place_fac_idm4015.html" title="Class typed_in_place_factory_base">typed_in_place_factory_base</a><span class="special">;</span>
+<span class="special">}</span></pre>
+</div>
+</div>
 <div class="section">
 <div class="titlepage"><div><div><h4 class="title">
 <a name="utility.utilities.in_place_factory.acknowledgments"></a><a class="link" href="in_place_factory.html#utility.utilities.in_place_factory.acknowledgments" title="Acknowledgments">Acknowledgments</a>
@@ -383,7 +399,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="compressed_pair.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="operators.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="../../boost/compressed_pair_T__idm3185.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../utilities.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="../../boost/in_place_factory_base.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>

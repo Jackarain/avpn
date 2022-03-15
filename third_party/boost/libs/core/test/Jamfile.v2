@@ -189,6 +189,9 @@ run pointer_traits_element_type_test.cpp ;
 run pointer_traits_difference_type_test.cpp ;
 run pointer_traits_rebind_test.cpp ;
 run pointer_traits_pointer_to_test.cpp ;
+run pointer_traits_sfinae_test.cpp ;
+run pointer_traits_rebind_sfinae_test.cpp ;
+run pointer_traits_pointer_to_sfinae_test.cpp ;
 run to_address_test.cpp ;
 
 run exchange_test.cpp ;
@@ -211,6 +214,7 @@ run default_allocator_test.cpp
         <toolset>msvc:<warnings-as-errors>on
         <toolset>gcc:<warnings-as-errors>on
         <toolset>clang:<warnings-as-errors>on ;
+run default_allocator_allocate_hint_test.cpp ;
 
 run noinit_adaptor_test.cpp ;
 run alloc_construct_test.cpp ;
@@ -236,6 +240,11 @@ run allocator_allocate_hint_test.cpp ;
 run allocator_deallocate_test.cpp ;
 run allocator_max_size_test.cpp ;
 run allocator_soccc_test.cpp ;
+run allocator_construct_test.cpp ;
+run allocator_destroy_test.cpp ;
+run allocator_construct_n_test.cpp ;
+run allocator_destroy_n_test.cpp ;
+run allocator_traits_test.cpp ;
 
 lib lib_typeid : lib_typeid.cpp : <link>shared:<define>LIB_TYPEID_DYN_LINK=1 ;
 
@@ -259,19 +268,30 @@ run uncaught_exceptions_np.cpp
 run no_exceptions_support_test.cpp : ;
 run no_exceptions_support_test.cpp : : : <exception-handling>off : no_exceptions_support_test_nx ;
 
-run cmath_test.cpp ;
+run cmath_test.cpp
+  : : : $(pedantic-errors) ;
 run cmath_test.cpp : : : <define>BOOST_CORE_USE_GENERIC_CMATH <toolset>msvc-8.0:<build>no : cmath_test_generic ;
 
-run bit_cast_test.cpp ;
-run bit_rotate_test.cpp ;
-run bit_countr_test.cpp ;
-run bit_countl_test.cpp ;
-run bit_width_test.cpp ;
-run has_single_bit_test.cpp ;
-run bit_floor_test.cpp ;
-run bit_ceil_test.cpp ;
-run bit_popcount_test.cpp ;
-run bit_endian_test.cpp ;
+run bit_cast_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_rotate_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_countr_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_countl_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_width_test.cpp
+  : : : $(pedantic-errors) ;
+run has_single_bit_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_floor_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_ceil_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_popcount_test.cpp
+  : : : $(pedantic-errors) ;
+run bit_endian_test.cpp
+  : : : $(pedantic-errors) ;
 
 run type_name_test.cpp ;
 
@@ -300,6 +320,10 @@ run sv_eq_test.cpp ;
 run sv_lt_test.cpp ;
 run sv_stream_insert_test.cpp ;
 run sv_conversion_test.cpp ;
+run sv_conversion_test2.cpp : ;
+run sv_common_reference_test.cpp ;
+compile sv_common_reference_test2.cpp ;
+compile sv_windows_h_test.cpp ;
 
 run span_test.cpp ;
 run span_types_test.cpp ;
@@ -307,6 +331,14 @@ run span_constructible_test.cpp ;
 run span_deduction_guide_test.cpp ;
 run as_bytes_test.cpp ;
 run as_writable_bytes_test.cpp ;
+
+run splitmix64_test.cpp
+  : : : $(pedantic-errors) ;
+
+run-fail verbose_terminate_handler_fail.cpp : ;
+run-fail verbose_terminate_handler_fail.cpp : : : <exception-handling>off : verbose_terminate_handler_fail_nx ;
+run-fail verbose_terminate_handler_fail.cpp : : : <rtti>off : verbose_terminate_handler_fail_nr ;
+run-fail verbose_terminate_handler_fail.cpp : : : <exception-handling>off <rtti>off : verbose_terminate_handler_fail_nxr ;
 
 use-project /boost/core/swap : ./swap ;
 build-project ./swap ;

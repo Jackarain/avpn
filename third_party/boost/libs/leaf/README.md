@@ -8,12 +8,12 @@ https://boostorg.github.io/leaf/
 
 ## Features
 
-* Small single-header format, **no dependencies**.
-* Designed for maximum efficiency ("happy" path and "sad" path).
-* No dynamic memory allocations, even with heavy payloads.
-* O(1) transport of arbitrary error types (independent of call stack depth).
+* Portable single-header format, no dependencies.
+* Tiny code size when configured for embedded development.
+* No dynamic memory allocations, even with very large payloads.
+* Deterministic unbiased efficiency on the "happy" path and the "sad" path.
+* Error objects are handled in constant time, independent of call stack depth.
 * Can be used with or without exception handling.
-* Support for multi-thread programming.
 
 ## Support
 
@@ -28,4 +28,4 @@ Besides GitHub, there are two other distribution channels:
 * LEAF is included in official [Boost](https://www.boost.org/) releases, starting with Boost 1.75.
 * For maximum portability, the library is also available in single-header format: simply download [leaf.hpp](https://boostorg.github.io/leaf/leaf.hpp) (direct download link).
 
-Copyright (C) 2018-2021 Emil Dotchevski. Distributed under the http://www.boost.org/LICENSE_1_0.txt[Boost Software License, Version 1.0].
+Copyright 2018-2022 Emil Dotchevski and Reverge Studios, Inc. Distributed under the http://www.boost.org/LICENSE_1_0.txt[Boost Software License, Version 1.0].
