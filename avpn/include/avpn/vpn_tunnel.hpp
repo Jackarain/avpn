@@ -491,11 +491,15 @@ namespace avpn {
 		// 运行的身份.
 		int m_identity{ -1 };
 
-		// channel for server.
-		std::mutex m_server_mtx;
+		// mutex for m_remotes.
+		std::shared_mutex m_remotes_mtx;
 
 		// 作为server时, key是一个32bit的 ipv4 vnet 地址.
 		std::unordered_map<uint32_t, vpn_connection_weak_ptr> m_remotes;
+
+		// mutex for m_incomings.
+		std::shared_mutex m_incomings_mtx;
+
 		// 作为server时, key是一个connection id, 临时连接表
 		// 用于快速退出.
 		std::unordered_map<int64_t, vpn_connection_weak_ptr> m_incomings;

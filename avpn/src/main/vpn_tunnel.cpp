@@ -124,29 +124,34 @@ namespace avpn
 			for (auto& a : m_ws_acceptors)
 				a.close(ignore_ec);
 
-			std::lock_guard<std::mutex> lock(m_server_mtx);
-			for ([[maybe_unused]] auto& [id, connection_ptr] : m_remotes)
 			{
-				auto connection = connection_ptr.lock();
-				if (!connection)
-					continue;
+				std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
+				for ([[maybe_unused]] auto& [id, connection_ptr] : m_remotes)
+				{
+					auto connection = connection_ptr.lock();
+					if (!connection)
+						continue;
 
-				connection->reconnect_timer_.cancel(ignore_ec);
-				boost::beast::get_lowest_layer(connection->ws_stream_).close();
+					connection->reconnect_timer_.cancel(ignore_ec);
+					boost::beast::get_lowest_layer(connection->ws_stream_).close();
 
-				LOG_DBG << "Close ws stream: " << connection->connection_id_;
+					LOG_DBG << "Close ws stream: " << connection->connection_id_;
+				}
 			}
 
-			for ([[maybe_unused]] auto& [id, connection_ptr] : m_incomings)
 			{
-				auto connection = connection_ptr.lock();
-				if (!connection)
-					continue;
+				std::shared_lock<std::shared_mutex> lock(m_incomings_mtx);
+				for ([[maybe_unused]] auto& [id, connection_ptr] : m_incomings)
+				{
+					auto connection = connection_ptr.lock();
+					if (!connection)
+						continue;
 
-				connection->reconnect_timer_.cancel(ignore_ec);
-				boost::beast::get_lowest_layer(connection->ws_stream_).close();
+					connection->reconnect_timer_.cancel(ignore_ec);
+					boost::beast::get_lowest_layer(connection->ws_stream_).close();
 
-				LOG_DBG << "Close incoming ws stream: " << id;
+					LOG_DBG << "Close incoming ws stream: " << id;
+				}
 			}
 		}
 
@@ -1338,19 +1343,19 @@ namespace avpn
 
 	void vpn_tunnel::add_connection(vpn_connection_ptr& connection_ptr, uint32_t vaddr)
 	{
-		std::lock_guard<std::mutex> lock(m_server_mtx);
+		std::lock_guard<std::shared_mutex> lock(m_remotes_mtx);
 		m_remotes[vaddr] = connection_ptr;
 	}
 
 	void vpn_tunnel::remove_connection(uint32_t vaddr)
 	{
-		std::lock_guard<std::mutex> lock(m_server_mtx);
+		std::lock_guard<std::shared_mutex> lock(m_remotes_mtx);
 		m_remotes.erase(vaddr);
 	}
 
 	vpn_connection_ptr vpn_tunnel::lookup_connection(uint32_t vaddr)
 	{
-		std::lock_guard<std::mutex> lock(m_server_mtx);
+		std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
 		auto it = m_remotes.find(vaddr);
 		if (it == m_remotes.end())
 			return {};
@@ -1359,13 +1364,13 @@ namespace avpn
 
 	void vpn_tunnel::add_incoming(vpn_connection_ptr& connection_ptr, int64_t id)
 	{
-		std::lock_guard<std::mutex> lock(m_server_mtx);
+		std::lock_guard<std::shared_mutex> lock(m_incomings_mtx);
 		m_incomings[id] = connection_ptr;
 	}
 
 	void vpn_tunnel::remove_incoming(int64_t id)
 	{
-		std::lock_guard<std::mutex> lock(m_server_mtx);
+		std::lock_guard<std::shared_mutex> lock(m_incomings_mtx);
 		m_incomings.erase(id);
 	}
 
@@ -1960,7 +1965,7 @@ namespace avpn
 			// 找到所有udp连接.
 			if (m_identity == avpn::avpn_server)
 			{
-				std::lock_guard<std::mutex> lock(m_server_mtx);
+				std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
 				for ([[maybe_unused]] auto& [id, conn] : m_remotes)
 				{
 					if (!conn.lock())
