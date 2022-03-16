@@ -125,26 +125,26 @@ namespace avpn
 				a.close(ignore_ec);
 
 			std::lock_guard<std::mutex> lock(m_server_mtx);
-			for ([[maybe_unused]] auto& [id, conn_ptr] : m_remotes)
+			for ([[maybe_unused]] auto& [id, connection_ptr] : m_remotes)
 			{
-				auto conn = conn_ptr.lock();
-				if (!conn)
+				auto connection = connection_ptr.lock();
+				if (!connection)
 					continue;
 
-				conn->reconnect_timer_.cancel(ignore_ec);
-				boost::beast::get_lowest_layer(conn->ws_stream_).close();
+				connection->reconnect_timer_.cancel(ignore_ec);
+				boost::beast::get_lowest_layer(connection->ws_stream_).close();
 
-				LOG_DBG << "Close ws stream: " << conn->connection_id_;
+				LOG_DBG << "Close ws stream: " << connection->connection_id_;
 			}
 
-			for ([[maybe_unused]] auto& [id, conn_ptr] : m_incomings)
+			for ([[maybe_unused]] auto& [id, connection_ptr] : m_incomings)
 			{
-				auto conn = conn_ptr.lock();
-				if (!conn)
+				auto connection = connection_ptr.lock();
+				if (!connection)
 					continue;
 
-				conn->reconnect_timer_.cancel(ignore_ec);
-				boost::beast::get_lowest_layer(conn->ws_stream_).close();
+				connection->reconnect_timer_.cancel(ignore_ec);
+				boost::beast::get_lowest_layer(connection->ws_stream_).close();
 
 				LOG_DBG << "Close incoming ws stream: " << id;
 			}
