@@ -26,9 +26,12 @@ namespace fec {
 		using internal_matrix = std::vector<std::vector<uint8_t>>;
 
 	public:
-		explicit matrix(size_t size);
+		explicit matrix(size_t size = 0);
 		matrix(size_t rows, size_t cols);
 		~matrix() = default;
+		explicit matrix(const matrix& rhs) noexcept;
+		matrix(matrix&& rhs) noexcept;
+		matrix& operator=(matrix&& rhs) noexcept;
 
 		matrix vandermonde(size_t rows, size_t cols);
 
@@ -102,10 +105,13 @@ namespace fec {
 
 	public:
 		reedsolomon(int dataShards, int parityShards);
+		reedsolomon(int dataShards, int parityShards, const matrix& m);
 		size_t estimate_pershard_size(int total_size, int data_shards = -1);
 
 		void encode(const std::vector<std::string_view>& shards);
 		void decode(std::vector<std::vector<uint8_t>>& shards);
+
+		static matrix build_matrix(int shards, int data_shards);
 
 	private:
 		template<class T>
@@ -138,8 +144,6 @@ namespace fec {
 				}
 			}
 		}
-
-		matrix build_matrix(int shards, int data_shards);
 
 	private:
 		int m_shards;

@@ -834,9 +834,27 @@ namespace fec {
 
 		matrix::matrix(size_t rows, size_t cols)
 		{
+			if (rows == 0 || cols == 0)
+				return;
 			m_matrix.resize(rows);
 			for (auto& m : m_matrix)
 				m.resize(cols);
+		}
+
+		matrix::matrix(matrix&& rhs) noexcept
+			: m_matrix(std::move(rhs.m_matrix))
+		{
+		}
+
+		matrix::matrix(const matrix& rhs) noexcept
+		{
+			m_matrix = rhs.m_matrix;
+		}
+
+		matrix& matrix::operator=(matrix&& rhs) noexcept
+		{
+			m_matrix = std::move(rhs.m_matrix);
+			return *this;
 		}
 
 		fec::matrix matrix::vandermonde(size_t rows, size_t cols)
@@ -1167,6 +1185,26 @@ namespace fec {
 			, m_data_shards(dataShards)
 			, m_parity_shards(parityShards)
 			, m_matrix{ build_matrix(m_shards, m_data_shards) }
+		{
+			if (dataShards <= 0 || parityShards <= 0) {
+				throw std::runtime_error("data shards must > 0");
+			}
+
+			if (dataShards + parityShards > 256) {
+				throw std::runtime_error("too many shards - max is 256");
+			}
+
+			m_parity_rows.resize(parityShards);
+			for (int i = 0; i < parityShards; i++) {
+				m_parity_rows[i] = m_matrix[dataShards + i];
+			}
+		}
+
+		reedsolomon::reedsolomon(int dataShards, int parityShards, const matrix& m)
+			: m_shards(dataShards + parityShards)
+			, m_data_shards(dataShards)
+			, m_parity_shards(parityShards)
+			, m_matrix(m)
 		{
 			if (dataShards <= 0 || parityShards <= 0) {
 				throw std::runtime_error("data shards must > 0");

@@ -175,7 +175,7 @@ namespace avpn {
 					const MIB_IPFORWARDROW* row = &routes->table[i];
 					const auto net = ntohl(row->dwForwardDest);
 					const auto mask = ntohl(row->dwForwardMask);
-					const DWORD index = row->dwForwardIfIndex;
+					[[maybe_unused]] const DWORD index = row->dwForwardIfIndex;
 					const DWORD metric = row->dwForwardMetric1;
 
 					if (!net && !mask && metric < lowest_metric)

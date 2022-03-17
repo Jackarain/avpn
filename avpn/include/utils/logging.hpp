@@ -680,7 +680,7 @@ inline void logger_writer__(int64_t time, const int& level,
 {
 	LOGGER_LOCKS_();
 	char ts[64] = { 0 };
-	auto ptm = logger_aux__::time_to_string(ts, time);
+	[[maybe_unused]] auto ptm = logger_aux__::time_to_string(ts, time);
 	std::string prefix = ts + std::string(" [") + logger_level_string__(level) + std::string("]: ");
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;

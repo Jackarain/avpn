@@ -276,7 +276,7 @@ namespace stream_endian {
 			// return the portion of this byte that we need.
 			if (bit_count < remaining_bits_in_current_byte)
 			{
-				*val = HighestBits(bits, bit_offset_ + bit_count);
+				*val = HighestBits((uint8_t)bits, bit_offset_ + bit_count);
 				return true;
 			}
 
@@ -335,7 +335,10 @@ namespace stream_endian {
 			// read the value.
 			size_t value_bit_count = zero_bit_count + 1;
 			if (value_bit_count > 32 || !ReadBits(val, value_bit_count))
+			{
+				Seek(original_byte_offset, original_bit_offset);
 				return false;
+			}
 			*val -= 1;
 
 			return true;

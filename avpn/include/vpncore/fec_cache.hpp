@@ -16,12 +16,15 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <set>
 
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
 #include "utils/time_clock.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
+
+#include "avpn/reedsolomon.hpp"
 
 namespace avpn {
 
@@ -247,6 +250,53 @@ namespace avpn {
 			std::vector<std::vector<uint8_t>> data;
 
 			fec::reedsolomon fec_dec(ds_, ps_);
+			data.resize(ds_ + ps_);
+
+			for (size_t i = 0; i < data.size(); i++)
+			{
+				auto& d = data[i];
+				auto& s = pkts_[i];
+
+				d.resize(s.size());
+				boost::asio::buffer_copy(boost::asio::buffer(d), s.data());
+			}
+
+			// fec解码.
+#if !defined(_DEBUG) && !defined(DEBUG)
+			try {
+#endif
+				fec_dec.decode(data);
+#if !defined(_DEBUG) && !defined(DEBUG)
+			}
+			catch (const std::exception& e) {
+				LOG_WARN << "fec decode exception: " << e.what();
+				return {};
+			}
+#endif
+
+			std::vector<std::string> result;
+
+			auto ptr_func = [](std::vector<uint8_t>& buf) -> const uint8_t* {
+				return buf.data();
+			};
+
+			auto size_func = [](std::vector<uint8_t>& buf) -> size_t {
+				return buf.size();
+			};
+
+			group_parse(data, result, ptr_func, size_func);
+
+			return result;
+		}
+
+		std::vector<std::string> decode(const fec::matrix& m)
+		{
+			if (!accord())
+				return {};
+
+			std::vector<std::vector<uint8_t>> data;
+
+			fec::reedsolomon fec_dec(ds_, ps_, m);
 			data.resize(ds_ + ps_);
 
 			for (size_t i = 0; i < data.size(); i++)

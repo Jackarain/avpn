@@ -404,9 +404,19 @@ namespace avpn
 				break;
 			}
 
+			int data_shards = 0;
+			int parity_shards = 0;
+
+			if (m_params.data_shards_ > 1)
+			{
+				data_shards = m_params.data_shards_;
+				parity_shards = m_params.parity_shards_;
+			}
+
 			// 创建connection, 只有在握手完成才加入m_remotes容器进行管理.
 			vpn_connection_ptr connection_ptr =
-				std::make_shared<vpn_connection>(std::forward<ws_stream>(ws), remote_host);
+				std::make_shared<vpn_connection>(
+					std::forward<ws_stream>(ws), remote_host, data_shards, parity_shards);
 
 			// 设置超时时间.
 			ws_expires_after(*connection_ptr, 60);
@@ -636,7 +646,7 @@ namespace avpn
 	boost::asio::awaitable<void> vpn_tunnel::process_tcp_packet(uint32_t type,
 		stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr)
 	{
-		auto& connection = *connection_ptr;
+		[[maybe_unused]] auto& connection = *connection_ptr;
 		std::string bufs;
 
 		switch (type)
@@ -665,7 +675,7 @@ namespace avpn
 		case vpt_udp:
 			[[fallthrough]];
 		case vpt_tcp:
-			co_await do_vpt_packet(type, reader, nullptr);
+			co_await do_vpt_packet((uint8_t)type, reader, nullptr);
 			co_return;
 		case vpt_fec:
 			co_await do_vpt_fec_packet(reader);
@@ -995,7 +1005,7 @@ namespace avpn
 			}
 
 			auto sockptr = std::make_unique<udp_socket>(
-				time_clock::steady_clock::now(), std::move(sock));
+				udp_socket{ time_clock::steady_clock::now(), std::move(sock) });
 
 			m_udp_sockets.emplace_back(std::move(sockptr));
 		}
@@ -1068,7 +1078,7 @@ namespace avpn
 
 		// 每个上游都开启 max_client_udp_socket 倍socket通信.
 		auto size = m_remote_endps.size() * max_client_udp_socket;
-		for (int i = 0; i < size; i++)
+		for (size_t i = 0; i < size; i++)
 		{
 			auto endp = m_remote_endps.acquire();
 
@@ -1108,7 +1118,7 @@ namespace avpn
 			if (m_udp_sockets.size() == i)
 			{
 				udp_socket_ptr tmp = std::make_unique<udp_socket>(
-					time_clock::steady_clock::now(), std::move(sock));
+					udp_socket{time_clock::steady_clock::now(), std::move(sock)});
 
 				m_udp_sockets.emplace_back(std::move(tmp));
 
@@ -1168,7 +1178,7 @@ namespace avpn
 			}
 
 			// 处理udp网络数据包.
-			co_await process_udp_packet(type, reader, sock, remote_endp);
+			co_await process_udp_packet((uint8_t)type, reader, sock, remote_endp);
 		}
 
 		LOG_ERR << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
@@ -1185,8 +1195,18 @@ namespace avpn
 			auto connection_ptr = m_client.lock();
 			if (!connection_ptr)
 			{
+				int data_shards = 0;
+				int parity_shards = 0;
+
+				if (m_params.data_shards_ > 1)
+				{
+					data_shards = m_params.data_shards_;
+					parity_shards = m_params.parity_shards_;
+				}
+
 				static std::atomic_int64_t id{ 0 };
-				connection_ptr = std::make_shared<vpn_connection>(ws_stream{ m_main_ioc }, "");
+				connection_ptr = std::make_shared<vpn_connection>(
+					ws_stream{ m_main_ioc }, "", data_shards, parity_shards);
 				connection_ptr->connection_id_ = id++;
 				m_client = connection_ptr;
 			}
@@ -1892,12 +1912,33 @@ namespace avpn
 		if (num_garbage > 0)
 			LOG_DBG << "do_process_fec, clean garbage: " << num_garbage;
 
+		auto fecdec_func = [&](fec_group& gop) mutable ->std::vector<std::string>
+		{
+			auto& dec_matrix = connection.dec_matrix_;
+
+			if (gop.ds_ > 0
+				&& connection.dec_ds_ != gop.ds_
+				&& connection.dec_ps_ != gop.ps_)
+			{
+				connection.dec_ds_ = gop.ds_;
+				connection.dec_ps_ = gop.ps_;
+
+				dec_matrix =
+					fec::reedsolomon::build_matrix(gop.ds_ + gop.ps_, gop.ds_);
+			}
+
+			if (dec_matrix.size() > 0)
+				return gop.decode(dec_matrix);
+
+			return gop.decode();
+		};
+
 		// 获取满足条件的FEC数据包集, 然后根据IP包中的信息逐个按
 		// 目标位置转发, 如果是虚拟内网转发, 则通过内网透传.
 		auto groups = fec.acquire();
 		for (auto& gop : groups)
 		{
-			auto v = gop.decode();
+			auto v = fecdec_func(gop);
 			for (auto& d : v)
 			{
 				// 处理内网数据包.
@@ -2082,7 +2123,7 @@ namespace avpn
 			// max_data_size 是 data_shards 和 mtu 大小计算出来的最大编码数据量.
 			// fec编码一次最大数据量不能超过max_data_size, 否则有可能超出mtu大小
 			// 导致在发送时被分片而产生丢包.
-			if (content.size() + static_mtu >= max_data_size)
+			if (content.size() + static_mtu >= (size_t)max_data_size)
 			{
 				// 删除已经添加到content的fec数据.
 				fec_enc.erase(be, ++it);
@@ -2116,7 +2157,7 @@ namespace avpn
 		auto& parity_shards = m_params.parity_shards_;
 		auto total_shards = data_shards + parity_shards;
 
-		fec::reedsolomon rs(data_shards, parity_shards);
+		fec::reedsolomon rs(data_shards, parity_shards, connection.enc_matrix_);
 
 		auto gsize = content.size();
 		auto pershard_size = rs.estimate_pershard_size((int)content.size());
@@ -2124,7 +2165,7 @@ namespace avpn
 
 		std::vector<std::string_view> shards;
 		shards.resize(total_shards);
-		for (size_t i = 0; i < total_shards; i++)
+		for (size_t i = 0; i < (size_t)total_shards; i++)
 			shards[i] = { (char*)content.data() + (i * pershard_size), pershard_size };
 
 		rs.encode(shards);

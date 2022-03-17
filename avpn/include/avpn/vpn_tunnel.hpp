@@ -219,10 +219,12 @@ namespace avpn {
 
 	struct vpn_connection
 	{
-		vpn_connection(ws_stream&& stream, const std::string& host)
-			: ws_stream_(std::move(stream))
-			, reconnect_timer_(ws_stream_.get_executor())
+		vpn_connection(ws_stream&& stream, const std::string& host,
+			int data = 0, int parity = 0)
+			: enc_matrix_((size_t)(data + parity), data)
 			, remote_host_(host)
+			, ws_stream_(std::move(stream))
+			, reconnect_timer_(ws_stream_.get_executor())
 		{}
 
 		~vpn_connection()
@@ -237,10 +239,14 @@ namespace avpn {
 
 		fec_cache fec_dec_;					// fec 解码缓冲器.
 		uint32_t gid_{ 0 };					// fec 编码group id.
+		fec::matrix dec_matrix_;			// 用于rs解码的矩阵.
+		int dec_ds_{ 0 };
+		int dec_ps_{ 0 };
 
 		time_point enc_tm_;					// fec 编码缓冲接收起始时间.
 		std::vector<vpn_message> fec_enc_;	// fec 编码缓冲.
 		int64_t fec_enc_size_{ 0 };			// 缓冲字节数.
+		fec::matrix enc_matrix_;			// 用于rs编码的矩阵.
 
 		uint32_t vnet_{ 0 };				// 本机虚拟IP, 作为client时, 由server分配.
 		std::string remote_host_;			// 远程主机地址字符串, 通过ws连接获取.
