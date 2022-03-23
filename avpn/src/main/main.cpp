@@ -55,6 +55,7 @@ namespace po = boost::program_options;
 #include "avpn/io_context_pool.hpp"
 #include "avpn/avpn.hpp"
 #include "avpn/reedsolomon.hpp"
+#include "avpn/controller.hpp"
 
 #include "utils/fileop.hpp"
 
@@ -181,6 +182,7 @@ int main(int argc, char** argv)
 	std::string ifdev;
 	std::string identity;
 	std::string config;
+	int controller_port;
 
 	std::vector<std::string> routes;
 	std::string pushdns;
@@ -224,6 +226,8 @@ int main(int argc, char** argv)
 
 		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16"), "VPN subnet.")
 		("c2c", po::value<bool>(&c2c)->default_value(true), "Allow different clients to be able to see each other.")
+
+		("controller", po::value<int>(&controller_port)->default_value(-1), "Controller, local controller server port.")
 	;
 
 	try
@@ -300,6 +304,7 @@ int main(int argc, char** argv)
 
 	cfg.ifdev_ = ifdev;
 	cfg.snat_ = snat;
+	cfg.controller_ = controller_port;
 
 	auto& params = cfg.channel_params_;
 	params.data_shards_ = data_shards;
@@ -318,32 +323,50 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 	if (identity == "server")
-		cfg.identity_ = avpn::avpn_server;
+		cfg.identity_ = avpn::Identity::avpn_server;
 	else if (identity == "client")
-		cfg.identity_ = avpn::avpn_client;
+		cfg.identity_ = avpn::Identity::avpn_client;
 	else
 	{
 		LOG_DBG << "identity not set, default is client.";
-		cfg.identity_ = avpn::avpn_client;
+		cfg.identity_ = avpn::Identity::avpn_client;
 	}
 
 	params.routes_ = routes;
 	params.pushdns_ = pushdns;
 	params.passbyvpn_ = passbyvpn;
 
-	avpn::avpn_service srv{ios, cfg};
-
-	srv.start();
-
-	// 处理中止信号.
-	terminator_signal.async_wait([&ios, &srv](const boost::system::error_code&, int)
+	if (controller_port == -1)
 	{
-		LOG_DBG << "terminator is called!";
-		srv.stop();
-		ios.stop();
-	});
+		avpn::avpn_service srv{ ios, cfg };
 
-	ios.run();
+		srv.start();
+
+		// 处理中止信号.
+		terminator_signal.async_wait([&ios, &srv](const boost::system::error_code&, int)
+			{
+				LOG_DBG << "terminator is called!";
+				srv.stop();
+				ios.stop();
+			});
+
+		ios.run();
+	}
+	else
+	{
+		// 构造controller对象, 在内部发起对controller的连接.
+		avpn::controller control{ ios, cfg };
+
+		// 处理中止信号.
+		terminator_signal.async_wait([&ios, &control](const boost::system::error_code&, int)
+			{
+				LOG_DBG << "terminator is called!";
+				control.stop();
+				ios.stop();
+			});
+
+		ios.run();
+	}
 
 	LOG_DBG << "avpn system exiting...";
 	return EXIT_SUCCESS;

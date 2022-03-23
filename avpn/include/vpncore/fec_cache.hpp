@@ -23,12 +23,12 @@
 #include "utils/time_clock.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
+#include "utils/misc.hpp"
 
 #include "avpn/reedsolomon.hpp"
 
 namespace avpn {
 
-	using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
 	using namespace util;
 
 	struct fec_group

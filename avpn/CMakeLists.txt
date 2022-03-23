@@ -25,6 +25,7 @@ file(GLOB avpn_SRCS
 	include/avpn/avpn.hpp
 	include/avpn/vpn_tunnel.hpp
 	include/avpn/reedsolomon.hpp
+	include/avpn/controller.hpp
 
 	include/vpncore/basic_tuntap.hpp
 	include/vpncore/endpoint_pair.hpp
@@ -40,6 +41,7 @@ file(GLOB avpn_SRCS
 	src/main/vpn_tunnel.cpp
 	src/main/io_context_pool.cpp
 	src/main/reedsolomon.cpp
+	src/main/controller.cpp
 )
 
 if (WIN32)

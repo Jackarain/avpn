@@ -24,7 +24,8 @@ namespace avpn {
 		std::string ifdev_;
 		bool snat_{ false };
 
-		int identity_;
+		int controller_{ -1 };
+		avpn::Identity identity_;
 		avpn::channel_params channel_params_;
 	};
 
@@ -60,8 +61,6 @@ namespace avpn {
 		bool m_start_tuntap{ false };
 		avpn::channel_status m_channel_status;
 		avpn::tuntap m_tuntap;
-		std::deque<std::string> m_tuntap_write_deque;
-		bool m_tuntap_writing{ false };
 		timer m_tuntap_timer;
 		boost::asio::ip::network_v4 m_vnet;
 		avpn::vpn_tunnel m_vpn_tunnel;

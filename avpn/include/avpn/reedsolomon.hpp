@@ -149,7 +149,7 @@ namespace fec {
 		int m_shards;
 		int m_data_shards;
 		int m_parity_shards;
-		matrix m_matrix;
+		const matrix m_matrix;
 		std::vector<std::vector<uint8_t>> m_parity_rows;
 		std::unique_ptr<codingloop> m_codingloop = std::make_unique<io_table_codingloop>();
 	};

@@ -12,6 +12,7 @@
 #include <fstream>
 #include <chrono>
 #include <list>
+#include <mutex>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -68,8 +69,8 @@
 #endif // _MSC_VER
 
 #ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wexpansion-to-defined"
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wexpansion-to-defined"
 #endif
 
 #include <fmt/ostream.h>
@@ -82,7 +83,7 @@ namespace std {
 }
 
 #ifdef __clang__
-#pragma clang diagnostic pop
+#	pragma clang diagnostic pop
 #endif
 
 #ifdef _MSC_VER
@@ -523,7 +524,7 @@ public:
 				{
 					std::error_code ignore_ec;
 					std::mutex& m = log_compress__::compress_lock();
-					std::lock_guard<std::mutex> lock(m);
+					std::lock_guard lock(m);
 					if (!log_compress__::do_compress_gz(fn))
 					{
 						auto file = fn + log_compress__::GZ_SUFFIX;
@@ -562,7 +563,7 @@ private:
 };
 
 #ifndef DISABLE_LOGGER_THREAD_SAFE
-#define LOGGER_LOCKS_() std::lock_guard<std::mutex> lock(logger_aux__::lock_single<std::mutex>())
+#define LOGGER_LOCKS_() std::lock_guard lock(logger_aux__::lock_single<std::mutex>())
 #else
 #define LOGGER_LOCKS_() ((void)0)
 #endif // LOGGER_THREAD_SAFE
@@ -1073,9 +1074,16 @@ public:
 		}
 		else
 		{
-			out_ = "NOT A DATE TIME";
+			out_ += "NOT A DATE TIME";
 		}
 
+		return *this;
+	}
+	inline logger___& operator<<(const std::thread::id& id) noexcept
+	{
+		std::ostringstream oss;
+		oss << id;
+		out_ += oss.str();
 		return *this;
 	}
 

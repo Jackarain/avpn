@@ -72,21 +72,18 @@ namespace avpn {
 	using ws = websocket::stream<tcp::socket>;		// from <boost/beast/websocket.hpp>
 	using time_point = time_clock::steady_clock::time_point;
 
-	using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
-	using ws_stream = websocket::stream<boost::beast::tcp_stream>;
+
+
 
 	using namespace util;
 	using namespace stream_endian;
 
-	enum {
+	enum class Identity {
 		avpn_server = 0,
 		avpn_client = 1
 	};
 
-	const static std::string test_google_key = "VLTATWJGVH5W7V7DX6V436FG74";
-	const static int normal_mtu = 1500;
-	const static int static_mtu = 1400;
-	const static uint16_t avpn_protocol_version = 1;
+
 	//////////////////////////////////////////////////////////////////////////
 
 	enum {
@@ -104,159 +101,106 @@ namespace avpn {
 		vpt_auth,
 	};
 
-	const static int max_client_udp_socket = 4;
 
 	//////////////////////////////////////////////////////////////////////////
 
 	struct vpn_message
 	{
 		vpn_message() = default;
-		~vpn_message() = default;
-
-		vpn_message(vpn_message && msg) noexcept
-			: type(msg.type)
-			, content(std::move(msg.content))
-		{}
-
-		vpn_message& operator=(vpn_message&& msg) noexcept
-		{
-			type = msg.type;
-			content = std::move(msg.content);
-
-			return *this;
-		}
+		vpn_message(vpn_message&& msg) noexcept;
+		vpn_message& operator=(vpn_message&& msg) noexcept;
 
 		uint8_t type = vpt_tcp;
-		std::string content;
+		std::string content_;
 	};
 
-	struct vpn_remote_endpoint
+	//////////////////////////////////////////////////////////////////////////
+
+	class vpn_remote_endpoint
 	{
+		vpn_remote_endpoint(const vpn_remote_endpoint&) = delete;
+		vpn_remote_endpoint& operator=(const vpn_remote_endpoint&) = delete;
+
 	public:
 		// 初始化指定个数的endpoint数量
-		vpn_remote_endpoint(size_t size = 0, int identity = avpn::avpn_client)
-			: endpoints_(size)
-			, identity_(identity)
-		{}
+		vpn_remote_endpoint(size_t size = 0, Identity identity = Identity::avpn_client);
+
+		// 重置endpoints.
+		void reset(size_t size = 0, Identity identity = Identity::avpn_client);
 
 		// 获取最有效的udp endpoint, 用于udp通信.
-		udp::endpoint acquire() const noexcept
-		{
-			std::shared_lock lock(mutex_);
-
-			if (identity_ == avpn::avpn_client)
-				return client_endpoint();
-
-			return server_endpoint();
-		}
+		udp::endpoint acquire() const noexcept;
 
 		// 用于client获取下一个endpoint.
-		std::tuple<int, udp::endpoint> next_endpoint() const noexcept
-		{
-			auto index = next_endpoint_;
-			const auto& endp = endpoints_[next_endpoint_];
-
-			next_endpoint_ = (next_endpoint_ + 1) % endpoints_.size();
-
-			return {index, endp};
-		}
+		std::tuple<int, udp::endpoint> next_endpoint() const noexcept;
 
 		// 当作为client时, 添加指定数量的server的endpoint.
 		// 当作为server时, 动态添加最新活跃的endpoint进来.
-		void update(const udp::endpoint& endp) noexcept
-		{
-			std::unique_lock lock(mutex_);
-			endpoints_.push_back(endp);
-		}
+		void update(const udp::endpoint& endp) noexcept;
 
 		// 更新指定下标的endpoint.
-		void update(const udp::endpoint& endp, int index) noexcept
-		{
-			std::unique_lock lock(mutex_);
-			endpoints_[index] = endp;
-		}
+		void update(const udp::endpoint& endp, int index) noexcept;
 
 		// 获取容器大小.
-		size_t size() const noexcept
-		{
-			std::shared_lock lock(mutex_);
-			return endpoints_.size();
-		}
+		size_t size() const noexcept;
 
 		// 清空容器.
-		void clear() noexcept
-		{
-			std::unique_lock lock(mutex_);
-			endpoints_.clear();
-		}
+		void clear() noexcept;
 
 		// 重置容器大小.
-		void resize(size_t size)
-		{
-			std::unique_lock lock(mutex_);
-			endpoints_.resize(size);
-		}
+		void resize(size_t size);
 
 	private:
-		const udp::endpoint& client_endpoint() const noexcept
-		{
-			const auto& endp = endpoints_[next_endpoint_];
-			next_endpoint_ = (next_endpoint_ + 1) % endpoints_.size();
-			return endp;
-		}
-
-		const udp::endpoint& server_endpoint() const noexcept
-		{
-			return endpoints_.back();
-		}
+		const udp::endpoint& client_endpoint() const noexcept;
+		const udp::endpoint& server_endpoint() const noexcept;
 
 	private:
 		mutable std::shared_mutex mutex_;
 		boost::circular_buffer<udp::endpoint> endpoints_;
 		mutable int next_endpoint_{ 0 };
-		int identity_;
+		Identity identity_;
 	};
 
-	struct vpn_connection
+
+	//////////////////////////////////////////////////////////////////////////
+
+	class vpn_connection
 	{
-		vpn_connection(ws_stream&& stream, const std::string& host,
-			int data = 0, int parity = 0)
-			: enc_matrix_((size_t)(data + parity), data)
-			, remote_host_(host)
-			, ws_stream_(std::move(stream))
-			, reconnect_timer_(ws_stream_.get_executor())
-		{}
+	private:
+		vpn_connection(const vpn_connection&) = delete;
+		vpn_connection& operator=(const vpn_connection&) = delete;
 
-		~vpn_connection()
-		{
-			if (remote_host_.empty())
-				LOG_DBG << "vpn connection leave";
-			else
-				LOG_DBG << "vpn connection leave, remote: " << remote_host_;
-		}
+	public:
+		vpn_connection(boost::asio::any_io_executor executor, const std::string& host,
+			fec::matrix* enc_matrix, fec::matrix* dec_matrix);
 
-		int identity_{ avpn::avpn_server };	// 0 server, 1 client.
+		~vpn_connection();
+
+		Identity identity_{ Identity::avpn_server };	// server / client.
 
 		fec_cache fec_dec_;					// fec 解码缓冲器.
 		uint32_t gid_{ 0 };					// fec 编码group id.
-		fec::matrix dec_matrix_;			// 用于rs解码的矩阵.
-		int dec_ds_{ 0 };
-		int dec_ps_{ 0 };
+		fec::matrix* dec_matrix_;			// 用于rs解码的矩阵.
+
+		int dec_ds_{ 0 };					// 记录rs解码的ds大小.
+		int dec_ps_{ 0 };					// 记录rs解码的ps大小.
+
+		time_point keepalive_;				// keepalive 时间记录.
 
 		time_point enc_tm_;					// fec 编码缓冲接收起始时间.
 		std::vector<vpn_message> fec_enc_;	// fec 编码缓冲.
 		int64_t fec_enc_size_{ 0 };			// 缓冲字节数.
-		fec::matrix enc_matrix_;			// 用于rs编码的矩阵.
+		fec::matrix* enc_matrix_;			// 用于rs编码的矩阵.
 
 		uint32_t vnet_{ 0 };				// 本机虚拟IP, 作为client时, 由server分配.
 		std::string remote_host_;			// 远程主机地址字符串, 通过ws连接获取.
 
-		vpn_remote_endpoint endps_{ 5, avpn::avpn_server };	// 作为server时, client的endpoint.
+		vpn_remote_endpoint endps_;			// 作为server时, client的endpoint.
 
 		// TODO: 支持并发tcp连接.
-		ws_stream ws_stream_;								// 通过ws通信的tcp连接.
-		std::deque<std::string> ws_msg_deque_;				// ws发送队列.
-		bool deque_writing_{ false };						// ws发送标志.
+		tcp::socket tcp_stream_;					// tcp连接通信.
+		std::deque<std::string> tcp_msg_deque_;		// tcp发送队列.
+		bool deque_writing_{ false };				// tcp发送标志.
 
 		timer reconnect_timer_;						// 重连定时器, 作为client时使用.
 		int64_t connection_id_{ -1 };				// 连接id.
@@ -265,22 +209,8 @@ namespace avpn {
 	using vpn_connection_ptr = std::shared_ptr<vpn_connection>;
 	using vpn_connection_weak_ptr = std::weak_ptr<vpn_connection>;
 
-	inline bool operator<(const vpn_connection_ptr& lh, const vpn_connection_ptr& rh)
-	{
-		if (lh < rh)
-			return true;
-		return false;
-	}
-
-	inline bool operator<(const vpn_connection_weak_ptr& lh, const vpn_connection_weak_ptr& rh)
-	{
-		auto lhp = lh.lock();
-		auto rhp = rh.lock();
-
-		if (lhp < rhp)
-			return true;
-		return false;
-	}
+	inline bool operator<(const vpn_connection_ptr& lh, const vpn_connection_ptr& rh);
+	inline bool operator<(const vpn_connection_weak_ptr& lh, const vpn_connection_weak_ptr& rh);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -319,6 +249,10 @@ namespace avpn {
 	{
 		bool passbyvpn_{ false };
 		std::vector<std::string> routes_;
+		std::string dns_;
+		std::string server_ip_;
+		std::string vaddr_;
+		std::string vgateway_;
 		connection_status status_;
 	};
 
@@ -354,11 +288,11 @@ namespace avpn {
 		~vpn_tunnel();
 
 		// 根据用户设置的参数, 启动一个server.
-		void start_listen(std::vector<std::string> tcp_listens,
+		void start_server_listen(std::vector<std::string> tcp_listens,
 			std::vector<std::string> udp_listens);
 
 		// 启动一个client时向server发起连接.
-		void start_connect(const std::vector<std::string>&);
+		void start_client_connect(const std::vector<std::string>&);
 
 		// 关闭channel.
 		void close();
@@ -378,18 +312,23 @@ namespace avpn {
 		// 初始化tcp连接接收器, 即ws服务器的acceptor.
 		bool init_tcp_acceptors();
 
-		// listen client连接, 一旦有客户端连接成功, 将启动start_ws_connection
+		// listen client连接, 一旦有客户端连接成功, 将启动start_tcp_connection
 		// 处理这个客户端连接.
-		boost::asio::awaitable<void> start_ws_listen(tcp::acceptor& a);
-		boost::asio::awaitable<void> start_ws_connection(
-			size_t connection_id, boost::beast::tcp_stream stream);
+		boost::asio::awaitable<void> start_tcp_listen(tcp::acceptor& a);
+		boost::asio::awaitable<void> start_tcp_connection(
+			size_t connection_id, tcp::socket stream);
+
+		// 开始发起tcp连接.
+		boost::asio::awaitable<void> start_tcp_connect();
 
 		// 用于超时相关处理.
-		void keepalive(vpn_connection_weak_ptr ptr);
-		void ws_expires_after(vpn_connection& connection, int seconds);
+		void keepalive();
+		void server_checktimeout();
+		void tcp_expires_after(vpn_connection& connection, int seconds);
 
 		// 启动TCP读取协程, 将读取到的数据包交由process_tcp_packet处理.
-		boost::asio::awaitable<void> start_tcp_read(vpn_connection_ptr connection_ptr);
+		boost::asio::awaitable<void> start_tcp_read_loop(vpn_connection_ptr connection_ptr);
+		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
 
 		// 协议处理函数, tcp和udp处理函数.
 		boost::asio::awaitable<void> process_tcp_packet(uint32_t type,
@@ -414,9 +353,6 @@ namespace avpn {
 		boost::asio::awaitable<void> start_udp_server();
 		boost::asio::awaitable<void> start_udp_client();
 
-		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
-		boost::asio::awaitable<void> start_tcp_connect();
-
 		// 管理vpn_connection_ptr相关操作.
 		void add_connection(vpn_connection_ptr& connection_ptr, uint32_t vaddr);
 		void remove_connection(uint32_t vaddr);
@@ -432,10 +368,17 @@ namespace avpn {
 
 		// IP分配器, 用于server给连接上来的client分配虚拟IP.
 		std::tuple<std::string, uint32_t> ip_assigner();
+		// 压缩相关协议.
+		int vpt_compress(int type, std::string& content);
 
 		// 协议相关处理子函数.
-		boost::asio::awaitable<void> do_vpt_auth(
+		boost::asio::awaitable<void> do_server_vpt_auth(
 			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
+		boost::asio::awaitable<void> do_client_vpt_auth(
+			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
+
+		boost::asio::awaitable<vpn_connection_ptr> do_udp_keepalive(
+			stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint& endp);
 
 		boost::asio::awaitable<bool> do_vpt_compress(
 			stream_endian::bitstream& reader, std::string& bufs);
@@ -495,7 +438,11 @@ namespace avpn {
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
 		// 运行的身份.
-		int m_identity{ -1 };
+		Identity m_identity{ Identity::avpn_server };
+
+		// 用于rs编码的矩阵.
+		fec::matrix m_enc_matrix;
+		fec::matrix m_dec_matrix;
 
 		// mutex for m_remotes.
 		std::shared_mutex m_remotes_mtx;

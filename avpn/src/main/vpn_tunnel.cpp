@@ -10,11 +10,154 @@
 
 namespace avpn
 {
+	//////////////////////////////////////////////////////////////////////////
+
+	const static std::string test_google_key = "VLTATWJGVH5W7V7DX6V436FG74";
+	const static int normal_mtu = 1500;
+	const static int static_mtu = 1400;
+	const static uint16_t avpn_protocol_version = 1;
+	const static int max_client_udp_socket = 4;
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	vpn_message::vpn_message(vpn_message&& msg) noexcept
+		: type(msg.type)
+		, content_(std::move(msg.content_))
+	{}
+
+	vpn_message& vpn_message::operator=(vpn_message&& msg) noexcept
+	{
+		type = msg.type;
+		content_ = std::move(msg.content_);
+
+		return *this;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	vpn_remote_endpoint::vpn_remote_endpoint(
+		size_t size /*= 0*/, Identity identity /*= Identity::avpn_client*/)
+		: endpoints_(size)
+		, identity_(identity)
+	{}
+
+	void vpn_remote_endpoint::reset(size_t size /*= 0*/, Identity identity /*= Identity::avpn_client*/)
+	{
+		endpoints_.resize(size);
+		identity_ = identity;
+	}
+
+	udp::endpoint vpn_remote_endpoint::acquire() const noexcept
+	{
+		std::shared_lock lock(mutex_);
+
+		if (identity_ == Identity::avpn_client)
+			return client_endpoint();
+
+		return server_endpoint();
+	}
+
+	std::tuple<int, udp::endpoint> vpn_remote_endpoint::next_endpoint() const noexcept
+	{
+		auto index = next_endpoint_;
+		const auto& endp = endpoints_[next_endpoint_];
+
+		next_endpoint_ = (next_endpoint_ + 1) % endpoints_.size();
+
+		return { index, endp };
+	}
+
+	void vpn_remote_endpoint::update(const udp::endpoint& endp) noexcept
+	{
+		std::lock_guard lock(mutex_);
+		endpoints_.push_back(endp);
+	}
+
+	void vpn_remote_endpoint::update(const udp::endpoint& endp, int index) noexcept
+	{
+		std::lock_guard lock(mutex_);
+		endpoints_[index] = endp;
+	}
+
+	size_t vpn_remote_endpoint::size() const noexcept
+	{
+		std::shared_lock lock(mutex_);
+		return endpoints_.size();
+	}
+
+	void vpn_remote_endpoint::clear() noexcept
+	{
+		std::lock_guard lock(mutex_);
+		endpoints_.clear();
+	}
+
+	void vpn_remote_endpoint::resize(size_t size)
+	{
+		std::lock_guard lock(mutex_);
+		endpoints_.resize(size);
+	}
+
+	const udp::endpoint& vpn_remote_endpoint::client_endpoint() const noexcept
+	{
+		const auto& endp = endpoints_[next_endpoint_];
+		next_endpoint_ = (next_endpoint_ + 1) % endpoints_.size();
+		return endp;
+	}
+
+	const udp::endpoint& vpn_remote_endpoint::server_endpoint() const noexcept
+	{
+		return endpoints_.back();
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	vpn_connection::vpn_connection(boost::asio::any_io_executor executor,
+		const std::string& host, fec::matrix* enc_matrix, fec::matrix* dec_matrix)
+		: dec_matrix_(dec_matrix)
+		, keepalive_(time_clock::steady_clock::now())
+		, enc_matrix_(enc_matrix)
+		, remote_host_(host)
+		, tcp_stream_(executor)
+		, reconnect_timer_(executor)
+	{}
+
+	vpn_connection::~vpn_connection()
+	{
+		if (remote_host_.empty())
+			LOG_DBG << "vpn connection leave";
+		else
+			LOG_DBG << "vpn connection leave, remote: " << remote_host_;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	bool operator<(const vpn_connection_ptr& lh, const vpn_connection_ptr& rh)
+	{
+		if (lh < rh)
+			return true;
+		return false;
+	}
+
+	bool operator<(const vpn_connection_weak_ptr& lh, const vpn_connection_weak_ptr& rh)
+	{
+		auto lhp = lh.lock();
+		auto rhp = rh.lock();
+
+		if (lhp < rhp)
+			return true;
+		return false;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
 	vpn_tunnel::vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios, const channel_params& params, avpn_service& service)
 		: m_vpn_service(service)
 		, m_main_ioc(io)
 		, m_ioc_pool(ios)
 		, m_params(params)
+		, m_enc_matrix(fec::reedsolomon::build_matrix((size_t)(
+			params.data_shards_ + params.parity_shards_), params.data_shards_))
 		, m_subnet(boost::asio::ip::make_network_v4(params.subnet_))
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
@@ -29,13 +172,13 @@ namespace avpn
 		LOG_DBG << "channel::~channel()";
 	}
 
-	void vpn_tunnel::start_listen(std::vector<std::string> tcp_listens, std::vector<std::string> udp_listens)
+	void vpn_tunnel::start_server_listen(std::vector<std::string> tcp_listens, std::vector<std::string> udp_listens)
 	{
 		m_tcp_listens = tcp_listens;
 		m_udp_listens = udp_listens;
 
 		// 服务器身份.
-		m_identity = avpn::avpn_server;
+		m_identity = Identity::avpn_server;
 
 		// 开始启动tcp客户端, 即ws服务器.
 		LOG_DBG << "Start tcp accept socket...";
@@ -49,8 +192,10 @@ namespace avpn
 				for (int i = 0; i < pool_size; i++)
 				{
 					for (auto& a : m_ws_acceptors)
-						boost::asio::co_spawn(m_ioc_pool.get_io_context().get_executor(),
-							start_ws_listen(a), boost::asio::detached);
+					{
+						boost::asio::co_spawn(a.get_executor(),
+							start_tcp_listen(a), boost::asio::detached);
+					}
 				}
 				co_return;
 			}, boost::asio::detached);
@@ -78,16 +223,19 @@ namespace avpn
 				}, boost::asio::detached);
 		}
 
+		// 发起保活协程.
+		keepalive();
+
 		channel_status cs;
 		cs.status_ = connection_status::st_listen;
 
 		m_vpn_service.on_status(cs);
 	}
 
-	void vpn_tunnel::start_connect(const std::vector<std::string>& upstreams)
+	void vpn_tunnel::start_client_connect(const std::vector<std::string>& upstreams)
 	{
 		m_upstreams = upstreams;
-		m_identity = avpn::avpn_client;
+		m_identity = Identity::avpn_client;
 
 		if (m_params.data_shards_ > 1)
 		{
@@ -110,6 +258,9 @@ namespace avpn
 				LOG_DBG << "Tcp socket quit...";
 				co_return;
 			}, boost::asio::detached);
+
+		// 发起保活协程.
+		keepalive();
 	}
 
 	void vpn_tunnel::close()
@@ -119,13 +270,13 @@ namespace avpn
 		boost::system::error_code ignore_ec;
 		m_fec_timer.cancel(ignore_ec);
 
-		if (m_identity == avpn::avpn_server)
+		if (m_identity == Identity::avpn_server)
 		{
 			for (auto& a : m_ws_acceptors)
 				a.close(ignore_ec);
 
 			{
-				std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
+				std::shared_lock lock(m_remotes_mtx);
 				for ([[maybe_unused]] auto& [id, connection_ptr] : m_remotes)
 				{
 					auto connection = connection_ptr.lock();
@@ -133,14 +284,14 @@ namespace avpn
 						continue;
 
 					connection->reconnect_timer_.cancel(ignore_ec);
-					boost::beast::get_lowest_layer(connection->ws_stream_).close();
+					connection->tcp_stream_.close(ignore_ec);
 
-					LOG_DBG << "Close ws stream: " << connection->connection_id_;
+					LOG_DBG << "Close tcp stream: " << connection->connection_id_;
 				}
 			}
 
 			{
-				std::shared_lock<std::shared_mutex> lock(m_incomings_mtx);
+				std::shared_lock lock(m_incomings_mtx);
 				for ([[maybe_unused]] auto& [id, connection_ptr] : m_incomings)
 				{
 					auto connection = connection_ptr.lock();
@@ -148,14 +299,14 @@ namespace avpn
 						continue;
 
 					connection->reconnect_timer_.cancel(ignore_ec);
-					boost::beast::get_lowest_layer(connection->ws_stream_).close();
+					connection->reconnect_timer_.cancel(ignore_ec);
 
-					LOG_DBG << "Close incoming ws stream: " << id;
+					LOG_DBG << "Close incoming tcp stream: " << id;
 				}
 			}
 		}
 
-		if (m_identity == avpn::avpn_client)
+		if (m_identity == Identity::avpn_client)
 		{
 			m_cancel_sig.emit(boost::asio::cancellation_type::all);
 
@@ -163,10 +314,9 @@ namespace avpn
 			if (connection_ptr)
 			{
 				connection_ptr->reconnect_timer_.cancel(ignore_ec);
-				auto& layer = boost::beast::get_lowest_layer(connection_ptr->ws_stream_);
-				layer.socket().close(ignore_ec);
+				connection_ptr->tcp_stream_.close(ignore_ec);
 
-				LOG_DBG << "Close ws client stream";
+				LOG_DBG << "Close tcp client stream";
 			}
 		}
 
@@ -190,7 +340,7 @@ namespace avpn
 		if (endp.type_ == avpn::ip_icmp)
 			LOG_DBG << "server_forward_tun, t -> c, icmp: " << endp;
 
-		auto& stream = connection_ptr->ws_stream_;
+		auto& stream = connection_ptr->tcp_stream_;
 		boost::asio::co_spawn(stream.get_executor(),
 			forward_channel_write(connection_ptr, std::move(msg)), boost::asio::detached);
 	}
@@ -207,8 +357,7 @@ namespace avpn
 		if (endp.type_ == avpn::ip_icmp)
 			LOG_DBG << "client_forward_tun, t -> s, icmp: " << endp;
 
-		auto& stream = connection_ptr->ws_stream_;
-
+		auto& stream = connection_ptr->tcp_stream_;
 		boost::asio::co_spawn(stream.get_executor(),
 			forward_channel_write(connection_ptr, std::move(msg)), boost::asio::detached);
 	}
@@ -238,23 +387,23 @@ namespace avpn
 			[[maybe_unused]] bool ipv6only = make_listen_endpoint(wsd, endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "WS server listen error: " << wsd << ", ec: " << ec.message();
+				LOG_ERR << "TCP server listen error: " << wsd << ", ec: " << ec.message();
 				return false;
 			}
 
-			tcp::acceptor a{ m_main_ioc };
+			tcp::acceptor a{ m_ioc_pool.get_io_context() };
 
 			a.open(endp.protocol(), ec);
 			if (ec)
 			{
-				LOG_ERR << "WS server open accept error: " << ec.message();
+				LOG_ERR << "TCP server open accept error: " << ec.message();
 				return false;
 			}
 
 			a.set_option(boost::asio::socket_base::reuse_address(true), ec);
 			if (ec)
 			{
-				LOG_ERR << "WS server accept set option failed: " << ec.message();
+				LOG_ERR << "TCP server accept set option failed: " << ec.message();
 				return false;
 			}
 
@@ -263,7 +412,7 @@ namespace avpn
 				a.set_option(boost::asio::ip::v6_only(true), ec);
 				if (ec)
 				{
-					LOG_ERR << "WS server accept set v6_only failed: " << ec.message();
+					LOG_ERR << "TCP server accept set v6_only failed: " << ec.message();
 					return false;
 				}
 			}
@@ -271,7 +420,7 @@ namespace avpn
 			a.bind(endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "WS server bind failed: "
+				LOG_ERR << "TCP server bind failed: "
 					<< ec.message() << ", address: " << endp.address().to_string() << ", port: " << endp.port();
 				return false;
 			}
@@ -279,7 +428,7 @@ namespace avpn
 			a.listen(boost::asio::socket_base::max_listen_connections, ec);
 			if (ec)
 			{
-				LOG_ERR << "WS server listen failed: " << ec.message();
+				LOG_ERR << "TCP server listen failed: " << ec.message();
 				return false;
 			}
 
@@ -289,16 +438,16 @@ namespace avpn
 		return true;
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_ws_listen(tcp::acceptor& a)
+	boost::asio::awaitable<void> vpn_tunnel::start_tcp_listen(tcp::acceptor& a)
 	{
 		boost::system::error_code error;
 		while (!m_abort)
 		{
-			tcp::socket socket(m_main_ioc);
+			tcp::socket socket(m_ioc_pool.get_io_context());
 			co_await a.async_accept(socket, uawaitable[error]);
 			if (error)
 			{
-				LOG_ERR << "WS server, async_accept: " << error.message();
+				LOG_ERR << "TCP server, async_accept: " << error.message();
 
 				if (error == boost::asio::error::operation_aborted ||
 					error == boost::asio::error::bad_descriptor)
@@ -322,64 +471,27 @@ namespace avpn
 				socket.set_option(option);
 			}
 
-			boost::beast::tcp_stream stream(std::move(socket));
-
 			static std::atomic_size_t id{ 0 };
 			size_t connection_id = id++;
 
-			LOG_DBG << "start_ws_listen, incoming id: " << connection_id;
+			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
 
-			auto executor = stream.get_executor();
+			auto executor = socket.get_executor();
 			boost::asio::co_spawn(executor,
-				start_ws_connection(connection_id, std::move(stream)), boost::asio::detached);
+				start_tcp_connection(connection_id, std::move(socket)), boost::asio::detached);
 		}
 
-		LOG_DBG << "start_ws_listen exit...";
+		LOG_DBG << "start_tcp_listen exit...";
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_ws_connection(size_t connection_id, boost::beast::tcp_stream stream)
+	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connection(size_t connection_id, tcp::socket stream)
 	{
-		using namespace boost::beast;
 		boost::system::error_code ec;
-		boost::beast::flat_buffer buffer;
 
 		for (; !m_abort;)
 		{
-			request_parser parser;
-			parser.body_limit(std::numeric_limits<uint64_t>::max());
-
-			co_await http::async_read_header(stream, buffer, parser, uawaitable[ec]);
-			if (ec)
-			{
-				LOG_DBG << "start_ws_connect, id: " << connection_id << ", async_read_header: " << ec.message();
-				co_return;
-			}
-
-			if (parser.get()[http::field::expect] == "100-continue")
-			{
-				http::response<http::empty_body> res;
-				res.version(11);
-				res.result(http::status::continue_);
-				co_await http::async_write(stream, res, uawaitable[ec]);
-				if (ec)
-				{
-					LOG_DBG << "start_ws_connect, id: " << connection_id
-						<< ", expect async_write: " << ec.message();
-					co_return;
-				}
-			}
-
-			auto req = parser.release();
-
-			std::string target = req.target().to_string();
-			if (!boost::beast::websocket::is_upgrade(req))
-			{
-				http_params params{ {}, connection_id, stream, req, parser, buffer };
-				co_return co_await http_response_handle(params, "Illegal request", http_status::bad_request);
-			}
-
 			std::string remote_host;
-			auto endp = stream.socket().remote_endpoint(ec);
+			auto endp = stream.remote_endpoint(ec);
 			if (!ec)
 			{
 				if (endp.address().is_v6())
@@ -394,167 +506,259 @@ namespace avpn
 				}
 			}
 
-			stream.expires_never();
-
-			ws_stream ws{ std::move(stream) };
-			co_await ws.async_accept(req, uawaitable[ec]);
-			if (ec)
-			{
-				LOG_DBG << "start_ws_connect, " << connection_id << ", async_accept: " << ec.message();
-				break;
-			}
-
-			int data_shards = 0;
-			int parity_shards = 0;
-
-			if (m_params.data_shards_ > 1)
-			{
-				data_shards = m_params.data_shards_;
-				parity_shards = m_params.parity_shards_;
-			}
-
 			// 创建connection, 只有在握手完成才加入m_remotes容器进行管理.
+			auto executor = stream.get_executor();
 			vpn_connection_ptr connection_ptr =
-				std::make_shared<vpn_connection>(
-					std::forward<ws_stream>(ws), remote_host, data_shards, parity_shards);
+				std::make_shared<vpn_connection>(executor, remote_host, &m_enc_matrix, &m_dec_matrix);
 
-			// 设置超时时间.
-			ws_expires_after(*connection_ptr, 60);
+			// 将已经连接的socket, move到connection中.
+			connection_ptr->tcp_stream_ = std::move(stream);
 
 			// 保存connection_id.
 			connection_ptr->connection_id_ = connection_id;
 
 			// 保存到临时表.
 			add_incoming(connection_ptr, connection_id);
-			// 发起保活协程.
-			keepalive(connection_ptr);
 
 			LOG_DBG << "Client incoming: " << remote_host << ", connection id: " << connection_id;
 
-			// 设置为2进制模式.
-			connection_ptr->ws_stream_.binary(true);
-
-			// 收到pong消息, 重置超时.
-			vpn_connection_weak_ptr vpnconn_weak_ptr = connection_ptr;
-			connection_ptr->ws_stream_.control_callback(
-				[this, wsconn_weak_ptr = std::move(vpnconn_weak_ptr)]
-			(boost::beast::websocket::frame_type ft, boost::beast::string_view)
-			{
-				if (ft == boost::beast::websocket::frame_type::pong)
-				{
-					auto ws_conn_ptr = wsconn_weak_ptr.lock();
-					if (!ws_conn_ptr || m_abort)
-						return;
-
-					ws_expires_after(*ws_conn_ptr, 60);
-				}
-			});
-
 			// 启动读写协程.
-			auto executor = connection_ptr->ws_stream_.get_executor();
 			boost::asio::co_spawn(executor,
-				start_tcp_read(connection_ptr), [this, connection_ptr](std::exception_ptr) mutable
+				start_tcp_read_loop(connection_ptr), [this, connection_ptr](std::exception_ptr) mutable
 				{
-					auto& conn = *connection_ptr;
+					auto& connection = *connection_ptr;
+					boost::system::error_code ec;
 
-					boost::beast::get_lowest_layer(conn.ws_stream_).close();
-					if (conn.vnet_ != 0)
-						remove_connection(conn.vnet_);
+					connection.tcp_stream_.close(ec);
+					if (connection.vnet_ != 0)
+						remove_connection(connection.vnet_);
 					else
-						remove_incoming(conn.connection_id_);
+						remove_incoming(connection.connection_id_);
 				});
 
 			co_return;
 		}
 	}
 
-	void vpn_tunnel::keepalive(vpn_connection_weak_ptr ptr)
+	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
 	{
-		auto connection_ptr = ptr.lock();
-		if (!connection_ptr)
-			return;
+		boost::system::error_code ec;
+		static const auto never =
+			std::chrono::hours(std::numeric_limits<int>::max());
+		static std::atomic_int64_t id{ 0 };
 
-		boost::asio::co_spawn(connection_ptr->ws_stream_.get_executor(),
-			[this, ptr = std::move(ptr)]() mutable->boost::asio::awaitable<void>
+		while (!m_abort)
 		{
-			auto remote_endpoint = &m_remote_endps;
-			int64_t connection_id = -1;
-			uint32_t vaddr = 0;
+			std::shared_ptr<vpn_connection> connection_ptr =
+				std::make_shared<vpn_connection>(
+					m_main_ioc.get_executor(), "", &m_enc_matrix, &m_dec_matrix);
+			connection_ptr->connection_id_ = id++;
+			m_client = connection_ptr;
+
+			auto& connection = *connection_ptr;
+			auto& stream = connection_ptr->tcp_stream_;
+			bool ok = false;
+
+			for (auto it = m_upstreams.begin();
+				it != m_upstreams.end() && !m_abort && !ok; it++)
+			{
+				auto upstream = *it;
+				util::uri parser;
+
+				if (!parser.parse(upstream))
+					continue;
+
+				if (boost::to_lower_copy(std::string(parser.scheme())) == "udp")
+					continue;
+
+				tcp::resolver resolver{ m_main_ioc };
+				auto const results = co_await resolver.async_resolve(
+					std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_ERR << "start_tcp_connect, async_resolve: " << ec.message();
+					continue;
+				}
+
+				co_await asio_util::async_connect(stream, results,
+					boost::asio::redirect_error(boost::asio::bind_cancellation_slot(m_cancel_sig.slot(),
+						boost::asio::use_awaitable), ec));
+				if (ec)
+				{
+					LOG_ERR << "start_tcp_connect, async_connect: " << ec.message();
+					continue;
+				}
+
+				boost::asio::ip::tcp::no_delay option(true);
+				stream.set_option(option);
+
+				ok = true;
+			}
+
+			if (!ok)
+			{
+				connection_ptr.reset();
+
+				if (!m_abort)
+				{
+					LOG_DBG << "connect fail, wait a moment to reconnect...";
+
+					m_wait_timer.expires_from_now(std::chrono::seconds(5));
+					co_await m_wait_timer.async_wait(uawaitable[ec]);
+				}
+
+				continue;
+			}
+
+			std::string remote_host;
+			auto endp = stream.remote_endpoint(ec);
+			if (!ec)
+			{
+				if (endp.address().is_v6())
+				{
+					remote_host = "[" + endp.address().to_string()
+						+ "]:" + std::to_string(endp.port());
+				}
+				else
+				{
+					remote_host = endp.address().to_string()
+						+ ":" + std::to_string(endp.port());
+				}
+			}
+
+			connection.remote_host_ = remote_host;
+			LOG_DBG << "start_tcp_connect, connected to: " << remote_host;
+
+			// 发起认证请求.
+
+			// 协议格式:
+			// type(number)
+			// auth_code(number)
+			// tail(skip)
+
+			std::string msg(normal_mtu, 0);
+			stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
+
+			writer.WriteExponentialGolomb(vpt_auth);
+			writer.WriteExponentialGolomb((int32_t)google_auth_code(test_google_key));
+			writer.WriteTail();
+
+			msg.resize(writer.ByteOffset());
+
+			co_await forward_tcp_write(connection_ptr, std::move(msg));
+
+			// 发起读写协程.
+			co_await start_tcp_read_loop(connection_ptr);
+
+			if (!m_abort)
+			{
+				LOG_DBG << "read error, wait a moment to reconnect...";
+				// 通知连接断开...
+				channel_status cs;
+
+				cs.status_ = connection_status::st_disconnect;
+				m_vpn_service.on_status(cs);
+
+				auto& wait = connection.reconnect_timer_;
+
+				wait.expires_from_now(std::chrono::seconds(5));
+				co_await wait.async_wait(uawaitable[ec]);
+			}
+		}
+
+		co_return;
+	}
+
+	void vpn_tunnel::keepalive()
+	{
+		if (m_identity == Identity::avpn_server)
+		{
+			static std::thread keepalive_thread([this]() mutable
+			{
+				server_checktimeout();
+			});
+			if (keepalive_thread.joinable())
+				keepalive_thread.detach();
+			return;
+		}
+
+		boost::asio::co_spawn(m_main_ioc.get_executor(),
+			[this]() mutable->boost::asio::awaitable<void>
+		{
 			boost::system::error_code ec;
+
+			auto wait_moment = [&]() mutable -> boost::asio::awaitable<void>
+			{
+				m_wait_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
+				co_await m_wait_timer.async_wait(uawaitable[ec]);
+				co_await boost::asio::this_coro::executor;
+			};
+
+			uint32_t vaddr = 0;
 
 			std::random_device rd;
 			std::mt19937 g(rd());
 
 			while (!m_abort)
 			{
+				// 判断client是否打开.
+				auto connection_ptr = m_client.lock();
+				if (!connection_ptr)
 				{
-					auto connection_ptr = ptr.lock();
-					if (!connection_ptr)
-						co_return;
-
-					// 如果身份是server, 则使用vpn connection中的endpoint.
-					if (m_identity == avpn::avpn_server)
-						remote_endpoint = &connection_ptr->endps_;
-
-					connection_id = connection_ptr->connection_id_;
-					vaddr = connection_ptr->vnet_;
-
-					if (vaddr == 0)
-					{
-						m_wait_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
-						co_await m_wait_timer.async_wait(uawaitable[ec]);
-						continue;
-					}
-
-					// LOG_DBG << "Keepalive for connection id: " << ws_conn_ptr->connection_id_;
-					co_await connection_ptr->ws_stream_.async_ping("", uawaitable[ec]);
+					co_await wait_moment();
+					continue;
 				}
 
+				vaddr = connection_ptr->vnet_;
+
+				if (vaddr == 0 || !connection_ptr->tcp_stream_.is_open())
+				{
+					connection_ptr.reset();
+
+					co_await wait_moment();
+					continue;
+				}
+
+				// 随机打乱这些udp socket以排序.
 				std::vector<udp_socket*> udps;
+				for (auto& u : m_udp_sockets)
+					udps.push_back(u.get());
 
-				if (vaddr != 0)
+				std::shuffle(udps.begin(), udps.end(), g);
+
+				// 如果client其中某个udp socket长时间没响应, 则关闭后重新创建.
+				auto now = time_clock::steady_clock::now();
+				for (auto& usock_ptr : udps)
 				{
-					for (auto& u : m_udp_sockets)
-						udps.push_back(u.get());
+					if (m_abort)
+						break;
 
-					std::shuffle(udps.begin(), udps.end(), g);
-				}
+					auto& u = *usock_ptr;
+					auto& usock = u.sock_;
 
-				if (m_identity == avpn::avpn_client && vaddr != 0)
-				{
-					auto now = time_clock::steady_clock::now();
-					for (auto& usock_ptr : udps)
+					if (now - usock_ptr->last_see_ < std::chrono::seconds(60))
+						continue;
+
+					auto local_endp = usock.local_endpoint();
+					auto protocol = local_endp.protocol();
+
+					usock.close(ec);
+
+					udp::socket new_usock(m_main_ioc, udp::endpoint(protocol, 0));
+
+					auto new_endp = new_usock.local_endpoint(ec);
+					if (ec)
 					{
-						if (m_abort)
-							break;
-
-						auto& u = *usock_ptr;
-						auto& usock = u.sock_;
-
-						if (now - usock_ptr->last_see_ > std::chrono::seconds(60))
-						{
-							auto local_endp = usock.local_endpoint();
-							auto protocol = local_endp.protocol();
-
-							usock.close(ec);
-
-							udp::socket new_usock(m_main_ioc, udp::endpoint(protocol, 0));
-
-							auto new_endp = new_usock.local_endpoint(ec);
-							if (ec)
-							{
-								LOG_WARN << "Reset udp socket: "
-									<< local_endp << " -> " << new_endp << ", ec: " << ec.message();
-							}
-							else
-							{
-								LOG_WARN << "Reset udp socket: " << local_endp << " -> " << new_endp;
-							}
-
-							u.sock_ = std::move(new_usock);
-							u.last_see_ = now;
-						}
+						LOG_WARN << "Reset udp socket: "
+							<< local_endp << " -> " << new_endp << ", ec: " << ec.message();
 					}
+					else
+					{
+						LOG_WARN << "Reset udp socket: " << local_endp << " -> " << new_endp;
+					}
+
+					u.sock_ = std::move(new_usock);
+					u.last_see_ = now;
 				}
 
 				for (auto& usock_ptr : udps)
@@ -575,72 +779,163 @@ namespace avpn
 
 					msg.resize(writer.ByteOffset());
 
-					auto endp = remote_endpoint->acquire();
+					auto endp = m_remote_endps.acquire();
 					co_await forward_udp_write(usock, endp, std::move(msg));
 				}
 
+				std::string msg(normal_mtu, 0);
+				stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
+
+				writer.WriteExponentialGolomb(vpt_keepalive);
+				writer.WriteTail();
+
+				msg.resize(writer.ByteOffset());
+
+				co_await forward_tcp_write(connection_ptr, std::move(msg));
+
 				// 定时处理.
-				m_wait_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
-				co_await m_wait_timer.async_wait(uawaitable[ec]);
+				co_await wait_moment();
 			}
 
-			LOG_DBG << "channel::keepalive, connection: " << connection_id << " quit...";
+			LOG_DBG << "channel::keepalive, client quit...";
 		}, boost::asio::detached);
 	}
 
-	void vpn_tunnel::ws_expires_after(vpn_connection& connection, int seconds)
+	void vpn_tunnel::server_checktimeout()
 	{
-		// 设置超时.
-		auto& stream = connection.ws_stream_;
-		boost::beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(seconds));
+		boost::asio::io_context ioc(1);
+		boost::asio::co_spawn(ioc.get_executor(),
+		[this]() mutable -> boost::asio::awaitable<void>
+		{
+			boost::system::error_code ec;
+
+			auto check_remotes = [&, this]() mutable
+			{
+				auto now = time_clock::steady_clock::now();
+				std::shared_lock lock(m_remotes_mtx);
+
+				for ([[maybe_unused]] auto [id, c] : m_remotes)
+				{
+					auto connection_ptr = c.lock();
+					if (!connection_ptr)
+						continue;
+
+					auto& connection = *connection_ptr;
+					if (now - connection.keepalive_ > std::chrono::seconds(60))
+					{
+						LOG_WARN << "vpn remote client, id: " << id
+							<< ", remote: " << connection.remote_host_
+							<< " is timeout!";
+						connection.tcp_stream_.close(ec);
+					}
+				}
+			};
+
+			auto check_incomings = [&, this]() mutable
+			{
+				auto now = time_clock::steady_clock::now();
+				std::shared_lock lock(m_incomings_mtx);
+
+				for ([[maybe_unused]] auto [id, c] : m_incomings)
+				{
+					auto connection_ptr = c.lock();
+					if (!connection_ptr)
+						continue;
+
+					auto& connection = *connection_ptr;
+					if (now - connection.keepalive_ > std::chrono::seconds(60))
+					{
+						LOG_WARN << "vpn incoming client, id: " << id
+							<< ", remote: " << connection.remote_host_
+							<< " is timeout!";
+						connection.tcp_stream_.close(ec);
+					}
+				}
+			};
+
+			while (!m_abort)
+			{
+				m_wait_timer.expires_from_now(std::chrono::seconds(60));
+				co_await m_wait_timer.async_wait(uawaitable[ec]);
+
+				check_remotes();
+				check_incomings();
+			}
+
+			LOG_DBG << "channel::keepalive, server quit...";
+			co_return;
+		}, boost::asio::detached);
+		ioc.run();
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_tcp_read(vpn_connection_ptr connection_ptr)
+	void vpn_tunnel::tcp_expires_after(
+		[[maybe_unused]] vpn_connection& connection, [[maybe_unused]] int seconds)
+	{
+		connection.keepalive_ = time_clock::steady_clock::now();
+	}
+
+	boost::asio::awaitable<void> vpn_tunnel::start_tcp_read_loop(vpn_connection_ptr connection_ptr)
 	{
 		auto& connection = *connection_ptr;
 		auto connection_id = connection.connection_id_;
-		auto& stream = connection.ws_stream_;
+		auto& stream = connection.tcp_stream_;
 
 		boost::beast::error_code ec;
-		std::vector<char> data;
-		boost::asio::dynamic_vector_buffer buffer(data);
+		boost::asio::streambuf buffer;
+		uint32_t start_len_tag = 0;
+
+		LOG_DBG << "start_tcp_read_loop, connection id: " << connection_id << ", start...";
 
 		while (!m_abort)
 		{
-			auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
-			if (ec == websocket::error::closed)
-			{
-				LOG_DBG << "start_tcp_read, id: "
-					<< connection_id << ", session was closed";
-				break;
-			}
-
+			// 先读取4个字节的头.
+			co_await boost::asio::async_read(
+				stream, buffer, boost::asio::transfer_exactly(4), uawaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "start_tcp_read, id: "
-					<< connection_id << ", async_read error: " << ec.message();
+				LOG_ERR << "start_tcp_read_loop, id: "
+					<< connection_id << ", async_read tag error: " << ec.message();
 				break;
 			}
 
-			buffer.commit(bytes);
-			ws_expires_after(connection, 60);
+			{
+				const uint8_t* bufptr = boost::asio::buffer_cast<const uint8_t*>(buffer.data());
+				start_len_tag = ntohl(*((uint32_t*)bufptr));
+				if (start_len_tag > normal_mtu)
+				{
+					LOG_ERR << "start_tcp_read_loop, id: "
+						<< connection_id << ", verify message size fail.";
+					break;
+				}
+				buffer.consume(4);
+			}
+
+			// 读取body本身.
+			co_await boost::asio::async_read(
+				stream, buffer, boost::asio::transfer_exactly(start_len_tag), uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "start_tcp_read_loop, id: "
+					<< connection_id << ", async_read body error: " << ec.message();
+				break;
+			}
 
 			const uint8_t* bufptr = boost::asio::buffer_cast<const uint8_t*>(buffer.data());
-
-			stream_endian::bitstream reader(bufptr, bytes);
+			stream_endian::bitstream reader(bufptr, start_len_tag);
 			uint32_t type = 0;
+
 			if (!reader.ReadExponentialGolomb(&type))
 			{
-				LOG_ERR << "start_tcp_read, id: "
-					<< connection_id << ", verify message size fail.";
+				LOG_ERR << "start_tcp_read_loop, id: "
+					<< connection_id << ", verify message type fail.";
 				co_return;
 			}
 
 			co_await process_tcp_packet(type, reader, connection_ptr);
-			buffer.consume(bytes);
+			buffer.consume(start_len_tag);
 		}
 
-		LOG_WARN << "start_tcp_read, id: " << connection_id << " quit...";
+		LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " quit...";
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::process_tcp_packet(uint32_t type,
@@ -652,24 +947,30 @@ namespace avpn
 		switch (type)
 		{
 		case vpt_auth:
-			co_await do_vpt_auth(reader, connection_ptr);
+			if (m_identity == Identity::avpn_server)
+				co_await do_server_vpt_auth(reader, connection_ptr);
+			else
+				co_await do_client_vpt_auth(reader, connection_ptr);
 			co_return;
+		case vpt_keepalive:
+			// 更新tcp的keepalive时间.
+			tcp_expires_after(connection, 0);
 			break;
 		case vpt_udp_handshake:
 			break;
 		case vpt_compress_tcp:
 			[[fallthrough]];
 		case vpt_compress_udp:
-			{
-				bool ret = co_await do_vpt_compress(reader, bufs);
-				if (!ret)
-					co_return;
-				if (type == vpt_compress_udp)
-					type = vpt_udp;
-				if (type == vpt_compress_tcp)
-					type = vpt_tcp;
-			}
-			[[fallthrough]];
+		{
+			bool ret = co_await do_vpt_compress(reader, bufs);
+			if (!ret)
+				co_return;
+			if (type == vpt_compress_udp)
+				type = vpt_udp;
+			if (type == vpt_compress_tcp)
+				type = vpt_tcp;
+		}
+		[[fallthrough]];
 		case vpt_icmp:
 			[[fallthrough]];
 		case vpt_udp:
@@ -700,38 +1001,7 @@ namespace avpn
 		case vpt_auth:
 			break;
 		case vpt_keepalive:
-			{
-				uint32_t vaddr = 0;
-				if (!reader.ReadExponentialGolomb(&vaddr))
-				{
-					LOG_ERR << "Receive vpt_keepalive read vaddr error!";
-					co_return;
-				}
-
-				if (m_identity == avpn::avpn_server)
-				{
-					connection_ptr = lookup_connection(vaddr);
-					if (!connection_ptr)
-					{
-						LOG_ERR << "Server vpt_keepalive lookup connection error!";
-						co_return;
-					}
-
-					auto& connection = *connection_ptr;
-					connection.endps_.update(endp);
-
-					// 响应client的keepalive请求.
-					std::string reply(normal_mtu, '\0');
-					stream_endian::bitstream writer((uint8_t*)reply.data(), normal_mtu);
-					writer.WriteExponentialGolomb(vpt_keepalive_reply);
-					writer.WriteExponentialGolomb(200);
-					writer.WriteTail();
-
-					reply.resize(writer.ByteOffset());
-
-					co_await forward_udp_write(sock, endp, std::move(reply));
-				}
-			}
+			connection_ptr = co_await do_udp_keepalive(reader, sock, endp);
 			break;
 		case vpt_keepalive_reply:
 			co_return;
@@ -744,16 +1014,16 @@ namespace avpn
 		case vpt_compress_tcp:
 			[[fallthrough]];
 		case vpt_compress_udp:
-			{
-				bool ret = co_await do_vpt_compress(reader, bufs);
-				if (!ret)
-					co_return;
-				if (type == vpt_compress_udp)
-					type = vpt_udp;
-				if (type == vpt_compress_tcp)
-					type = vpt_tcp;
-			}
-			[[fallthrough]];
+		{
+			bool ret = co_await do_vpt_compress(reader, bufs);
+			if (!ret)
+				co_return;
+			if (type == vpt_compress_udp)
+				type = vpt_udp;
+			if (type == vpt_compress_tcp)
+				type = vpt_tcp;
+		}
+		[[fallthrough]];
 		case vpt_icmp:
 			[[fallthrough]];
 		case vpt_udp:
@@ -779,8 +1049,8 @@ namespace avpn
 	{
 		auto& connection = *connection_ptr;
 
-		connection.deque_writing_ = !connection.ws_msg_deque_.empty();
-		auto& message_deque = connection.ws_msg_deque_;
+		connection.deque_writing_ = !connection.tcp_msg_deque_.empty();
+		auto& message_deque = connection.tcp_msg_deque_;
 		message_deque.emplace_back(std::move(msg));
 
 		if (!connection.deque_writing_)
@@ -788,14 +1058,27 @@ namespace avpn
 			boost::system::error_code ec;
 			while (!m_abort && !message_deque.empty())
 			{
-				co_await connection.ws_stream_.async_write(
-					boost::asio::buffer(message_deque.front()), uawaitable[ec]);
+				auto& message = message_deque.front();
+				uint32_t start_len_tag = htonl((uint32_t)message.size());
+
+				co_await boost::asio::async_write(connection.tcp_stream_,
+					boost::asio::buffer(&start_len_tag, 4), uawaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "forward_tcp_write, " << connection.connection_id_
-						<< " async_write error: " << ec.message();
+						<< " async_write tag error: " << ec.message();
 					co_return;
 				}
+
+				co_await boost::asio::async_write(connection.tcp_stream_,
+						boost::asio::buffer(message), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_ERR << "forward_tcp_write, " << connection.connection_id_
+						<< " async_write body error: " << ec.message();
+					co_return;
+				}
+
 				message_deque.pop_front();
 			}
 		}
@@ -815,103 +1098,61 @@ namespace avpn
 	boost::asio::awaitable<void> vpn_tunnel::forward_channel_write(vpn_connection_ptr connection_ptr, vpn_message msg)
 	{
 		auto& connection = *connection_ptr;
-		connection.deque_writing_ = !connection.ws_msg_deque_.empty();
 
 		// 如果发送模式为tcp, 或为tcp/udp混合发送模式, 并且当前发送空闲
 		// 时, 则直接调用tcp发送.
+		// 当udp不可用时, 直接使用tcp发送.
 		if (m_params.mode_ == vpn_tcp_mode::only_tcp
-			|| (m_params.mode_ == vpn_tcp_mode::tcpudp_mix
-				&& !connection.deque_writing_))
+			|| (m_params.mode_ == vpn_tcp_mode::tcpudp_mix && !connection.deque_writing_)
+			|| m_udp_sockets.size() == 0
+			|| (connection.endps_.size() == 0 && m_identity == Identity::avpn_server))
 		{
+			// 构造数据包.
+			std::string pkt(normal_mtu, 0);
+
+			{
+				stream_endian::bitstream writer((uint8_t*)pkt.data(), normal_mtu);
+
+				writer.WriteExponentialGolomb(msg.type);
+				writer.WriteTail();
+				writer.WriteString(msg.content_.data(), msg.content_.size());
+
+				pkt.resize(writer.ByteOffset());
+			}
+
 			// 如果启用了压缩, 则先压缩后再发送, 我们只压缩tcp/udp数据包.
 			if ((msg.type == vpt_tcp || msg.type == vpt_udp)
 				&& m_params.compress_)
 			{
-				std::string compress_bufs(msg.content.size() * 2, 0);
-				uLong outsize = (uLong)compress_bufs.size();
-
-				auto ok = compress((Bytef*)compress_bufs.data(), &outsize,
-					(const Bytef*)msg.content.data(), (uLong)msg.content.size());
-				if (ok == Z_OK && outsize < msg.content.size())
-				{
-					compress_bufs.resize(outsize);
-					msg.content = compress_bufs;
-
-					if (msg.type == vpt_tcp)
-						msg.type = vpt_compress_tcp;
-					else if (msg.type == vpt_udp)
-						msg.type = vpt_compress_udp;
-					else
-						BOOST_ASSERT(false && "forward_channel_write Commpress invalid msg.type");
-				}
+				vpt_compress(msg.type, pkt);
 			}
 
-			// 构造数据包.
-			std::string pkt(normal_mtu, 0);
-			stream_endian::bitstream writer((uint8_t*)pkt.data(), normal_mtu);
-
-			writer.WriteExponentialGolomb(msg.type);
-			writer.WriteTail();
-			writer.WriteString(msg.content.data(), msg.content.size());
-
-			pkt.resize(writer.ByteOffset());
-
-			// 加入发送队列, 待发送.
-			auto& message_deque = connection.ws_msg_deque_;
-			message_deque.emplace_back(std::move(pkt));
-
-			// 开始通过tcp循环发送这个pkt.
-			boost::system::error_code ec;
-			while (!m_abort && !message_deque.empty())
-			{
-				co_await connection.ws_stream_.async_write(
-					boost::asio::buffer(message_deque.front()), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_ERR << "forward_channel_write, t -> r, "
-						<< connection.connection_id_ << " async_write error: " << ec.message();
-					co_return;
-				}
-				message_deque.pop_front();
-			}
+			// 开始tcp发送.
+			co_await forward_tcp_write(connection_ptr, std::move(pkt));
 		}
 		else
 		{
 			// 1个数据包的情况下, 禁用fec并立即发包.
 			if (m_params.data_shards_ == 1)
 			{
+				std::string pkt(normal_mtu, 0);
+
+				{
+					stream_endian::bitstream writer((uint8_t*)pkt.data(), normal_mtu);
+
+					writer.WriteExponentialGolomb(msg.type);
+					writer.WriteTail();
+					writer.WriteString(msg.content_.data(), msg.content_.size());
+
+					pkt.resize(writer.ByteOffset());
+				}
+
 				// 如果启用了压缩, 则先压缩.
 				if ((msg.type == vpt_tcp || msg.type == vpt_udp)
 					&& m_params.compress_)
 				{
-					std::string compress_bufs(msg.content.size() * 2, 0);
-					uLong outsize = (uLong)compress_bufs.size();
-
-					auto ok = compress((Bytef*)compress_bufs.data(), &outsize,
-						(const Bytef*)msg.content.data(), (uLong)msg.content.size());
-					if (ok == Z_OK && outsize < msg.content.size())
-					{
-						compress_bufs.resize(outsize);
-						msg.content = compress_bufs;
-
-						if (msg.type == vpt_tcp)
-							msg.type = vpt_compress_tcp;
-						else if (msg.type == vpt_udp)
-							msg.type = vpt_compress_udp;
-						else
-							BOOST_ASSERT(false && "forward_channel_write Nonfec Commpress invalid msg.type");
-					}
+					vpt_compress(msg.type, pkt);
 				}
-
-				// 构造数据包.
-				std::string pkt(normal_mtu, 0);
-				stream_endian::bitstream writer((uint8_t*)pkt.data(), normal_mtu);
-
-				writer.WriteExponentialGolomb(msg.type);
-				writer.WriteTail();
-				writer.WriteString(msg.content.data(), msg.content.size());
-
-				pkt.resize(writer.ByteOffset());
 
 				// 多倍流量模式, 有多个冗余, 则发送多次.
 				auto usize = m_udp_sockets.size();
@@ -922,7 +1163,7 @@ namespace avpn
 				parity_shards = parity_shards > 5 ? 5 : parity_shards;
 
 				vpn_remote_endpoint* remote_endpoint = &m_remote_endps;
-				if (m_identity == avpn::avpn_server)
+				if (m_identity == Identity::avpn_server)
 					remote_endpoint = &connection.endps_;
 
 				for (auto n = 0; n < parity_shards && msg.type == vpt_tcp; n++)
@@ -950,7 +1191,7 @@ namespace avpn
 						connection.enc_tm_ = time_clock::steady_clock::now();
 
 					// 计算FEC编码数据大小.
-					auto bytes = msg.content.size();
+					auto bytes = msg.content_.size();
 					connection.fec_enc_size_ += bytes;
 
 					// 存入编码器.
@@ -966,12 +1207,14 @@ namespace avpn
 					co_return;
 				}, boost::asio::detached);
 		}
+
+		co_return;
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::start_udp_server()
 	{
 		boost::system::error_code ec;
-		BOOST_ASSERT(m_identity == avpn::avpn_server);
+		BOOST_ASSERT(m_identity == Identity::avpn_server);
 
 		for (auto& listen : m_udp_listens)
 		{
@@ -1029,7 +1272,7 @@ namespace avpn
 
 	boost::asio::awaitable<void> vpn_tunnel::start_udp_client()
 	{
-		BOOST_ASSERT(m_identity == avpn::avpn_client);
+		BOOST_ASSERT(m_identity == Identity::avpn_client);
 
 		m_remote_endps.clear();
 		std::vector<udp::endpoint> endps;
@@ -1163,7 +1406,7 @@ namespace avpn
 				continue;
 
 			// 根据客户端身份更新udp endpoint.
-			if (m_identity == avpn::avpn_client)
+			if (m_identity == Identity::avpn_client)
 				udp_sock->last_see_ = time_clock::steady_clock::now();
 
 			// 开始解析协议.
@@ -1184,198 +1427,21 @@ namespace avpn
 		LOG_ERR << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
-	{
-		boost::system::error_code ec;
-		static const auto never =
-			std::chrono::hours(std::numeric_limits<int>::max());
-
-		while (!m_abort)
-		{
-			auto connection_ptr = m_client.lock();
-			if (!connection_ptr)
-			{
-				int data_shards = 0;
-				int parity_shards = 0;
-
-				if (m_params.data_shards_ > 1)
-				{
-					data_shards = m_params.data_shards_;
-					parity_shards = m_params.parity_shards_;
-				}
-
-				static std::atomic_int64_t id{ 0 };
-				connection_ptr = std::make_shared<vpn_connection>(
-					ws_stream{ m_main_ioc }, "", data_shards, parity_shards);
-				connection_ptr->connection_id_ = id++;
-				m_client = connection_ptr;
-			}
-
-			auto& connection = *connection_ptr;
-			auto& stream = connection_ptr->ws_stream_;
-
-			tcp::socket& sock = boost::beast::get_lowest_layer(stream).socket();
-			bool ok = false;
-
-			for (auto it = m_upstreams.begin();
-				it != m_upstreams.end() && !m_abort && !ok; it++)
-			{
-				auto upstream = *it;
-				util::uri parser;
-
-				if (!parser.parse(upstream))
-					continue;
-
-				if (boost::to_lower_copy(std::string(parser.scheme())) == "udp")
-					continue;
-
-				tcp::resolver resolver{ m_main_ioc };
-				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_ERR << "start_tcp_connect, async_resolve: " << ec.message();
-					continue;
-				}
-
-				co_await asio_util::async_connect(sock, results,
-					boost::asio::redirect_error(boost::asio::bind_cancellation_slot(m_cancel_sig.slot(),
-						boost::asio::use_awaitable), ec));
-				if (ec)
-				{
-					LOG_ERR << "start_tcp_connect, async_connect: " << ec.message();
-					continue;
-				}
-
-				std::string origin = "all";
-				auto decorator = [origin](boost::beast::websocket::request_type& m) {
-					m.insert(boost::beast::http::field::origin, origin);
-				};
-
-				stream.set_option(boost::beast::websocket::stream_base::decorator(decorator));
-				co_await stream.async_handshake(std::string(parser.host()),
-					parser.path().empty() ? "/" : parser.path(), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_ERR << "start_tcp_connect, async_handshake: " << ec.message();
-					continue;
-				}
-
-				boost::asio::ip::tcp::no_delay option(true);
-				sock.set_option(option);
-
-				ok = true;
-			}
-
-			if (!ok)
-			{
-				connection_ptr.reset();
-
-				if (!m_abort)
-				{
-					LOG_DBG << "connect fail, wait a moment to reconnect...";
-
-					m_wait_timer.expires_from_now(std::chrono::seconds(5));
-					co_await m_wait_timer.async_wait(uawaitable[ec]);
-				}
-
-				continue;
-			}
-
-			// 连接成功, 设置为2进制模式.
-			stream.binary(true);
-
-			std::string remote_host;
-			auto endp = boost::beast::get_lowest_layer(stream).socket().remote_endpoint(ec);
-			if (!ec)
-			{
-				if (endp.address().is_v6())
-				{
-					remote_host = "[" + endp.address().to_string()
-						+ "]:" + std::to_string(endp.port());
-				}
-				else
-				{
-					remote_host = endp.address().to_string()
-						+ ":" + std::to_string(endp.port());
-				}
-			}
-
-			connection.remote_host_ = remote_host;
-			LOG_DBG << "start_tcp_connect, connected to: " << remote_host;
-
-			connection_ptr->ws_stream_.control_callback(
-				[this, wptr = m_client]
-			(boost::beast::websocket::frame_type ft, boost::beast::string_view)
-			{
-				if (ft == boost::beast::websocket::frame_type::pong)
-				{
-					auto connection_ptr = wptr.lock();
-					if (!connection_ptr || m_abort)
-						return;
-
-					ws_expires_after(*connection_ptr, 60);
-				}
-			});
-
-			// 发起认证请求.
-
-			// 协议格式:
-			// type(number)
-			// auth_code(number)
-			// tail(skip)
-
-			std::string msg(normal_mtu, 0);
-			stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
-
-			writer.WriteExponentialGolomb(vpt_auth);
-			writer.WriteExponentialGolomb((int32_t)google_auth_code(test_google_key));
-			writer.WriteTail();
-
-			msg.resize(writer.ByteOffset());
-
-			co_await forward_tcp_write(connection_ptr, std::move(msg));
-
-			// 发起保活协程.
-			keepalive(connection_ptr);
-
-			// 发起读写协程.
-			co_await start_tcp_read(connection_ptr);
-
-			if (!m_abort)
-			{
-				LOG_DBG << "read error, wait a moment to reconnect...";
-				// 通知连接断开...
-				channel_status cs;
-
-				cs.status_ = connection_status::st_disconnect;
-				m_vpn_service.on_status(cs);
-
-				auto& wait = connection.reconnect_timer_;
-
-				wait.expires_from_now(std::chrono::seconds(5));
-				co_await wait.async_wait(uawaitable[ec]);
-			}
-		}
-
-		co_return;
-	}
-
 	void vpn_tunnel::add_connection(vpn_connection_ptr& connection_ptr, uint32_t vaddr)
 	{
-		std::lock_guard<std::shared_mutex> lock(m_remotes_mtx);
+		std::lock_guard lock(m_remotes_mtx);
 		m_remotes[vaddr] = connection_ptr;
 	}
 
 	void vpn_tunnel::remove_connection(uint32_t vaddr)
 	{
-		std::lock_guard<std::shared_mutex> lock(m_remotes_mtx);
+		std::lock_guard lock(m_remotes_mtx);
 		m_remotes.erase(vaddr);
 	}
 
 	vpn_connection_ptr vpn_tunnel::lookup_connection(uint32_t vaddr)
 	{
-		std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
+		std::shared_lock lock(m_remotes_mtx);
 		auto it = m_remotes.find(vaddr);
 		if (it == m_remotes.end())
 			return {};
@@ -1384,13 +1450,13 @@ namespace avpn
 
 	void vpn_tunnel::add_incoming(vpn_connection_ptr& connection_ptr, int64_t id)
 	{
-		std::lock_guard<std::shared_mutex> lock(m_incomings_mtx);
+		std::lock_guard lock(m_incomings_mtx);
 		m_incomings[id] = connection_ptr;
 	}
 
 	void vpn_tunnel::remove_incoming(int64_t id)
 	{
-		std::lock_guard<std::shared_mutex> lock(m_incomings_mtx);
+		std::lock_guard lock(m_incomings_mtx);
 		m_incomings.erase(id);
 	}
 
@@ -1444,188 +1510,304 @@ namespace avpn
 		return { ip_string, ipaddr };
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::do_vpt_auth(
+	int vpn_tunnel::vpt_compress(int type, std::string& content)
+	{
+		auto body_size = content.size();
+
+		std::string compress_bufs(body_size * 2, 0);
+		uLong out_size = (uLong)compress_bufs.size();
+
+		auto ok = compress((Bytef*)compress_bufs.data(), &out_size,
+			(const Bytef*)content.data(), (uLong)body_size);
+		if (ok == Z_OK)
+		{
+			if (out_size < (uLong)body_size)
+			{
+				stream_endian::bitstream writer((uint8_t*)content.data(), normal_mtu);
+
+				switch (type)
+				{
+				case avpn::vpt_tcp:
+					type = vpt_compress_tcp;
+					break;
+				case avpn::vpt_udp:
+					type = vpt_compress_udp;
+					break;
+				case avpn::vpt_fec:
+					type = vpt_compress_fec;
+					break;
+				default:
+					BOOST_ASSERT(false && "Compress type unsupported!");
+					break;
+				}
+
+				writer.WriteExponentialGolomb(type);				// type
+				writer.WriteTail();									// tail(skip)
+				writer.WriteString(compress_bufs.data(), out_size);	// content
+
+				body_size = writer.ByteOffset();
+				content.resize(body_size);
+			}
+		}
+
+		return type;
+	}
+
+	boost::asio::awaitable<void> vpn_tunnel::do_server_vpt_auth(
 		stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr)
 	{
 		auto& connection = *connection_ptr;
 
-		if (m_identity == avpn::avpn_server) // 作为 server.
+		// 协议格式:
+		// type(number)
+		// auth_code(number)
+		// tail(skip)
+
+		uint32_t auth_code = 0;
+		reader.ReadExponentialGolomb(&auth_code);
+
+		// TODO: 作认证操作, test key.
+		uint32_t code = (uint32_t)google_auth_code(test_google_key);
+		if (code != auth_code)
 		{
-			// 协议格式:
-			// type(number)
-			// auth_code(number)
-			// tail(skip)
-
-			uint32_t auth_code = 0;
-			reader.ReadExponentialGolomb(&auth_code);
-
-			// TODO: 作认证操作, test key.
-			uint32_t code = (uint32_t)google_auth_code(test_google_key);
-			if (code != auth_code)
-			{
-				LOG_WARN << "Server: " << connection.connection_id_
-					<< ", verify auth code fail: " << code << ", got: " << auth_code;
-				co_return;
-			}
-
-			uint32_t pushdns = 0;
-			if (!m_params.pushdns_.empty())
-			{
-				boost::system::error_code ec;
-				auto addr = boost::asio::ip::address_v4::from_string(m_params.pushdns_, ec);
-				if (!ec)
-					pushdns = addr.to_uint();
-			}
+			LOG_WARN << "Server: " << connection.connection_id_
+				<< ", verify auth code fail: " << code << ", got: " << auth_code;
 
 			std::string reply(normal_mtu, 0);
 			stream_endian::bitstream writer((uint8_t*)reply.data(), normal_mtu);
 
-			auto [ip_string, ipaddr] = ip_assigner();
-
 			writer.WriteExponentialGolomb(vpt_auth);
-			writer.WriteExponentialGolomb(avpn_protocol_version);
-			writer.WriteExponentialGolomb(m_subnet.prefix_length());
-			writer.WriteExponentialGolomb(ipaddr);
-			writer.WriteExponentialGolomb(m_params.passbyvpn_);
-			writer.WriteExponentialGolomb(pushdns);
-			writer.WriteExponentialGolomb((uint32_t)m_params.routes_.size());
+			writer.WriteExponentialGolomb(0);
+			writer.WriteExponentialGolomb(0);
 			writer.WriteTail();
 
-			for (auto& route : m_params.routes_)
-			{
-				if (!writer.WriteUInt8((uint8_t)route.size()))
-					break;
-				if (!writer.WriteString(route.data(), route.size()))
-					break;
-			}
-
-			// 重置string大小.
 			reply.resize(writer.ByteOffset());
 
-			connection.vnet_ = ipaddr;
-			LOG_DBG << "Server assign virtual ip: "
-				<< ip_string << " to id: " << connection.connection_id_;
-
-			// 从临时连接表中删除.
-			remove_incoming(connection.connection_id_);
-
-			// 添加到连接管理.
-			add_connection(connection_ptr, ipaddr);
-
-			// 返回数据.
 			co_await forward_tcp_write(connection_ptr, std::move(reply));
-
 			co_return;
 		}
 
-		if (m_identity == avpn_client) // 作为 client 在认证通过后发起 udp 连接.
+		uint32_t pushdns = 0;
+		if (!m_params.pushdns_.empty())
 		{
-			// 协议格式:
-			// type(number)
-			// version(number)
-			// prefix_length(number)
-			// vaddr(number)
-			// passbyvpn(number)
-			// pushdns(number)
-			// routes(number)
-			// {size(u8), string[size]}[routes]
-			// tail(skip)
+			boost::system::error_code ec;
+			auto addr = boost::asio::ip::address_v4::from_string(m_params.pushdns_, ec);
+			if (!ec)
+				pushdns = addr.to_uint();
+		}
 
-			uint32_t version = 0;
-			if (!reader.ReadExponentialGolomb(&version))
+		std::string reply(normal_mtu, 0);
+		stream_endian::bitstream writer((uint8_t*)reply.data(), normal_mtu);
+
+		auto [ip_string, ipaddr] = ip_assigner();
+
+		writer.WriteExponentialGolomb(vpt_auth);
+		writer.WriteExponentialGolomb(avpn_protocol_version);
+		writer.WriteExponentialGolomb(m_subnet.prefix_length());
+		writer.WriteExponentialGolomb(ipaddr);
+		writer.WriteExponentialGolomb(m_params.passbyvpn_);
+		writer.WriteExponentialGolomb(pushdns);
+		writer.WriteExponentialGolomb((uint32_t)m_params.routes_.size());
+		writer.WriteTail();
+
+		for (auto& route : m_params.routes_)
+		{
+			if (!writer.WriteUInt8((uint8_t)route.size()))
+				break;
+			if (!writer.WriteString(route.data(), route.size()))
+				break;
+		}
+
+		// 重置string大小.
+		reply.resize(writer.ByteOffset());
+
+		connection.vnet_ = ipaddr;
+		LOG_DBG << "Server assign virtual ip: "
+			<< ip_string << " to id: " << connection.connection_id_;
+
+		// 从临时连接表中删除.
+		remove_incoming(connection.connection_id_);
+
+		// 添加到连接管理.
+		add_connection(connection_ptr, ipaddr);
+
+		// 返回数据.
+		co_await forward_tcp_write(connection_ptr, std::move(reply));
+
+		co_return;
+	}
+
+	boost::asio::awaitable<void> vpn_tunnel::do_client_vpt_auth(
+		stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr)
+	{
+		// 协议格式:
+		// type(number)
+		// version(number)
+		// prefix_length(number)
+		// vaddr(number)
+		// passbyvpn(number)
+		// pushdns(number)
+		// routes(number)
+		// {size(u8), string[size]}[routes]
+		// tail(skip)
+
+		auto& connection = *connection_ptr;
+
+		uint32_t version = 0;
+		if (!reader.ReadExponentialGolomb(&version))
+		{
+			LOG_ERR << "Client read protocol version error!";
+			co_return;
+		}
+
+		if (version != avpn_protocol_version)
+		{
+			if (version == 0)
 			{
-				LOG_ERR << "Client read protocol version error!";
-				co_return;
+				LOG_ERR << "Client auth code invalid!";
 			}
-
-			if (version != avpn_protocol_version)
+			else
 			{
 				LOG_ERR << "Client protocol version incompatible: "
 					<< version << ", expect: " << avpn_protocol_version;
-				co_return;
 			}
-
-			uint32_t prefix_length = 0;
-			if (!reader.ReadExponentialGolomb(&prefix_length))
-			{
-				LOG_ERR << "Client read protocol version error!";
-				co_return;
-			}
-			m_prefix_length = (uint8_t)prefix_length;
-
-			uint32_t vaddr = 0;
-			if (!reader.ReadExponentialGolomb(&vaddr))
-			{
-				LOG_ERR << "Client read vaddr error!";
-				co_return;
-			}
-
-			uint32_t passbyvpn = 0;
-			if (!reader.ReadExponentialGolomb(&passbyvpn))
-			{
-				LOG_ERR << "Client read passbyvpn error!";
-				co_return;
-			}
-
-			uint32_t pushdns = 0;
-			if (!reader.ReadExponentialGolomb(&pushdns))
-			{
-				LOG_ERR << "Client read pushdns error!";
-				co_return;
-			}
-
-			uint32_t routes = 0;
-			if (!reader.ReadExponentialGolomb(&routes))
-			{
-				LOG_ERR << "Client read routes error!";
-				co_return;
-			}
-
-			reader.ReadTail();
-
-			for (uint32_t n = 0; n < routes; n++)
-			{
-				uint8_t size = 0;
-				if (!reader.ReadUInt8(&size))
-				{
-					LOG_ERR << "Client read route size error!";
-					co_return;
-				}
-
-				std::string route(size, 0);
-				if (!reader.ReadString((char*)route.data(), size))
-				{
-					LOG_ERR << "Client read route error!";
-					co_return;
-				}
-
-				m_routes.emplace_back(std::move(route));
-			}
-
-			// tcp握手完成, 整合虚拟网络IP相关信息.
-			connection.vnet_ = vaddr;
-
-			auto ipaddr = boost::asio::ip::address_v4(vaddr);
-			m_vnet_ipaddr = boost::asio::ip::make_network_v4(ipaddr, m_prefix_length);
-
-			boost::asio::ip::address_v4 nw(m_vnet_ipaddr.network().to_uint() + 1);
-			m_subnet = boost::asio::ip::make_network_v4(nw, m_prefix_length);
-
-			// 启动UDP通信.
-			LOG_DBG << "Start udp socket, virutal addr: " << ipaddr.to_string();
-			boost::asio::co_spawn(m_main_ioc.get_executor(),
-				[this]() mutable -> boost::asio::awaitable<void>
-				{
-					co_await start_udp_client();
-					LOG_DBG << "Udp client quit...";
-					co_return;
-				}, boost::asio::detached);
 
 			co_return;
 		}
 
-		BOOST_ASSERT(false && "Invalid m_identity, do_vpt_auth");
+		uint32_t prefix_length = 0;
+		if (!reader.ReadExponentialGolomb(&prefix_length))
+		{
+			LOG_ERR << "Client read protocol version error!";
+			co_return;
+		}
+		m_prefix_length = (uint8_t)prefix_length;
+
+		uint32_t vaddr = 0;
+		if (!reader.ReadExponentialGolomb(&vaddr))
+		{
+			LOG_ERR << "Client read vaddr error!";
+			co_return;
+		}
+
+		uint32_t passbyvpn = 0;
+		if (!reader.ReadExponentialGolomb(&passbyvpn))
+		{
+			LOG_ERR << "Client read passbyvpn error!";
+			co_return;
+		}
+
+		uint32_t pushdns = 0;
+		if (!reader.ReadExponentialGolomb(&pushdns))
+		{
+			LOG_ERR << "Client read pushdns error!";
+			co_return;
+		}
+
+		uint32_t routes = 0;
+		if (!reader.ReadExponentialGolomb(&routes))
+		{
+			LOG_ERR << "Client read routes error!";
+			co_return;
+		}
+
+		reader.ReadTail();
+
+		for (uint32_t n = 0; n < routes; n++)
+		{
+			uint8_t size = 0;
+			if (!reader.ReadUInt8(&size))
+			{
+				LOG_ERR << "Client read route size error!";
+				co_return;
+			}
+
+			std::string route(size, 0);
+			if (!reader.ReadString((char*)route.data(), size))
+			{
+				LOG_ERR << "Client read route error!";
+				co_return;
+			}
+
+			m_routes.emplace_back(std::move(route));
+		}
+
+		// tcp握手完成, 整合虚拟网络IP相关信息.
+		connection.vnet_ = vaddr;
+
+		auto ipaddr = boost::asio::ip::address_v4(vaddr);
+		m_vnet_ipaddr = boost::asio::ip::make_network_v4(ipaddr, m_prefix_length);
+
+		boost::asio::ip::address_v4 nw(m_vnet_ipaddr.network().to_uint() + 1);
+		m_subnet = boost::asio::ip::make_network_v4(nw, m_prefix_length);
+
+		// 启动UDP通信.
+		LOG_DBG << "Start udp socket, virutal addr: " << ipaddr.to_string();
+		boost::asio::co_spawn(m_main_ioc.get_executor(),
+			[this]() mutable -> boost::asio::awaitable<void>
+			{
+				co_await start_udp_client();
+				LOG_DBG << "Udp client quit...";
+				co_return;
+			}, boost::asio::detached);
+
+		std::string dns_string;
+		if (pushdns != 0)
+		{
+			auto dns_addr = boost::asio::ip::address_v4(pushdns);
+			dns_string = dns_addr.to_string();
+		}
+
+		// 通知完成连接...
+		channel_status cs;
+		cs.passbyvpn_ = passbyvpn;
+		cs.routes_ = m_routes;
+		cs.dns_ = dns_string;
+		cs.server_ip_ = connection.tcp_stream_.remote_endpoint().address().to_string();
+		cs.status_ = connection_status::st_connected;
+
+		m_vpn_service.on_status(cs);
+
 		co_return;
+	}
+
+	boost::asio::awaitable<vpn_connection_ptr> vpn_tunnel::do_udp_keepalive(
+		stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint& endp)
+	{
+		uint32_t vaddr = 0;
+		vpn_connection_ptr connection_ptr;
+
+		if (!reader.ReadExponentialGolomb(&vaddr))
+		{
+			LOG_ERR << "Receive vpt_keepalive read vaddr error!";
+			co_return connection_ptr;
+		}
+
+		if (m_identity == Identity::avpn_server)
+		{
+			connection_ptr = lookup_connection(vaddr);
+			if (!connection_ptr)
+			{
+				LOG_ERR << "Server vpt_keepalive lookup connection error!";
+				co_return connection_ptr;
+			}
+
+			auto& connection = *connection_ptr;
+			connection.endps_.update(endp);
+
+			// 响应client的keepalive请求.
+			std::string reply(normal_mtu, '\0');
+			stream_endian::bitstream writer((uint8_t*)reply.data(), normal_mtu);
+			writer.WriteExponentialGolomb(vpt_keepalive_reply);
+			writer.WriteExponentialGolomb(200);
+			writer.WriteTail();
+
+			reply.resize(writer.ByteOffset());
+
+			co_await forward_udp_write(sock, endp, std::move(reply));
+		}
+
+		co_return connection_ptr;
 	}
 
 	boost::asio::awaitable<bool> vpn_tunnel::do_vpt_compress(
@@ -1634,8 +1816,7 @@ namespace avpn
 		// 协议格式:
 		// type(number)
 		// tail(skip)
-		// content_size(uint32)
-		// content[content_size](bytes)
+		// content
 
 		// 解压缩操作.
 		uLongf bufsize = 16384;
@@ -1643,14 +1824,8 @@ namespace avpn
 
 		reader.ReadTail();
 
-		uint32_t content_size = 0;
-		if (!reader.ReadUInt32(&content_size))
-		{
-			LOG_ERR << "Receive vpt_compress_udp content size error!";
-			co_return false;
-		}
-
 		const Bytef* ptr = reader.GetOriginPtr() + reader.ByteOffset();
+		uint32_t content_size = uint32_t(reader.AllSize() - reader.ByteOffset());
 
 		auto ok = uncompress((Bytef*)bufs.data(), &bufsize,
 			(const Bytef*)ptr, (uLongf)content_size);
@@ -1694,7 +1869,7 @@ namespace avpn
 		udp::endpoint uendp(dst_addr.address(), 0);
 
 		// 只有在身份为server时, 才会更新endpoint.
-		if (m_identity == avpn::avpn_server && endp)
+		if (m_identity == Identity::avpn_server && endp)
 		{
 			auto uint_src = src_addr.address().to_v4().to_uint();
 			auto connection_ptr = lookup_connection(uint_src);
@@ -1703,7 +1878,7 @@ namespace avpn
 		}
 
 		// 只有在身份为server时, 并且为内网数据包, 则直接找到对应链转发.
-		if (m_identity == avpn::avpn_server && same_ipv4_network(m_subnet, uint_dst))
+		if (m_identity == Identity::avpn_server && same_ipv4_network(m_subnet, uint_dst))
 		{
 			// 不允许内网传输.
 			if (!m_params.c2c_)
@@ -1714,7 +1889,7 @@ namespace avpn
 			{
 				avpn::vpn_message msg;
 				msg.type = type;
-				msg.content.assign((char*)content, content_size);
+				msg.content_.assign((char*)content, content_size);
 
 				// 内网转发.
 				co_await forward_channel_write(connection_ptr, std::move(msg));
@@ -1723,7 +1898,7 @@ namespace avpn
 		}
 
 		if (type == vpt_icmp)
-			LOG_DBG << "Recvive udp, write tun icmp: " << dst_addr;
+			LOG_DBG << "Recvive icmp, write tun icmp: " << dst_addr;
 
 		m_vpn_service.do_tuntap_write(std::string((char*)content, content_size));
 
@@ -1754,7 +1929,7 @@ namespace avpn
 			co_return connection_ptr;
 		}
 
-		if (m_identity == avpn::avpn_client)
+		if (m_identity == Identity::avpn_client)
 			connection_ptr = m_client.lock();
 		else
 			connection_ptr = lookup_connection(vaddr);
@@ -1825,7 +2000,7 @@ namespace avpn
 		// vaddr(number)
 		// tail(skip)
 
-		if (m_identity == avpn_server)
+		if (m_identity == Identity::avpn_server)
 		{
 			uint32_t vaddr = 0;
 			if (!reader.ReadExponentialGolomb(&vaddr))
@@ -1842,6 +2017,9 @@ namespace avpn
 			}
 
 			auto& connection = *connection_ptr;
+			if (connection.endps_.size() == 0)
+				connection.endps_.reset(5, m_identity);
+
 			connection.endps_.update(endp);
 
 			// 回复client已经握手成功.
@@ -1870,7 +2048,7 @@ namespace avpn
 		// status(number)
 		// tail(skip)
 
-		if (m_identity == avpn::avpn_client)
+		if (m_identity == Identity::avpn_client)
 		{
 			uint32_t status = 0;
 			if (!reader.ReadExponentialGolomb(&status))
@@ -1886,13 +2064,6 @@ namespace avpn
 				LOG_ERR << "Receive vpt_udp_handshake_reply lookup connection error!";
 				co_return;
 			}
-
-			// 通知完成连接...
-			channel_status cs;
-			cs.routes_ = m_routes;
-			cs.status_ = connection_status::st_connected;
-
-			m_vpn_service.on_status(cs);
 
 			co_return;
 		}
@@ -1916,19 +2087,20 @@ namespace avpn
 		{
 			auto& dec_matrix = connection.dec_matrix_;
 
-			if (gop.ds_ > 0
+			if ((gop.ds_ > 0
 				&& connection.dec_ds_ != gop.ds_
-				&& connection.dec_ps_ != gop.ps_)
+				&& connection.dec_ps_ != gop.ps_) || !dec_matrix)
 			{
 				connection.dec_ds_ = gop.ds_;
 				connection.dec_ps_ = gop.ps_;
 
-				dec_matrix =
+				m_dec_matrix =
 					fec::reedsolomon::build_matrix(gop.ds_ + gop.ps_, gop.ds_);
+				dec_matrix = &m_dec_matrix;
 			}
 
-			if (dec_matrix.size() > 0)
-				return gop.decode(dec_matrix);
+			if (dec_matrix->size() > 0)
+				return gop.decode(*dec_matrix);
 
 			return gop.decode();
 		};
@@ -1968,7 +2140,7 @@ namespace avpn
 				// 内网数据包, 直接找到对应链转发.
 				avpn::vpn_message msg;
 				msg.type = (uint8_t)endp.type_;
-				msg.content = d;
+				msg.content_ = d;
 
 				if (endp.type_ == avpn::ip_type::ip_tcp)
 					msg.type = vpt_tcp;
@@ -1994,27 +2166,45 @@ namespace avpn
 		while (!m_abort) [[likely]]
 		{
 			boost::system::error_code ec;
-
-			m_fec_timer.expires_from_now(std::chrono::milliseconds(m_params.fec_delay_));
-			co_await m_fec_timer.async_wait(uawaitable[ec]);
-			if (m_abort) [[unlikely]]
-				co_return;
-
-			// 所有vpn连接.
 			std::vector<vpn_connection_weak_ptr> vpn_peers;
+			int delay = 500;
 
-			// 找到所有udp连接.
-			if (m_identity == avpn::avpn_server)
+			if (m_identity == Identity::avpn_client)
 			{
-				std::shared_lock<std::shared_mutex> lock(m_remotes_mtx);
+				if (m_udp_sockets.size() > 0)
+					delay = m_params.fec_delay_;
+			}
+			else
+			{
+				// 找到所有server的vpn连接, 并判断其是否有udp连接, 只
+				// 要有任何udp连接, 则不得降低timer的延迟.
+				std::shared_lock lock(m_remotes_mtx);
 				for ([[maybe_unused]] auto& [id, conn] : m_remotes)
 				{
 					if (!conn.lock())
 						continue;
+
+					if (delay != m_params.fec_delay_)
+					{
+						auto c = conn.lock();
+						if (c)
+						{
+							if (c->endps_.size() > 0)
+								delay = m_params.fec_delay_;
+						}
+					}
+
 					vpn_peers.emplace_back(conn);
 				}
 			}
-			else
+
+			m_fec_timer.expires_from_now(std::chrono::milliseconds(delay));
+			co_await m_fec_timer.async_wait(uawaitable[ec]);
+			if (m_abort) [[unlikely]]
+				co_return;
+
+			// 作为client时, 直接保存client的vpn连接.
+			if (m_identity == Identity::avpn_client)
 			{
 				auto conn = m_client.lock();
 				if (!conn)
@@ -2077,7 +2267,7 @@ namespace avpn
 
 				writer.WriteExponentialGolomb(msg.type);
 				writer.WriteTail();
-				writer.WriteString(msg.content.data(), msg.content.size());
+				writer.WriteString(msg.content_.data(), msg.content_.size());
 
 				pkt.resize(writer.ByteOffset());
 
@@ -2117,8 +2307,8 @@ namespace avpn
 			auto& msg = *it;
 
 			// 将IP数据追加到content.
-			content.append((const char*)msg.content.data(), msg.content.size());
-			bytes_transferred += (int64_t)msg.content.size();
+			content.append((const char*)msg.content_.data(), msg.content_.size());
+			bytes_transferred += (int64_t)msg.content_.size();
 
 			// max_data_size 是 data_shards 和 mtu 大小计算出来的最大编码数据量.
 			// fec编码一次最大数据量不能超过max_data_size, 否则有可能超出mtu大小
@@ -2157,7 +2347,7 @@ namespace avpn
 		auto& parity_shards = m_params.parity_shards_;
 		auto total_shards = data_shards + parity_shards;
 
-		fec::reedsolomon rs(data_shards, parity_shards, connection.enc_matrix_);
+		fec::reedsolomon rs(data_shards, parity_shards, *connection.enc_matrix_);
 
 		auto gsize = content.size();
 		auto pershard_size = rs.estimate_pershard_size((int)content.size());
@@ -2171,7 +2361,7 @@ namespace avpn
 		rs.encode(shards);
 
 		auto remote_endpoint = &m_remote_endps;
-		if (m_identity == avpn::avpn_server)
+		if (m_identity == Identity::avpn_server)
 			remote_endpoint = &connection.endps_;
 
 		auto usize = m_udp_sockets.size();
@@ -2198,32 +2388,11 @@ namespace avpn
 				writer.WriteString(s.data(), s.size());				// content
 
 				body_size = writer.ByteOffset();
+				fec_body.resize(body_size);
 			}
 
 			if (m_params.compress_)
-			{
-				std::string compress_bufs(body_size * 2, 0);
-				uLong out_size = (uLong)compress_bufs.size();
-
-				auto ok = compress((Bytef*)compress_bufs.data(), &out_size,
-					(const Bytef*)fec_body.data(), (uLong)body_size);
-				if (ok == Z_OK)
-				{
-					if (out_size < (uLong)body_size)
-					{
-						stream_endian::bitstream writer((uint8_t*)fec_body.data(), normal_mtu);
-
-						writer.WriteExponentialGolomb(vpt_compress_fec);	// type
-						writer.WriteTail();									// tail(skip)
-						writer.WriteUInt32((uint32_t)out_size);				// content_size(uint32)
-						writer.WriteString(compress_bufs.data(), out_size);	// content
-
-						body_size = writer.ByteOffset();
-					}
-				}
-			}
-
-			fec_body.resize(body_size);
+				vpt_compress(vpt_fec, fec_body);
 
 			send_data_size += fec_body.size();
 			auto& usock = m_udp_sockets[n % usize]->sock_;
@@ -2246,6 +2415,8 @@ namespace avpn
 
 		co_return keep_continue;
 	}
+
+
 
 }
 

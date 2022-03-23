@@ -13,6 +13,7 @@
 #include "utils/scoped_exit.hpp"
 #include "utils/fileop.hpp"
 #include "utils/uawaitable.hpp"
+#include "utils/misc.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
 
@@ -35,21 +36,43 @@ namespace avpn {
 		, m_vpn_tunnel(m_io_context, m_io_context_pool,
 			config.channel_params_, static_cast<avpn_service&>(*this))
 	{
+		// 创建临时avpn文件夹.
+		auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
+		std::error_code ignore_ec;
+		std::filesystem::create_directories(avpn_tmp_dir, ignore_ec);
+
+		std::ostringstream oss;
+		oss << get_process_id();
+
+		// 创建avpn.pid文件.
+		fileop::write(avpn_tmp_dir / "avpn.pid", oss.str());
 	}
 
 	avpn_service::~avpn_service()
 	{
+		// 退出时删除所有添加的路由.
+		if (!m_channel_status.server_ip_.empty())
+		{
+			del_route("0.0.0.0/0 " + m_channel_status.vgateway_);
+			del_route(m_channel_status.server_ip_ + "/32");
+		}
+
+		// 删除所有avpn临时文件.
+		auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
+		std::error_code ignore_ec;
+		std::filesystem::remove_all(avpn_tmp_dir, ignore_ec);
+
 		LOG_DBG << "~avpn_service()";
 	}
 
 	void avpn_service::start()
 	{
 		// 客户端启动客户端通信通道.
-		if (m_config.identity_ == avpn::avpn_client)
+		if (m_config.identity_ == Identity::avpn_client)
 			run_as_client();
 
 		// 服务器则将启动服务器通信通道.
-		if (m_config.identity_ == avpn::avpn_server)
+		if (m_config.identity_ == Identity::avpn_server)
 			run_as_server();
 	}
 
@@ -63,7 +86,7 @@ namespace avpn {
 		{
 			auto [ret, ok] = del_route(route);
 			if (ok)
-				LOG_DBG << "del route: " << route << " route added successfully!";
+				LOG_DBG << "del route: " << route << " route remove successfully!";
 			else
 				LOG_DBG << "del route: " << route << " fail, reason: " << ret;
 		}
@@ -85,7 +108,7 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			auto& content = msg.content;
+			auto& content = msg.content_;
 			content.resize(128 * 1024);
 
 			auto bytes = co_await m_tuntap.async_read_some(
@@ -115,7 +138,7 @@ namespace avpn {
 				msg.type = vpt_icmp;
 
 			// 根据程序的身份, 准备透传.
-			if (m_config.identity_ == avpn::avpn_server)
+			if (m_config.identity_ == Identity::avpn_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
 				if (m_channel_status.status_ != avpn::connection_status::st_listen)
@@ -124,7 +147,7 @@ namespace avpn {
 				// 透传到channel.
 				m_vpn_tunnel.server_forward_tun(std::move(msg), std::move(endp));
 			}
-			else if (m_config.identity_ == avpn::avpn_client)
+			else if (m_config.identity_ == Identity::avpn_client)
 			{
 				// 未连接状态, 丢弃所有packet.
 				if (m_channel_status.status_ != avpn::connection_status::st_connected)
@@ -140,12 +163,12 @@ namespace avpn {
 
 	void avpn_service::run_as_client()
 	{
-		m_vpn_tunnel.start_connect(m_config.upstreams_);
+		m_vpn_tunnel.start_client_connect(m_config.upstreams_);
 	}
 
 	void avpn_service::run_as_server()
 	{
-		m_vpn_tunnel.start_listen(m_config.tcp_listens_, m_config.udp_listens_);
+		m_vpn_tunnel.start_server_listen(m_config.tcp_listens_, m_config.udp_listens_);
 	}
 
 	void avpn_service::do_tuntap_write(std::string&& message)
@@ -153,26 +176,9 @@ namespace avpn {
 		boost::asio::co_spawn(m_io_context.get_executor(),
 			[this, message = std::move(message)]() mutable -> boost::asio::awaitable<void>
 			{
-				m_tuntap_writing = !m_tuntap_write_deque.empty();
-				m_tuntap_write_deque.emplace_back(std::move(message));
-
-				// 若正在写入, 则直接返回, 而不再作任何处理.
-				if (!m_tuntap_writing)
-				{
-					boost::system::error_code ec;
-
-					while (!m_abort && !m_tuntap_write_deque.empty())
-					{
-						co_await m_tuntap.async_write_some(
-							boost::asio::buffer(m_tuntap_write_deque.front()), uawaitable[ec]);
-						if (ec)
-						{
-							LOG_ERR << "do_tuntap_write, async_write error: " << ec.message();
-							co_return;
-						}
-						m_tuntap_write_deque.pop_front();
-					}
-				}
+				boost::system::error_code ec;
+				co_await m_tuntap.async_write_some(
+					boost::asio::buffer(message), uawaitable[ec]);
 			}, boost::asio::detached);
 	}
 
@@ -208,19 +214,38 @@ namespace avpn {
 			}
 		}
 
+		auto defgw = get_default_gateway();
+		auto defgw_string = defgw->address().to_string();
+
 		if (!m_tuntap.open(dc))
 		{
 			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
 
+		if (m_channel_status.passbyvpn_ && m_config.identity_ == Identity::avpn_client)
+		{
+			auto vgateway = gateway.to_string();
+
+			m_channel_status.vaddr_ = ipaddr;
+			m_channel_status.vgateway_ = vgateway;
+
+			del_route("0.0.0.0/0 " + vgateway);
+			del_route(m_channel_status.server_ip_ + "/32 " + vgateway);
+
+			if (set_default_route(ipaddr, vgateway, defgw_string, m_channel_status.server_ip_))
+				LOG_DBG << "Default gateway: " << defgw_string << " change successfully!";
+			else
+				LOG_WARN << "Default gateway: " << defgw_string << ", change faild!";
+		}
+
 		for (auto& route : m_channel_status.routes_)
 		{
 			auto [ret, ok] = add_route(route);
 			if (ok)
-				LOG_DBG << "add route: " << route << " route added successfully!";
+				LOG_DBG << "Add route: " << route << " route added successfully!";
 			else
-				LOG_ERR << "add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
+				LOG_ERR << "Add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
 		}
 
 		if (m_config.snat_)
@@ -228,12 +253,18 @@ namespace avpn {
 			// TODO: do snat...
 		}
 
+		if (!m_channel_status.dns_.empty() && m_config.identity_ == Identity::avpn_client)
+		{
+			if (set_dns(m_channel_status.dns_, ipaddr))
+				LOG_DBG << "Set dns: " << m_channel_status.dns_ << " successfully";
+		}
+
 		m_vnet = net;
 	}
 
 	void avpn_service::on_status(avpn::channel_status cs)
 	{
-		if (m_config.identity_ == avpn::avpn_client)
+		if (m_config.identity_ == Identity::avpn_client)
 		{
 			m_channel_status = cs;
 			auto status = cs.status_;
@@ -271,7 +302,7 @@ namespace avpn {
 			return;
 		}
 
-		if (m_config.identity_ == avpn::avpn_server)
+		if (m_config.identity_ == Identity::avpn_server)
 		{
 			auto st = cs.status_;
 			if (st == avpn::connection_status::st_listen)

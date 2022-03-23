@@ -9,6 +9,7 @@
 
 #include "boost/asio.hpp"
 #include "boost/nowide/convert.hpp"
+#include <boost/algorithm/string/trim.hpp>
 
 #include "boost/smart_ptr/local_shared_ptr.hpp"
 #include "boost/smart_ptr/make_local_shared.hpp"
@@ -117,8 +118,9 @@ namespace avpn {
 #else
 			error_msg.assign((char*)lpMsgBuf);
 #endif // UNICODE
-
 			LocalFree(lpMsgBuf);
+
+			boost::trim(error_msg);
 
 			return error_msg;
 		}
