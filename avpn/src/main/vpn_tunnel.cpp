@@ -206,7 +206,7 @@ namespace avpn
 
 		m_abort = false;
 
-		// 开始启动tcp客户端, 即ws服务器.
+		// 开始启动tcp客户端, 即tcp服务器.
 		LOG_DBG << "Start tcp accept socket...";
 		init_tcp_acceptors();
 
@@ -1187,15 +1187,25 @@ namespace avpn
 				auto usize = m_udp_sockets.size();
 
 				// 计算冗余数据大小, 并循环发送, 最大5倍发包模式.
-				auto parity_shards = m_params.parity_shards_;
-				parity_shards = parity_shards <= 0 ? 1 : parity_shards;
-				parity_shards = parity_shards > 5 ? 5 : parity_shards;
+				auto num_duplicate = m_params.parity_shards_;
+				num_duplicate = num_duplicate <= 0 ? 1 : num_duplicate;
+				num_duplicate = num_duplicate > 5 ? 5 : num_duplicate;
+				num_duplicate = msg.type != vpt_tcp ? num_duplicate = 1 : num_duplicate;
 
 				vpn_remote_endpoint* remote_endpoint = &m_remote_endps;
 				if (m_identity == Identity::avpn_server)
 					remote_endpoint = &connection.endps_;
 
-				for (auto n = 0; n < parity_shards && msg.type == vpt_tcp; n++)
+				if (num_duplicate == 1)
+				{
+					auto& usock = m_udp_sockets[std::rand() % usize]->sock_;
+					auto uendp = remote_endpoint->acquire();
+
+					co_await forward_udp_write(usock, uendp, std::move(pkt));
+					co_return;
+				}
+
+				for (auto n = 0; n < num_duplicate; n++)
 				{
 					auto duplicate = pkt;
 

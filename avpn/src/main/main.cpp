@@ -66,7 +66,7 @@ namespace po = boost::program_options;
 #include "utils/fileop.hpp"
 
 
-static void create_pid()
+void create_pid()
 {
 	// 创建临时avpn文件夹.
 	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
@@ -84,7 +84,7 @@ static void create_pid()
 	fileop::write(pid, oss.str());
 }
 
-static uint64_t check_pid()
+uint64_t check_pid()
 {
 	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
 	if (!std::filesystem::exists(avpn_tmp_dir))
@@ -97,7 +97,7 @@ static uint64_t check_pid()
 	return (uint64_t)std::atoll(bufs.c_str());
 }
 
-static int platform_init()
+int platform_init()
 {
 #if defined(WIN32) || defined(_WIN32)
 	/* Disable the "application crashed" popup. */
@@ -205,6 +205,8 @@ std::string version_info()
 
 int main(int argc, char** argv)
 {
+	platform_init();
+
 	std::vector<std::string> upstreams;
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
@@ -372,6 +374,12 @@ int main(int argc, char** argv)
 	params.routes_ = routes;
 	params.pushdns_ = pushdns;
 	params.passbyvpn_ = passbyvpn;
+
+	if (cfg.identity_ == avpn::Identity::avpn_client && cfg.upstreams_.empty())
+	{
+		LOG_ERR << "Missing upstream...";
+		return EXIT_FAILURE;
+	}
 
 #ifdef _WIN32
 	if (g_avpn_windows_lean_mean)

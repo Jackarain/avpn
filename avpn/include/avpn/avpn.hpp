@@ -62,6 +62,8 @@ namespace avpn {
 		void run_as_client();
 		void run_as_server();
 
+		boost::asio::awaitable<void> tick();
+
 		void setup_tun(const boost::asio::ip::network_v4& net);
 
 	private:
@@ -71,7 +73,7 @@ namespace avpn {
 		bool m_start_tuntap{ false };
 		avpn::channel_status m_channel_status;
 		avpn::tuntap m_tuntap;
-		timer m_tuntap_timer;
+		timer m_tick_timer;
 		boost::asio::ip::network_v4 m_vnet;
 		avpn::vpn_tunnel m_vpn_tunnel;
 		speed_stat m_down_stat;

@@ -32,7 +32,7 @@ namespace avpn {
 		, m_io_context(m_io_context_pool.server_io_context())
 		, m_config(config)
 		, m_tuntap(m_io_context)
-		, m_tuntap_timer(m_io_context)
+		, m_tick_timer(m_io_context)
 		, m_vpn_tunnel(m_io_context, m_io_context_pool,
 			config.channel_params_, static_cast<avpn_service&>(*this))
 	{
@@ -58,6 +58,10 @@ namespace avpn {
 	void avpn_service::start()
 	{
 		m_abort = false;
+
+		// 开启定时器.
+		boost::asio::co_spawn(m_tick_timer.get_executor(),
+			tick(), boost::asio::detached);
 
 		// 客户端启动客户端通信通道.
 		if (m_config.identity_ == Identity::avpn_client)
@@ -88,7 +92,7 @@ namespace avpn {
 
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tuntap.close();
-		m_tuntap_timer.cancel_one(ignore_ec);
+		m_tick_timer.cancel(ignore_ec);
 		m_channel_status = {};
 		m_vnet = {};
 		m_start_tuntap = false;
@@ -148,20 +152,8 @@ namespace avpn {
 				if (m_channel_status.status_ != avpn::connection_status::st_connected)
 					continue;
 
-				// 上传速率状态.
+				// 统计上传数据量用于计算上传速率.
 				m_upload_stat.bytes_ += (int64_t)msg.content_.size();
-
-				auto now = time_clock::steady_clock::now();
-				auto duration = now - m_upload_stat.time_;
-				if (duration >= std::chrono::seconds(1))
-				{
-					auto sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
-					auto avg_bytes = m_upload_stat.bytes_ / (sec.count() * 1.0);
-					m_upload_stat.rate_ = (int64_t)((m_upload_stat.rate_ * 3.0 + avg_bytes) / 4.0);
-
-					m_upload_stat.time_ = now;
-					m_upload_stat.bytes_ = 0;
-				}
 
 				// 透传到channel.
 				m_vpn_tunnel.client_forward_tun(std::move(msg), std::move(endp));
@@ -181,14 +173,36 @@ namespace avpn {
 		m_vpn_tunnel.start_server_listen(m_config.tcp_listens_, m_config.udp_listens_);
 	}
 
-	void avpn_service::do_tuntap_write(std::string&& message)
+	boost::asio::awaitable<void> avpn_service::tick()
 	{
-		boost::asio::co_spawn(m_io_context.get_executor(),
-			[this, message = std::move(message)]() mutable -> boost::asio::awaitable<void>
-			{
-				m_down_stat.bytes_ += (int64_t)message.size();
+		boost::system::error_code ec;
 
-				auto now = time_clock::steady_clock::now();
+		while (!m_abort)
+		{
+			m_tick_timer.expires_from_now(std::chrono::seconds(1));
+			co_await m_tick_timer.async_wait(uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WARN << "avpn_service::tick, ec: " << ec.message();
+				co_return;
+			}
+
+			auto now = time_clock::steady_clock::now();
+
+			{
+				auto duration = now - m_upload_stat.time_;
+				if (duration >= std::chrono::seconds(1))
+				{
+					auto sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
+					auto avg_bytes = m_upload_stat.bytes_ / (sec.count() * 1.0);
+					m_upload_stat.rate_ = (int64_t)((m_upload_stat.rate_ * 3.0 + avg_bytes) / 4.0);
+
+					m_upload_stat.time_ = now;
+					m_upload_stat.bytes_ = 0;
+				}
+			}
+
+			{
 				auto duration = now - m_down_stat.time_;
 				if (duration >= std::chrono::seconds(1))
 				{
@@ -199,10 +213,23 @@ namespace avpn {
 					m_down_stat.time_ = now;
 					m_down_stat.bytes_ = 0;
 				}
+			}
+		}
 
+		co_return;
+	}
+
+	void avpn_service::do_tuntap_write(std::string&& message)
+	{
+		boost::asio::co_spawn(m_io_context.get_executor(),
+			[this, message = std::move(message)]() mutable -> boost::asio::awaitable<void>
+			{
 				boost::system::error_code ec;
 				co_await m_tuntap.async_write_some(
 					boost::asio::buffer(message), uawaitable[ec]);
+
+				// 统计发送数据量用于计算发送速率.
+				m_down_stat.bytes_ += (int64_t)message.size();
 			}, boost::asio::detached);
 	}
 
@@ -241,6 +268,7 @@ namespace avpn {
 		// 如果指定的tap设备有问题, 则默认选择第一个网卡.
 		if (dc.guid_.empty() && !dev_list.empty())
 		{
+			LOG_WARN << "Not found tun: " << dc.dev_name_ << ", use default: " << dev_list[0].name_;
 			dc.dev_name_ = dev_list[0].name_;
 			dc.guid_ = dev_list[0].guid_;
 		}

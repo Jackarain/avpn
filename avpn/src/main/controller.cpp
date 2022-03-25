@@ -179,11 +179,21 @@ namespace avpn {
 			switch (type)
 			{
 			case controller_type::ct_stop:
+				if (!m_start)
+				{
+					LOG_DBG << "start_client_read, do vpn already stoped";
+					break;
+				}
 				LOG_DBG << "start_client_read, do vpn stop";
 				m_service.stop();
 				m_start = false;
 				break;
 			case controller_type::ct_start:
+				if (m_start)
+				{
+					LOG_WARN << "start_client_read, do vpn already started";
+					break;
+				}
 				LOG_DBG << "start_client_read, do vpn start";
 				m_service.start();
 				m_start = true;
@@ -205,6 +215,11 @@ namespace avpn {
 						exit = true;
 					}
 				}
+				break;
+			case controller_type::ct_remote:
+			case controller_type::ct_test:
+				break;
+			default:
 				break;
 			}
 		}
