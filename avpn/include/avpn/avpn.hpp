@@ -31,6 +31,13 @@ namespace avpn {
 
 	class avpn_service
 	{
+		struct speed_stat
+		{
+			int64_t bytes_{0};
+			int64_t rate_{0};
+			time_clock::steady_clock::time_point time_{ time_clock::steady_clock::now() };
+		};
+
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
 		avpn_service& operator=(const avpn_service&) = delete;
@@ -45,6 +52,9 @@ namespace avpn {
 
 		void do_tuntap_write(std::string&& message);
 		void on_status(avpn::channel_status cs);
+
+		int64_t upload_rate() const;
+		int64_t download_rate() const;
 
 	private:
 		boost::asio::awaitable<void> start_tun_read_loop();
@@ -64,7 +74,8 @@ namespace avpn {
 		timer m_tuntap_timer;
 		boost::asio::ip::network_v4 m_vnet;
 		avpn::vpn_tunnel m_vpn_tunnel;
-
-		std::atomic_bool m_abort{ false };
+		speed_stat m_down_stat;
+		speed_stat m_upload_stat;
+		bool m_abort{ false };
 	};
 }

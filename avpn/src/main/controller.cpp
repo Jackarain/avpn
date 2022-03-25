@@ -29,6 +29,7 @@ namespace avpn {
 	controller::controller(io_context_pool& ioc_pool, const server_config& cfg)
 		: m_ioc_pool(ioc_pool)
 		, m_io_context(ioc_pool.server_io_context())
+		, m_signal(m_io_context)
 		, m_config(cfg)
 		, m_service(m_ioc_pool, m_config)
 		, m_ws_stream(m_io_context)
@@ -37,6 +38,18 @@ namespace avpn {
 
 	void controller::start()
 	{
+		m_signal.add(SIGINT);
+		m_signal.add(SIGTERM);
+#if defined(SIGQUIT)
+		m_signal.add(SIGQUIT);
+#endif // defined(SIGQUIT)
+
+		m_signal.async_wait([this](const boost::system::error_code&, int) mutable
+			{
+				LOG_DBG << "terminator is called!";
+				stop();
+			});
+
 		boost::asio::co_spawn(m_io_context.get_executor(),
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
@@ -51,9 +64,12 @@ namespace avpn {
 		if (m_abort)
 			return;
 		m_abort = true;
+		m_start = false;
 
 		boost::system::error_code ec;
 		m_ws_stream.close(boost::beast::websocket::close_code::none, ec);
+		m_ws_stream.next_layer().socket().close(ec);
+		m_signal.cancel(ec);
 
 		m_service.stop();
 		m_ioc_pool.stop();
@@ -100,8 +116,8 @@ namespace avpn {
 		boost::asio::ip::tcp::no_delay option(true);
 		sock.set_option(option);
 
-		// 设置为2进制模式.
-		m_ws_stream.binary(true);
+		// 设置为非2进制模式.
+		m_ws_stream.binary(false);
 
 		m_ws_stream.control_callback([this] (boost::beast::websocket::frame_type ft, boost::beast::string_view)
 		{
@@ -125,8 +141,9 @@ namespace avpn {
 		boost::system::error_code ec;
 		std::vector<char> data;
 		boost::asio::dynamic_vector_buffer buffer{ data };
+		bool exit = false;
 
-		while (!m_abort)
+		while (!m_abort || exit)
 		{
 			auto bytes = co_await m_ws_stream.async_read(buffer, uawaitable[ec]);
 			if (ec == websocket::error::closed)
@@ -163,11 +180,31 @@ namespace avpn {
 			{
 			case controller_type::ct_stop:
 				LOG_DBG << "start_client_read, do vpn stop";
-				m_abort = true;
+				m_service.stop();
+				m_start = false;
 				break;
 			case controller_type::ct_start:
 				LOG_DBG << "start_client_read, do vpn start";
 				m_service.start();
+				m_start = true;
+				break;
+			case controller_type::ct_speed:
+				if (!m_start)
+					break;
+				LOG_DBG << "start_client_read, do vpn speed: "
+					<< m_service.upload_rate() << ", " << m_service.download_rate();
+				{
+					auto str = std::to_string((int)type) + " "
+						+ std::to_string(m_service.upload_rate())
+						+ " "
+						+ std::to_string(m_service.download_rate());
+					co_await m_ws_stream.async_write(boost::asio::buffer(str), uawaitable[ec]);
+					if (ec)
+					{
+						LOG_ERR << "start_client_read, ct_speed async_write error: " << ec.message();
+						exit = true;
+					}
+				}
 				break;
 			}
 		}

@@ -50,9 +50,11 @@ namespace avpn {
 	private:
 		io_context_pool& m_ioc_pool;
 		boost::asio::io_context& m_io_context;
+		boost::asio::signal_set m_signal;
 		server_config m_config;
 		avpn_service m_service;
 		ws_stream m_ws_stream;
+		bool m_start{ false };
 		bool m_abort{ false };
 	};
 }

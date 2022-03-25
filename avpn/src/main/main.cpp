@@ -37,7 +37,13 @@
 #  include <fcntl.h>
 #  include <io.h>
 #  include <windows.h>
-#endif
+
+#pragma data_seg("avpn.windows.lean.mean")
+bool g_avpn_windows_lean_mean = false;
+#pragma data_seg()
+#pragma comment(linker, "/Section:avpn.windows.lean.mean,RWS")
+
+#endif // _WIN32
 
 #ifdef HAVE_UNAME
 #  include <sys/utsname.h>
@@ -60,7 +66,38 @@ namespace po = boost::program_options;
 #include "utils/fileop.hpp"
 
 
-int platform_init()
+static void create_pid()
+{
+	// 创建临时avpn文件夹.
+	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
+	std::error_code ignore_ec;
+	std::filesystem::create_directories(avpn_tmp_dir, ignore_ec);
+
+	std::ostringstream oss;
+	oss << get_process_id();
+
+	// 先删除存在的pid文件.
+	auto pid = avpn_tmp_dir / "avpn.pid";
+	std::filesystem::remove(pid, ignore_ec);
+
+	// 创建avpn.pid文件.
+	fileop::write(pid, oss.str());
+}
+
+static uint64_t check_pid()
+{
+	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
+	if (!std::filesystem::exists(avpn_tmp_dir))
+		return 0;
+
+	std::string bufs(128, 0);
+	auto bytes = fileop::read(avpn_tmp_dir / "avpn.pid", bufs);
+	bufs.resize(bytes);
+
+	return (uint64_t)std::atoll(bufs.c_str());
+}
+
+static int platform_init()
 {
 #if defined(WIN32) || defined(_WIN32)
 	/* Disable the "application crashed" popup. */
@@ -336,10 +373,25 @@ int main(int argc, char** argv)
 	params.pushdns_ = pushdns;
 	params.passbyvpn_ = passbyvpn;
 
+#ifdef _WIN32
+	if (g_avpn_windows_lean_mean)
+	{
+		auto pid = (DWORD)check_pid();
+		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+		if (handle == INVALID_HANDLE_VALUE)
+			return EXIT_FAILURE;
+		TerminateProcess(handle, EXIT_SUCCESS);
+	}
+
+	g_avpn_windows_lean_mean = true;
+#endif
+
+	// 创建pid文件.
+	create_pid();
+
 	if (controller_port == -1)
 	{
 		avpn::avpn_service srv{ ios, cfg };
-
 		srv.start();
 
 		// 处理中止信号.
@@ -356,14 +408,7 @@ int main(int argc, char** argv)
 	{
 		// 构造controller对象, 在内部发起对controller的连接.
 		avpn::controller control{ ios, cfg };
-
-		// 处理中止信号.
-		terminator_signal.async_wait([&ios, &control](const boost::system::error_code&, int)
-			{
-				LOG_DBG << "terminator is called!";
-				control.stop();
-				ios.stop();
-			});
+		control.start();
 
 		ios.run();
 	}

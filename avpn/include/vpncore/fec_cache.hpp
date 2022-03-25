@@ -359,6 +359,9 @@ namespace avpn {
 		void reset()
 		{
 			groups_.clear();
+			expired_.clear();
+			result_.clear();
+
 			total_cache_size_ = 0;
 		}
 

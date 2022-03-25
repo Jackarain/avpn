@@ -173,8 +173,9 @@ namespace avpn {
 	public:
 		vpn_connection(boost::asio::any_io_executor executor, const std::string& host,
 			fec::matrix* enc_matrix, fec::matrix* dec_matrix);
-
 		~vpn_connection();
+
+		void reset();
 
 		Identity identity_{ Identity::avpn_server };	// server / client.
 

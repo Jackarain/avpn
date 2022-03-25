@@ -130,6 +130,30 @@ namespace avpn
 			LOG_DBG << "vpn connection leave, remote: " << remote_host_;
 	}
 
+	void vpn_connection::reset()
+	{
+		boost::system::error_code ignore_ec;
+
+		reconnect_timer_.cancel(ignore_ec);
+		tcp_stream_.close(ignore_ec);
+
+		tcp_msg_deque_.clear();
+		fec_enc_.clear();
+		fec_dec_.reset();
+
+		keepalive_ = time_clock::steady_clock::now();
+		enc_tm_ = keepalive_;
+
+		remote_host_.clear();
+		endps_.clear();
+
+		deque_writing_ = false;
+		vnet_ = 0;
+		fec_enc_size_ = 0;
+		gid_ = 0;
+		connection_id_ = -1;
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 
 	bool operator<(const vpn_connection_ptr& lh, const vpn_connection_ptr& rh)
@@ -179,6 +203,8 @@ namespace avpn
 
 		// 服务器身份.
 		m_identity = Identity::avpn_server;
+
+		m_abort = false;
 
 		// 开始启动tcp客户端, 即ws服务器.
 		LOG_DBG << "Start tcp accept socket...";
@@ -236,6 +262,7 @@ namespace avpn
 	{
 		m_upstreams = upstreams;
 		m_identity = Identity::avpn_client;
+		m_abort = false;
 
 		if (m_params.data_shards_ > 1)
 		{
@@ -283,9 +310,7 @@ namespace avpn
 					if (!connection)
 						continue;
 
-					connection->reconnect_timer_.cancel(ignore_ec);
-					connection->tcp_stream_.close(ignore_ec);
-
+					connection->reset();
 					LOG_DBG << "Close tcp stream: " << connection->connection_id_;
 				}
 			}
@@ -298,12 +323,12 @@ namespace avpn
 					if (!connection)
 						continue;
 
-					connection->reconnect_timer_.cancel(ignore_ec);
-					connection->reconnect_timer_.cancel(ignore_ec);
-
+					connection->reset();
 					LOG_DBG << "Close incoming tcp stream: " << id;
 				}
 			}
+
+			m_ws_acceptors.clear();
 		}
 
 		if (m_identity == Identity::avpn_client)
@@ -313,9 +338,7 @@ namespace avpn
 			auto connection_ptr = m_client.lock();
 			if (connection_ptr)
 			{
-				connection_ptr->reconnect_timer_.cancel(ignore_ec);
-				connection_ptr->tcp_stream_.close(ignore_ec);
-
+				connection_ptr->reset();
 				LOG_DBG << "Close tcp client stream";
 			}
 		}
@@ -324,6 +347,14 @@ namespace avpn
 			u->sock_.close(ignore_ec);
 
 		m_wait_timer.cancel(ignore_ec);
+
+		m_routes.clear();
+		m_prefix_length = -1;
+		m_remote_endps.clear();
+		m_client = {};
+		m_incomings.clear();
+		m_remotes.clear();
+		m_udp_sockets.clear();
 
 		LOG_DBG << "Close udp sockets...";
 	}
@@ -543,8 +574,6 @@ namespace avpn
 	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
 	{
 		boost::system::error_code ec;
-		static const auto never =
-			std::chrono::hours(std::numeric_limits<int>::max());
 		static std::atomic_int64_t id{ 0 };
 
 		while (!m_abort)
