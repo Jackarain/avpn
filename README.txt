@@ -58,3 +58,9 @@
 
 --c2c		是否允许client之间互相通过虚拟子网网络通信，默认是允许。
 
+--controller	指定控制器的，控制器是一个用于通过本地websocket服务控制avpn
+	开启或关闭，或者获取网络速率的，比如在flutter中开启一个websocket服务，
+	服务端口为5656，那么启动avpn的时候使用 --controller 5656就可以让avpn自动
+	连接到flutter中的服务，flutter通过websocket连接控制avpn.
+
+--disable_logs	关闭日志写入.
