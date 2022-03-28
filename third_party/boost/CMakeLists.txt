@@ -109,9 +109,6 @@ else()
 
 	if (APPLE)
 		set(EXEUCTABLEFORMAT "macho")
-		if (CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
-			set(CMAKE_SYSTEM_PROCESSOR "arm")
-		endif()
 	else()
 		set(EXEUCTABLEFORMAT "elf")
 	endif()
@@ -317,6 +314,32 @@ list(APPEND BOOST_FIBER_SRC
 )
 endif()
 
+if (USE_BOOST_TEST)
+set(BOOST_TEST_SRC
+	libs/test/src/compiler_log_formatter.cpp
+	libs/test/src/cpp_main.cpp
+	libs/test/src/debug.cpp
+	libs/test/src/decorator.cpp
+	libs/test/src/execution_monitor.cpp
+	libs/test/src/framework.cpp
+	libs/test/src/junit_log_formatter.cpp
+	libs/test/src/plain_report_formatter.cpp
+	libs/test/src/progress_monitor.cpp
+	libs/test/src/results_collector.cpp
+	libs/test/src/results_reporter.cpp
+	libs/test/src/test_framework_init_observer.cpp
+	libs/test/src/test_main.cpp
+	libs/test/src/test_tools.cpp
+	libs/test/src/test_tree.cpp
+	libs/test/src/unit_test_log.cpp
+	libs/test/src/unit_test_main.cpp
+	libs/test/src/unit_test_monitor.cpp
+	libs/test/src/unit_test_parameters.cpp
+	libs/test/src/xml_log_formatter.cpp
+	libs/test/src/xml_report_formatter.cpp
+)
+endif()
+
 set(BOOST_SRCS ${BOOST_ATOMIC_SRC})
 
 add_library(boost_header INTERFACE)
@@ -471,6 +494,48 @@ if (USE_BOOST_FIBER)
 	endif()
 endif()
 
+if (USE_BOOST_TEST)
+	if(Boost_USE_STATIC_LIBS)
+		add_library(boost_test_static STATIC ${BOOST_TEST_SRC})
+		add_library(Boost::test ALIAS boost_test_static)
+	else()
+		add_library(boost_test_dll SHARED ${BOOST_TEST_SRC})
+		add_library(Boost::test ALIAS boost_test_dll)
+	endif()
+endif()
+
+if (BUILD_ASIO_BEAST)
+	if (Boost_USE_STATIC_LIBS)
+		add_library(boost_asio_static STATIC asio.cpp)
+		add_library(Boost::asio ALIAS boost_asio_static)
+		target_compile_definitions(boost_asio_static PUBLIC -DBOOST_ASIO_SEPARATE_COMPILATION)
+		if (OpenSSL_FOUND)
+			message(STATUS "**************************** ${OpenSSL_FOUND} ****************************")
+			target_compile_definitions(boost_asio_static PRIVATE -DHAVE_OPENSSL)
+			target_link_libraries(boost_asio_static ${OpenSSL_LIBRARIES})
+		endif()
+	else()
+		add_library(boost_asio_dll SHARED asio.cpp)
+		add_library(Boost::asio ALIAS boost_asio_dll)
+		target_compile_definitions(boost_asio_dll PUBLIC -DBOOST_ASIO_DYN_LINK -DBOOST_ASIO_SEPARATE_COMPILATION)
+		if (OpenSSL_FOUND)
+			message(STATUS "**************************** ${OpenSSL_FOUND} ****************************")
+			target_compile_definitions(boost_asio_dll PRIVATE -DHAVE_OPENSSL)
+			target_link_libraries(boost_asio_dll ${OpenSSL_LIBRARIES})
+		endif()
+	endif()
+
+	if (Boost_USE_STATIC_LIBS)
+		add_library(boost_beast_static STATIC beast.cpp)
+		add_library(Boost::beast ALIAS boost_beast_static)
+		target_compile_definitions(boost_asio_static PUBLIC -DBOOST_BEAST_SEPARATE_COMPILATION)
+	else()
+		add_library(boost_beast_dll SHARED beast.cpp)
+		add_library(Boost::beast ALIAS boost_beast_dll)
+		target_compile_definitions(boost_beast_dll PUBLIC -DBOOST_BEAST_SEPARATE_COMPILATION)
+	endif()
+endif()
+
 target_include_directories(boost_header INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(boost_header INTERFACE -DBOOST_ALL_NO_LIB -DBOOST_ALL_STATIC_LINK -DBOOST_THREAD_USE_LIB)
@@ -483,7 +548,18 @@ target_compile_definitions(boost_filesystem_static PUBLIC -DBOOST_FILESYSTEM_STA
 target_compile_definitions(boost_json_static PUBLIC -DBOOST_JSON_SOURCE -DBOOST_JSON_STATIC_LINK)
 target_compile_definitions(boost_json_static PRIVATE -DBOOST_JSON_SOURCE -DBOOST_JSON_STATIC_LINK)
 
+if (USE_BOOST_TEST)
+	if(Boost_USE_STATIC_LIBS)
+		target_compile_definitions(boost_test_static PUBLIC -DBOOST_TEST_STATIC_LINK)
+	else()
+		target_compile_definitions(boost_test_static PUBLIC -DBOOST_TEST_DYN_LINK)
+	endif()
+endif()
+
 if(Boost_USE_STATIC_LIBS)
+	if (USE_BOOST_TEST)
+		target_link_libraries(boost_test_static boost_header)
+	endif()
 	target_link_libraries(boost_atomic_static boost_header)
 	if(USE_BOOST_SERIALIZATION)
 		target_link_libraries(boost_serialization_static boost_header)
@@ -506,7 +582,14 @@ endif()
 	target_link_libraries(boost_exception_static boost_header)
 	target_link_libraries(boost_random_static boost_header)
 	target_link_libraries(boost_program_options_static boost_filesystem_static boost_header)
+	if (BUILD_ASIO_BEAST)
+		target_link_libraries(boost_asio_static boost_thread_static)
+		target_link_libraries(boost_beast_static boost_asio_static)
+	endif()
 else()
+	if (USE_BOOST_TEST)
+		target_link_libraries(boost_test_dll boost_header)
+	endif()
 	target_link_libraries(boost_atomic_dll boost_header)
 	if(USE_BOOST_SERIALIZATION)
 		target_link_libraries(boost_serialization_dll boost_header)
@@ -529,6 +612,10 @@ endif()
 	target_link_libraries(boost_exception_dll boost_header)
 	target_link_libraries(boost_random_dll boost_header)
 	target_link_libraries(boost_program_options_dll boost_filesystem_static boost_header)
+	if (BUILD_ASIO_BEAST)
+		target_link_libraries(boost_asio_dll boost_thread_dll)
+		target_link_libraries(boost_beast_dll boost_asio_dll)
+	endif()
 endif()
 
 if(WIN32)
@@ -562,9 +649,17 @@ set(BOOST_LIBRARIES
 	Boost::random
 	Boost::program_options
 	Boost::locale
+	Boost::test
 PARENT_SCOPE)
 
 if(Boost_USE_STATIC_LIBS)
+	if (BUILD_ASIO_BEAST)
+		set_target_properties(boost_asio_static PROPERTIES FOLDER "third_party/boost")
+		set_target_properties(boost_beast_static PROPERTIES FOLDER "third_party/boost")
+	endif()
+	if (USE_BOOST_TEST)
+		set_target_properties(boost_test_static PROPERTIES FOLDER "third_party/boost")
+	endif()
 	set_target_properties(boost_atomic_static PROPERTIES FOLDER "third_party/boost")
 	if(USE_BOOST_SERIALIZATION)
 		set_target_properties(boost_serialization_static PROPERTIES FOLDER "third_party/boost")
@@ -588,6 +683,13 @@ endif()
 	set_target_properties(boost_random_static PROPERTIES FOLDER "third_party/boost")
 	set_target_properties(boost_program_options_static PROPERTIES FOLDER "third_party/boost")
 else()
+	if (BUILD_ASIO_BEAST)
+		set_target_properties(boost_asio_dll PROPERTIES FOLDER "third_party/boost")
+		set_target_properties(boost_beast_dll PROPERTIES FOLDER "third_party/boost")
+	endif()
+	if (USE_BOOST_TEST)
+		set_target_properties(boost_test_dll PROPERTIES FOLDER "third_party/boost")
+	endif()
 	set_target_properties(boost_atomic_dll PROPERTIES FOLDER "third_party/boost")
 	if(USE_BOOST_SERIALIZATION)
 		set_target_properties(boost_serialization_dll PROPERTIES FOLDER "third_party/boost")

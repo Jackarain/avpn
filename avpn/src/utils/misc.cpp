@@ -75,7 +75,7 @@
 #endif // _MSC_VER
 
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1119,7 +1119,7 @@ int google_auth_code(const std::string& secret, unsigned long tm /*= 0*/, unsign
 	for (int i = 8; i--; tm >>= 8)
 		challenge[i] = static_cast<uint8_t>(tm);
 
-	std::string output(EVP_MAX_MD_SIZE, '\0');
+	std::string output(64, '\0');
 	unsigned int output_length = 0;
 
 	CryptoPP::HMAC<CryptoPP::SHA1> hmac((const CryptoPP::byte*)key.data(), key.size());

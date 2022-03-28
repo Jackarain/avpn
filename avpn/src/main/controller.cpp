@@ -169,12 +169,11 @@ namespace avpn {
 
 			if (!std::regex_match(bufptr, match, ctrl_regex))
 			{
-				LOG_WARN << "start_client_read, regex match faild: " << std::string_view(bufptr, bufptr + bytes);
+				LOG_WARN << "start_client_read, regex match faild: " << std::string_view(bufptr, bytes);
 				continue;
 			}
 
 			auto type = controller_type(atoi(match[1].str().c_str()));
-			std::string_view sv(match[2].first, match[2].second);
 
 			switch (type)
 			{

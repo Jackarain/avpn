@@ -7,6 +7,19 @@
 
 #pragma once
 
+#ifdef USE_MIMALLOC
+
+#ifdef MI_OVERRIDE
+#	include <mimalloc.h>
+#else
+#	include <mimalloc-new-delete.h>
+#endif
+
+#ifdef _WIN32
+#	include <mimalloc-new-delete.h>
+#endif
+
+#endif // USE_MIMALLOC
 
 #include <type_traits>
 #include <tuple>
@@ -73,7 +86,6 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
-#include <boost/beast/ssl.hpp>
 
 #ifdef __GNUC__
 #	pragma GCC diagnostic pop
@@ -94,7 +106,6 @@
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
 
-#include <boost/filesystem.hpp>
 #include <boost/signals2.hpp>
 
 #ifdef __clang__

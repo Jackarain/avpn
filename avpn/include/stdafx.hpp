@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (C) 2019 Jack.
 //
 // Author: jack
@@ -22,6 +22,7 @@
 #include <system_error>
 #include <stdexcept>
 #include <thread>
+#include <mutex>
 #include <algorithm>
 #include <numeric>
 #include <optional>
@@ -29,6 +30,13 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <streambuf>
+#include <vector>
+#include <string_view>
+#include <filesystem>
+#include <span> // from c++ 20
+#include <concepts>
+#include <cstring> // for std::memcpy
 
 
 #pragma warning(push)
@@ -39,17 +47,7 @@
 #pragma clang diagnostic ignored "-Wunused-private-field"
 #endif
 
-#include <boost/asio/post.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/defer.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/ip/network_v4.hpp>
-#include <boost/asio/streambuf.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/read_until.hpp>
-#include <boost/asio/signal_set.hpp>
+#include <boost/asio.hpp>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -63,17 +61,14 @@
 #pragma clang diagnostic ignored "-Warray-bounds"
 #endif // _MSC_VER
 
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/websocket.hpp>
+#include <boost/beast.hpp>
 
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop
 #pragma clang diagnostic pop
 #endif // _MSC_VER
 
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/algorithm/string/find.hpp>
+#include <boost/algorithm/string.hpp>
 
 #pragma warning(pop)
 
@@ -95,17 +90,8 @@
 
 #include <boost/circular_buffer.hpp>
 
+#include <zlib.h>
+
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-
-#ifndef ENABLE_LOGGER
-#define ENABLE_LOGGER
-#endif
-
-#pragma warning(push)
-#pragma warning(disable: 4244 4127 4702)
-
-#include "utils/logging.hpp"
-
-#pragma warning(pop)

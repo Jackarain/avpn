@@ -18,7 +18,6 @@
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/streambuf.hpp>
-#include <boost/asio/spawn.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/post.hpp>
@@ -40,7 +39,6 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
-#include <boost/beast/ssl.hpp>
 
 #include <boost/circular_buffer.hpp>
 
@@ -48,9 +46,9 @@
 
 #include "avpn/io_context_pool.hpp"
 #include "avpn/reedsolomon.hpp"
+#include "avpn/fec_cache.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
-#include "vpncore/fec_cache.hpp"
 
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
@@ -179,7 +177,7 @@ namespace avpn {
 
 		Identity identity_{ Identity::avpn_server };	// server / client.
 
-		fec_cache fec_dec_;					// fec 解码缓冲器.
+		fec::fec_cache fec_dec_;					// fec 解码缓冲器.
 		uint32_t gid_{ 0 };					// fec 编码group id.
 		fec::matrix* dec_matrix_;			// 用于rs解码的矩阵.
 

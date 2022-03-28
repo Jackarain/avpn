@@ -93,8 +93,14 @@ namespace avpn {
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tuntap.close();
 		m_tick_timer.cancel(ignore_ec);
+		auto server_ip = m_channel_status.server_ip_;
+		auto vgateway = m_channel_status.vgateway_;
 		m_channel_status = {};
+		m_channel_status.server_ip_ = server_ip;
+		m_channel_status.vgateway_ = vgateway;
 		m_vnet = {};
+		m_upload_stat = {};
+		m_down_stat = {};
 		m_start_tuntap = false;
 
 		LOG_DBG << "avpn_service.stop()";
@@ -177,6 +183,23 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 
+		int64_t downloaded = 0;
+		int64_t uploaded = 0;
+
+		auto calc_speed = [&](speed_stat& stat,
+			time_clock::steady_clock::time_point& now,
+			int64_t& before_total
+			) mutable
+		{
+			auto all_already = stat.bytes_;
+			auto all_total = all_already - before_total;
+			before_total = all_already;
+			auto deltams = now - stat.time_;
+			stat.time_ = now;
+			auto speed = int64_t((double)all_total / ((double)deltams.count() / 1000.0f));
+			stat.rate_ = (speed * 2 + stat.rate_) / 3;
+		};
+
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
@@ -189,31 +212,8 @@ namespace avpn {
 
 			auto now = time_clock::steady_clock::now();
 
-			{
-				auto duration = now - m_upload_stat.time_;
-				if (duration >= std::chrono::seconds(1))
-				{
-					auto sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
-					auto avg_bytes = m_upload_stat.bytes_ / (sec.count() * 1.0);
-					m_upload_stat.rate_ = (int64_t)((m_upload_stat.rate_ * 3.0 + avg_bytes) / 4.0);
-
-					m_upload_stat.time_ = now;
-					m_upload_stat.bytes_ = 0;
-				}
-			}
-
-			{
-				auto duration = now - m_down_stat.time_;
-				if (duration >= std::chrono::seconds(1))
-				{
-					auto sec = std::chrono::duration_cast<std::chrono::seconds>(duration);
-					auto avg_bytes = m_down_stat.bytes_ / (sec.count() * 1.0);
-					m_down_stat.rate_ = (int64_t)((m_down_stat.rate_ * 3.0 + avg_bytes) / 4.0);
-
-					m_down_stat.time_ = now;
-					m_down_stat.bytes_ = 0;
-				}
-			}
+			calc_speed(m_down_stat, now, downloaded);
+			calc_speed(m_upload_stat, now, uploaded);
 		}
 
 		co_return;

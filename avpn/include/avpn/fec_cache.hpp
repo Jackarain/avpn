@@ -27,7 +27,7 @@
 
 #include "avpn/reedsolomon.hpp"
 
-namespace avpn {
+namespace fec {
 
 	using namespace util;
 
@@ -40,7 +40,7 @@ namespace avpn {
 			ip_parsing = 1,
 		};
 
-		std::vector<boost::beast::multi_buffer> pkts_;
+		std::vector<std::vector<uint8_t>> pkts_;
 		uint32_t gid_{ 0 };
 		bitfield bs_;
 		int ps_{ 0 };
@@ -81,19 +81,16 @@ namespace avpn {
 
 			auto total = ds_ + ps_;
 			bs_.resize(total, false);
-			for (int i = 0; i < total; i++)
-				pkts_.emplace_back(boost::beast::multi_buffer{ max_ptk_size });
+			pkts_.resize(total);
 		}
 
 		void update(uint32_t gid, uint16_t pid, uint8_t* data, size_t size)
 		{
 			gid_ = gid;
 
+			// COPY数据到容器.
 			auto& pkt = pkts_[pid];
-			auto p = pkt.prepare(size);
-
-			boost::asio::buffer_copy(p, boost::asio::buffer(data, size));
-			pkt.commit(size);
+			pkt = std::vector<uint8_t>(data, data + size);
 			bs_.set_bit(pid);
 
 			// 这个group中接收到的所有字节总计.
@@ -247,25 +244,13 @@ namespace avpn {
 			if (!accord())
 				return {};
 
-			std::vector<std::vector<uint8_t>> data;
-
 			fec::reedsolomon fec_dec(ds_, ps_);
-			data.resize(ds_ + ps_);
-
-			for (size_t i = 0; i < data.size(); i++)
-			{
-				auto& d = data[i];
-				auto& s = pkts_[i];
-
-				d.resize(s.size());
-				boost::asio::buffer_copy(boost::asio::buffer(d), s.data());
-			}
 
 			// fec解码.
 #if !defined(_DEBUG) && !defined(DEBUG)
 			try {
 #endif
-				fec_dec.decode(data);
+				fec_dec.decode(pkts_);
 #if !defined(_DEBUG) && !defined(DEBUG)
 			}
 			catch (const std::exception& e) {
@@ -284,7 +269,7 @@ namespace avpn {
 				return buf.size();
 			};
 
-			group_parse(data, result, ptr_func, size_func);
+			group_parse(pkts_, result, ptr_func, size_func);
 
 			return result;
 		}
@@ -294,25 +279,13 @@ namespace avpn {
 			if (!accord())
 				return {};
 
-			std::vector<std::vector<uint8_t>> data;
-
 			fec::reedsolomon fec_dec(ds_, ps_, m);
-			data.resize(ds_ + ps_);
-
-			for (size_t i = 0; i < data.size(); i++)
-			{
-				auto& d = data[i];
-				auto& s = pkts_[i];
-
-				d.resize(s.size());
-				boost::asio::buffer_copy(boost::asio::buffer(d), s.data());
-			}
 
 			// fec解码.
 #if !defined(_DEBUG) && !defined(DEBUG)
 			try {
 #endif
-				fec_dec.decode(data);
+				fec_dec.decode(pkts_);
 #if !defined(_DEBUG) && !defined(DEBUG)
 			}
 			catch (const std::exception& e) {
@@ -331,7 +304,7 @@ namespace avpn {
 				return buf.size();
 			};
 
-			group_parse(data, result, ptr_func, size_func);
+			group_parse(pkts_, result, ptr_func, size_func);
 
 			return result;
 		}
@@ -411,28 +384,26 @@ namespace avpn {
 			if (total_cache_size_ <= cache_size_limit_)
 				return 0;
 
-			int num = 0;
+			int bytes_num = 0;
 			for (auto it = groups_.begin(); it != groups_.end();)
 			{
 				auto& [gid, gop] = *it;
 
 				total_cache_size_ -= gop.total_;
-				num++;
+				bytes_num += (int)gop.total_;
 				groups_.erase(it++);
 
 				if (total_cache_size_ <= cache_size_limit_)
 					break;
 			}
 
-			return num;
+			return bytes_num;
 		}
 
 		std::vector<fec_group> acquire()
 		{
 			for (const auto& gop : result_)
-			{
 				total_cache_size_ -= gop.total_;
-			}
 
 			return std::move(result_);
 		}

@@ -262,7 +262,7 @@ namespace util {
 			clear_trailing_bits();
 		}
 
-		void free() { dealloc(); m_size = 0; }
+		void clear() { dealloc(); m_size = 0; }
 
 	private:
 

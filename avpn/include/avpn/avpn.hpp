@@ -33,8 +33,8 @@ namespace avpn {
 	{
 		struct speed_stat
 		{
-			int64_t bytes_{0};
-			int64_t rate_{0};
+			int64_t bytes_{ 0 };
+			int64_t rate_{ 0 };
 			time_clock::steady_clock::time_point time_{ time_clock::steady_clock::now() };
 		};
 

@@ -1190,7 +1190,7 @@ namespace avpn
 				auto num_duplicate = m_params.parity_shards_;
 				num_duplicate = num_duplicate <= 0 ? 1 : num_duplicate;
 				num_duplicate = num_duplicate > 5 ? 5 : num_duplicate;
-				num_duplicate = msg.type != vpt_tcp ? num_duplicate = 1 : num_duplicate;
+				num_duplicate = msg.type != vpt_tcp ? 1 : num_duplicate;
 
 				vpn_remote_endpoint* remote_endpoint = &m_remote_endps;
 				if (m_identity == Identity::avpn_server)
@@ -2118,11 +2118,11 @@ namespace avpn
 		auto& fec = connection.fec_dec_;
 
 		// 清理FEC缓存垃圾.
-		auto num_garbage = fec.garbage_clean();
-		if (num_garbage > 0)
-			LOG_DBG << "do_process_fec, clean garbage: " << num_garbage;
+		auto garbage_size = fec.garbage_clean();
+		if (garbage_size > 0)
+			LOG_DBG << "do_process_fec, clean garbage: " << garbage_size;
 
-		auto fecdec_func = [&](fec_group& gop) mutable ->std::vector<std::string>
+		auto fecdec_func = [&](fec::fec_group& gop) mutable ->std::vector<std::string>
 		{
 			auto& dec_matrix = connection.dec_matrix_;
 

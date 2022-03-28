@@ -6,7 +6,10 @@
 //
 
 #pragma once
-
+#include <version>
+#ifdef __cpp_lib_concepts
+#include <concepts>
+#endif
 #include <codecvt>
 #include <clocale>
 #include <fstream>
@@ -22,7 +25,6 @@
 #include <filesystem>
 #include <system_error>
 
-#include <boost/utility/string_view.hpp>
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -474,8 +476,16 @@ public:
 		return m_log_path.string();
 	}
 
+	void logging(bool disable) noexcept
+	{
+		m_disable_write = disable;
+	}
+
 	void write([[maybe_unused]] int64_t time, const char* str, std::streamsize size)
 	{
+		if (m_disable_write)
+			return;
+
 #ifdef LOGGING_COMPRESS_LOGS
 		bool condition = false;
 		auto hours = time / 1000 / 3600;
@@ -558,8 +568,9 @@ public:
 private:
 	std::filesystem::path m_log_path{"./logs"};
 	ofstream_ptr m_ofstream;
-	int64_t m_last_time{-1};
-	std::size_t m_log_size{0};
+	int64_t m_last_time{ -1 };
+	std::size_t m_log_size{ 0 };
+	bool m_disable_write{ false };
 };
 
 #ifndef DISABLE_LOGGER_THREAD_SAFE
@@ -776,6 +787,12 @@ inline void toggle_logging()
 	logging_flag() = !logging_flag();
 }
 
+inline void toggle_write_logging(bool disable)
+{
+	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
+	file.logging(disable);
+}
+
 struct auto_init_async_logger
 {
 	auto_init_async_logger() {
@@ -879,9 +896,18 @@ public:
 	{
 		return strcat_impl(v);
 	}
-	inline logger___& operator<<(const boost::string_view& v)
+
+	template<typename StringView>
+	#ifdef __cpp_lib_concepts
+		requires requires (StringView t)
+		{
+			{ t.data() } -> std::convertible_to<const char*> ;
+			{ t.length() } -> std::convertible_to<std::size_t> ;
+		}
+	#endif
+	inline logger___& operator<<(const StringView& v)
 	{
-		return strcat_impl(std::string_view(v.data(), v.size()));
+		return strcat_impl(std::string_view(v.data(), v.length()));
 	}
 	inline logger___& operator<<(const char* v)
 	{

@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.1)
+﻿cmake_minimum_required(VERSION 3.16)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # cmake_policy(SET CMP0077 NEW)
 if (WIN32)
 	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
@@ -62,23 +62,26 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cmake")
 
+include(CheckCXXLinkerFlag)
+
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
-option(ENABLE_SYSTEM_OPENSSL "Build with system openssl support" OFF)
 option(ENABLE_SYSTEM_ZLIB "Build with system zlib support" OFF)
 
 option(ENABLE_TCMALLOC_STATIC "Build with Tcmalloc support" OFF)
 option(ENABLE_JEMALLOC_STATIC "Build with Jemalloc support" OFF)
+option(ENABLE_MIMALLOC_STATIC "Build with Mimalloc support" OFF)
 
 option(ENABLE_GIT_VERSION "Enable git version" ON)
 option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
 
 option(ENABLE_BUILD_WITH_LIBCXX "Build with libc++" OFF)
-option(ENABLE_BUILD_WITH_RTLIB_COMPILER_RT "Build with default rtlib to compiler-rt" OFF)
 
 option(ENABLE_MOLD "build using mold" OFF)
 option(ENABLE_LLD "build using lld" OFF)
+
+option(ENABLE_BUILD_TESTS "build avpn's unit tests" OFF)
 
 find_program(MOLD_LINKER mold)
 find_program(LLD_LINKER lld)
@@ -188,8 +191,11 @@ if (NOT MSVC)
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			if (ENABLE_BUILD_WITH_LIBCXX)
 				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-				if (ENABLE_BUILD_WITH_RTLIB_COMPILER_RT)
-					set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -rtlib=compiler-rt")
+				CHECK_LINKER_FLAG(CXX "-rtlib=compiler-rt" IS_COMPILER_RT_SUPPORTED)
+
+				if (IS_COMPILER_RT_SUPPORTED)
+					message(STATUS "clang supports compiler-rt, use it")
+					add_link_options(-rtlib=compiler-rt -unwindlib=libunwind)
 				endif()
 			else()
 				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
@@ -229,16 +235,39 @@ endif(NOT MSVC)
 add_subdirectory(third_party/crypto)
 set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
 
+if (ENABLE_BUILD_TESTS)
+	set(USE_BOOST_TEST ON)
+endif()
+
+set(BUILD_ASIO_BEAST ON)
+
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
 set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost)
 
+add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
+add_definitions(-DBOOST_BEAST_SEPARATE_COMPILATION)
+
 add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_definitions(-DBOOST_DISABLE_PRAGMA_MESSAGE)
 add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
-add_subdirectory(third_party/boost)
+if (ENABLE_USE_IO_URING)
+	find_package(IOUring)
+
+	if (IOUring_FOUND)
+		message(STATUS "Linux using io_uring...")
+		add_definitions(-DBOOST_ASIO_HAS_IO_URING -DBOOST_ASIO_DISABLE_EPOLL)
+		link_libraries(${IOUring_LIBRARIES})
+	endif()
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
+endif()
+
+add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
 find_package(Threads)
 link_libraries(${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
@@ -251,6 +280,40 @@ endif()
 if (ENABLE_JEMALLOC_STATIC)
 	find_package(JeMalloc)
 	link_libraries(${JEMALLOC_LIBRARIES})
+endif()
+
+if (ENABLE_MIMALLOC_STATIC)
+	add_definitions(-DUSE_MIMALLOC)
+	set(mimalloc_DIR ${CMAKE_SOURCE_DIR}/third_party/mimalloc/cmake)
+
+	set(MI_DEBUG_FULL        OFF CACHE BOOL "" FORCE) # Use full internal heap invariant checking in DEBUG mode (expensive)
+	set(MI_PADDING           ON  CACHE BOOL "" FORCE) # Enable padding to detect heap block overflow (used only in DEBUG mode)
+	if (APPLE)
+		set(MI_OVERRIDE        OFF CACHE BOOL "" FORCE) # Override the standard malloc interface (e.g. define entry points for malloc() etc)
+	else()
+		set(MI_OVERRIDE        ON  CACHE BOOL "" FORCE)
+	endif()
+	set(MI_XMALLOC           OFF CACHE BOOL "" FORCE) # Enable abort() call on memory allocation failure by default
+	set(MI_SHOW_ERRORS       OFF CACHE BOOL "" FORCE) # Show error and warning messages by default (only enabled by default in DEBUG mode)
+	set(MI_USE_CXX           ON  CACHE BOOL "" FORCE) # Use the C++ compiler to compile the library (instead of the C compiler)
+	set(MI_SEE_ASM           OFF CACHE BOOL "" FORCE) # Generate assembly files
+	set(MI_INTERPOSE         ON  CACHE BOOL "" FORCE) # Use interpose to override standard malloc on macOS
+	set(MI_OSX_ZONE          ON  CACHE BOOL "" FORCE) # Use malloc zone to override standard malloc on macOS
+	set(MI_LOCAL_DYNAMIC_TLS OFF CACHE BOOL "" FORCE) # Use slightly slower, dlopen-compatible TLS mechanism (Unix)
+	set(MI_BUILD_SHARED      OFF CACHE BOOL "" FORCE) # Build shared library
+	set(MI_BUILD_STATIC      ON  CACHE BOOL "" FORCE) # Build static library
+	set(MI_BUILD_OBJECT      OFF CACHE BOOL "" FORCE) # Build object library
+	set(MI_BUILD_TESTS       OFF CACHE BOOL "" FORCE) # Build test executables
+	set(MI_DEBUG_TSAN        OFF CACHE BOOL "" FORCE) # Build with thread sanitizer (needs clang)
+	set(MI_DEBUG_UBSAN       OFF CACHE BOOL "" FORCE) # Build with undefined-behavior sanitizer (needs clang++)
+	set(MI_INSTALL_TOPLEVEL  OFF CACHE BOOL "" FORCE) # Install directly into $CMAKE_INSTALL_PREFIX instead of PREFIX/lib/mimalloc-version
+
+	include_directories(third_party/mimalloc/include)
+	add_subdirectory(third_party/mimalloc EXCLUDE_FROM_ALL)
+
+	if (MI_OVERRIDE)
+		add_definitions(-DMI_OVERRIDE) # For preprocessor checks in our source.
+	endif()
 endif()
 
 if (ENABLE_SYSTEMD_LOGGING)
@@ -280,26 +343,12 @@ include_directories(third_party
 	${CRYPTOPP_INCLUDE_DIRS}
 )
 
-if (ENABLE_SYSTEM_OPENSSL)
-	find_package(OpenSSL)
-else()
-	add_subdirectory(third_party/openssl)
-	if (NOT MSVC AND NOT APPLE)
-		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-			set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
-			set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
-			set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
-		endif()
-	endif()
-endif()
-include_directories(${OPENSSL_INCLUDE_DIR})
 
 link_libraries(
 		Boost::coroutine
 		Boost::context
 		Boost::thread
 		Boost::date_time
-		Boost::filesystem
 		Boost::program_options
 		Boost::regex
 		Boost::json
@@ -307,7 +356,6 @@ link_libraries(
 		fmt
 		cryptopp-static
 
-		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
 )
 
@@ -340,17 +388,15 @@ if (WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/release)
 endif()
 
-if (ENABLE_USE_IO_URING)
-	find_package(IOUring)
-
-	if (IOUring_FOUND)
-		message(STATUS "Linux using io_uring...")
-		add_definitions(-DBOOST_ASIO_HAS_IO_URING -DBOOST_ASIO_DISABLE_EPOLL)
-		link_libraries(${IOUring_LIBRARIES})
-	endif()
-endif()
-
 add_subdirectory(avpn)
+
+if (ENABLE_BUILD_TESTS)
+	link_libraries(Boost::test)
+
+	enable_testing()
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
+	add_subdirectory(unittests)
+endif()
 
 configure_file(avpn.service.in avpn.service)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/avpn.service DESTINATION /usr/lib/systemd/system/)

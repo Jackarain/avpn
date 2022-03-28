@@ -66,7 +66,7 @@ namespace po = boost::program_options;
 #include "utils/fileop.hpp"
 
 
-void create_pid()
+void create_pid(std::string ifdev)
 {
 	// 创建临时avpn文件夹.
 	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
@@ -77,21 +77,21 @@ void create_pid()
 	oss << get_process_id();
 
 	// 先删除存在的pid文件.
-	auto pid = avpn_tmp_dir / "avpn.pid";
+	auto pid = avpn_tmp_dir / std::format("avpn-{}.pid", ifdev);
 	std::filesystem::remove(pid, ignore_ec);
 
 	// 创建avpn.pid文件.
 	fileop::write(pid, oss.str());
 }
 
-uint64_t check_pid()
+uint64_t check_pid(std::string ifdev)
 {
 	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
 	if (!std::filesystem::exists(avpn_tmp_dir))
 		return 0;
 
 	std::string bufs(128, 0);
-	auto bytes = fileop::read(avpn_tmp_dir / "avpn.pid", bufs);
+	auto bytes = fileop::read(avpn_tmp_dir / std::format("avpn-{}.pid", ifdev), bufs);
 	bufs.resize(bytes);
 
 	return (uint64_t)std::atoll(bufs.c_str());
@@ -228,6 +228,7 @@ int main(int argc, char** argv)
 	bool passbyvpn = false;
 	bool snat = false;
 	bool c2c = true;
+	bool disable_logs = false;
 
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
@@ -267,6 +268,8 @@ int main(int argc, char** argv)
 		("c2c", po::value<bool>(&c2c)->default_value(true), "Allow different clients to be able to see each other.")
 
 		("controller", po::value<int>(&controller_port)->default_value(-1), "Controller, local controller server port.")
+
+		("disable_logs", po::value<bool>(&disable_logs)->default_value(false), "Disable logs.")
 	;
 
 	try
@@ -280,6 +283,9 @@ int main(int argc, char** argv)
 			.run()
 			, vm);
 		po::notify(vm);
+
+		if (disable_logs)
+			util::toggle_write_logging(true);
 
 		// 输出版本信息.
 		LOG_FILE << version_info();
@@ -307,6 +313,9 @@ int main(int argc, char** argv)
 			auto cfg = po::parse_config_file(config.c_str(), desc, false);
 			po::store(cfg, vm);
 			po::notify(vm);
+
+			if (disable_logs)
+				util::toggle_write_logging(true);
 		}
 
 		// test subnet address.
@@ -384,7 +393,7 @@ int main(int argc, char** argv)
 #ifdef _WIN32
 	if (g_avpn_windows_lean_mean)
 	{
-		auto pid = (DWORD)check_pid();
+		auto pid = (DWORD)check_pid(ifdev);
 		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 		if (handle == INVALID_HANDLE_VALUE)
 			return EXIT_FAILURE;
@@ -395,7 +404,7 @@ int main(int argc, char** argv)
 #endif
 
 	// 创建pid文件.
-	create_pid();
+	create_pid(ifdev);
 
 	if (controller_port == -1)
 	{
