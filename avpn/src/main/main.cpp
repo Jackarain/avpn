@@ -365,6 +365,7 @@ int main(int argc, char** argv)
 	params.passbyvpn_ = passbyvpn;
 	params.c2c_ = c2c;
 	params.subnet_ = subnet;
+
 	if (data_shards + parity_shards > 256)
 	{
 		LOG_ERR << "sum of data and parity shards cannot exceed 256";
@@ -412,7 +413,8 @@ int main(int argc, char** argv)
 		srv.start();
 
 		// 处理中止信号.
-		terminator_signal.async_wait([&ios, &srv](const boost::system::error_code&, int)
+		terminator_signal.async_wait(
+			[&ios, &srv](const boost::system::error_code&, int)
 			{
 				LOG_DBG << "terminator is called!";
 				srv.stop();
