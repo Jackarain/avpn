@@ -1611,7 +1611,7 @@ namespace avpn
 		{
 			LOG_WARN << "Server: " << connection.connection_id_
 				<< ", verify auth code fail: " << code << ", got: " << auth_code;
-
+#if 0
 			std::string reply(normal_mtu, 0);
 			stream_endian::bitstream writer((uint8_t*)reply.data(), normal_mtu);
 
@@ -1624,6 +1624,7 @@ namespace avpn
 
 			co_await forward_tcp_write(connection_ptr, std::move(reply));
 			co_return;
+#endif
 		}
 
 		uint32_t pushdns = 0;
