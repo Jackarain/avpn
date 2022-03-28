@@ -13,7 +13,6 @@
 #include "avpn/controller.hpp"
 
 namespace avpn {
-
 	static std::string controller_server_host = "127.0.0.1";
 
 	enum class controller_type
@@ -25,6 +24,9 @@ namespace avpn {
 		ct_remote = 3,
 		ct_test = 4,
 	};
+
+	using namespace boost::asio;
+	namespace beast = boost::beast;
 
 	controller::controller(io_context_pool& ioc_pool, const server_config& cfg)
 		: m_ioc_pool(ioc_pool)
@@ -67,7 +69,7 @@ namespace avpn {
 		m_start = false;
 
 		boost::system::error_code ec;
-		m_ws_stream.close(boost::beast::websocket::close_code::none, ec);
+		m_ws_stream.close(beast::websocket::close_code::none, ec);
 		m_ws_stream.next_layer().socket().close(ec);
 		m_signal.cancel(ec);
 		m_timer.cancel(ec);
@@ -81,9 +83,15 @@ namespace avpn {
 		boost::system::error_code ec;
 
 		// 构造本地服务器的endpoint.
-		auto addr = boost::asio::ip::address_v4::from_string(controller_server_host, ec);
-		tcp::endpoint endp{ addr, (boost::asio::ip::port_type)m_config.controller_ };
-		tcp::socket& sock = boost::beast::get_lowest_layer(m_ws_stream).socket();
+		auto addr = ip::address_v4::from_string(controller_server_host, ec);
+		if (ec)
+		{
+			LOG_ERR << "controller::start_connect, from_string: " << ec.message();
+			co_return;
+		}
+
+		tcp::endpoint endp{ addr, (ip::port_type)m_config.controller_ };
+		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
 
 		// 连接到服务器.
 		co_await sock.async_connect(endp, uawaitable[ec]);
@@ -99,11 +107,11 @@ namespace avpn {
 		LOG_DBG << "controller::start_connect, connect successfully!";
 
 		std::string origin = "all";
-		auto decorator = [origin](boost::beast::websocket::request_type& m) {
-			m.insert(boost::beast::http::field::origin, origin);
+		auto decorator = [origin](beast::websocket::request_type& m) {
+			m.insert(beast::http::field::origin, origin);
 		};
 
-		m_ws_stream.set_option(boost::beast::websocket::stream_base::decorator(decorator));
+		m_ws_stream.set_option(beast::websocket::stream_base::decorator(decorator));
 		co_await m_ws_stream.async_handshake(controller_server_host, "/", uawaitable[ec]);
 		if (ec)
 		{
@@ -114,15 +122,16 @@ namespace avpn {
 			co_return;
 		}
 
-		boost::asio::ip::tcp::no_delay option(true);
+		tcp::no_delay option(true);
 		sock.set_option(option);
 
 		// 设置为非2进制模式.
 		m_ws_stream.binary(false);
 
-		m_ws_stream.control_callback([this] (boost::beast::websocket::frame_type ft, boost::beast::string_view)
+		m_ws_stream.control_callback([this]
+		(beast::websocket::frame_type ft, beast::string_view)
 		{
-			if (ft == boost::beast::websocket::frame_type::pong)
+			if (ft == beast::websocket::frame_type::pong)
 			{
 				if (m_abort)
 					return;
@@ -136,7 +145,8 @@ namespace avpn {
 			keepalive(), boost::asio::detached);
 
 		// 发起消息读取协程.
-		boost::asio::co_spawn(m_io_context.get_executor(), start_client_read(), boost::asio::detached);
+		boost::asio::co_spawn(m_io_context.get_executor(),
+			start_client_read(), boost::asio::detached);
 
 		co_return;
 	}
@@ -151,7 +161,7 @@ namespace avpn {
 		while (!m_abort || exit)
 		{
 			auto bytes = co_await m_ws_stream.async_read(buffer, uawaitable[ec]);
-			if (ec == websocket::error::closed)
+			if (ec == beast::websocket::error::closed)
 			{
 				LOG_DBG << "controller::start_client_read, vpn was closed";
 				break;
@@ -212,6 +222,7 @@ namespace avpn {
 						+ std::to_string(m_service.upload_rate())
 						+ " "
 						+ std::to_string(m_service.download_rate());
+
 					co_await m_ws_stream.async_write(boost::asio::buffer(str), uawaitable[ec]);
 					if (ec)
 					{
@@ -245,14 +256,15 @@ namespace avpn {
 			if (ec)
 				co_return;
 
-			m_ws_stream.async_ping("", uawaitable[ec]);
+			co_await m_ws_stream.async_ping("", uawaitable[ec]);
 			if (ec)
 				co_return;
 		}
 
+		co_await m_ws_stream.async_close(beast::websocket::none, uawaitable[ec]);
 		if (m_ws_stream.next_layer().socket().is_open())
 			m_ws_stream.next_layer().socket().close(ec);
-		m_ws_stream.async_close(boost::beast::websocket::none, uawaitable[ec]);
+
 		co_return;
 	}
 
