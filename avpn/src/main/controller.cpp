@@ -250,6 +250,9 @@ namespace avpn {
 				co_return;
 		}
 
+		if (m_ws_stream.next_layer().socket().is_open())
+			m_ws_stream.next_layer().socket().close(ec);
+		m_ws_stream.async_close(boost::beast::websocket::none, uawaitable[ec]);
 		co_return;
 	}
 
