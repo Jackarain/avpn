@@ -70,6 +70,7 @@ namespace avpn {
 		m_ws_stream.close(boost::beast::websocket::close_code::none, ec);
 		m_ws_stream.next_layer().socket().close(ec);
 		m_signal.cancel(ec);
+		m_timer.cancel(ec);
 
 		m_service.stop();
 		m_ioc_pool.stop();
@@ -129,6 +130,10 @@ namespace avpn {
 				LOG_DBG << "controller::start_connect, pong recevied!";
 			}
 		});
+
+		// 开启keepalive协程.
+		boost::asio::co_spawn(m_io_context.get_executor(),
+			keepalive(), boost::asio::detached);
 
 		// 发起消息读取协程.
 		boost::asio::co_spawn(m_io_context.get_executor(), start_client_read(), boost::asio::detached);
@@ -225,6 +230,25 @@ namespace avpn {
 
 		// 一旦ws退出, 则退出整个程序.
 		stop();
+
+		co_return;
+	}
+
+	boost::asio::awaitable<void> controller::keepalive()
+	{
+		boost::system::error_code ec;
+
+		while (!m_abort)
+		{
+			m_timer.expires_from_now(std::chrono::milliseconds(1));
+			co_await m_timer.async_wait(uawaitable[ec]);
+			if (ec)
+				co_return;
+
+			m_ws_stream.async_ping("", uawaitable[ec]);
+			if (ec)
+				co_return;
+		}
 
 		co_return;
 	}

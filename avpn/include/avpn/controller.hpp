@@ -46,6 +46,7 @@ namespace avpn {
 	private:
 		boost::asio::awaitable<void> start_connect();
 		boost::asio::awaitable<void> start_client_read();
+		boost::asio::awaitable<void> keepalive();
 
 	private:
 		io_context_pool& m_ioc_pool;
@@ -54,6 +55,7 @@ namespace avpn {
 		server_config m_config;
 		avpn_service m_service;
 		ws_stream m_ws_stream;
+		timer m_timer{ m_io_context };
 		bool m_start{ false };
 		bool m_abort{ false };
 	};
