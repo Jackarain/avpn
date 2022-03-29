@@ -44,12 +44,12 @@
 
 #include <zlib.h>
 
-#include "avpn/io_context_pool.hpp"
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
 
+#include "utils/io_context_pool.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
 #include "utils/url_parser.hpp"
@@ -405,7 +405,7 @@ namespace avpn {
 	private:
 		avpn_service& m_vpn_service;
 		boost::asio::io_context& m_main_ioc;
-		avpn::io_context_pool& m_ioc_pool;
+		io_context_pool& m_ioc_pool;
 
 		// 通道参数配置, 包含fec参数.
 		tunnel_params m_params;

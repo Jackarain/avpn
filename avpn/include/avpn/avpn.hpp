@@ -7,9 +7,10 @@
 
 #pragma once
 
-#include "avpn/internal.hpp"
+
 #include "avpn/vpn_tunnel.hpp"
 
+#include "utils/internal.hpp"
 #include "utils/time_clock.hpp"
 
 #include "vpncore/tuntap.hpp"
@@ -31,6 +32,7 @@ namespace avpn {
 		avpn::tunnel_params tunnel_params_;
 	};
 
+	using namespace util;
 	using time_clock::steady_clock;
 
 	class avpn_service

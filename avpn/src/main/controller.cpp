@@ -9,7 +9,9 @@
 #include <string>
 #include <regex>
 
+#include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
+
 #include "avpn/controller.hpp"
 
 namespace avpn {

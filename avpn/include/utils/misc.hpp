@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (C) 2020 Jack.
+// Copyright (C) 2019 Jack.
 //
 // Author: jack
 // Email:  jack.wgm at gmail dot com
@@ -7,123 +7,11 @@
 
 #pragma once
 
-#ifdef USE_MIMALLOC
+#include "utils/internal.hpp"
 
-#ifdef MI_OVERRIDE
-#	include <mimalloc.h>
-#else
-#	include <mimalloc-new-delete.h>
-#endif
-
-#ifdef _WIN32
-#	include <mimalloc-new-delete.h>
-#endif
-
-#endif // USE_MIMALLOC
-
-#include <type_traits>
-#include <tuple>
-#include <any>
-#include <cstdlib>
-#include <functional>
-#include <iostream>
-#include <string>
-#include <functional>
-#include <memory>
-#include <chrono>
-#include <variant>
-#include <exception>
-#include <system_error>
-#include <stdexcept>
-#include <thread>
-#include <algorithm>
-#include <numeric>
-#include <optional>
-#include <random>
-#include <shared_mutex>
-#include <unordered_map>
-#include <unordered_set>
-
-
-#ifdef _MSC_VER
-#	pragma warning(push)
-#	pragma warning(disable: 4702 4459)
-#endif // _MSC_VER
-
-#ifdef __clang__
-#	pragma clang diagnostic push
-#	pragma clang diagnostic ignored "-Wunused-private-field"
-#endif
-
-#include <boost/asio/post.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/defer.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/spawn.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/ip/network_v4.hpp>
-#include <boost/asio/streambuf.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/read_until.hpp>
-#include <boost/asio/signal_set.hpp>
-
-#ifdef __clang__
-#	pragma clang diagnostic pop
-#endif // __clang__
-
-
-#ifdef __GNUC__
-#	pragma GCC diagnostic push
-#	pragma GCC diagnostic ignored "-Warray-bounds"
-#endif
-
-#ifdef __clang__
-#	pragma clang diagnostic push
-#	pragma clang diagnostic ignored "-Warray-bounds"
-#endif
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/websocket.hpp>
-
-#ifdef __GNUC__
-#	pragma GCC diagnostic pop
-#endif
-
-#ifdef __clang__
-#	pragma clang diagnostic pop
-#endif
-
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/algorithm/string/find.hpp>
-
-#ifdef _MSC_VER
-#	pragma warning(pop)
-#endif
-
-#include <boost/thread.hpp>
-#include <boost/smart_ptr/local_shared_ptr.hpp>
-#include <boost/smart_ptr/make_local_shared.hpp>
-
-#include <boost/signals2.hpp>
-
-#ifdef __clang__
-#	pragma clang diagnostic push
-#	pragma clang diagnostic ignored "-Wunused-parameter"
-#endif
-
-#include <boost/circular_buffer.hpp>
-
-#ifdef __clang__
-#	pragma clang diagnostic pop
-#endif
-
-#include "utils/logging.hpp"
 #include "utils/url_parser.hpp"
 #include "utils/time_clock.hpp"
-
-#include "avpn/io_context_pool.hpp"
+#include "utils/io_context_pool.hpp"
 
 #define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
@@ -167,7 +55,7 @@ std::string gen_uuid();
 
 // 设置线程名.
 void set_thread_name(const char* name);
-void set_thread_name(boost::thread* thread, const char* name);
+void set_thread_name(std::thread* thread, const char* name);
 
 // google认证码相关.
 int google_auth_code(const std::string& secret,

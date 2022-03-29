@@ -54,15 +54,12 @@ bool g_avpn_windows_lean_mean = false;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
-#include <boost/multiprecision/cpp_dec_float.hpp>
-
 #include "avpn/version.hpp"
-#include "avpn/internal.hpp"
-#include "avpn/io_context_pool.hpp"
 #include "avpn/avpn.hpp"
 #include "avpn/reedsolomon.hpp"
 #include "avpn/controller.hpp"
 
+#include "utils/io_context_pool.hpp"
 #include "utils/fileop.hpp"
 #include "utils/misc.hpp"
 
@@ -299,8 +296,8 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	auto concurrency = boost::thread::hardware_concurrency() + 2;
-	avpn::io_context_pool ios{concurrency};
+	auto concurrency = std::thread::hardware_concurrency() + 2;
+	util::io_context_pool ios{concurrency};
 
 	boost::asio::signal_set terminator_signal(ios.get_io_context());
 	terminator_signal.add(SIGINT);

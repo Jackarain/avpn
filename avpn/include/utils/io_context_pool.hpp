@@ -10,7 +10,8 @@
 #include <vector>
 #include <boost/asio.hpp>
 
-namespace avpn {
+namespace util {
+
 /// A pool of io_context objects.
 class io_context_pool
 {

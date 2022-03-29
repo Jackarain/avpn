@@ -19,7 +19,6 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
-#include "utils/logging.hpp"
 #include "utils/misc.hpp"
 #include "utils/uawaitable.hpp"
 

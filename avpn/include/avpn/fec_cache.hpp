@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 #include <set>
+#include <map>
 
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
@@ -24,6 +25,7 @@
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
+#include "utils/fileop.hpp"
 
 #include "avpn/reedsolomon.hpp"
 
@@ -33,183 +35,39 @@ namespace fec {
 
 	struct fec_group
 	{
+	private:
+		fec_group(const fec_group&) = delete;
+		fec_group& operator=(const fec_group&) = delete;
+
 	public:
 		const static size_t max_ptk_size = 512 * 1024;
+
 		enum class fec_ip_state {
 			ip_start = 0,
 			ip_parsing = 1,
 		};
 
-		std::vector<std::vector<uint8_t>> pkts_;
-		uint32_t gid_{ 0 };
-		bitfield bs_;
-		int ps_{ 0 };
-		size_t gsize_;
-		int ds_{ 0 };
-		int64_t total_{ 0 };
-		timer::time_point time_;
-
-		fec_group(fec_group&& pg) noexcept
-			: pkts_(std::move(pg.pkts_))
-			, gid_(pg.gid_)
-			, bs_(std::move(pg.bs_))
-			, ps_(pg.ps_)
-			, gsize_(pg.gsize_)
-			, ds_(pg.ds_)
-			, total_(pg.total_)
-			, time_(pg.time_)
-		{
-			pg.gid_ = 0;
-			pg.pkts_.clear();
-			pg.ds_ = -1;
-			pg.ps_ = -1;
-			pg.gsize_ = 0;
-			pg.total_ = 0;
-		}
-
 		fec_group() = delete;
-		fec_group(int data_shards, int parity_shards, int size)
-		{
-			BOOST_ASSERT(data_shards + parity_shards < 256
-				&& "dataShards + parityShards >= 255");
+		fec_group(int data_shards, int parity_shards, int size);
 
-			time_ = timer::clock_type::now();
+		fec_group(fec_group&& pg) noexcept;
 
-			ds_ = data_shards;
-			ps_ = parity_shards;
-			gsize_ = (size_t)size;
-
-			auto total = ds_ + ps_;
-			bs_.resize(total, false);
-			pkts_.resize(total);
-		}
-
-		void update(uint32_t gid, uint16_t pid, uint8_t* data, size_t size)
-		{
-			gid_ = gid;
-
-			// COPY数据到容器.
-			auto& pkt = pkts_[pid];
-			pkt = std::vector<uint8_t>(data, data + size);
-			bs_.set_bit(pid);
-
-			// 这个group中接收到的所有字节总计.
-			total_ += (int64_t)size;
-		}
+		// 更新这个gop的数据.
+		void update(uint32_t gid, uint16_t pid, uint8_t* data, size_t size);
 
 		// 完整接收.
-		bool full() noexcept
-		{
-			return bs_.count() == (ds_ + ps_);
-		}
+		bool full() noexcept;
 
 		// 接收数据已达到可解码.
-		bool accord() const
-		{
-			return bs_.count() >= ds_;
-		}
+		bool accord() const;
 
 		// 总数据量.
-		size_t count() const
-		{
-			return bs_.count();
-		}
+		size_t count() const;
 
-		void parse_impl(std::string& ip,
+		bool parse_impl(std::string& ip,
 			uint8_t* data_ptr, int data_size,
 			int& left, int& whole, int& ip_size,
-			fec_ip_state& state, std::vector<std::string>& result)
-		{
-			while (true)
-			{
-				uint8_t* bufptr = (uint8_t*)data_ptr + left;
-				int bufsize = data_size - left;
-
-				// 没有数据了, 跳向下一个.
-				if (bufsize <= 0)
-				{
-					left = 0;
-					break;
-				}
-
-				if (whole == 0)
-					return;
-
-				BOOST_ASSERT(whole > 0);
-
-				switch (state)
-				{
-				case fec_ip_state::ip_start:
-				{
-					if (ip.size() < 4)
-					{
-						int n = 4 - (int)ip.size();
-						n = std::min<int>((int)bufsize, n);
-
-						ip.append((char*)bufptr, n);
-						left += n;
-
-						if (ip.size() < 4)
-							continue;
-
-						bufptr += n;
-						bufsize -= n;
-					}
-
-					// 必然等于4.
-					BOOST_ASSERT(ip.size() == 4);
-
-					// 获取ip包大小.
-					ip_size = ntohs(*(uint16_t*)(ip.data() + 2));
-					BOOST_ASSERT(ip_size > 0);
-
-					// 跳过已经拷贝的4字节head.
-					ip_size -= 4;
-
-					auto num = std::min<int>(ip_size, bufsize);
-
-					// 如果ip包大小小于已有数据大小, 则直接拷入ip字符串.
-					if (num == ip_size)
-					{
-						ip.append((char*)bufptr, num);
-						whole -= (int)ip.size();
-						result.emplace_back(std::move(ip));
-						left += num;
-					}
-					else
-					{
-						// 否则拷入已有的部分ip数据到ip字符串, 然后接着拷.
-						ip.append((char*)bufptr, num);
-						left += num;
-						ip_size -= num;
-						state = fec_ip_state::ip_parsing;
-					}
-				}
-				break;
-				case fec_ip_state::ip_parsing:
-				{
-					auto num = std::min<int>(ip_size, bufsize);
-					if (num == ip_size)
-					{
-						ip.append((char*)bufptr, num);
-						whole -= (int)ip.size();
-						result.emplace_back(std::move(ip));
-						left += num;
-						state = fec_ip_state::ip_start;
-					}
-					else
-					{
-						// 否则拷入已有的部分ip数据到ip字符串, 然后接着拷.
-						ip.append((char*)bufptr, num);
-						left += num;
-						ip_size -= num;
-						state = fec_ip_state::ip_parsing;
-					}
-				}
-				break;
-				}
-			}
-		}
+			fec_ip_state& state, std::vector<std::string>& result);
 
 		template<class Buf, class DataPtr, class DataSize>
 		void group_parse(Buf& buffer, std::vector<std::string>& result,
@@ -220,6 +78,7 @@ namespace fec {
 			int ip_size = 0;
 			int whole = (int)gsize_;
 			fec_ip_state state = fec_ip_state::ip_start;
+			bool corrupted = false;
 
 			for (auto i = 0; i < ds_; i++)
 			{
@@ -230,88 +89,53 @@ namespace fec {
 				auto data_ptr = (uint8_t*)data_ptr_func(d);
 				auto data_size = (int)data_size_func(d);
 
-				parse_impl(ip, data_ptr, data_size,
+				bool ret = parse_impl(ip, data_ptr, data_size,
 					left, whole, ip_size, state, result);
-
 				if (whole == 0)
 					return;
+
+				if (!ret)
+				{
+					corrupted = true;
+					break;
+				}
+			}
+
+			if (corrupted)
+			{
+				auto all_size = buffer.size();
+
+				LOG_WARN << "fec corrupted: gsize: " << gsize_ << ", gid: "
+					<< gid_ << ", total: " << total_ << ", ds: " << ds_
+					<< ", ps: " << ps_ << ", all: " << all_size;
+
+				// dump corrupted data.
+				auto params = std::format("gid={},gsize={},total={},ds={},ps={}",
+					gid_, gsize_, total_, ds_, ps_);
+				fileop::write(std::format("ds{}.param", gid_), params);
+
+				for (auto i = 0; i < all_size; i++)
+				{
+					auto& d = buffer[i];
+					fileop::write(std::format("ds{}-{}.dat", gid_, i), d);
+				}
 			}
 		}
 
 		// rs解码数据, 返回的vector中每个元素将是一个完整的ip包.
-		std::vector<std::string> decode()
-		{
-			if (!accord())
-				return {};
+		std::vector<std::string> decode();
+		std::vector<std::string> decode(const fec::matrix& m);
 
-			fec::reedsolomon fec_dec(ds_, ps_);
-
-			// fec解码.
-#if !defined(_DEBUG) && !defined(DEBUG)
-			try {
-#endif
-				fec_dec.decode(pkts_);
-#if !defined(_DEBUG) && !defined(DEBUG)
-			}
-			catch (const std::exception& e) {
-				LOG_WARN << "fec decode exception: " << e.what();
-				return {};
-			}
-#endif
-
-			std::vector<std::string> result;
-
-			auto ptr_func = [](std::vector<uint8_t>& buf) -> const uint8_t* {
-				return buf.data();
-			};
-
-			auto size_func = [](std::vector<uint8_t>& buf) -> size_t {
-				return buf.size();
-			};
-
-			group_parse(pkts_, result, ptr_func, size_func);
-
-			return result;
-		}
-
-		std::vector<std::string> decode(const fec::matrix& m)
-		{
-			if (!accord())
-				return {};
-
-			fec::reedsolomon fec_dec(ds_, ps_, m);
-
-			// fec解码.
-#if !defined(_DEBUG) && !defined(DEBUG)
-			try {
-#endif
-				fec_dec.decode(pkts_);
-#if !defined(_DEBUG) && !defined(DEBUG)
-			}
-			catch (const std::exception& e) {
-				LOG_WARN << "fec decode exception: " << e.what();
-				return {};
-			}
-#endif
-
-			std::vector<std::string> result;
-
-			auto ptr_func = [](std::vector<uint8_t>& buf) -> const uint8_t* {
-				return buf.data();
-			};
-
-			auto size_func = [](std::vector<uint8_t>& buf) -> size_t {
-				return buf.size();
-			};
-
-			group_parse(pkts_, result, ptr_func, size_func);
-
-			return result;
-		}
-
-	private:
-		fec_group(const fec_group&) = delete;
-		fec_group& operator=(const fec_group&) = delete;
+	public:
+		std::vector<std::vector<uint8_t>> pkts_;
+		uint32_t gid_{ 0 };
+		bitfield bs_;
+		int ps_{ 0 };
+		size_t gsize_;
+		int ds_{ 0 };
+		int64_t total_{ 0 };
+		timer::time_point time_;
+		static std::map<uint64_t, fec::matrix> matrix_cache_;
 	};
 
 
@@ -324,89 +148,17 @@ namespace fec {
 		fec_cache& operator=(const fec_cache&) = delete;
 
 	public:
-		explicit fec_cache(int64_t max_cache_size = 64 * 1024 * 1024)
-			: cache_size_limit_(max_cache_size)
-		{}
+		explicit fec_cache(int64_t max_cache_size = 64 * 1024 * 1024);
 		~fec_cache() = default;
 
-		void reset()
-		{
-			groups_.clear();
-			expired_.clear();
-			result_.clear();
-
-			total_cache_size_ = 0;
-		}
+		void reset();
 
 		void update(uint32_t gid, uint16_t pid,
 			int data_shards, int parity_shards, int gsize,
-			uint8_t* data, size_t data_size)
-		{
-			auto it = groups_.find(gid);
-			if (it == groups_.end())
-			{
-				if (expired_.contains(gid))
-					return;
+			uint8_t* data, size_t data_size);
 
-				fec_group pkt(data_shards, parity_shards, gsize);
-				pkt.update(gid, pid, data, data_size);
-				groups_.emplace(gid, std::move(pkt));
-			}
-			else
-			{
-				auto& pkt = it->second;
-				pkt.update(gid, pid, data, data_size);
-
-				// 保存已经可用的pkt.
-				if (pkt.accord())
-				{
-					expired_.insert(gid);
-					result_.emplace_back(std::move(pkt));
-					groups_.erase(it);
-				}
-			}
-
-			total_cache_size_ += data_size;
-		}
-
-		int garbage_clean()
-		{
-			if (expired_.size() > 2048)
-			{
-				int num = 0;
-				for (auto it = expired_.begin();
-					it != expired_.end() && num <= 1024; num++)
-				{
-					expired_.erase(it++);
-				}
-			}
-
-			if (total_cache_size_ <= cache_size_limit_)
-				return 0;
-
-			int bytes_num = 0;
-			for (auto it = groups_.begin(); it != groups_.end();)
-			{
-				auto& [gid, gop] = *it;
-
-				total_cache_size_ -= gop.total_;
-				bytes_num += (int)gop.total_;
-				groups_.erase(it++);
-
-				if (total_cache_size_ <= cache_size_limit_)
-					break;
-			}
-
-			return bytes_num;
-		}
-
-		std::vector<fec_group> acquire()
-		{
-			for (const auto& gop : result_)
-				total_cache_size_ -= gop.total_;
-
-			return std::move(result_);
-		}
+		int garbage_clean();
+		std::vector<fec_group> acquire();
 
 	public:
 		int64_t cache_size_limit_;

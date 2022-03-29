@@ -50,6 +50,7 @@
 #include <boost/date_time/c_local_time_adjustor.hpp>
 
 #include "utils/misc.hpp"
+#include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
 #ifndef _MSC_VER
@@ -575,7 +576,7 @@ void set_thread_name(const char* name)
 	SetThreadName(GetCurrentThreadId(), name);
 }
 
-void set_thread_name(boost::thread* thread, const char* name)
+void set_thread_name(std::thread* thread, const char* name)
 {
 	DWORD threadId = ::GetThreadId(static_cast<HANDLE>(thread->native_handle()));
 	SetThreadName(threadId, name);
@@ -839,7 +840,7 @@ uint64_t get_process_id()
 	return (uint64_t)getpid();
 }
 
-void set_thread_name(boost::thread* thread, const char* name)
+void set_thread_name(std::thread* thread, const char* name)
 {
 	auto handle = thread->native_handle();
 	pthread_setname_np(handle, name);
@@ -891,7 +892,7 @@ uint64_t get_process_id()
 	return (uint64_t)getpid();
 }
 
-void set_thread_name(boost::thread*, const char*)
+void set_thread_name(std::thread*, const char*)
 {
 }
 
@@ -940,7 +941,7 @@ uint64_t get_process_id()
 	return (uint64_t)getpid();
 }
 
-void set_thread_name(boost::thread*, const char*)
+void set_thread_name(std::thread*, const char*)
 {
 }
 

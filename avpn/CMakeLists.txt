@@ -19,8 +19,6 @@ file(GLOB avpn_LINUX_SRCS
 
 file(GLOB avpn_SRCS
 	include/avpn/version.hpp
-	include/avpn/internal.hpp
-	include/avpn/io_context_pool.hpp
 	include/avpn/logging.hpp
 	include/avpn/avpn.hpp
 	include/avpn/vpn_tunnel.hpp
@@ -39,9 +37,9 @@ file(GLOB avpn_SRCS
 
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
-	src/main/io_context_pool.cpp
 	src/main/reedsolomon.cpp
 	src/main/controller.cpp
+	src/main/fec_cache.cpp
 )
 
 if (WIN32)

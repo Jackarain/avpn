@@ -5,11 +5,12 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#include "avpn/internal.hpp"
-#include "avpn/io_context_pool.hpp"
+#include "utils/internal.hpp"
+#include "utils/io_context_pool.hpp"
 #include "utils/misc.hpp"
 
-namespace avpn {
+namespace util {
+
 io_context_pool::io_context_pool(std::size_t pool_size)
 	: next_io_context_(0)
 {
@@ -33,10 +34,10 @@ io_context_pool::io_context_pool(std::size_t pool_size)
 void io_context_pool::run()
 {
 	// Create a pool of threads to run all of the io_contexts.
-    std::vector<std::shared_ptr<boost::thread>> threads;
+    std::vector<std::shared_ptr<std::thread>> threads;
 	for (std::size_t i = 0; i < io_contexts_.size(); ++i)
 	{
-        std::shared_ptr<boost::thread> thread(new boost::thread(
+        std::shared_ptr<std::thread> thread(new std::thread(
 			[this, i]() mutable { io_contexts_[i]->run();  }));
 			set_thread_name(thread.get(), "round-robin io runner");
 		threads.push_back(thread);

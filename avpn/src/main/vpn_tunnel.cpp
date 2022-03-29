@@ -175,7 +175,8 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
-	vpn_tunnel::vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios, const tunnel_params& params, avpn_service& service)
+	vpn_tunnel::vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios,
+		const tunnel_params& params, avpn_service& service)
 		: m_vpn_service(service)
 		, m_main_ioc(io)
 		, m_ioc_pool(ios)
@@ -196,7 +197,8 @@ namespace avpn
 		LOG_DBG << "vpn_tunnel::~vpn_tunnel()";
 	}
 
-	void vpn_tunnel::start_server_listen(std::vector<std::string> tcp_listens, std::vector<std::string> udp_listens)
+	void vpn_tunnel::start_server_listen(
+		std::vector<std::string> tcp_listens, std::vector<std::string> udp_listens)
 	{
 		m_tcp_listens = tcp_listens;
 		m_udp_listens = udp_listens;
@@ -451,8 +453,8 @@ namespace avpn
 			a.bind(endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server bind failed: "
-					<< ec.message() << ", address: " << endp.address().to_string() << ", port: " << endp.port();
+				LOG_ERR << "TCP server bind failed: " << ec.message()
+					<< ", address: " << endp.address().to_string() << ", port: " << endp.port();
 				return false;
 			}
 
