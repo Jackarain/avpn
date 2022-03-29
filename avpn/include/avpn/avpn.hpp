@@ -46,7 +46,6 @@ namespace avpn {
 
 			int64_t bytes_{ 0 };
 			int64_t rate_{ 0 };
-			steady_clock::time_point time_{ steady_clock::now() };
 		};
 
 		// c++11 noncopyable.

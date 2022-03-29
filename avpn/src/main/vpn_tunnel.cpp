@@ -1297,8 +1297,8 @@ namespace avpn
 			m_udp_sockets.emplace_back(std::move(sockptr));
 		}
 
-		// 按socket数量启动udp读取协程, 为接收提高效率, 发起2倍接收.
-		for (size_t fast = 0; fast < 2; fast++)
+		// 按socket数量启动udp读取协程, 为接收提高效率, 发起8倍接收.
+		for (size_t fast = 0; fast < 8; fast++)
 		{
 			for (size_t n = 0; n < m_udp_sockets.size(); n++)
 			{
