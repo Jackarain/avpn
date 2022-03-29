@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (C) 2019 Jack.
 //
 // Author: jack
@@ -75,8 +75,6 @@
 #include <boost/thread.hpp>
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
-
-#include <boost/json.hpp>
 
 #include <boost/signals2.hpp>
 

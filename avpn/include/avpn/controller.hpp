@@ -55,7 +55,8 @@ namespace avpn {
 		server_config m_config;
 		avpn_service m_service;
 		ws_stream m_ws_stream;
-		timer m_timer{ m_io_context };
+		timer m_timer;
+		int m_keepalive_cnt{ 0 };
 		bool m_start{ false };
 		bool m_abort{ false };
 	};

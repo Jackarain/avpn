@@ -34,17 +34,17 @@ namespace avpn {
 		, m_tuntap(m_io_context)
 		, m_tick_timer(m_io_context)
 		, m_vpn_tunnel(m_io_context, m_io_context_pool,
-			config.channel_params_, static_cast<avpn_service&>(*this))
+			config.tunnel_params_, static_cast<avpn_service&>(*this))
 	{
 	}
 
 	avpn_service::~avpn_service()
 	{
 		// 退出时删除所有添加的路由.
-		if (!m_channel_status.server_ip_.empty())
+		if (!m_tunnel_status.server_ip_.empty())
 		{
-			del_route("0.0.0.0/0 " + m_channel_status.vgateway_);
-			del_route(m_channel_status.server_ip_ + "/32");
+			del_route("0.0.0.0/0 " + m_tunnel_status.vgateway_);
+			del_route(m_tunnel_status.server_ip_ + "/32");
 		}
 
 		// 删除所有avpn临时文件.
@@ -78,7 +78,7 @@ namespace avpn {
 		m_abort = true;
 
 		// 退出时删除路由.
-		for (auto& route : m_channel_status.routes_)
+		for (auto& route : m_tunnel_status.routes_)
 		{
 			auto [ret, ok] = del_route(route);
 			if (ok)
@@ -87,17 +87,17 @@ namespace avpn {
 				LOG_DBG << "del route: " << route << " fail, reason: " << ret;
 		}
 
-		LOG_DBG << "avpn_service close channel.";
+		LOG_DBG << "avpn_service close tunnel.";
 		m_vpn_tunnel.close();
 
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tuntap.close();
 		m_tick_timer.cancel(ignore_ec);
-		auto server_ip = m_channel_status.server_ip_;
-		auto vgateway = m_channel_status.vgateway_;
-		m_channel_status = {};
-		m_channel_status.server_ip_ = server_ip;
-		m_channel_status.vgateway_ = vgateway;
+		auto server_ip = m_tunnel_status.server_ip_;
+		auto vgateway = m_tunnel_status.vgateway_;
+		m_tunnel_status = {};
+		m_tunnel_status.server_ip_ = server_ip;
+		m_tunnel_status.vgateway_ = vgateway;
 		m_vnet = {};
 		m_upload_stat = {};
 		m_down_stat = {};
@@ -146,22 +146,24 @@ namespace avpn {
 			if (m_config.identity_ == Identity::avpn_server)
 			{
 				// 作为server时, 要根据ip寻找到对应的通信通道.
-				if (m_channel_status.status_ != avpn::connection_status::st_listen)
+				if (m_tunnel_status.status_ != avpn::connection_status::st_listen)
 					continue;
 
-				// 透传到channel.
+				// 透传到tunnel.
 				m_vpn_tunnel.server_forward_tun(std::move(msg), std::move(endp));
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
 				// 未连接状态, 丢弃所有packet.
-				if (m_channel_status.status_ != avpn::connection_status::st_connected)
+				if (m_tunnel_status.status_ != avpn::connection_status::st_connected)
 					continue;
 
 				// 统计上传数据量用于计算上传速率.
 				m_upload_stat.bytes_ += (int64_t)msg.content_.size();
+				auto index = m_down_stat.speeder_count_ % speed_entries;
+				m_upload_stat.speeder_[index] = m_upload_stat.bytes_;
 
-				// 透传到channel.
+				// 透传到tunnel.
 				m_vpn_tunnel.client_forward_tun(std::move(msg), std::move(endp));
 			}
 		}
@@ -183,21 +185,30 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 
-		int64_t downloaded = 0;
-		int64_t uploaded = 0;
-
 		auto calc_speed = [&](speed_stat& stat,
-			time_clock::steady_clock::time_point& now,
-			int64_t& before_total
-			) mutable
+			steady_clock::time_point& now) mutable
 		{
-			auto all_already = stat.bytes_;
-			auto all_total = all_already - before_total;
-			before_total = all_already;
-			auto deltams = now - stat.time_;
-			stat.time_ = now;
-			auto speed = int64_t((double)all_total / ((double)deltams.count() / 1000.0f));
-			stat.rate_ = (speed * 2 + stat.rate_) / 3;
+			int nowindex = stat.speeder_count_ % speed_entries;
+			stat.speeder_time_[nowindex] = now;
+			auto speeder_count = stat.speeder_count_ + 1;
+			if (speeder_count > 0)
+			{
+				int checkindex = speeder_count >= speed_entries
+					? speeder_count % speed_entries : 0;
+
+				auto deltams = now - stat.speeder_time_[checkindex];
+				auto amount = stat.speeder_[nowindex] - stat.speeder_[checkindex];
+
+				if (amount < 0)
+					amount = 0;
+
+				if (deltams.count() == 0)
+					deltams = std::chrono::milliseconds(1);
+
+				stat.rate_ = int64_t((double)amount / ((double)deltams.count() / 1000.0f));
+			}
+
+			stat.speeder_count_ = speeder_count;
 		};
 
 		while (!m_abort)
@@ -212,8 +223,8 @@ namespace avpn {
 
 			auto now = time_clock::steady_clock::now();
 
-			calc_speed(m_down_stat, now, downloaded);
-			calc_speed(m_upload_stat, now, uploaded);
+			calc_speed(m_down_stat, now);
+			calc_speed(m_upload_stat, now);
 		}
 
 		co_return;
@@ -230,6 +241,8 @@ namespace avpn {
 
 				// 统计发送数据量用于计算发送速率.
 				m_down_stat.bytes_ += (int64_t)message.size();
+				auto index = m_down_stat.speeder_count_ % speed_entries;
+				m_down_stat.speeder_[index] = m_down_stat.bytes_;
 			}, boost::asio::detached);
 	}
 
@@ -283,23 +296,23 @@ namespace avpn {
 			return;
 		}
 
-		if (m_channel_status.passbyvpn_ && m_config.identity_ == Identity::avpn_client)
+		if (m_tunnel_status.passbyvpn_ && m_config.identity_ == Identity::avpn_client)
 		{
 			auto vgateway = gateway.to_string();
 
-			m_channel_status.vaddr_ = ipaddr;
-			m_channel_status.vgateway_ = vgateway;
+			m_tunnel_status.vaddr_ = ipaddr;
+			m_tunnel_status.vgateway_ = vgateway;
 
 			del_route("0.0.0.0/0 " + vgateway);
-			del_route(m_channel_status.server_ip_ + "/32 " + vgateway);
+			del_route(m_tunnel_status.server_ip_ + "/32 " + vgateway);
 
-			if (set_default_route(ipaddr, vgateway, defgw_string, m_channel_status.server_ip_))
+			if (set_default_route(ipaddr, vgateway, defgw_string, m_tunnel_status.server_ip_))
 				LOG_DBG << "Default gateway: " << defgw_string << " change successfully!";
 			else
 				LOG_WARN << "Default gateway: " << defgw_string << ", change faild!";
 		}
 
-		for (auto& route : m_channel_status.routes_)
+		for (auto& route : m_tunnel_status.routes_)
 		{
 			auto [ret, ok] = add_route(route);
 			if (ok)
@@ -313,20 +326,20 @@ namespace avpn {
 			// TODO: do snat...
 		}
 
-		if (!m_channel_status.dns_.empty() && m_config.identity_ == Identity::avpn_client)
+		if (!m_tunnel_status.dns_.empty() && m_config.identity_ == Identity::avpn_client)
 		{
-			if (set_dns(m_channel_status.dns_, ipaddr))
-				LOG_DBG << "Set dns: " << m_channel_status.dns_ << " successfully";
+			if (set_dns(m_tunnel_status.dns_, ipaddr))
+				LOG_DBG << "Set dns: " << m_tunnel_status.dns_ << " successfully";
 		}
 
 		m_vnet = net;
 	}
 
-	void avpn_service::on_status(avpn::channel_status cs)
+	void avpn_service::on_status(avpn::tunnel_status cs)
 	{
 		if (m_config.identity_ == Identity::avpn_client)
 		{
-			m_channel_status = cs;
+			m_tunnel_status = cs;
 			auto status = cs.status_;
 
 			// 连接成功, 如果没有启动tun, 则启动tun设备.
@@ -371,7 +384,7 @@ namespace avpn {
 					return;
 
 				m_start_tuntap = true;
-				m_channel_status = cs;
+				m_tunnel_status = cs;
 
 				setup_tun(m_vpn_tunnel.vnet());
 

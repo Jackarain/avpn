@@ -35,6 +35,7 @@ namespace avpn {
 		, m_config(cfg)
 		, m_service(m_ioc_pool, m_config)
 		, m_ws_stream(m_io_context)
+		, m_timer(m_io_context)
 	{
 	}
 
@@ -136,7 +137,7 @@ namespace avpn {
 				if (m_abort)
 					return;
 
-				LOG_DBG << "controller::start_connect, pong recevied!";
+				m_keepalive_cnt = 0;
 			}
 		});
 
@@ -251,17 +252,19 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			m_timer.expires_from_now(std::chrono::milliseconds(1));
+			m_timer.expires_from_now(std::chrono::milliseconds(1000));
 			co_await m_timer.async_wait(uawaitable[ec]);
 			if (ec)
 				co_return;
+
+			if (++m_keepalive_cnt >= 5)
+				break;
 
 			co_await m_ws_stream.async_ping("", uawaitable[ec]);
 			if (ec)
 				co_return;
 		}
 
-		co_await m_ws_stream.async_close(beast::websocket::none, uawaitable[ec]);
 		if (m_ws_stream.next_layer().socket().is_open())
 			m_ws_stream.next_layer().socket().close(ec);
 

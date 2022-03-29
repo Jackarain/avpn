@@ -220,7 +220,7 @@ namespace avpn {
 		only_tcp,
 	};
 
-	struct channel_params
+	struct tunnel_params
 	{
 		int data_shards_;			// fec数据设置.
 		int parity_shards_;			// fec冗余设置.
@@ -244,7 +244,7 @@ namespace avpn {
 		st_listen,
 	};
 
-	struct channel_status
+	struct tunnel_status
 	{
 		bool passbyvpn_{ false };
 		std::vector<std::string> routes_;
@@ -283,7 +283,7 @@ namespace avpn {
 
 	public:
 		vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios,
-			const channel_params& params, avpn_service& service);
+			const tunnel_params& params, avpn_service& service);
 		~vpn_tunnel();
 
 		// 根据用户设置的参数, 启动一个server.
@@ -293,7 +293,7 @@ namespace avpn {
 		// 启动一个client时向server发起连接.
 		void start_client_connect(const std::vector<std::string>&);
 
-		// 关闭channel.
+		// 关闭tunnel.
 		void close();
 
 		// 根据运行身份的不同, 将tun读取到的数据包分别交由
@@ -344,7 +344,7 @@ namespace avpn {
 			udp::endpoint endp, std::string msg);
 
 		// 转发数据包到网络, 自动根据配置转发.
-		boost::asio::awaitable<void> forward_channel_write(
+		boost::asio::awaitable<void> forward_tunnel_write(
 			vpn_connection_ptr connection_ptr, vpn_message msg);
 
 		// 启动udp socket服务, 成功后自动启动start_udp_read_loop进入循环
@@ -408,7 +408,7 @@ namespace avpn {
 		avpn::io_context_pool& m_ioc_pool;
 
 		// 通道参数配置, 包含fec参数.
-		channel_params m_params;
+		tunnel_params m_params;
 
 		std::vector<std::string> m_upstreams;
 		std::vector<std::string> m_tcp_listens;

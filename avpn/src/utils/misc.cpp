@@ -74,6 +74,7 @@
 #	pragma warning(disable: 4191)
 #endif // _MSC_VER
 
+#include "utils/fileop.hpp"
 
 namespace fs = std::filesystem;
 
@@ -959,6 +960,42 @@ bool set_default_route(const std::string&, const std::string&,
 }
 
 #endif
+
+void create_pid(std::string suffix)
+{
+	auto tmppath = fs::temp_directory_path();
+	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", suffix);
+
+	// 创建临时avpn文件夹.
+	std::error_code ignore_ec;
+	fs::create_directories(avpn_tmppath, ignore_ec);
+
+	std::ostringstream oss;
+	oss << get_process_id();
+
+	// 先删除存在的pid文件.
+	auto pid = avpn_tmppath / "avpn.pid";
+	fs::remove(pid, ignore_ec);
+
+	// 创建avpn.pid文件.
+	fileop::write(pid, oss.str());
+}
+
+
+uint64_t check_pid(std::string suffix)
+{
+	auto tmppath = fs::temp_directory_path();
+	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", suffix);
+	if (!fs::exists(avpn_tmppath))
+		return 0;
+
+	std::string bufs(128, 0);
+	auto bytes = fileop::read(avpn_tmppath / "avpn.pid", bufs);
+	bufs.resize(bytes);
+
+	return (uint64_t)std::atoll(bufs.c_str());
+}
+
 
 std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = false)
 {

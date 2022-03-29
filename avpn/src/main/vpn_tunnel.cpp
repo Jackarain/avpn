@@ -137,18 +137,18 @@ namespace avpn
 		reconnect_timer_.cancel(ignore_ec);
 		tcp_stream_.close(ignore_ec);
 
-		tcp_msg_deque_.clear();
-		fec_enc_.clear();
-		fec_dec_.reset();
+		// tcp_msg_deque_.clear();
+		// fec_enc_.clear();
+		// fec_dec_.reset();
 
 		keepalive_ = time_clock::steady_clock::now();
 		enc_tm_ = keepalive_;
 
-		remote_host_.clear();
-		endps_.clear();
+		// remote_host_.clear();
+		// endps_.clear();
+		// vnet_ = 0;
 
 		deque_writing_ = false;
-		vnet_ = 0;
 		fec_enc_size_ = 0;
 		gid_ = 0;
 		connection_id_ = -1;
@@ -175,7 +175,7 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
-	vpn_tunnel::vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios, const channel_params& params, avpn_service& service)
+	vpn_tunnel::vpn_tunnel(boost::asio::io_context& io, io_context_pool& ios, const tunnel_params& params, avpn_service& service)
 		: m_vpn_service(service)
 		, m_main_ioc(io)
 		, m_ioc_pool(ios)
@@ -193,7 +193,7 @@ namespace avpn
 
 	vpn_tunnel::~vpn_tunnel()
 	{
-		LOG_DBG << "channel::~channel()";
+		LOG_DBG << "vpn_tunnel::~vpn_tunnel()";
 	}
 
 	void vpn_tunnel::start_server_listen(std::vector<std::string> tcp_listens, std::vector<std::string> udp_listens)
@@ -252,7 +252,7 @@ namespace avpn
 		// 发起保活协程.
 		keepalive();
 
-		channel_status cs;
+		tunnel_status cs;
 		cs.status_ = connection_status::st_listen;
 
 		m_vpn_service.on_status(cs);
@@ -282,7 +282,7 @@ namespace avpn
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
 				co_await start_tcp_connect();
-				LOG_DBG << "Tcp socket quit...";
+				LOG_DBG << "Tcp client socket quit...";
 				co_return;
 			}, boost::asio::detached);
 
@@ -350,11 +350,11 @@ namespace avpn
 
 		m_routes.clear();
 		m_prefix_length = -1;
-		m_remote_endps.clear();
+		// m_remote_endps.clear();
 		m_client = {};
 		m_incomings.clear();
 		m_remotes.clear();
-		m_udp_sockets.clear();
+		// m_udp_sockets.clear();
 
 		LOG_DBG << "Close udp sockets...";
 	}
@@ -373,7 +373,7 @@ namespace avpn
 
 		auto& stream = connection_ptr->tcp_stream_;
 		boost::asio::co_spawn(stream.get_executor(),
-			forward_channel_write(connection_ptr, std::move(msg)), boost::asio::detached);
+			forward_tunnel_write(connection_ptr, std::move(msg)), boost::asio::detached);
 	}
 
 	void vpn_tunnel::client_forward_tun(vpn_message&& msg, endpoint_pair&& endp)
@@ -390,7 +390,7 @@ namespace avpn
 
 		auto& stream = connection_ptr->tcp_stream_;
 		boost::asio::co_spawn(stream.get_executor(),
-			forward_channel_write(connection_ptr, std::move(msg)), boost::asio::detached);
+			forward_tunnel_write(connection_ptr, std::move(msg)), boost::asio::detached);
 	}
 
 	boost::asio::ip::network_v4 vpn_tunnel::vnet_ipaddr() const
@@ -502,7 +502,7 @@ namespace avpn
 				socket.set_option(option);
 			}
 
-			static std::atomic_size_t id{ 0 };
+			static std::atomic_size_t id{ 1 };
 			size_t connection_id = id++;
 
 			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
@@ -560,6 +560,7 @@ namespace avpn
 					auto& connection = *connection_ptr;
 					boost::system::error_code ec;
 
+					// 根据是否分配的虚拟ip来确定清除connection连接信息.
 					connection.tcp_stream_.close(ec);
 					if (connection.vnet_ != 0)
 						remove_connection(connection.vnet_);
@@ -574,7 +575,7 @@ namespace avpn
 	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
 	{
 		boost::system::error_code ec;
-		static std::atomic_int64_t id{ 0 };
+		static std::atomic_int64_t id{ 1 };
 
 		while (!m_abort)
 		{
@@ -683,7 +684,7 @@ namespace avpn
 			{
 				LOG_DBG << "read error, wait a moment to reconnect...";
 				// 通知连接断开...
-				channel_status cs;
+				tunnel_status cs;
 
 				cs.status_ = connection_status::st_disconnect;
 				m_vpn_service.on_status(cs);
@@ -740,7 +741,9 @@ namespace avpn
 
 				vaddr = connection_ptr->vnet_;
 
-				if (vaddr == 0 || !connection_ptr->tcp_stream_.is_open())
+				if (vaddr == 0 ||
+					connection_ptr->connection_id_ <= 0 ||
+					!connection_ptr->tcp_stream_.is_open())
 				{
 					connection_ptr.reset();
 
@@ -826,7 +829,7 @@ namespace avpn
 				co_await wait_moment();
 			}
 
-			LOG_DBG << "channel::keepalive, client quit...";
+			LOG_DBG << "vpn_tunnel::keepalive, client quit...";
 		}, boost::asio::detached);
 	}
 
@@ -891,7 +894,7 @@ namespace avpn
 				check_incomings();
 			}
 
-			LOG_DBG << "channel::keepalive, server quit...";
+			LOG_DBG << "vpn_tunnel::server_checktimeout, server quit...";
 			co_return;
 		}, boost::asio::detached);
 		ioc.run();
@@ -1124,7 +1127,7 @@ namespace avpn
 		co_return;
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::forward_channel_write(vpn_connection_ptr connection_ptr, vpn_message msg)
+	boost::asio::awaitable<void> vpn_tunnel::forward_tunnel_write(vpn_connection_ptr connection_ptr, vpn_message msg)
 	{
 		auto& connection = *connection_ptr;
 
@@ -1406,7 +1409,7 @@ namespace avpn
 
 				for (size_t fast = 0; fast < 2; fast++)
 				{
-					LOG_DBG << "start_udp_client, local endpoint: ["
+					LOG_DBG << "start_udp_client, new udp socket, local endpoint: ["
 						<< m_udp_sockets[i]->sock_.local_endpoint().address().to_string() << "]:"
 						<< m_udp_sockets[i]->sock_.local_endpoint().port();
 
@@ -1420,6 +1423,13 @@ namespace avpn
 
 				m_udp_sockets[i]->last_see_ = time_clock::steady_clock::now();
 				m_udp_sockets[i]->sock_ = std::move(sock);
+
+				LOG_DBG << "start_udp_client, reuse udp socket, local endpoint: ["
+					<< m_udp_sockets[i]->sock_.local_endpoint().address().to_string() << "]:"
+					<< m_udp_sockets[i]->sock_.local_endpoint().port();
+
+				boost::asio::co_spawn(m_main_ioc.get_executor(),
+					start_udp_read_loop(i), boost::asio::detached);
 			}
 		}
 
@@ -1787,7 +1797,7 @@ namespace avpn
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
 				co_await start_udp_client();
-				LOG_DBG << "Udp client quit...";
+				LOG_DBG << "Start udp client completed...";
 				co_return;
 			}, boost::asio::detached);
 
@@ -1799,7 +1809,7 @@ namespace avpn
 		}
 
 		// 通知完成连接...
-		channel_status cs;
+		tunnel_status cs;
 		cs.passbyvpn_ = passbyvpn;
 		cs.routes_ = m_routes;
 		cs.dns_ = dns_string;
@@ -1932,7 +1942,7 @@ namespace avpn
 				msg.content_.assign((char*)content, content_size);
 
 				// 内网转发.
-				co_await forward_channel_write(connection_ptr, std::move(msg));
+				co_await forward_tunnel_write(connection_ptr, std::move(msg));
 				co_return;
 			}
 		}
@@ -2191,7 +2201,7 @@ namespace avpn
 				else
 					BOOST_ASSERT(false && "invalid msg.type");
 
-				co_await forward_channel_write(vlan_connection, std::move(msg));
+				co_await forward_tunnel_write(vlan_connection, std::move(msg));
 			}
 		}
 	}
@@ -2287,7 +2297,6 @@ namespace avpn
 
 		auto& connection = *connection_ptr;
 		auto& fec_enc = connection.fec_enc_;
-		auto& fec_dec = connection.fec_dec_;
 
 		// 通知过来时, 数据已经被发送了.
 		if (connection.fec_enc_size_ == 0)
@@ -2441,6 +2450,7 @@ namespace avpn
 			co_await forward_udp_write(usock, uendp, std::move(fec_body));
 		}
 
+		auto& fec_dec = connection.fec_dec_;
 		LOG_DBG << "Addr: " << connection.vnet_
 			<< ", Gid: " << gid
 			<< ", Each: " << pershard_size

@@ -10,6 +10,8 @@
 #include "avpn/internal.hpp"
 #include "avpn/vpn_tunnel.hpp"
 
+#include "utils/time_clock.hpp"
+
 #include "vpncore/tuntap.hpp"
 
 namespace avpn {
@@ -26,16 +28,23 @@ namespace avpn {
 
 		int controller_{ -1 };
 		avpn::Identity identity_;
-		avpn::channel_params channel_params_;
+		avpn::tunnel_params tunnel_params_;
 	};
+
+	using time_clock::steady_clock;
 
 	class avpn_service
 	{
+		const static int speed_entries = 6;
 		struct speed_stat
 		{
+			int64_t speeder_[speed_entries]{ 0 };
+			steady_clock::time_point speeder_time_[speed_entries]{ steady_clock::now() };
+			int64_t speeder_count_{ 0 };
+
 			int64_t bytes_{ 0 };
 			int64_t rate_{ 0 };
-			time_clock::steady_clock::time_point time_{ time_clock::steady_clock::now() };
+			steady_clock::time_point time_{ steady_clock::now() };
 		};
 
 		// c++11 noncopyable.
@@ -51,7 +60,7 @@ namespace avpn {
 		void stop();
 
 		void do_tuntap_write(std::string&& message);
-		void on_status(avpn::channel_status cs);
+		void on_status(avpn::tunnel_status cs);
 
 		int64_t upload_rate() const;
 		int64_t download_rate() const;
@@ -71,7 +80,7 @@ namespace avpn {
 		boost::asio::io_context& m_io_context;
 		server_config m_config;
 		bool m_start_tuntap{ false };
-		avpn::channel_status m_channel_status;
+		avpn::tunnel_status m_tunnel_status;
 		avpn::tuntap m_tuntap;
 		timer m_tick_timer;
 		boost::asio::ip::network_v4 m_vnet;

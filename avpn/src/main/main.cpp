@@ -64,38 +64,7 @@ namespace po = boost::program_options;
 #include "avpn/controller.hpp"
 
 #include "utils/fileop.hpp"
-
-
-void create_pid(std::string ifdev)
-{
-	// 创建临时avpn文件夹.
-	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
-	std::error_code ignore_ec;
-	std::filesystem::create_directories(avpn_tmp_dir, ignore_ec);
-
-	std::ostringstream oss;
-	oss << get_process_id();
-
-	// 先删除存在的pid文件.
-	auto pid = avpn_tmp_dir / std::format("avpn-{}.pid", ifdev);
-	std::filesystem::remove(pid, ignore_ec);
-
-	// 创建avpn.pid文件.
-	fileop::write(pid, oss.str());
-}
-
-uint64_t check_pid(std::string ifdev)
-{
-	auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
-	if (!std::filesystem::exists(avpn_tmp_dir))
-		return 0;
-
-	std::string bufs(128, 0);
-	auto bytes = fileop::read(avpn_tmp_dir / std::format("avpn-{}.pid", ifdev), bufs);
-	bufs.resize(bytes);
-
-	return (uint64_t)std::atoll(bufs.c_str());
-}
+#include "utils/misc.hpp"
 
 int platform_init()
 {
@@ -354,7 +323,7 @@ int main(int argc, char** argv)
 	cfg.snat_ = snat;
 	cfg.controller_ = controller_port;
 
-	auto& params = cfg.channel_params_;
+	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
 	params.mode_ = mode;

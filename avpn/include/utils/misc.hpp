@@ -132,8 +132,8 @@ using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 using ws = websocket::stream<tcp::socket>;
-
-using timer = boost::asio::basic_waitable_timer<time_clock::steady_clock>;
+using boost::asio::basic_waitable_timer;
+using timer = basic_waitable_timer<time_clock::steady_clock>;
 
 template<class ... T> inline constexpr bool always_false = false;
 
@@ -154,6 +154,11 @@ std::string add_suffix(float val, char const* suffix = nullptr);
 // 获取进程id.
 uint64_t get_process_id();
 
+// 创建pid文件.
+void create_pid(std::string suffix);
+// 检查pid文件.
+uint64_t check_pid(std::string suffix);
+
 // 随机字符串相关.
 int gen_random_int(int start, int end);
 std::string gen_unique_string(const unsigned int max_str_len);
@@ -165,13 +170,16 @@ void set_thread_name(const char* name);
 void set_thread_name(boost::thread* thread, const char* name);
 
 // google认证码相关.
-int google_auth_code(const std::string& secret, unsigned long tm = 0, unsigned long duration = 30);
+int google_auth_code(const std::string& secret,
+	unsigned long tm = 0, unsigned long duration = 30);
 std::string google_code_to_string(int google_code);
 std::string google_generate_secret();
 
 // 用于解析listen使用的endpoint.
-bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost::system::error_code& ec);
-bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost::system::error_code& ec);
+bool make_listen_endpoint(const std::string& address,
+	tcp::endpoint& endp, boost::system::error_code& ec);
+bool make_listen_endpoint(const std::string& address,
+	udp::endpoint& endp, boost::system::error_code& ec);
 
 bool same_ipv4_network(const boost::asio::ip::network_v4& net, uint32_t u32_addr);
 
