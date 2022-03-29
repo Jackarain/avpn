@@ -21,6 +21,7 @@
 
 #endif // USE_MIMALLOC
 
+#include <concepts>
 #include <iostream>
 #include <iterator>
 #include <algorithm>
@@ -30,14 +31,12 @@
 #include <array>
 #include <streambuf>
 #include <fstream>
-#include <bitset>
 #include <type_traits>
 #include <any>
 #include <cstdlib>
 #include <string>
 #include <memory>
 #include <chrono>
-#include <variant>
 #include <exception>
 #include <system_error>
 #include <stdexcept>
@@ -48,6 +47,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <cstring>
 
 
 #ifdef _MSC_VER
@@ -60,17 +60,25 @@
 #	pragma clang diagnostic ignored "-Wunused-private-field"
 #endif
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/streambuf.hpp>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/awaitable.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/defer.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/asio/ip/v6_only.hpp>
+#include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/streambuf.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/read_until.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/asio/buffer.hpp>
 
 #ifdef __clang__
 #	pragma clang diagnostic pop

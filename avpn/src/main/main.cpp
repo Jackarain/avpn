@@ -20,7 +20,6 @@
 #include <array>
 #include <streambuf>
 #include <fstream>
-#include <bitset>
 
 #ifdef __linux__
 #  include <sys/resource.h>

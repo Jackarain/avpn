@@ -7,48 +7,6 @@
 
 #pragma once
 
-#include <iostream>
-#include <functional>
-#include <cstring> // for std::memcpy
-#include <map>
-#include <unordered_map>
-#include <set>
-#include <concepts>
-#include <shared_mutex>
-
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/streambuf.hpp>
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/awaitable.hpp>
-#include <boost/asio/post.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/defer.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/ip/v6_only.hpp>
-#include <boost/asio/ip/address_v4.hpp>
-#include <boost/asio/ip/network_v4.hpp>
-#include <boost/asio/streambuf.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/read_until.hpp>
-#include <boost/asio/signal_set.hpp>
-#include <boost/asio/strand.hpp>
-#include <boost/asio/buffer.hpp>
-
-#include <boost/beast/core.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/websocket.hpp>
-
-#include <boost/circular_buffer.hpp>
-
-#include <zlib.h>
-
-#include "avpn/reedsolomon.hpp"
-#include "avpn/fec_cache.hpp"
-
-#include "vpncore/endpoint_pair.hpp"
-
 #include "utils/io_context_pool.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/bitfield.hpp"
@@ -60,6 +18,13 @@
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
 #include "utils/uawaitable.hpp"
+
+#include "vpncore/endpoint_pair.hpp"
+
+#include "avpn/reedsolomon.hpp"
+#include "avpn/fec_cache.hpp"
+
+#include <zlib.h>
 
 namespace avpn {
 
