@@ -1,0 +1,41 @@
+#include <winresrc.h>
+#include <ntverp.h>
+
+#pragma code_page(1252)
+
+wintun.cat RCDATA "driver\\wintun.cat"
+wintun.inf RCDATA "driver\\wintun.inf"
+wintun.sys RCDATA "driver\\wintun.sys"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 2020,5,13,1070
+ PRODUCTVERSION 2020,5,13,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "dmg Company"
+            VALUE "FileDescription", "AVPN"
+            VALUE "FileVersion", "2020,5,13,1070"
+            VALUE "InternalName", "AVPN"
+            VALUE "LegalCopyright", "Copyright ? 2019 dmg Technology, Inc."
+            VALUE "OriginalFilename", "AVPN.exe"
+            VALUE "ProductName", "AVPN"
+            VALUE "ProductVersion", "2020,5,13,0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END

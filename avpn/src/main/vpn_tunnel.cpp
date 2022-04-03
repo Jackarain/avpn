@@ -8,6 +8,8 @@
 #include "avpn/vpn_tunnel.hpp"
 #include "avpn/avpn.hpp"
 
+#include "zlib.h"
+
 namespace avpn
 {
 	//////////////////////////////////////////////////////////////////////////
@@ -125,9 +127,9 @@ namespace avpn
 	vpn_connection::~vpn_connection()
 	{
 		if (remote_host_.empty())
-			LOG_DBG << "vpn connection leave";
+			LOG_WARN << "vpn connection leave";
 		else
-			LOG_DBG << "vpn connection leave, remote: " << remote_host_;
+			LOG_WARN << "vpn connection leave, remote: " << remote_host_;
 	}
 
 	void vpn_connection::reset()
@@ -194,7 +196,7 @@ namespace avpn
 
 	vpn_tunnel::~vpn_tunnel()
 	{
-		LOG_DBG << "vpn_tunnel::~vpn_tunnel()";
+		LOG_WARN << "vpn_tunnel::~vpn_tunnel()";
 	}
 
 	void vpn_tunnel::start_server_listen(
@@ -234,7 +236,7 @@ namespace avpn
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
 				co_await start_udp_server();
-				LOG_DBG << "Udp server quit...";
+				LOG_WARN << "start_server_listen, Udp server quit...";
 				co_return;
 			}, boost::asio::detached);
 
@@ -246,7 +248,7 @@ namespace avpn
 				[this]() mutable -> boost::asio::awaitable<void>
 				{
 					co_await run_fec_dispatch();
-					LOG_DBG << "Fec dispatch quit...";
+					LOG_WARN << "start_server_listen, Fec dispatch quit...";
 					co_return;
 				}, boost::asio::detached);
 		}
@@ -273,7 +275,7 @@ namespace avpn
 				[this]() mutable -> boost::asio::awaitable<void>
 				{
 					co_await run_fec_dispatch();
-					LOG_DBG << "Fec dispatch quit...";
+					LOG_WARN << "start_client_connect, Fec dispatch quit...";
 					co_return;
 				}, boost::asio::detached);
 		}
@@ -284,7 +286,7 @@ namespace avpn
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
 				co_await start_tcp_connect();
-				LOG_DBG << "Tcp client socket quit...";
+				LOG_WARN << "start_client_connect, Tcp client socket quit...";
 				co_return;
 			}, boost::asio::detached);
 
@@ -358,7 +360,7 @@ namespace avpn
 		m_remotes.clear();
 		// m_udp_sockets.clear();
 
-		LOG_DBG << "Close udp sockets...";
+		LOG_WARN << "Close vpn_tunnel...";
 	}
 
 	void vpn_tunnel::server_forward_tun(vpn_message&& msg, endpoint_pair&& endp)
@@ -366,7 +368,7 @@ namespace avpn
 		auto connection_ptr = lookup_connection(endp.dst_.address().to_v4().to_uint());
 		if (!connection_ptr)
 		{
-			LOG_WARN << "server_forward_tun, t -> c, lost connection: " << endp;
+			LOG_ERR << "server_forward_tun, t -> c, lost connection: " << endp;
 			return;
 		}
 
@@ -383,7 +385,7 @@ namespace avpn
 		auto connection_ptr = m_client.lock();
 		if (!connection_ptr)
 		{
-			LOG_WARN << "client_forward_tun, t -> s, lost connection: " << endp;
+			LOG_ERR << "client_forward_tun, t -> s, lost connection: " << endp;
 			return;
 		}
 
@@ -514,64 +516,61 @@ namespace avpn
 				start_tcp_connection(connection_id, std::move(socket)), boost::asio::detached);
 		}
 
-		LOG_DBG << "start_tcp_listen exit...";
+		LOG_WARN << "start_tcp_listen exit ...";
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connection(size_t connection_id, tcp::socket stream)
 	{
 		boost::system::error_code ec;
+		std::string remote_host;
 
-		for (; !m_abort;)
+		auto endp = stream.remote_endpoint(ec);
+		if (!ec)
 		{
-			std::string remote_host;
-			auto endp = stream.remote_endpoint(ec);
-			if (!ec)
+			if (endp.address().is_v6())
 			{
-				if (endp.address().is_v6())
-				{
-					remote_host = "[" + endp.address().to_string()
-						+ "]:" + std::to_string(endp.port());
-				}
-				else
-				{
-					remote_host = endp.address().to_string()
-						+ ":" + std::to_string(endp.port());
-				}
+				remote_host = "[" + endp.address().to_string()
+					+ "]:" + std::to_string(endp.port());
 			}
-
-			// 创建connection, 只有在握手完成才加入m_remotes容器进行管理.
-			auto executor = stream.get_executor();
-			vpn_connection_ptr connection_ptr =
-				std::make_shared<vpn_connection>(executor, remote_host, &m_enc_matrix, &m_dec_matrix);
-
-			// 将已经连接的socket, move到connection中.
-			connection_ptr->tcp_stream_ = std::move(stream);
-
-			// 保存connection_id.
-			connection_ptr->connection_id_ = connection_id;
-
-			// 保存到临时表.
-			add_incoming(connection_ptr, connection_id);
-
-			LOG_DBG << "Client incoming: " << remote_host << ", connection id: " << connection_id;
-
-			// 启动读写协程.
-			boost::asio::co_spawn(executor,
-				start_tcp_read_loop(connection_ptr), [this, connection_ptr](std::exception_ptr) mutable
-				{
-					auto& connection = *connection_ptr;
-					boost::system::error_code ec;
-
-					// 根据是否分配的虚拟ip来确定清除connection连接信息.
-					connection.tcp_stream_.close(ec);
-					if (connection.vnet_ != 0)
-						remove_connection(connection.vnet_);
-					else
-						remove_incoming(connection.connection_id_);
-				});
-
-			co_return;
+			else
+			{
+				remote_host = endp.address().to_string()
+					+ ":" + std::to_string(endp.port());
+			}
 		}
+
+		// 创建connection, 只有在握手完成才加入m_remotes容器进行管理.
+		auto executor = stream.get_executor();
+		vpn_connection_ptr connection_ptr =
+			std::make_shared<vpn_connection>(executor, remote_host, &m_enc_matrix, &m_dec_matrix);
+
+		// 将已经连接的socket, move到connection中.
+		connection_ptr->tcp_stream_ = std::move(stream);
+
+		// 保存connection_id.
+		connection_ptr->connection_id_ = connection_id;
+
+		// 保存到临时表.
+		add_incoming(connection_ptr, connection_id);
+
+		LOG_DBG << "Client incoming: " << remote_host << ", connection id: " << connection_id;
+
+		// 启动读写协程.
+		boost::asio::co_spawn(executor,
+			start_tcp_read_loop(connection_ptr), [this, connection_ptr](std::exception_ptr) mutable
+			{
+				auto& connection = *connection_ptr;
+				boost::system::error_code ec;
+
+				// 根据是否分配的虚拟ip来确定清除connection连接信息.
+				connection.tcp_stream_.close(ec);
+				if (connection.vnet_ != 0)
+					remove_connection(connection.vnet_);
+				else
+					remove_incoming(connection.connection_id_);
+			});
+
+		co_return;
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
@@ -698,6 +697,7 @@ namespace avpn
 			}
 		}
 
+		LOG_WARN << "start_tcp_connect, quit...";
 		co_return;
 	}
 
@@ -783,12 +783,12 @@ namespace avpn
 					auto new_endp = new_usock.local_endpoint(ec);
 					if (ec)
 					{
-						LOG_WARN << "Reset udp socket: "
+						LOG_INFO << "Reset udp socket: "
 							<< local_endp << " -> " << new_endp << ", ec: " << ec.message();
 					}
 					else
 					{
-						LOG_WARN << "Reset udp socket: " << local_endp << " -> " << new_endp;
+						LOG_INFO << "Reset udp socket: " << local_endp << " -> " << new_endp;
 					}
 
 					u.sock_ = std::move(new_usock);
@@ -831,7 +831,7 @@ namespace avpn
 				co_await wait_moment();
 			}
 
-			LOG_DBG << "vpn_tunnel::keepalive, client quit...";
+			LOG_WARN << "vpn_tunnel::keepalive, client quit...";
 		}, boost::asio::detached);
 	}
 
@@ -857,7 +857,7 @@ namespace avpn
 					auto& connection = *connection_ptr;
 					if (now - connection.keepalive_ > std::chrono::seconds(60))
 					{
-						LOG_WARN << "vpn remote client, id: " << id
+						LOG_INFO << "vpn remote client, id: " << id
 							<< ", remote: " << connection.remote_host_
 							<< " is timeout!";
 						connection.tcp_stream_.close(ec);
@@ -879,7 +879,7 @@ namespace avpn
 					auto& connection = *connection_ptr;
 					if (now - connection.keepalive_ > std::chrono::seconds(60))
 					{
-						LOG_WARN << "vpn incoming client, id: " << id
+						LOG_INFO << "vpn incoming client, id: " << id
 							<< ", remote: " << connection.remote_host_
 							<< " is timeout!";
 						connection.tcp_stream_.close(ec);
@@ -1475,7 +1475,7 @@ namespace avpn
 			co_await process_udp_packet((uint8_t)type, reader, sock, remote_endp);
 		}
 
-		LOG_ERR << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
+		LOG_WARN << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
 	}
 
 	void vpn_tunnel::add_connection(vpn_connection_ptr& connection_ptr, uint32_t vaddr)
@@ -1509,29 +1509,6 @@ namespace avpn
 	{
 		std::lock_guard lock(m_incomings_mtx);
 		m_incomings.erase(id);
-	}
-
-	boost::asio::awaitable<void> vpn_tunnel::http_response_handle(
-		const http_params& params, std::string response, http_status status)
-	{
-		auto& connection_id = params.connection_id_;
-		auto& stream = params.stream_;
-		auto& request = params.request_;
-
-		boost::system::error_code ec;
-		string_response res{ status, request.version() };
-		res.set(boost::beast::http::field::server, HTTPD_VERSION_STRING);
-		res.set(boost::beast::http::field::content_type, "text/html");
-		res.keep_alive(request.keep_alive());
-		res.body() = response;
-		res.prepare_payload();
-
-		boost::beast::http::serializer<false, string_body, fields> sr{ res };
-		co_await boost::beast::http::async_write(stream, sr, uawaitable[ec]);
-		if (ec)
-		{
-			LOG_WARN << "do_http_response, id: " << connection_id << ", err: " << ec.message();
-		}
 	}
 
 	std::tuple<std::string, uint32_t> vpn_tunnel::ip_assigner()
@@ -1621,7 +1598,7 @@ namespace avpn
 		uint32_t code = (uint32_t)google_auth_code(test_google_key);
 		if (code != auth_code)
 		{
-			LOG_WARN << "Server: " << connection.connection_id_
+			LOG_ERR << "Server: " << connection.connection_id_
 				<< ", verify auth code fail: " << code << ", got: " << auth_code;
 #if 0
 			std::string reply(normal_mtu, 0);
@@ -2253,7 +2230,7 @@ namespace avpn
 			m_fec_timer.expires_from_now(std::chrono::milliseconds(delay));
 			co_await m_fec_timer.async_wait(uawaitable[ec]);
 			if (m_abort) [[unlikely]]
-				co_return;
+				break;
 
 			// 作为client时, 直接保存client的vpn连接.
 			if (m_identity == Identity::avpn_client)
@@ -2282,13 +2259,16 @@ namespace avpn
 				bool keep_continue = false;
 				do {
 					if (m_abort) [[unlikely]]
-						co_return;
+						goto fec_quit;
 
 					keep_continue = co_await do_fec_perform(connection_ptr);
 				} while (keep_continue);
 			}
+		fec_quit:
+			continue;
 		}
 
+		LOG_WARN << "run_fec_dispatch, quit...";
 		co_return;
 	}
 
@@ -2303,7 +2283,7 @@ namespace avpn
 		// 通知过来时, 数据已经被发送了.
 		if (connection.fec_enc_size_ == 0)
 		{
-			LOG_WARN << "do_fec_perform, connection.fec_enc_size_ == 0!!!";
+			LOG_ERR << "do_fec_perform, connection.fec_enc_size_ == 0!!!";
 			co_return keep_continue;
 		}
 

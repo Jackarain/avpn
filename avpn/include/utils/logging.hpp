@@ -135,7 +135,8 @@ namespace log_compress__ {
 			return false;
 		std::unique_ptr<FILE, decltype(&fclose)> FILE_closer(in, &fclose);
 
-		char buf[BUFLEN];
+		std::unique_ptr<char[]> bufs(new char[BUFLEN]);
+		char* buf = bufs.get();
 		int len;
 
 		for (;;) {
@@ -217,7 +218,7 @@ namespace logger_aux__ {
 	{
 		struct LocalTime {
 			std::time_t time_;
-			std::tm tm_;
+			std::tm tm_{ 0 };
 
 			LocalTime(std::time_t t) : time_(t) {}
 
@@ -431,7 +432,7 @@ namespace logger_aux__ {
 		if (!localtime(rawtime, ptm))
 			return nullptr;
 
-		if (buffer == nullptr)
+		if (!buffer)
 			return &ptm;
 
 		std::sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
@@ -554,8 +555,9 @@ public:
 
 		if (!m_ofstream) {
 			m_ofstream.reset(new std::ofstream);
-			m_ofstream->open(m_log_path.string().c_str(), std::ios_base::out | std::ios_base::app);
-			m_ofstream->sync_with_stdio(false);
+			auto& ofstream = *m_ofstream;
+			ofstream.open(m_log_path.string().c_str(), std::ios_base::out | std::ios_base::app);
+			ofstream.sync_with_stdio(false);
 		}
 
 		if (m_ofstream->is_open()) {
@@ -827,6 +829,15 @@ public:
 			logger_writer__(logger_aux__::gettime(), level_, message, disable_cout_);
 	}
 
+	template <class... Args>
+	inline logger___& format_to(std::string fmt, Args&&... args)
+	{
+		if (!logging_flag())
+			return *this;
+		std::format_to(std::back_inserter(out_), fmt, args...);
+		return *this;
+	}
+
 	template <class T>
 	inline logger___& strcat_impl(T const& v) noexcept
 	{
@@ -892,6 +903,10 @@ public:
 	{
 		return strcat_impl(v);
 	}
+	inline logger___& operator<<(const std::wstring& v)
+	{
+		return strcat_impl(boost::nowide::narrow(v));
+	}
 	inline logger___& operator<<(const std::string_view& v)
 	{
 		return strcat_impl(v);
@@ -912,6 +927,10 @@ public:
 	inline logger___& operator<<(const char* v)
 	{
 		return strcat_impl(v);
+	}
+	inline logger___& operator<<(const wchar_t* v)
+	{
+		return strcat_impl(boost::nowide::narrow(v));
 	}
 	inline logger___& operator<<(const void *v)
 	{
@@ -1136,18 +1155,21 @@ public:
 #undef LOG_WARN
 #undef LOG_ERR
 #undef LOG_FILE
+#undef LOG_FORMAT
 
 #define LOG_DBG util::logger___(util::_logger_debug_id__)
 #define LOG_INFO util::logger___(util::_logger_info_id__)
 #define LOG_WARN util::logger___(util::_logger_warn_id__)
 #define LOG_ERR util::logger___(util::_logger_error_id__)
 #define LOG_FILE util::logger___(util::_logger_file_id__, true)
+#define LOG_FMT(...) util::logger___(util::_logger_debug_id__).format_to(__VA_ARGS__)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_WARN LOG_WARN << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_ERR LOG_ERR << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_FILE LOG_FILE << "(" << __FILE__ << ":" << __LINE__ << "): "
+#define VLOG_FMT(...) (LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
 
 #define INIT_ASYNC_LOGGING() [[maybe_unused]] util::auto_init_async_logger ____init_logger____
 
@@ -1158,18 +1180,21 @@ public:
 #undef LOG_WARN
 #undef LOG_ERR
 #undef LOG_FILE
+#undef LOG_FMT
 
 #define LOG_DBG util::empty_logger___()
 #define LOG_INFO util::empty_logger___()
 #define LOG_WARN util::empty_logger___()
 #define LOG_ERR util::empty_logger___()
 #define LOG_FILE util::empty_logger___()
+#define LOG_FMT(...) util::empty_logger___()
 
 #define VLOG_DBG LOG_DBG
 #define VLOG_INFO LOG_INFO
 #define VLOG_WARN LOG_WARN
 #define VLOG_ERR LOG_ERR
 #define VLOG_FILE LOG_FILE
+#define VLOG_FMT LOG_FMT
 
 #define INIT_ASYNC_LOGGING() void
 

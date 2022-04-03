@@ -120,7 +120,7 @@ namespace avpn {
 				boost::asio::buffer(content), uawaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "start_tun, async_read_some: " << ec.message();
+				LOG_ERR << "start_tun_read_loop, async_read_some: " << ec.message();
 				break;
 			}
 
@@ -169,6 +169,7 @@ namespace avpn {
 		}
 
 		LOG_WARN << "start_tun_read_loop quit...";
+		co_return;
 	}
 
 	void avpn_service::run_as_client()
@@ -202,7 +203,7 @@ namespace avpn {
 				if (amount < 0)
 					amount = 0;
 
-				if (deltams.count() == 0)
+				if (deltams.count() <= 0)
 					deltams = std::chrono::milliseconds(1);
 
 				stat.rate_ = int64_t((double)amount / ((double)deltams.count() / 1000.0f));
@@ -217,8 +218,8 @@ namespace avpn {
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "avpn_service::tick, ec: " << ec.message();
-				co_return;
+				LOG_ERR << "avpn_service::tick, ec: " << ec.message();
+				break;
 			}
 
 			auto now = time_clock::steady_clock::now();
@@ -227,6 +228,7 @@ namespace avpn {
 			calc_speed(m_upload_stat, now);
 		}
 
+		LOG_WARN << "avpn_service::tick() quit...";
 		co_return;
 	}
 
@@ -281,7 +283,7 @@ namespace avpn {
 		// 如果指定的tap设备有问题, 则默认选择第一个网卡.
 		if (dc.guid_.empty() && !dev_list.empty())
 		{
-			LOG_WARN << "Not found tun: " << dc.dev_name_ << ", use default: " << dev_list[0].name_;
+			LOG_INFO << "Not found tun: " << dc.dev_name_ << ", use default: " << dev_list[0].name_;
 			dc.dev_name_ = dev_list[0].name_;
 			dc.guid_ = dev_list[0].guid_;
 		}
@@ -309,7 +311,7 @@ namespace avpn {
 			if (set_default_route(ipaddr, vgateway, defgw_string, m_tunnel_status.server_ip_))
 				LOG_DBG << "Default gateway: " << defgw_string << " change successfully!";
 			else
-				LOG_WARN << "Default gateway: " << defgw_string << ", change faild!";
+				LOG_INFO << "Default gateway: " << defgw_string << ", change faild!";
 		}
 
 		for (auto& route : m_tunnel_status.routes_)
@@ -369,7 +371,7 @@ namespace avpn {
 				if (m_abort)
 					return;
 
-				LOG_WARN << "vpn disconnect...";
+				LOG_INFO << "vpn disconnect...";
 			}
 
 			return;

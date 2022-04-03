@@ -9,6 +9,7 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -D
 
 file(GLOB avpn_WINDOWS_SRCS
 	include/vpncore/tuntap_windows_service.hpp
+	include/vpncore/wintun_windows_service.hpp
 )
 file(GLOB avpn_APPLE_SRCS
 	include/vpncore/tuntap_macos_service.hpp
@@ -54,6 +55,8 @@ add_library(libavpn ${avpn_SRCS})
 
 add_executable(avpn
 	src/main/main.cpp
+
+	src/resource/avpn.rc
 )
 
 # 其实 target_precompile_headers(avpn PUBLIC stdafx.hpp) 就可以了

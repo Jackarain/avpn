@@ -24,7 +24,6 @@
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"
 
-#include <zlib.h>
 
 namespace avpn {
 
@@ -34,9 +33,6 @@ namespace avpn {
 	namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 	using ws = websocket::stream<tcp::socket>;		// from <boost/beast/websocket.hpp>
 	using time_point = time_clock::steady_clock::time_point;
-
-
-
 
 	using namespace util;
 	using namespace stream_endian;
@@ -325,10 +321,6 @@ namespace avpn {
 		// 管理临时进来的连接相关.
 		void add_incoming(vpn_connection_ptr& connection_ptr, int64_t id);
 		void remove_incoming(int64_t id);
-
-		// http请求的response处理.
-		boost::asio::awaitable<void> http_response_handle(
-			const http_params& params, std::string response, http_status status);
 
 		// IP分配器, 用于server给连接上来的client分配虚拟IP.
 		std::tuple<std::string, uint32_t> ip_assigner();

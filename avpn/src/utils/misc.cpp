@@ -31,11 +31,26 @@
 #	include <fcntl.h>
 #	include <io.h>
 
+#	include <Windows.h>
+#	include <Shlwapi.h>
+#	include <NTSecAPI.h>
+
 #	include <ws2tcpip.h>
 #	include <iphlpapi.h>
+#	include <SetupAPI.h>
+#	include <winternl.h>
+
+#	include <cfgmgr32.h>
+#	include <devguid.h>
+#	include <ndisguid.h>
+#	include <shellapi.h>
+#	include <ipexport.h>
+#	include <sddl.h>
+#	include <winefs.h>
 
 #	pragma comment(lib, "Ws2_32.lib")
 #	pragma comment(lib, "Iphlpapi.lib")
+#	pragma comment(lib, "Shlwapi.lib")
 
 #endif
 
@@ -833,6 +848,315 @@ bool set_default_route(const std::string& vaddr, const std::string& vgateway,
 	return true;
 }
 
+static SECURITY_ATTRIBUTES SecurityAttributes = { .nLength = sizeof(SECURITY_ATTRIBUTES) };
+
+const void* ResourceGetAddress(LPCWSTR ResourceName, DWORD* Size)
+{
+	auto ResourceModule = GetModuleHandleA(nullptr);
+	HRSRC FoundResource = FindResourceW(ResourceModule, ResourceName, RT_RCDATA);
+	if (!FoundResource)
+	{
+		LOG_FMT("Failed to find resource {}", ResourceName);
+		return nullptr;
+	}
+
+	*Size = SizeofResource(ResourceModule, FoundResource);
+	if (!*Size)
+	{
+		LOG_FMT("Failed to query resource {} size", ResourceName);
+		return nullptr;
+	}
+	HGLOBAL LoadedResource = LoadResource(ResourceModule, FoundResource);
+	if (!LoadedResource)
+	{
+		LOG_FMT("Failed to load resource {}", ResourceName);
+		return nullptr;
+	}
+	BYTE* Address = (BYTE*)LockResource(LoadedResource);
+	if (!Address)
+	{
+		LOG_FMT("Failed to lock resource {}", ResourceName);
+		SetLastError(ERROR_LOCK_FAILED);
+		return nullptr;
+	}
+
+	return Address;
+}
+
+bool ResourceCopyToFile(LPCWSTR DestinationPath, LPCWSTR ResourceName)
+{
+	DWORD SizeResource;
+	const void* LockedResource = ResourceGetAddress(ResourceName, &SizeResource);
+	if (!LockedResource)
+	{
+		LOG_FMT("Failed to locate resource {}", ResourceName);
+		return false;
+	}
+
+	HANDLE DestinationHandle = CreateFileW(
+		DestinationPath,
+		GENERIC_WRITE,
+		0,
+		&SecurityAttributes,
+		CREATE_NEW,
+		FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_TEMPORARY,
+		NULL);
+	if (DestinationHandle == INVALID_HANDLE_VALUE)
+	{
+		LOG_FMT("Failed to create file {}", DestinationPath);
+		return false;
+	}
+	DWORD BytesWritten;
+	DWORD LastError;
+	if (!WriteFile(DestinationHandle, LockedResource, SizeResource, &BytesWritten, NULL))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to write file {}", DestinationPath);
+		goto cleanupDestinationHandle;
+	}
+
+	if (BytesWritten != SizeResource)
+	{
+		LOG_FMT("Incomplete write to {} (written: {}, expected: {})",
+			DestinationPath,
+			BytesWritten,
+			SizeResource);
+		LastError = ERROR_WRITE_FAULT;
+		goto cleanupDestinationHandle;
+	}
+	LastError = ERROR_SUCCESS;
+
+cleanupDestinationHandle:
+	CloseHandle(DestinationHandle);
+
+	if (LastError != ERROR_SUCCESS)
+		return false;
+
+	return true;
+}
+
+bool ResourceCreateTemporaryDirectory(std::wstring& RandomTempSubDirectory)
+{
+	WCHAR WindowsDirectory[MAX_PATH];
+	if (!GetWindowsDirectoryW(WindowsDirectory, _countof(WindowsDirectory)))
+	{
+		LOG_FMT("Failed to get Windows folder");
+		return false;
+	}
+	WCHAR WindowsTempDirectory[MAX_PATH];
+	if (!PathCombineW(WindowsTempDirectory, WindowsDirectory, L"Temp"))
+	{
+		SetLastError(ERROR_BUFFER_OVERFLOW);
+		return false;
+	}
+	UCHAR RandomBytes[32] = { 0 };
+	if (!RtlGenRandom(RandomBytes, sizeof(RandomBytes)))
+	{
+		LOG_FMT("Failed to generate random");
+		SetLastError(ERROR_GEN_FAILURE);
+		return false;
+	}
+	WCHAR RandomSubDirectory[sizeof(RandomBytes) * 2 + 1];
+	for (int i = 0; i < sizeof(RandomBytes); ++i)
+		swprintf_s(&RandomSubDirectory[i * 2], 3, L"%02x", RandomBytes[i]);
+
+	std::filesystem::path path = WindowsTempDirectory;
+	path = path / RandomSubDirectory;
+	std::error_code ec;
+	std::filesystem::create_directories(path, ec);
+	if (ec)
+	{
+		LOG_FMT("Failed to create temporary folder {}", RandomTempSubDirectory);
+		return false;
+	}
+
+	RandomTempSubDirectory = path.wstring();
+
+	return true;
+}
+
+struct _SP_DEVINFO_DATA_LIST
+{
+	SP_DEVINFO_DATA Data;
+	struct _SP_DEVINFO_DATA_LIST* Next;
+};
+using SP_DEVINFO_DATA_LIST = _SP_DEVINFO_DATA_LIST;
+
+#if NTDDI_VERSION > NTDDI_WIN7
+#    define IsWindows7 FALSE
+#endif
+
+#if NTDDI_VERSION >= NTDDI_WIN10
+#    define IsWindows10 TRUE
+#endif
+
+#define WINTUN_HWID L"Wintun"
+#define WINTUN_INF_FILETIME { (DWORD)((16340832000000000ULL + 116444736000000000ULL) & 0xffffffffU), (DWORD)((16340832000000000ULL + 116444736000000000ULL) >> 32) }
+#define WINTUN_INF_VERSION ((0ULL << 48) | (14ULL << 32) | (0ULL << 16) | (0ULL << 0))
+#define WINTUN_ENUMERATOR (IsWindows7 ? L"ROOT\\" WINTUN_HWID : L"SWD\\" WINTUN_HWID)
+
+static HANDLE PrivateNamespace = NULL;
+static HANDLE BoundaryDescriptor = NULL;
+static CRITICAL_SECTION Initializing;
+static BOOL IsLocalSystem;
+
+static BOOL IsNewer(
+	_In_ const FILETIME* DriverDate1,
+	_In_ DWORDLONG DriverVersion1,
+	_In_ const FILETIME* DriverDate2,
+	_In_ DWORDLONG DriverVersion2)
+{
+	if (DriverDate1->dwHighDateTime > DriverDate2->dwHighDateTime)
+		return TRUE;
+	if (DriverDate1->dwHighDateTime < DriverDate2->dwHighDateTime)
+		return FALSE;
+
+	if (DriverDate1->dwLowDateTime > DriverDate2->dwLowDateTime)
+		return TRUE;
+	if (DriverDate1->dwLowDateTime < DriverDate2->dwLowDateTime)
+		return FALSE;
+
+	if (DriverVersion1 > DriverVersion2)
+		return TRUE;
+	if (DriverVersion1 < DriverVersion2)
+		return FALSE;
+
+	return FALSE;
+}
+
+BOOL DriverInstall(HDEVINFO* DevInfoExistingAdaptersForCleanup, SP_DEVINFO_DATA_LIST** ExistingAdaptersForCleanup)
+{
+	static const FILETIME OurDriverDate = WINTUN_INF_FILETIME; // 10/13/2021
+	static const DWORDLONG OurDriverVersion = WINTUN_INF_VERSION; // 0.14.0.0
+
+	DWORD LastError = ERROR_SUCCESS;
+	HDEVINFO DevInfo = SetupDiCreateDeviceInfoListExW(&GUID_DEVCLASS_NET, NULL, NULL, NULL);
+	if (DevInfo == INVALID_HANDLE_VALUE)
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to create empty device information set");
+		goto cleanupDriverInstallationLock;
+	}
+	SP_DEVINFO_DATA DevInfoData = { .cbSize = sizeof(DevInfoData) };
+	if (!SetupDiCreateDeviceInfoW(DevInfo, WINTUN_HWID, &GUID_DEVCLASS_NET, NULL, NULL, DICD_GENERATE_ID, &DevInfoData))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to create new device information element");
+		goto cleanupDevInfo;
+	}
+	static const WCHAR Hwids[_countof(WINTUN_HWID) + 1 /*Multi-string terminator*/] = WINTUN_HWID;
+	if (!SetupDiSetDeviceRegistryPropertyW(DevInfo, &DevInfoData, SPDRP_HARDWAREID, (const BYTE*)Hwids, sizeof(Hwids)))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to set adapter hardware ID");
+		goto cleanupDevInfo;
+	}
+	if (!SetupDiBuildDriverInfoList(DevInfo, &DevInfoData, SPDIT_COMPATDRIVER))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed building adapter driver info list");
+		goto cleanupDevInfo;
+	}
+
+	FILETIME DriverDate = { 0 };
+	DWORDLONG DriverVersion = 0;
+	HDEVINFO DevInfoExistingAdapters = INVALID_HANDLE_VALUE;
+	SP_DEVINFO_DATA_LIST* ExistingAdapters = NULL;
+
+	for (DWORD EnumIndex = 0;; ++EnumIndex)
+	{
+		SP_DRVINFO_DATA_W DrvInfoData = { .cbSize = sizeof(SP_DRVINFO_DATA_W) };
+		if (!SetupDiEnumDriverInfoW(DevInfo, &DevInfoData, SPDIT_COMPATDRIVER, EnumIndex, &DrvInfoData))
+		{
+			if (GetLastError() == ERROR_NO_MORE_ITEMS)
+				break;
+			continue;
+		}
+		if (IsNewer(&OurDriverDate, OurDriverVersion, &DrvInfoData.DriverDate, DrvInfoData.DriverVersion))
+			continue;
+		if (!IsNewer(&DrvInfoData.DriverDate, DrvInfoData.DriverVersion, &DriverDate, DriverVersion))
+			continue;
+		DriverDate = DrvInfoData.DriverDate;
+		DriverVersion = DrvInfoData.DriverVersion;
+	}
+
+ 	SetupDiDestroyDriverInfoList(DevInfo, &DevInfoData, SPDIT_COMPATDRIVER);
+
+	if (DriverVersion)
+	{
+		LOG_FMT("Using existing driver {}.{}",
+			(DWORD)((DriverVersion & 0xffff000000000000) >> 48),
+			(DWORD)((DriverVersion & 0x0000ffff00000000) >> 32));
+		LastError = ERROR_SUCCESS;
+		goto cleanupExistingAdapters;
+	}
+
+	LOG_FMT("Installing driver {}.{}",
+		(DWORD)((OurDriverVersion & 0xffff000000000000) >> 48),
+		(DWORD)((OurDriverVersion & 0x0000ffff00000000) >> 32));
+	std::wstring RandomTempSubDirectory;
+	if (!ResourceCreateTemporaryDirectory(RandomTempSubDirectory))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to create temporary folder {}", RandomTempSubDirectory);
+		goto cleanupExistingAdapters;
+	}
+
+	WCHAR CatPath[MAX_PATH] = { 0 };
+	WCHAR SysPath[MAX_PATH] = { 0 };
+	WCHAR InfPath[MAX_PATH] = { 0 };
+	if (!PathCombineW(CatPath, RandomTempSubDirectory.data(), L"wintun.cat") ||
+		!PathCombineW(SysPath, RandomTempSubDirectory.data(), L"wintun.sys") ||
+		!PathCombineW(InfPath, RandomTempSubDirectory.data(), L"wintun.inf"))
+	{
+		LastError = ERROR_BUFFER_OVERFLOW;
+		goto cleanupDirectory;
+	}
+
+	auto CatSource = L"wintun-amd64.cat";
+	auto SysSource = L"wintun-amd64.sys";
+	auto InfSource = L"wintun-amd64.inf";
+
+	LOG_FMT("Extracting driver");
+	if (!ResourceCopyToFile(CatPath, CatSource) || !ResourceCopyToFile(SysPath, SysSource) ||
+		!ResourceCopyToFile(InfPath, InfSource))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Failed to extract driver");
+		goto cleanupDelete;
+	}
+
+	LOG_FMT("Installing driver");
+	if (!SetupCopyOEMInfW(InfPath, NULL, SPOST_NONE, 0, NULL, 0, NULL, NULL))
+	{
+		LastError = GetLastError();
+		LOG_FMT("Could not install driver {} to store", InfPath);
+	}
+
+cleanupDelete:
+	DeleteFileW(CatPath);
+	DeleteFileW(SysPath);
+	DeleteFileW(InfPath);
+cleanupDirectory:
+	RemoveDirectoryW(RandomTempSubDirectory.data());
+cleanupExistingAdapters:
+	if (LastError == ERROR_SUCCESS)
+	{
+		*DevInfoExistingAdaptersForCleanup = DevInfoExistingAdapters;
+		*ExistingAdaptersForCleanup = ExistingAdapters;
+	}
+// 	else
+// 		DriverInstallDeferredCleanup(DevInfoExistingAdapters, ExistingAdapters);
+cleanupDevInfo:
+	SetupDiDestroyDeviceInfoList(DevInfo);
+cleanupDriverInstallationLock:
+	if (LastError != ERROR_SUCCESS)
+		return false;
+
+	return true;
+}
+
+
 #elif __linux__
 
 uint64_t get_process_id()
@@ -965,7 +1289,7 @@ bool set_default_route(const std::string&, const std::string&,
 void create_pid(std::string suffix)
 {
 	auto tmppath = fs::temp_directory_path();
-	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", suffix);
+	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", base64_encode(suffix));
 
 	// 创建临时avpn文件夹.
 	std::error_code ignore_ec;
@@ -986,7 +1310,7 @@ void create_pid(std::string suffix)
 uint64_t check_pid(std::string suffix)
 {
 	auto tmppath = fs::temp_directory_path();
-	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", suffix);
+	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", base64_encode(suffix));
 	if (!fs::exists(avpn_tmppath))
 		return 0;
 

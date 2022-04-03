@@ -37,7 +37,7 @@ namespace avpn {
 
 	class avpn_service
 	{
-		const static int speed_entries = 6;
+		const static int speed_entries = 3;
 		struct speed_stat
 		{
 			int64_t speeder_[speed_entries]{ 0 };

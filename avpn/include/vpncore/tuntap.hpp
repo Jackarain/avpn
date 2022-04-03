@@ -8,7 +8,11 @@
 #pragma once
 
 #if defined(AVPN_WINDOWS)
+#ifdef AVPN_USE_WINTUN
+#	include "vpncore/wintun_windows_service.hpp"
+#else
 #	include "vpncore/tuntap_windows_service.hpp"
+#endif
 #elif defined(AVPN_LINUX)
 #	include "vpncore/tuntap_linux_service.hpp"
 #elif defined(AVPN_APPLE)
@@ -25,7 +29,11 @@ namespace avpn {
 
 	// 定义不同平台的tuntap实现.
 #if defined(AVPN_WINDOWS)
+#ifdef AVPN_USE_WINTUN
+	using tuntap = basic_tuntap<wintun_windows_service>;
+#else
 	using tuntap = basic_tuntap<tuntap_windows_service>;
+#endif // AVPN_USE_WINTUN
 #elif defined(AVPN_LINUX)
 	using tuntap = basic_tuntap<tuntap_linux_service>;
 #elif defined(AVPN_APPLE)

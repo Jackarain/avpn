@@ -7,12 +7,14 @@
 
 #pragma once
 
-#include "boost/asio.hpp"
-#include "boost/nowide/convert.hpp"
-#include <boost/algorithm/string/trim.hpp>
+#include "boost/asio/ip/network_v4.hpp"
+#include "boost/asio/io_context.hpp"
+#include "boost/asio/stream_file.hpp"
 
-#include "boost/smart_ptr/local_shared_ptr.hpp"
-#include "boost/smart_ptr/make_local_shared.hpp"
+#include "boost/throw_exception.hpp"
+#include "boost/nowide/convert.hpp"
+
+#include "boost/algorithm/string/trim.hpp"
 
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64) || defined(WIN64)
 
@@ -77,6 +79,8 @@ namespace avpn {
 			if (len > 0)
 			{
 				wchar_t* tmp = (wchar_t*)malloc(sizeof(wchar_t) * len);
+				if (!tmp)
+					boost::throw_exception(std::bad_alloc());
 				MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, tmp, len);
 				utf16.assign(tmp);
 				free(tmp);
@@ -89,6 +93,8 @@ namespace avpn {
 			if (len > 0)
 			{
 				char* tmp = (char*)malloc(sizeof(char) * len);
+				if (!tmp)
+					boost::throw_exception(std::bad_alloc());
 				WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, tmp, len, 0, 0);
 				utf8.assign(tmp);
 				free(tmp);
@@ -127,7 +133,7 @@ namespace avpn {
 
 		inline DWORD get_interface_index(const TCHAR* guid)
 		{
-			ULONG index;
+			ULONG index = 0;
 			DWORD status;
 			std::wstring wstr;
 			wstr.reserve(256);
@@ -252,7 +258,7 @@ namespace avpn {
 			const short family, const int mtu)
 		{
 			DWORD err = 0;
-			MIB_IPINTERFACE_ROW ipiface;
+			MIB_IPINTERFACE_ROW ipiface = { 0 };
 			InitializeIpInterfaceEntry(&ipiface);
 			const char* family_name = (family == AF_INET6) ? "IPv6" : "IPv4";
 			ipiface.Family = family;
@@ -487,7 +493,7 @@ namespace avpn {
 				unsigned long major;
 				unsigned long minor;
 				unsigned long debug;
-			} version;
+			} version = { 0 };
 
 			DWORD len;
 
@@ -539,7 +545,7 @@ namespace avpn {
 			}
 
 			// get mtu.
-			ULONG mtu;
+			ULONG mtu = 0;
 			if (DeviceIoControl(handle, TAP_IOCTL_GET_MTU,
 				&mtu, sizeof(mtu),
 				&mtu, sizeof(mtu), &len, NULL))
@@ -547,7 +553,7 @@ namespace avpn {
 				LOG_DBG << "TAP-Windows MTU=" << (int)mtu;
 			}
 
-			uint8_t mac[6];
+			uint8_t mac[6] = { 0 };
 
 			if (!DeviceIoControl(handle, TAP_IOCTL_GET_MAC, mac, 6, mac, 6, &len, 0))
 			{
