@@ -38,7 +38,7 @@
 #	include <ws2tcpip.h>
 #	include <iphlpapi.h>
 #	include <SetupAPI.h>
-#	include <winternl.h>
+// #	include <winternl.h>
 
 #	include <cfgmgr32.h>
 #	include <devguid.h>
@@ -855,27 +855,19 @@ const void* ResourceGetAddress(LPCWSTR ResourceName, DWORD* Size)
 	auto ResourceModule = GetModuleHandleA(nullptr);
 	HRSRC FoundResource = FindResourceW(ResourceModule, ResourceName, RT_RCDATA);
 	if (!FoundResource)
-	{
-		LOG_FMT("Failed to find resource {}", ResourceName);
 		return nullptr;
-	}
 
 	*Size = SizeofResource(ResourceModule, FoundResource);
 	if (!*Size)
-	{
-		LOG_FMT("Failed to query resource {} size", ResourceName);
 		return nullptr;
-	}
+
 	HGLOBAL LoadedResource = LoadResource(ResourceModule, FoundResource);
 	if (!LoadedResource)
-	{
-		LOG_FMT("Failed to load resource {}", ResourceName);
 		return nullptr;
-	}
+
 	BYTE* Address = (BYTE*)LockResource(LoadedResource);
 	if (!Address)
 	{
-		LOG_FMT("Failed to lock resource {}", ResourceName);
 		SetLastError(ERROR_LOCK_FAILED);
 		return nullptr;
 	}
@@ -888,10 +880,7 @@ bool ResourceCopyToFile(LPCWSTR DestinationPath, LPCWSTR ResourceName)
 	DWORD SizeResource;
 	const void* LockedResource = ResourceGetAddress(ResourceName, &SizeResource);
 	if (!LockedResource)
-	{
-		LOG_FMT("Failed to locate resource {}", ResourceName);
 		return false;
-	}
 
 	HANDLE DestinationHandle = CreateFileW(
 		DestinationPath,
@@ -902,25 +891,18 @@ bool ResourceCopyToFile(LPCWSTR DestinationPath, LPCWSTR ResourceName)
 		FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_TEMPORARY,
 		NULL);
 	if (DestinationHandle == INVALID_HANDLE_VALUE)
-	{
-		LOG_FMT("Failed to create file {}", DestinationPath);
 		return false;
-	}
+
 	DWORD BytesWritten;
 	DWORD LastError;
 	if (!WriteFile(DestinationHandle, LockedResource, SizeResource, &BytesWritten, NULL))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to write file {}", DestinationPath);
 		goto cleanupDestinationHandle;
 	}
 
 	if (BytesWritten != SizeResource)
 	{
-		LOG_FMT("Incomplete write to {} (written: {}, expected: {})",
-			DestinationPath,
-			BytesWritten,
-			SizeResource);
 		LastError = ERROR_WRITE_FAULT;
 		goto cleanupDestinationHandle;
 	}
@@ -939,10 +921,8 @@ bool ResourceCreateTemporaryDirectory(std::wstring& RandomTempSubDirectory)
 {
 	WCHAR WindowsDirectory[MAX_PATH];
 	if (!GetWindowsDirectoryW(WindowsDirectory, _countof(WindowsDirectory)))
-	{
-		LOG_FMT("Failed to get Windows folder");
 		return false;
-	}
+
 	WCHAR WindowsTempDirectory[MAX_PATH];
 	if (!PathCombineW(WindowsTempDirectory, WindowsDirectory, L"Temp"))
 	{
@@ -952,7 +932,6 @@ bool ResourceCreateTemporaryDirectory(std::wstring& RandomTempSubDirectory)
 	UCHAR RandomBytes[32] = { 0 };
 	if (!RtlGenRandom(RandomBytes, sizeof(RandomBytes)))
 	{
-		LOG_FMT("Failed to generate random");
 		SetLastError(ERROR_GEN_FAILURE);
 		return false;
 	}
@@ -965,35 +944,192 @@ bool ResourceCreateTemporaryDirectory(std::wstring& RandomTempSubDirectory)
 	std::error_code ec;
 	std::filesystem::create_directories(path, ec);
 	if (ec)
-	{
-		LOG_FMT("Failed to create temporary folder {}", RandomTempSubDirectory);
 		return false;
-	}
 
 	RandomTempSubDirectory = path.wstring();
 
 	return true;
 }
 
-struct _SP_DEVINFO_DATA_LIST
+std::filesystem::path current_system_director()
 {
-	SP_DEVINFO_DATA Data;
-	struct _SP_DEVINFO_DATA_LIST* Next;
-};
-using SP_DEVINFO_DATA_LIST = _SP_DEVINFO_DATA_LIST;
-
-#if NTDDI_VERSION > NTDDI_WIN7
-#    define IsWindows7 FALSE
-#endif
-
-#if NTDDI_VERSION >= NTDDI_WIN10
-#    define IsWindows10 TRUE
-#endif
+	std::string system_dir(GetSystemDirectoryA(NULL, 0), 0);
+	GetSystemDirectoryA(&system_dir[0], static_cast<UINT>(system_dir.size()));
+	system_dir.resize(system_dir.size() - 1);
+	return system_dir;
+}
 
 #define WINTUN_HWID L"Wintun"
 #define WINTUN_INF_FILETIME { (DWORD)((16340832000000000ULL + 116444736000000000ULL) & 0xffffffffU), (DWORD)((16340832000000000ULL + 116444736000000000ULL) >> 32) }
 #define WINTUN_INF_VERSION ((0ULL << 48) | (14ULL << 32) | (0ULL << 16) | (0ULL << 0))
-#define WINTUN_ENUMERATOR (IsWindows7 ? L"ROOT\\" WINTUN_HWID : L"SWD\\" WINTUN_HWID)
+
+struct driver_info
+{
+	std::string published_name_;
+	std::string origin_name_;
+	std::string provider_;
+	std::string class_;
+	std::string guid_;
+	std::string class_version_;
+	std::string version_;
+	std::string signer_;
+};
+
+std::vector<driver_info> enum_drivers()
+{
+	std::filesystem::path pnputil = current_system_director();
+	pnputil /= "pnputil.exe";
+
+	std::error_code ec;
+	bool exist = std::filesystem::exists(pnputil, ec);
+	if (!exist || ec)
+		return {};
+
+	auto [str, ret] = run_command(pnputil.string() + " /enum-drivers");
+	if (!ret)
+		return {};
+
+	auto drivers = boost::nowide::widen(str);
+
+	std::vector<std::wstring> lines;
+	boost::split_regex(lines, drivers, boost::regex("\n"));
+
+	std::vector<std::wstring> fields;
+	driver_info info;
+	int field_cnt = 0;
+	std::vector<driver_info> result;
+
+	for (const auto& r : lines)
+	{
+		std::vector<std::wstring> item;
+		boost::split_regex(item, r, boost::wregex(L":"));
+
+		if (item.size() != 2)
+		{
+			if (field_cnt == 7)
+			{
+				info.published_name_ = boost::trim_copy(boost::nowide::narrow(fields[0]));
+				info.origin_name_ = boost::trim_copy(boost::nowide::narrow(fields[1]));
+				info.provider_ = boost::trim_copy(boost::nowide::narrow(fields[2]));
+				info.class_ = boost::trim_copy(boost::nowide::narrow(fields[3]));
+				info.guid_ = boost::trim_copy(boost::nowide::narrow(fields[4]));
+				info.version_ = boost::trim_copy(boost::nowide::narrow(fields[5]));
+				info.signer_ = boost::trim_copy(boost::nowide::narrow(fields[6]));
+
+				result.push_back(info);
+			}
+			if (field_cnt == 8)
+			{
+				info.published_name_ = boost::trim_copy(boost::nowide::narrow(fields[0]));
+				info.origin_name_ = boost::trim_copy(boost::nowide::narrow(fields[1]));
+				info.provider_ = boost::trim_copy(boost::nowide::narrow(fields[2]));
+				info.class_ = boost::trim_copy(boost::nowide::narrow(fields[3]));
+				info.guid_ = boost::trim_copy(boost::nowide::narrow(fields[4]));
+				info.class_version_ = boost::trim_copy(boost::nowide::narrow(fields[5]));
+				info.version_ = boost::trim_copy(boost::nowide::narrow(fields[6]));
+				info.signer_ = boost::trim_copy(boost::nowide::narrow(fields[7]));
+
+				result.push_back(info);
+			}
+
+			info = {};
+			field_cnt = 0;
+			fields.clear();
+			continue;
+		}
+
+		field_cnt++;
+		fields.emplace_back(item[1]);
+	}
+
+	return result;
+}
+
+bool install_wintun()
+{
+	const static std::string newer = "10/13/2021 0.14.0.0";
+
+	auto drivers = enum_drivers();
+	auto sys_path = current_system_director();
+	// 查找已经存在的wintun驱动.
+	for (auto& driver : drivers)
+	{
+		if (driver.origin_name_ != "wintun.inf")
+			continue;
+		if (newer > driver.version_)
+		{
+			// 已安装的wintun驱动太旧, 先卸载.
+			// pnputil /delete-driver <example.inf> /uninstall
+			auto pnputil = sys_path / "pnputil.exe";
+			auto remove_driver = pnputil.string() + " /delete-driver " + driver.origin_name_ + " /uninstall";
+			auto [str, ret] = run_command(remove_driver);
+			if (!ret)
+			{
+				LOG_ERR << "Remove old wintun driver failed: " << str;
+				return false;
+			}
+
+			LOG_DBG << "Remove old wintun driver: " << driver.version_;
+		}
+		else
+		{
+			// 使用已安装的驱动.
+			LOG_DBG << "Using existing wintun driver: " << driver.version_;
+			return true;
+		}
+	}
+
+	// 安装驱动.
+	std::error_code ec;
+	auto tmppath = std::filesystem::temp_directory_path(ec);
+	if (ec)
+	{
+		LOG_ERR << "Install driver, temp_directory_path: " << ec.message();
+		return false;
+	}
+
+	tmppath /= gen_unique_string(32);
+	std::filesystem::create_directories(tmppath, ec);
+	if (ec)
+	{
+		LOG_ERR << "Install driver, create_directories: " << tmppath.string() << ", ec: " << ec.message();
+		return false;
+	}
+
+	auto CatSource = L"wintun.cat";
+	auto SysSource = L"wintun.sys";
+	auto InfSource = L"wintun.inf";
+
+	auto catPath = tmppath / CatSource;
+	auto sysPath = tmppath / SysSource;
+	auto infPath = tmppath / InfSource;
+
+	ResourceCopyToFile(catPath.wstring().data(), CatSource);
+	ResourceCopyToFile(sysPath.wstring().data(), SysSource);
+	ResourceCopyToFile(infPath.wstring().data(), InfSource);
+
+	// pnputil /add-driver x:\driver.inf
+	auto pnputil = sys_path / "pnputil.exe";
+	auto install_driver = pnputil.string() + " /add-driver " + infPath.string();
+	auto [str, ret] = run_command(install_driver);
+	if (!ret)
+	{
+		LOG_ERR << "Install wintun driver failed: " << str;
+		return false;
+	}
+
+	LOG_DBG << "Install wintun driver";
+
+	return true;
+}
+
+void test()
+{
+	install_wintun();
+}
+
+#if 0
+
 
 static HANDLE PrivateNamespace = NULL;
 static HANDLE BoundaryDescriptor = NULL;
@@ -1156,6 +1292,7 @@ cleanupDriverInstallationLock:
 	return true;
 }
 
+#endif
 
 #elif __linux__
 

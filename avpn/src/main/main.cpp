@@ -171,6 +171,7 @@ std::string version_info()
 
 int main(int argc, char** argv)
 {
+	test();
 	platform_init();
 
 	std::vector<std::string> upstreams;
