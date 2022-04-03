@@ -65,6 +65,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SO
 include(CheckCXXLinkerFlag)
 
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
+option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
 option(ENABLE_SYSTEM_ZLIB "Build with system zlib support" OFF)
@@ -157,6 +158,7 @@ elseif(WIN32)
 		-DBOOST_FILESYSTEM_STATIC_LINK
 		-DBOOST_USE_WINAPI_VERSION=0x0601
 	)
+	add_compile_options(/utf8)
 endif()
 
 CHECK_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden COMPILER_HAS_VISIBILITY_INLINE_HIDDEN)
@@ -231,6 +233,11 @@ if (NOT MSVC)
 
 endif(NOT MSVC)
 
+if (ENABLE_USE_WINTUN)
+	add_definitions(-DAVPN_USE_WINTUN)
+	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
+endif()
+
 #add_definitions(-DJSONRPC_DISABLE_THREADS)
 add_subdirectory(third_party/crypto)
 set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
@@ -244,7 +251,7 @@ set(BUILD_ASIO_BEAST ON)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost)
+set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost EXCLUDE_FROM_ALL)
 
 add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
 add_definitions(-DBOOST_BEAST_SEPARATE_COMPILATION)
@@ -341,7 +348,12 @@ add_subdirectory(third_party/fmt)
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
+	${WINTUN_INCLUDE_DIRS}
 )
+
+if (ENABLE_USE_WINTUN)
+	include_directories(${WINTUN_INCLUDE_DIRS})
+endif()
 
 
 link_libraries(
