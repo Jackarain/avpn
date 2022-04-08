@@ -605,18 +605,6 @@ namespace avpn {
 			StringFromGUID2(AdapterGuid, InstanceIdStr, _countof(InstanceIdStr));
 			LOG_DBG << "InstanceIdStr: " << InstanceIdStr;
 
-			// details::AdapterOpenDeviceObject(details::AdapterGetDeviceObjectFileName(InstanceIdStr));
-			// auto InterfaceFilename = std::wstring(L"SWD\\Wintun\\") + InstanceIdStr;// std::wstring(L"\\\\.\\Device\\WINTUN\\") + InstanceIdStr;
-			// auto handle = details::AdapterOpenDeviceObject(InterfaceFilename);
-
-			// boost::system::error_code ec;
-			// m_io_handle.assign(handle, ec);
-			// if (ec)
-			// {
-			//	LOG_ERR << "Assign to stream_file: " << ec.message();
-			//	return false;
-			// }
-
 			m_tun_session = WintunStartSession(m_tun_adapter, 0x400000);
 			m_quit_event = CreateEventW(NULL, TRUE, FALSE, NULL);
 

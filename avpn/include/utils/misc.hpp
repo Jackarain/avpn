@@ -42,7 +42,9 @@ std::string add_suffix(float val, char const* suffix = nullptr);
 // 获取进程id.
 uint64_t get_process_id();
 
-void test();
+#ifdef WIN32
+bool install_wintun();
+#endif
 
 // 创建pid文件.
 void create_pid(std::string suffix);

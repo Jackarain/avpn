@@ -474,7 +474,7 @@ std::string gen_uuid()
 
 //////////////////////////////////////////////////////////////////////////
 
-#ifdef _MSC_VER
+#ifdef WIN32
 
 inline void utf8_utf16(const std::string& utf8, std::wstring& utf16)
 {
@@ -1108,6 +1108,9 @@ bool install_wintun()
 	ResourceCopyToFile(sysPath.wstring().data(), SysSource);
 	ResourceCopyToFile(infPath.wstring().data(), InfSource);
 
+	// 安装成功后删除解压文件夹.
+	scoped_exit clean([&]() mutable { std::filesystem::remove_all(tmppath, ec); });
+
 	// pnputil /add-driver x:\driver.inf
 	auto pnputil = sys_path / "pnputil.exe";
 	auto install_driver = pnputil.string() + " /add-driver " + infPath.string();
@@ -1123,10 +1126,108 @@ bool install_wintun()
 	return true;
 }
 
-void test()
+using device_instance = std::tuple<std::string, std::string>;
+using device_instance_id_interface = std::vector<device_instance>;
+
+static device_instance_id_interface get_device_instance_id_interface()
 {
-	install_wintun();
+	HDEVINFO dev_info_set;
+	DWORD err;
+	device_instance_id_interface result;
+
+	dev_info_set = SetupDiGetClassDevsEx(&GUID_DEVCLASS_NET, NULL, NULL, DIGCF_PRESENT, NULL, NULL, NULL);
+	if (dev_info_set == INVALID_HANDLE_VALUE)
+	{
+		err = GetLastError();
+		LOG_FMT("Error [{}] opening device information set key: {}", (unsigned int)err, error_format(err));
+	}
+
+	for (DWORD i = 0;; ++i)
+	{
+		SP_DEVINFO_DATA device_info_data;
+		BOOL res;
+		HKEY dev_key;
+		char net_cfg_instance_id_string[] = "NetCfgInstanceId";
+		BYTE net_cfg_instance_id[256] = { 0 };
+		char device_instance_id[256] = { 0 };
+		DWORD len;
+		DWORD data_type;
+		LONG status;
+		ULONG dev_interface_list_size;
+		CONFIGRET cr;
+
+		ZeroMemory(&device_info_data, sizeof(SP_DEVINFO_DATA));
+		device_info_data.cbSize = sizeof(SP_DEVINFO_DATA);
+		res = SetupDiEnumDeviceInfo(dev_info_set, i, &device_info_data);
+		if (!res)
+		{
+			if (GetLastError() == ERROR_NO_MORE_ITEMS)
+			{
+				break;
+			}
+			else
+			{
+				continue;
+			}
+		}
+
+		dev_key = SetupDiOpenDevRegKey(dev_info_set, &device_info_data, DICS_FLAG_GLOBAL, 0, DIREG_DRV, KEY_QUERY_VALUE);
+		if (dev_key == INVALID_HANDLE_VALUE)
+		{
+			continue;
+		}
+
+		scoped_exit close_dev_key([&]() mutable { RegCloseKey(dev_key); });
+
+		len = sizeof(net_cfg_instance_id);
+		data_type = REG_SZ;
+		status = RegQueryValueExA(dev_key,
+			net_cfg_instance_id_string,
+			NULL,
+			&data_type,
+			net_cfg_instance_id,
+			&len);
+		if (status != ERROR_SUCCESS)
+		{
+			continue;
+		}
+
+		len = sizeof(device_instance_id);
+		res = SetupDiGetDeviceInstanceIdA(dev_info_set, &device_info_data, device_instance_id, len, &len);
+		if (!res)
+		{
+			continue;
+		}
+
+		cr = CM_Get_Device_Interface_List_SizeA(&dev_interface_list_size,
+			(LPGUID)&GUID_DEVINTERFACE_NET,
+			device_instance_id,
+			CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+
+		if (cr != CR_SUCCESS)
+		{
+			continue;
+		}
+
+		std::string dev_interface_list(dev_interface_list_size, 0);
+		cr = CM_Get_Device_Interface_ListA((LPGUID)&GUID_DEVINTERFACE_NET, device_instance_id,
+			PZZSTR(dev_interface_list.data()),
+			dev_interface_list_size,
+			CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+		if (cr != CR_SUCCESS)
+		{
+			continue;
+		}
+
+		device_instance dev_if = std::make_tuple(std::string((char*)(&net_cfg_instance_id[0])), dev_interface_list);
+		result.push_back(dev_if);
+	}
+
+	SetupDiDestroyDeviceInfoList(dev_info_set);
+
+	return result;
 }
+
 
 #if 0
 
