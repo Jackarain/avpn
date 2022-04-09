@@ -9,6 +9,7 @@
 
 #include "boost/asio/ip/network_v4.hpp"
 #include "boost/asio/io_context.hpp"
+#include "boost/asio/windows/object_handle.hpp"
 
 #include "boost/throw_exception.hpp"
 #include "boost/nowide/convert.hpp"
@@ -328,6 +329,8 @@ namespace avpn {
 
 		explicit wintun_windows_service(boost::asio::io_context& io_context)
 			: boost::asio::detail::service_base<wintun_windows_service>(io_context)
+			, m_send_handle(io_context)
+			, m_receive_handle(io_context)
 			, m_io_handle(io_context)
 		{
 			static details::init_wintun initer;
@@ -418,25 +421,29 @@ namespace avpn {
 				0,
 				sizeof(struct tun_ring));
 
+			m_send_tail_moved = CreateEvent(NULL, FALSE, FALSE, NULL);
+			m_receive_tail_moved = CreateEvent(NULL, FALSE, FALSE, NULL);
+
 			struct tun_register_rings rr;
 			ZeroMemory(&rr, sizeof(rr));
 
 			rr.send.ring = m_send_ring;
 			rr.send.ring_size = sizeof(struct tun_ring);
-			rr.send.tail_moved = m_send_tail_moved;
+			rr.send.tail_moved = m_receive_tail_moved;
 
 			rr.receive.ring = m_receive_ring;
 			rr.receive.ring_size = sizeof(struct tun_ring);
-			rr.receive.tail_moved = m_receive_tail_moved;
+			rr.receive.tail_moved = m_send_tail_moved;
 
 			BOOL res;
 			DWORD bytes_returned;
 			res = DeviceIoControl(handle, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr),
 				NULL, 0, &bytes_returned, NULL);
 
+			m_receive_handle.assign(m_receive_tail_moved);
+			m_send_handle.assign(m_send_tail_moved);
 
 			m_abort = false;
-
 			return true;
 		}
 
@@ -446,6 +453,32 @@ namespace avpn {
 				return;
 
 			m_abort = true;
+
+			// CloseHandle(m_send_tail_moved);
+			// CloseHandle(m_receive_tail_moved);
+
+			if (m_send_ring)
+			{
+				UnmapViewOfFile(m_send_ring);
+				m_send_ring = nullptr;
+			}
+
+			if (m_receive_ring)
+			{
+				UnmapViewOfFile(m_receive_ring);
+				m_receive_ring = nullptr;
+			}
+
+			if (m_send_ring_handle != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle(m_send_ring_handle);
+				m_send_ring_handle = INVALID_HANDLE_VALUE;
+			}
+			if (m_receive_ring_handle != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle(m_receive_ring_handle);
+				m_receive_ring_handle = INVALID_HANDLE_VALUE;
+			}
 
 			LOG_WARN << "wintun close...";
 		}
@@ -458,14 +491,111 @@ namespace avpn {
 				: self_(self)
 			{}
 
-			executor_type get_executor() const noexcept
+			inline executor_type get_executor() const noexcept
 			{
 				return self_->get_executor();
+			}
+
+			static inline ULONG
+				wintun_ring_packet_align(ULONG size)
+			{
+				return (size + (WINTUN_PACKET_ALIGN - 1)) & ~(WINTUN_PACKET_ALIGN - 1);
+			}
+
+			static inline ULONG
+				wintun_ring_wrap(ULONG value)
+			{
+				return value & (WINTUN_RING_CAPACITY - 1);
 			}
 
 			template <typename Handler, typename MutableBufferSequence>
 			void operator()(Handler&& handler, const MutableBufferSequence& buffers)
 			{
+				struct tun_ring *ring = self_->m_send_ring;
+
+				ULONG head = ring->head;
+				ULONG tail = ring->tail;
+
+				ULONG content_len = 0;
+				struct TUN_PACKET* packet = nullptr;
+				ULONG aligned_packet_size = 0;
+
+				boost::system::error_code ec;
+
+				scoped_exit fallback([&]() mutable
+				{
+					handler(ec, content_len);
+				});
+
+				if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
+				{
+					LOG_WARN << "Wintun: ring capacity exceeded";
+					ec = boost::asio::error::fault;
+					return;
+				}
+
+				if (head == tail)
+				{
+					/* nothing to read */
+					fallback.dismiss();
+
+					boost::asio::co_spawn(this->get_executor(),
+						[ring, self = self_, handler = std::move(handler), buffers = buffers]
+						() mutable -> boost::asio::awaitable<void>
+						{
+							auto& object_handle = self->m_receive_handle;
+							boost::system::error_code ec;
+							co_await object_handle.async_wait(uawaitable[ec]);
+
+							ULONG head = ring->head;
+							ULONG tail = ring->tail;
+
+							auto content_len = wintun_ring_wrap(tail - head);
+
+							scoped_exit fallback([&]() mutable
+							{
+								handler(ec, content_len);
+							});
+
+							if (content_len < sizeof(struct TUN_PACKET_HEADER))
+							{
+								LOG_WARN << "Wintun: incomplete packet header in send ring";
+								ec = boost::asio::error::fault;
+								return;
+							}
+
+							packet = (struct TUN_PACKET*)&ring->data[head];
+							if (packet->size > WINTUN_MAX_PACKET_SIZE)
+							{
+								LOG_WARN << "Wintun: packet too big in send ring";
+								ec = boost::asio::error::fault;
+								return;
+							}
+
+							aligned_packet_size = wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + packet->size);
+							if (aligned_packet_size > content_len)
+							{
+								LOG_WARN << "Wintun: incomplete packet in send ring";
+								ec = boost::asio::error::fault;
+								return;
+							}
+
+							auto bytes_transferred = std::min(packet->size, boost::asio::buffer_size(buffers));
+							boost::asio::buffer_copy(buffers, boost::asio::buffer(packet->data, bytes_transferred));
+
+							head = wintun_ring_wrap(head + aligned_packet_size);
+							ring->head = head;
+
+							content_len = bytes_transferred; // handler(ec, bytes_transferred);
+
+							co_return;
+						}, boost::asio::detached);
+
+
+					return;
+				}
+
+
 			}
 
 			wintun_windows_service* self_;
@@ -526,6 +656,9 @@ namespace avpn {
 
 		HANDLE m_send_tail_moved{ INVALID_HANDLE_VALUE };
 		HANDLE m_receive_tail_moved{ INVALID_HANDLE_VALUE };
+
+		boost::asio::windows::object_handle m_send_handle;
+		boost::asio::windows::object_handle m_receive_handle;
 
 		struct tun_ring* m_send_ring{ nullptr };
 		struct tun_ring* m_receive_ring{ nullptr };
