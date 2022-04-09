@@ -83,6 +83,7 @@ namespace std {
 	using ::fmt::format;
 	using ::fmt::format_to;
 	using ::fmt::vformat;
+	using ::fmt::vformat_to;
 	using ::fmt::make_format_args;
 }
 
@@ -836,7 +837,7 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+		std::vformat_to(std::back_inserter(out_), fmt, std::make_format_args(std::forward<Args>(args)...));
 		return *this;
 	}
 
