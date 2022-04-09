@@ -82,6 +82,8 @@
 namespace std {
 	using ::fmt::format;
 	using ::fmt::format_to;
+	using ::fmt::vformat;
+	using ::fmt::make_format_args;
 }
 
 #ifdef __clang__
@@ -830,11 +832,11 @@ public:
 	}
 
 	template <class... Args>
-	inline logger___& format_to(std::string fmt, Args&&... args)
+	constexpr inline logger___& format_to(std::string_view fmt, Args&&... args)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), fmt, args...);
+		out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
 		return *this;
 	}
 
