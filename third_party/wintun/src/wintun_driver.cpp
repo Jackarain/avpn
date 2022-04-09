@@ -261,8 +261,6 @@ get_net_adapter_guid(
 		return ERROR_BAD_ARGUMENTS;
 	}
 
-	*pguidAdapter = { 0 };
-
 	/* Open HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\<class>\<id> registry key. */
 	HKEY hKey = SetupDiOpenDevRegKey(
 		hDeviceInfoSet,
