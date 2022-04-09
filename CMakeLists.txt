@@ -235,7 +235,9 @@ endif(NOT MSVC)
 
 if (ENABLE_USE_WINTUN)
 	add_definitions(-DAVPN_USE_WINTUN)
+	add_subdirectory(third_party/wintun)
 	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
+	set(nci ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/src/nci.lib)
 endif()
 
 #add_definitions(-DJSONRPC_DISABLE_THREADS)
@@ -353,6 +355,10 @@ include_directories(third_party
 
 if (ENABLE_USE_WINTUN)
 	include_directories(${WINTUN_INCLUDE_DIRS})
+
+	link_libraries(
+		${nci}
+		wintun)
 endif()
 
 
