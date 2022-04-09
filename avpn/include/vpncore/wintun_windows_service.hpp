@@ -380,6 +380,61 @@ namespace avpn {
 			details::windows_set_mtu(if_index, AF_INET, 1450);
 
 			auto handle = open_wintun("AVPN");
+			if (handle == INVALID_HANDLE_VALUE)
+			{
+				LOG_ERR << "open_wintun: " << details::error_format(GetLastError());
+				return false;
+			}
+
+			boost::system::error_code ec;
+			m_io_handle.assign(handle, ec);
+			if (ec)
+			{
+				LOG_ERR << "m_io_handle.assign(handle, ec): " << ec.message();
+				return false;
+			}
+
+			m_send_ring_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL,
+				PAGE_READWRITE,
+				0,
+				sizeof(struct tun_ring),
+				NULL);
+			m_receive_ring_handle = CreateFileMapping(INVALID_HANDLE_VALUE,
+				NULL,
+				PAGE_READWRITE,
+				0,
+				sizeof(struct tun_ring),
+				NULL);
+
+			m_send_ring = (struct tun_ring*)MapViewOfFile(m_send_ring_handle,
+				FILE_MAP_ALL_ACCESS,
+				0,
+				0,
+				sizeof(struct tun_ring));
+
+			m_receive_ring = (struct tun_ring*)MapViewOfFile(m_receive_ring_handle,
+				FILE_MAP_ALL_ACCESS,
+				0,
+				0,
+				sizeof(struct tun_ring));
+
+			struct tun_register_rings rr;
+			ZeroMemory(&rr, sizeof(rr));
+
+			rr.send.ring = m_send_ring;
+			rr.send.ring_size = sizeof(struct tun_ring);
+			rr.send.tail_moved = m_send_tail_moved;
+
+			rr.receive.ring = m_receive_ring;
+			rr.receive.ring_size = sizeof(struct tun_ring);
+			rr.receive.tail_moved = m_receive_tail_moved;
+
+			BOOL res;
+			DWORD bytes_returned;
+			res = DeviceIoControl(handle, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr),
+				NULL, 0, &bytes_returned, NULL);
+
+
 			m_abort = false;
 
 			return true;
@@ -465,6 +520,15 @@ namespace avpn {
 	private:
 		std::vector<device_tuntap> m_device_list;
 		dev_config m_config;
+
+		HANDLE m_send_ring_handle{ INVALID_HANDLE_VALUE };
+		HANDLE m_receive_ring_handle{ INVALID_HANDLE_VALUE };
+
+		HANDLE m_send_tail_moved{ INVALID_HANDLE_VALUE };
+		HANDLE m_receive_tail_moved{ INVALID_HANDLE_VALUE };
+
+		struct tun_ring* m_send_ring{ nullptr };
+		struct tun_ring* m_receive_ring{ nullptr };
 
 		boost::asio::stream_file m_io_handle;
 		details::init_wintun* m_wintun_initer;
