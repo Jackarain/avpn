@@ -833,11 +833,11 @@ public:
 	}
 
 	template <class... Args>
-	constexpr inline logger___& format_to(std::string_view fmt, Args&&... args)
+	inline logger___& format_to(std::string_view fmt, Args&&... args)
 	{
 		if (!logging_flag())
 			return *this;
-		std::vformat_to(std::back_inserter(out_), fmt, std::make_format_args(std::forward<Args>(args)...));
+		out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
 		return *this;
 	}
 
