@@ -44,6 +44,25 @@ uint64_t get_process_id();
 
 #ifdef WIN32
 bool install_wintun();
+HANDLE open_wintun(const std::string& name);
+
+#define WINTUN_COMPONENT_ID "wintun"
+
+enum windows_driver_type {
+	WINDOWS_DRIVER_UNSPECIFIED,
+	WINDOWS_DRIVER_TAP_WINDOWS6,
+	WINDOWS_DRIVER_WINTUN
+};
+
+struct windows_driver
+{
+	std::string name_;
+	std::string guid_;
+	windows_driver_type type_;
+};
+
+std::vector<windows_driver> enum_windows_devices();
+
 #endif
 
 // 创建pid文件.

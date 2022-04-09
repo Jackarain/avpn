@@ -79,23 +79,6 @@ namespace avpn {
 			return service_.take_device_list();
 		}
 
-		// 获取当前打开的tuntap设备的mac.
-		bool take_mac(char mac[6])
-		{
-			return service_.take_mac(mac);
-		}
-
-		// 获取当前打开的tuntap设备的mtu.
-		int take_mtu()
-		{
-			return service_.take_mtu();
-		}
-
-		int get_if_index() const
-		{
-			return service_.get_if_index();
-		}
-
 	private:
 		service_type service_;
 	};

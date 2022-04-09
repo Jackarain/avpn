@@ -51,6 +51,8 @@
 #	pragma comment(lib, "Ws2_32.lib")
 #	pragma comment(lib, "Iphlpapi.lib")
 #	pragma comment(lib, "Shlwapi.lib")
+#	pragma comment(lib, "Setupapi.lib")
+
 
 #endif
 
@@ -1050,6 +1052,9 @@ bool install_wintun()
 	const static std::string newer = "10/13/2021 0.14.0.0";
 
 	auto drivers = enum_drivers();
+
+	SetupSetNonInteractiveMode(TRUE);
+
 	auto sys_path = current_system_director();
 	// 查找已经存在的wintun驱动.
 	for (auto& driver : drivers)
@@ -1124,6 +1129,148 @@ bool install_wintun()
 	LOG_DBG << "Install wintun driver";
 
 	return true;
+}
+
+std::vector<windows_driver> enum_windows_devices()
+{
+	const auto ADAPTER_KEY = "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+	std::vector<windows_driver> result;
+	HKEY adapter_key;
+
+	auto status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+		ADAPTER_KEY, 0, KEY_READ, &adapter_key);
+	if (status != ERROR_SUCCESS)
+		return result;
+
+	scoped_exit close_dev_key([&]() mutable { RegCloseKey(adapter_key); });
+
+	for (int i = 0; ; i++)
+	{
+		char enum_name[256] = { 0 };
+		std::string unit_string;
+		DWORD len = 256;
+		status = RegEnumKeyExA(adapter_key,
+			i, enum_name, &len, NULL, NULL, NULL, NULL);
+		if (status == ERROR_NO_MORE_ITEMS)
+			break;
+		else if (status != ERROR_SUCCESS)
+			break;
+		else
+		{
+			unit_string = std::format("{}\\{}", ADAPTER_KEY, enum_name);
+
+			HKEY unit_key;
+			status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+				unit_string.data(), 0, KEY_READ, &unit_key);
+			if (status != ERROR_SUCCESS)
+				break;
+			scoped_exit unit_key_close([&]() mutable { RegCloseKey(unit_key); });
+
+			const char* component_id_string = "ComponentId";
+			const char* net_cfg_instance_id_string = "NetCfgInstanceId";
+			DWORD data_type;
+			char component_id[256] = { 0 };
+			len = 256;
+			status = RegQueryValueExA(
+				unit_key,
+				component_id_string,
+				NULL,
+				&data_type,
+				(LPBYTE)component_id,
+				&len);
+			if (status != ERROR_SUCCESS)
+				continue;
+
+			char net_cfg_instance_id[256] = { 0 };
+			len = 256;
+			status = RegQueryValueExA(
+				unit_key,
+				net_cfg_instance_id_string,
+				NULL,
+				&data_type,
+				(LPBYTE)net_cfg_instance_id,
+				&len);
+			if (status != ERROR_SUCCESS)
+				continue;
+			if (data_type != REG_SZ)
+				continue;
+
+			windows_driver driver;
+			driver.type_ = WINDOWS_DRIVER_UNSPECIFIED;
+
+			std::string id_string = boost::to_lower_copy(std::string(component_id));
+
+			if (id_string.find("tap0901") != std::string::npos
+				 || id_string.find("tapnordvpn") != std::string::npos)
+			{
+				driver.type_ = WINDOWS_DRIVER_TAP_WINDOWS6;
+			}
+			else if (id_string.find(WINTUN_COMPONENT_ID) != std::string::npos)
+			{
+				driver.type_ = WINDOWS_DRIVER_WINTUN;
+			}
+
+			driver.guid_ = net_cfg_instance_id;
+			result.push_back(driver);
+		}
+	}
+
+	const auto NETWORK_CONNECTIONS_KEY = "SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+	HKEY network_connections_key;
+	status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+		NETWORK_CONNECTIONS_KEY, 0, KEY_READ, &network_connections_key);
+	if (status != ERROR_SUCCESS)
+		return result;
+
+	scoped_exit close_network_connections_key([&]() mutable { RegCloseKey(network_connections_key); });
+
+	for (int i = 0; ; i++)
+	{
+		char enum_name[256] = { 0 };
+		DWORD len = 256;
+		status = RegEnumKeyExA(network_connections_key,
+			i, enum_name, &len, NULL, NULL, NULL, NULL);
+		if (status != ERROR_SUCCESS)
+			break;
+
+		auto connection_string = std::format("{}\\{}\\Connection", NETWORK_CONNECTIONS_KEY, enum_name);
+
+		HKEY connection_key;
+		status = RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+			connection_string.data(), 0, KEY_READ, &connection_key);
+		if (status != ERROR_SUCCESS)
+			continue;
+		scoped_exit connection_key_close([&]() mutable { RegCloseKey(connection_key); });
+
+		TCHAR name_data[256] = { 0 };
+		TCHAR name_string[] = TEXT("Name");
+		len = 256;
+
+		DWORD name_type;
+		status = RegQueryValueEx(connection_key, name_string,
+			NULL, &name_type, (LPBYTE)name_data, &len);
+		if (status != ERROR_SUCCESS)
+			continue;
+
+		std::string dev_name;
+		{
+#ifdef UNICODE
+			utf16_utf8(name_data, dev_name);
+#else
+			dev_name = name_data;
+#endif
+		}
+
+		std::string guid_key = enum_name;
+		for (auto& dev : result)
+		{
+			if (dev.guid_ != guid_key)
+				continue;
+			dev.name_ = dev_name;
+		}
+	}
+
+	return result;
 }
 
 using device_instance = std::tuple<std::string, std::string>;
@@ -1228,6 +1375,44 @@ static device_instance_id_interface get_device_instance_id_interface()
 	return result;
 }
 
+HANDLE open_wintun(const std::string& name)
+{
+	auto ifs = get_device_instance_id_interface();
+	auto devs = enum_windows_devices();
+
+	windows_driver wintun;
+	for (auto& dev : devs)
+	{
+		if (dev.type_ == WINDOWS_DRIVER_WINTUN &&
+			dev.name_ == name
+			)
+		{
+			wintun = dev;
+			break;
+		}
+	}
+
+	if (wintun.guid_.empty())
+		return INVALID_HANDLE_VALUE;
+
+	std::string path;
+	for (auto& [guid, p] : ifs)
+	{
+		if (guid == wintun.guid_)
+		{
+			path = p;
+			break;
+		}
+	}
+
+	return CreateFileA(path.data(),
+		GENERIC_READ | GENERIC_WRITE,
+		0,         /* was: FILE_SHARE_READ */
+		0,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
+		0);
+}
 
 #if 0
 
