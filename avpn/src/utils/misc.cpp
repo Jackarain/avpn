@@ -1205,7 +1205,7 @@ std::vector<windows_driver> enum_windows_devices()
 			{
 				driver.type_ = WINDOWS_DRIVER_TAP_WINDOWS6;
 			}
-			else if (id_string.find(WINTUN_COMPONENT_ID) != std::string::npos)
+			else if (id_string.find("wintun") != std::string::npos)
 			{
 				driver.type_ = WINDOWS_DRIVER_WINTUN;
 			}
