@@ -9,3 +9,9 @@ set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -D
 add_subdirectory(fec_cache)
 add_subdirectory(reedsolomon)
 add_subdirectory(mimalloc)
+
+if (MSVC)
+	if (ENABLE_USE_WINTUN)
+		add_subdirectory(wintun)
+	endif()
+endif()
