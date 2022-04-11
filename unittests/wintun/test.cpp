@@ -548,14 +548,41 @@ bool open_tun()
 
 	auto last_time = time_clock::steady_clock::now();
 
+	LARGE_INTEGER Frequency;
+	QueryPerformanceFrequency(&Frequency);
+	ULONG64 SpinMax = Frequency.QuadPart / 1000 / 10; /* 1/10 ms */
+
 	while (true)
 	{
-		auto ret = read_wintun(read_bufs);
-		if (ret == 0)
+		int ret;
+		LARGE_INTEGER SpinStart;
+		QueryPerformanceCounter(&SpinStart);
+
+		for (;;)
 		{
-			WaitForSingleObject(g_receive_event_moved, INFINITE);
-			continue;
+			ret = read_wintun(read_bufs);
+			if (ret > 0)
+				break;
+			if (ret == 0)
+			{
+				LARGE_INTEGER SpinNow;
+				QueryPerformanceCounter(&SpinNow);
+				if ((ULONG64)SpinNow.QuadPart - (ULONG64)SpinStart.QuadPart >= SpinMax)
+				{
+					LOG_DBG << "WaitForSingleObject";
+					WaitForSingleObject(g_receive_event_moved, INFINITE);
+					break;
+				}
+				Sleep(0);
+				continue;
+
+				// LOG_DBG << "WaitForSingleObject";
+				// WaitForSingleObject(g_receive_event_moved, INFINITE);
+			}
+
+			break;
 		}
+
 		if (ret == -1)
 			break;
 
