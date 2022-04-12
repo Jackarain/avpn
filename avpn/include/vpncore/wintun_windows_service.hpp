@@ -476,9 +476,9 @@ namespace avpn {
 
 		bool open(const dev_config& cfg)
 		{
-			GUID AdapterGuid;
-			CoCreateGuid(&AdapterGuid);
-
+			// GUID AdapterGuid;
+			// CoCreateGuid(&AdapterGuid);
+			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
 			m_wintun_initer->handle_ = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
 
 			MIB_UNICASTIPADDRESS_ROW AddressRow;
