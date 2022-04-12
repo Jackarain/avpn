@@ -438,7 +438,6 @@ namespace avpn {
 
 		explicit wintun_windows_service(boost::asio::io_context& io_context)
 			: boost::asio::detail::service_base<wintun_windows_service>(io_context)
-			, m_io_handle(io_context)
 			, m_receive_object_moved(io_context)
 			, m_strand(io_context.get_executor())
 		{
@@ -460,8 +459,19 @@ namespace avpn {
 		{
 			// GUID AdapterGuid;
 			// CoCreateGuid(&AdapterGuid);
+
 			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
-			m_wintun_initer->handle_ = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
+
+			if (!m_wintun_initer->handle_)
+			{
+				m_wintun_initer->handle_ = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
+				if (!m_wintun_initer->handle_)
+					m_wintun_initer->handle_ = WintunOpenAdapter(L"AVPN");
+			}
+			else
+			{
+				DeleteUnicastIpAddressEntry(&m_address_row);
+			}
 
 			MIB_UNICASTIPADDRESS_ROW AddressRow;
 			InitializeUnicastIpAddressEntry(&AddressRow);
@@ -483,6 +493,7 @@ namespace avpn {
 				LOG_ERR << "Failed to set IP address: " << details::error_format(LastError);
 				return false;
 			}
+			m_address_row = AddressRow;
 
 			LPOLESTR dev_guid = NULL;
 			[[maybe_unused]] auto rc0 = StringFromIID(AdapterGuid, &dev_guid);
@@ -491,18 +502,10 @@ namespace avpn {
 			auto if_index = details::get_interface_index(dev_guid);
 			details::windows_set_mtu(if_index, AF_INET, 1450);
 
-			auto handle = open_wintun("AVPN");
-			if (handle == INVALID_HANDLE_VALUE)
+			m_wintun_file = open_wintun("AVPN");
+			if (m_wintun_file == INVALID_HANDLE_VALUE)
 			{
 				LOG_ERR << "open_wintun: " << details::error_format(GetLastError());
-				return false;
-			}
-
-			boost::system::error_code ec;
-			m_io_handle.assign(handle, ec);
-			if (ec)
-			{
-				LOG_ERR << "m_io_handle.assign(handle, ec): " << ec.message();
 				return false;
 			}
 
@@ -547,7 +550,7 @@ namespace avpn {
 
 			BOOL res;
 			DWORD bytes_returned;
-			res = DeviceIoControl(handle, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr),
+			res = DeviceIoControl(m_wintun_file, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr),
 				NULL, 0, &bytes_returned, NULL);
 
 			m_abort = false;
@@ -587,6 +590,18 @@ namespace avpn {
 			{
 				CloseHandle(m_receive_ring_handle);
 				m_receive_ring_handle = INVALID_HANDLE_VALUE;
+			}
+
+			if (m_wintun_file != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle(m_wintun_file);
+				m_wintun_file = INVALID_HANDLE_VALUE;
+			}
+
+			if (m_wintun_initer->handle_ != nullptr)
+			{
+				WintunCloseAdapter(m_wintun_initer->handle_);
+				m_wintun_initer->handle_ = nullptr;
 			}
 
 			LOG_WARN << "wintun close...";
@@ -743,6 +758,12 @@ namespace avpn {
 				auto bytes_transferred = self_->write_wintun(bufs);
 				if (bytes_transferred <= 0 || self_->m_instrand > 0)
 				{
+					if ((self_->m_instrand == 0 && bytes_transferred < 0)
+						|| self_->m_abort)
+					{
+						handler(ec, bytes_transferred);
+						return;
+					}
 					self_->m_instrand++;
 
 					// ring buffer已满, 写不进了, 开启协程写入.
@@ -759,7 +780,7 @@ namespace avpn {
 								handler(ec, bytes_transferred);
 							});
 
-						if (bytes_transferred < 0)
+						if (bytes_transferred < 0 || self_->m_abort)
 						{
 							ec = boost::asio::error::operation_aborted;
 							co_return;
@@ -821,6 +842,7 @@ namespace avpn {
 		HANDLE m_send_event_moved{ INVALID_HANDLE_VALUE };
 		HANDLE m_receive_event_moved{ INVALID_HANDLE_VALUE };
 		boost::asio::windows::object_handle m_receive_object_moved;
+		HANDLE m_wintun_file{ INVALID_HANDLE_VALUE };
 
 		struct tun_ring* m_send_ring{ nullptr };
 		struct tun_ring* m_receive_ring{ nullptr };
@@ -828,8 +850,8 @@ namespace avpn {
 		volatile int m_instrand{ 0 };
 		boost::asio::strand<boost::asio::any_io_executor> m_strand;
 
-		boost::asio::stream_file m_io_handle;
 		details::init_wintun* m_wintun_initer;
+		MIB_UNICASTIPADDRESS_ROW m_address_row{ 0 };
 
 		bool m_abort{ true };
 	};
