@@ -335,6 +335,43 @@ HANDLE g_receive_event_moved;
 
 //////////////////////////////////////////////////////////////////////////
 
+bool writeable()
+{
+	struct tun_ring* ring = g_send_ring;
+
+	ULONG head = ring->head;
+	ULONG tail = ring->tail;
+
+	if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
+		return false;
+
+	auto buf_space = wintun_ring_wrap(head - tail - WINTUN_PACKET_ALIGN);
+	if (buf_space <= 0)
+		return false;
+
+	return true;
+}
+
+bool readable()
+{
+	struct tun_ring* ring = g_receive_ring;
+
+	ULONG head = ring->head;
+	ULONG tail = ring->tail;
+
+	if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
+		return false;
+
+	if (head == tail)
+		return false;
+
+	auto content_len = wintun_ring_wrap(tail - head);
+	if (content_len < sizeof(struct TUN_PACKET_HEADER))
+		return false;
+
+	return true;
+}
+
 int write_wintun(std::string_view buf)
 {
 	struct tun_ring* ring = g_send_ring;
@@ -358,7 +395,7 @@ int write_wintun(std::string_view buf)
 	// 如果要发送的数据大小大于剩余空间, 则表示未发送.
 	if (aligned_packet_size > buf_space)
 	{
-		LOG_WARN << "write_wintun(): ring is full";
+		// LOG_WARN << "write_wintun(): ring is full";
 		return 0;
 	}
 
@@ -444,6 +481,36 @@ int read_wintun(std::string_view buf)
 	return packet->size;
 }
 
+static
+USHORT IPChecksum(uint8_t* Buffer, DWORD Len)
+{
+	ULONG Sum = 0;
+	for (; Len > 1; Len -= 2, Buffer += 2)
+		Sum += *(USHORT*)Buffer;
+	if (Len)
+		Sum += *Buffer;
+	Sum = (Sum >> 16) + (Sum & 0xffff);
+	Sum += (Sum >> 16);
+	return (USHORT)(~Sum);
+}
+
+
+static
+void MakeICMP(uint8_t* Packet)
+{
+	memset(Packet, 0, 28);
+	Packet[0] = 0x45;
+	*(USHORT*)&Packet[2] = htons(28);
+	Packet[8] = 255;
+	Packet[9] = 1;
+	*(ULONG*)&Packet[12] = htonl((10 << 24) | (0 << 16) | (0 << 8) | (1 << 0)); /* 10.0.0.1 */
+	*(ULONG*)&Packet[16] = htonl((10 << 24) | (0 << 16) | (0 << 8) | (8 << 0)); /* 10.0.0.8 */
+	*(USHORT*)&Packet[10] = IPChecksum(Packet, 20);
+	Packet[20] = 8;
+	*(USHORT*)&Packet[22] = IPChecksum(&Packet[20], 8);
+}
+
+
 bool open_tun()
 {
 	GUID AdapterGuid;
@@ -457,7 +524,7 @@ bool open_tun()
 	InitializeUnicastIpAddressEntry(&AddressRow);
 	WintunGetAdapterLUID(initer.handle_, &AddressRow.InterfaceLuid);
 
-	const std::string local = "10.0.0.18";
+	const std::string local = "10.0.0.8";
 	const std::string mask = "255.255.0.0";
 
 	auto tun_addr = boost::asio::ip::address_v4::from_string(local);
@@ -541,66 +608,114 @@ bool open_tun()
 
 	BOOST_TEST(res == TRUE);
 
-	std::string read_bufs(1500, 0);
+	auto write_thr = std::thread([] {
 
-	int64_t total = 0;
-	int64_t last_total = 0;
+		std::string bufs(1052, 0);
+		MakeICMP((uint8_t*)bufs.data());
 
-	auto last_time = time_clock::steady_clock::now();
+		int64_t total = 0;
+		int64_t last_total = 0;
 
-	LARGE_INTEGER Frequency;
-	QueryPerformanceFrequency(&Frequency);
-	ULONG64 SpinMax = Frequency.QuadPart / 1000 / 10; /* 1/10 ms */
-
-	while (true)
-	{
-		int ret;
-		LARGE_INTEGER SpinStart;
-		QueryPerformanceCounter(&SpinStart);
+		auto last_time = time_clock::steady_clock::now();
 
 		for (;;)
 		{
-			ret = read_wintun(read_bufs);
-			if (ret > 0)
+			int ret = write_wintun(bufs);
+			if (ret < 0)
 				break;
 			if (ret == 0)
 			{
-				LARGE_INTEGER SpinNow;
-				QueryPerformanceCounter(&SpinNow);
-				if ((ULONG64)SpinNow.QuadPart - (ULONG64)SpinStart.QuadPart >= SpinMax)
-				{
-					LOG_DBG << "WaitForSingleObject";
-					WaitForSingleObject(g_receive_event_moved, INFINITE);
-					break;
-				}
-				Sleep(0);
+				for (; !writeable();)
+					Sleep(1);
 				continue;
-
-				// LOG_DBG << "WaitForSingleObject";
-				// WaitForSingleObject(g_receive_event_moved, INFINITE);
 			}
 
-			break;
+			total += ret;
+			auto size = total - last_total;
+			if (size > 512 * 1024 * 1024)
+			{
+				auto now = time_clock::steady_clock::now();
+				auto dur = now - last_time;
+				last_time = now;
+				last_total = total;
+
+				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
+				auto rate = (double)size / ((double)ms.count() / 1000);
+
+				LOG_DBG << "Send: " << add_suffix(rate, "/s");
+			}
 		}
+	});
 
-		if (ret == -1)
-			break;
+	auto read_thr = std::thread([] {
+		std::string read_bufs(1500, 0);
 
-		total += ret;
-		auto size = total - last_total;
-		if (size > 512 * 1024 * 1024)
+		int64_t total = 0;
+		int64_t last_total = 0;
+
+		auto last_time = time_clock::steady_clock::now();
+
+		LARGE_INTEGER Frequency;
+		QueryPerformanceFrequency(&Frequency);
+		ULONG64 SpinMax = Frequency.QuadPart / 1000 / 10; /* 1/10 ms */
+
+		while (true)
 		{
-			auto now = time_clock::steady_clock::now();
-			auto dur = now - last_time;
-			last_time = now;
-			last_total = total;
+			int ret;
+			LARGE_INTEGER SpinStart;
+			QueryPerformanceCounter(&SpinStart);
 
-			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
-			auto rate = (double)size / ((double)ms.count() / 1000);
+			for (;;)
+			{
+				ret = read_wintun(read_bufs);
+				if (ret > 0)
+				{
+					auto endp = avpn::lookup_endpoint_pair((const uint8_t*)read_bufs.data(), ret);
+					endp.to_string();
+					break;
+				}
+				if (ret == 0)
+				{
+					LARGE_INTEGER SpinNow;
+					QueryPerformanceCounter(&SpinNow);
+					if ((ULONG64)SpinNow.QuadPart - (ULONG64)SpinStart.QuadPart >= SpinMax)
+					{
+						// LOG_DBG << "WaitForSingleObject";
+						WaitForSingleObject(g_receive_event_moved, INFINITE);
+						break;
+					}
+					Sleep(0);
+					continue;
 
-			LOG_DBG << "Recvive: " << add_suffix(rate, "/s");
+					// LOG_DBG << "WaitForSingleObject";
+					// WaitForSingleObject(g_receive_event_moved, INFINITE);
+				}
+
+				break;
+			}
+
+			if (ret == -1)
+				break;
+
+			total += ret;
+			auto size = total - last_total;
+			if (size > 512 * 1024 * 1024)
+			{
+				auto now = time_clock::steady_clock::now();
+				auto dur = now - last_time;
+				last_time = now;
+				last_total = total;
+
+				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
+				auto rate = (double)size / ((double)ms.count() / 1000);
+
+				LOG_DBG << "Recvive: " << add_suffix(rate, "/s");
+			}
 		}
-	}
+	});
+
+	write_thr.join();
+	read_thr.join();
 
 // 	g_receive_handle.assign(g_receive_tail_moved);
 // 	g_send_handle.assign(g_send_tail_moved);
