@@ -36,11 +36,14 @@
 #  include <fcntl.h>
 #  include <io.h>
 #  include <windows.h>
+#  include <objbase.h>
 
 #pragma data_seg("avpn.windows.lean.mean")
 bool g_avpn_windows_lean_mean = false;
 #pragma data_seg()
 #pragma comment(linker, "/Section:avpn.windows.lean.mean,RWS")
+
+#pragma comment(lib, "Ole32.lib")
 
 #endif // _WIN32
 
