@@ -114,9 +114,9 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-#if(WIN32)
-#	SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
-#endif()
+if(WIN32)
+	SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
+endif()
 
 install(TARGETS avpn DESTINATION bin)
 install(TARGETS libavpn DESTINATION bin)
