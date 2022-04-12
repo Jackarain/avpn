@@ -65,7 +65,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SO
 include(CheckCXXLinkerFlag)
 
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
-option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
+if(WIN32)
+	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
+endif()
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
 option(ENABLE_SYSTEM_ZLIB "Build with system zlib support" OFF)
