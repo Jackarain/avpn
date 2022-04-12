@@ -660,7 +660,7 @@ namespace avpn {
 
 						if (self_->m_abort)
 						{
-							ec = boost::asio::error::fault;
+							ec = boost::asio::error::operation_aborted;
 							co_return;
 						}
 
@@ -682,7 +682,7 @@ namespace avpn {
 								break;
 							if (bytes_transferred < 0)
 							{
-								ec = boost::asio::error::fault;
+								ec = boost::asio::error::operation_aborted;
 								co_return;
 							}
 						}
@@ -699,7 +699,7 @@ namespace avpn {
 				}
 				else if (bytes_transferred < 0)
 				{
-					ec = boost::asio::error::fault;
+					ec = boost::asio::error::operation_aborted;
 				}
 
 				// 回调用户.
@@ -761,7 +761,7 @@ namespace avpn {
 
 						if (bytes_transferred < 0)
 						{
-							ec = boost::asio::error::fault;
+							ec = boost::asio::error::operation_aborted;
 							co_return;
 						}
 
@@ -775,7 +775,7 @@ namespace avpn {
 							bytes_transferred = self_->write_wintun(bufs);
 							if (bytes_transferred < 0)
 							{
-								ec = boost::asio::error::fault;
+								ec = boost::asio::error::operation_aborted;
 								co_return;
 							}
 						}
