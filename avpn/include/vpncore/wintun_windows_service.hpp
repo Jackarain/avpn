@@ -580,6 +580,8 @@ namespace avpn {
 			m_abort = true;
 
 			CloseHandle(m_send_event_moved);
+			boost::system::error_code ignore_ec;
+			m_receive_object_moved.close(ignore_ec);
 			// CloseHandle(m_receive_event_moved);
 
 			if (m_send_ring)
