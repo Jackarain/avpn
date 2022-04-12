@@ -227,7 +227,7 @@ if (NOT MSVC)
 		endif()
 	endif()
 
-	if (ENABLE_MOLD)
+	if (ENABLE_LLD)
 		if (LLD_LINKER)
 			list(APPEND CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
 		endif()
@@ -242,7 +242,7 @@ if (ENABLE_USE_WINTUN)
 	set(nci ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/src/nci.lib)
 endif()
 
-#add_definitions(-DJSONRPC_DISABLE_THREADS)
+set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
 add_subdirectory(third_party/crypto)
 set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
 
