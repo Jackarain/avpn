@@ -66,24 +66,6 @@ extern "C" {
 #include "wintun_main.h"
 #include "adapter.h"
 }
-/*
-
-设计思路：
-
-1. 向wintun注册2个ring buffer, 并创建对应的event.
-2. 每当vpn发起异步读取请求时, wintun_windows_service 检查ring是否可读,
-	如果可读, 则复制ring上的数据到用户buffers, 并调用用户handler.
-	如果不可读, 则丢入读取队列, 并async_wait投递recv ring上的event.
-	待async_wait被触发后, 复制ring上的数据到用户buffers, 然后调用用户
-	handler.
-
-3. 每当vpn发起异步写入请求时, wintun_windows_service 检查ring是否可写,
-	如果可写, 则复制用户buffers到ring, 并调用用户handler.
-	如果不可写, 则丢入写入队列, 并async_wait投递send ring上的event.
-	待async_wait被触发后, 复制用户buffers的数据到ring上, 然后调用用户
-	handler.
-
-*/
 
 namespace avpn {
 
