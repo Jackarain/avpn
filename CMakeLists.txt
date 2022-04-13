@@ -9,10 +9,13 @@ project(avpn)
 string(TIMESTAMP VERSION_YEAR "%Y")
 string(TIMESTAMP VERSION_MONTH_YEAR "%m")
 string(TIMESTAMP VERSION_DAY_YEAR "%j")
+string(TIMESTAMP HOUR24 "%H")
+string(TIMESTAMP MINUTE "%M")
 
 math(EXPR VERSION_MAJOR "${VERSION_YEAR} - 2018")
 math(EXPR VERSION_MINOR "${VERSION_MONTH_YEAR}")
 math(EXPR VERSION_TINY "${VERSION_DAY_YEAR}")
+math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)

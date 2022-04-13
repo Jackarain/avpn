@@ -1,4 +1,8 @@
-﻿
+﻿if (WIN32)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/resource/avpn.rc.in
+			${CMAKE_CURRENT_SOURCE_DIR}/src/resource/avpn.rc @ONLY NEWLINE_STYLE LF)
+endif()
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp.in
 		${CMAKE_CURRENT_SOURCE_DIR}/include/avpn/version.hpp @ONLY NEWLINE_STYLE LF)
 
