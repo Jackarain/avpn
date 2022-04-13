@@ -451,8 +451,9 @@ namespace avpn {
 
 		bool open(const dev_config& cfg)
 		{
-			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
+			LOG_DBG << "open wintun with: " << cfg.local_;
 
+			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
 			if (!m_wintun_handle)
 			{
 				for (int n = 0; n < 5; n++)
@@ -550,8 +551,9 @@ namespace avpn {
 			DWORD bytes_returned;
 			res = DeviceIoControl(m_wintun_file, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr),
 				NULL, 0, &bytes_returned, NULL);
-
 			m_abort = false;
+
+			LOG_DBG << "open wintun with: " << cfg.local_ << " successfully!";
 			return true;
 		}
 
