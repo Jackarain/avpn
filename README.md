@@ -104,7 +104,7 @@ avpn.sln项目文件，通过菜单上的编译命令进行编译。
 |  --------      | -----    |
 |config|	可配置一个参数配置文件，如vpn.conf，配置文件内容以key=value的ini配置文件的方式保存，如identity=server。|
 | identity |	指定avpn运行角色是server或client，avpn的客户端和服务器是同一程序，server或是client，主要由这个参数指定avpn的运行身份。|
-|tun |		指定tun虚拟网卡名称，在windows上为虚拟网卡的具体名字（有时需要注意空格，比如 "以太网 3" 中间的空格不能丢失），在linux或其它系统平台可以不预先创建，avpn将会自动创建虚拟网卡。|
+|tun |		指定tun虚拟网卡名称，在windows上为虚拟网卡的具体名字（有时需要注意空格，比如 "以太网 3" 中间的空格不能丢失），在类unix平台或windows平台使用wintun，avpn将会自动创建虚拟网卡。|
 | upstream |	运行身份作为client时，这个参数指定了目标server和端口，目前版本实现由udp/tcp必须同时运行，所以需要同时指定udp和ws的地址和端口。如--upstream ws://example.com:33333 udp://example.com:33333|
 |tcp|		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 |udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
