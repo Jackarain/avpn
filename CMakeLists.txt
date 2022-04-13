@@ -67,6 +67,8 @@ include(CheckCXXLinkerFlag)
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
 if(WIN32)
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
+else()
+	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" OFF)
 endif()
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
@@ -167,6 +169,7 @@ CHECK_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden COMPILER_HAS_VISIBILITY_INLI
 CHECK_CXX_COMPILER_FLAG(-fvisibility=hidden COMPILER_HAS_VISIBILITY_HIDDEN)
 CHECK_CXX_COMPILER_FLAG(-fdiagnostics-color=always COMPILER_HAS_COLOR)
 CHECK_CXX_COMPILER_FLAG(-fcoroutines COMPILER_HAS_FCOROUTINES)
+CHECK_CXX_COMPILER_FLAG(-fcoroutines-ts COMPILER_HAS_FCOROUTINES_TS)
 CHECK_CXX_COMPILER_FLAG(-std=c++20 COMPILER_HAS_STD_CXX20)
 
 if (${COMPILER_HAS_VISIBILITY_INLINE_HIDDEN})
@@ -182,9 +185,12 @@ if (${COMPILER_HAS_COLOR})
 endif()
 
 if (COMPILER_HAS_FCOROUTINES)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
 endif()
 
+if (COMPILER_HAS_FCOROUTINES_TS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines-ts")
+endif()
 
 if (ENABLE_SYSTEMD_LOGGING )
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_SYSTEMD_LOGGING")
