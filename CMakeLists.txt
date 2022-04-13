@@ -352,7 +352,6 @@ add_subdirectory(third_party/fmt)
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
-	${WINTUN_INCLUDE_DIRS}
 )
 
 if (ENABLE_USE_WINTUN)
