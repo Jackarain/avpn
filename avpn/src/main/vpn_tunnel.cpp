@@ -1741,7 +1741,7 @@ namespace avpn
 		}
 
 		reader.ReadTail();
-
+		m_routes.clear();
 		for (uint32_t n = 0; n < routes; n++)
 		{
 			uint8_t size = 0;
