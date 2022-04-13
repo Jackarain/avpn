@@ -1,4 +1,5 @@
 avpn/include/avpn/version.hpp
+avpn/src/resource/avpn.rc
 
 # User-specific files
 *.suo
