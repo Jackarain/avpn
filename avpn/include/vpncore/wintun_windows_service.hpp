@@ -513,13 +513,22 @@ namespace avpn {
 				0,
 				sizeof(struct tun_ring),
 				NULL);
+			if (m_send_ring_handle == INVALID_HANDLE_VALUE || m_send_ring_handle == NULL)
+			{
+				LOG_ERR << "CreateFileMapping for send: " << details::error_format(GetLastError());
+				return false;
+			}
 			m_receive_ring_handle = CreateFileMapping(INVALID_HANDLE_VALUE,
 				NULL,
 				PAGE_READWRITE,
 				0,
 				sizeof(struct tun_ring),
 				NULL);
-
+			if (m_receive_ring_handle == INVALID_HANDLE_VALUE || m_receive_ring_handle == NULL)
+			{
+				LOG_ERR << "CreateFileMapping for write: " << details::error_format(GetLastError());
+				return false;
+			}
 			m_send_ring = (struct tun_ring*)MapViewOfFile(m_send_ring_handle,
 				FILE_MAP_ALL_ACCESS,
 				0,
