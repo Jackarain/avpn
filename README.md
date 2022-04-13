@@ -115,7 +115,7 @@ avpn.sln项目文件，通过菜单上的编译命令进行编译。
 | compress |	启用数据压缩算法。|
 | keepalive |	设置心跳时间间隔，单位ms。|
 | pushroute |	推送路由到client，当运行身份为server时，向client推送路由。一般格式为"TARGET MASK GATEWAY METRIC"，其中METRIC可省略，也可以使用CIDR格式，如："TARGET/32 GATEWAY METRIC"。|
-| pushdns |	推送DNS到client，暂未完成实现完全。|
+| pushdns |	推送DNS到client。|
 | passbyvpn |	通过server配置此参数，所有client将默认所有流量将通过server传输。该参数暂未完成实现完全。|
 | subnet |	在服务端上指定虚拟的子网网段，默认为"10.0.0.1/16"。|
 | c2c |		是否允许client之间互相通过虚拟子网网络通信，默认是允许。|
