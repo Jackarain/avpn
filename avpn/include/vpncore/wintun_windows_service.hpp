@@ -281,6 +281,16 @@ namespace avpn {
 			}
 		}
 
+		inline ULONG wintun_ring_packet_align(ULONG size)
+		{
+			return (size + (WINTUN_PACKET_ALIGN - 1)) & ~(WINTUN_PACKET_ALIGN - 1);
+		}
+
+		inline ULONG wintun_ring_wrap(ULONG value)
+		{
+			return value & (WINTUN_RING_CAPACITY - 1);
+		}
+
 		struct init_wintun
 		{
 			init_wintun()
@@ -291,30 +301,15 @@ namespace avpn {
 
 			~init_wintun()
 			{
-				WintunCloseAdapter(handle_);
 				UnInitWintun();
 				LOG_WARN << "init_wintun_apis::~init_wintun_apis()";
 			}
-
-			WINTUN_ADAPTER_HANDLE handle_{ 0 };
 		};
 
 	}
 
+
 	using details::get_default_gateway;
-
-	static inline ULONG
-		wintun_ring_packet_align(ULONG size)
-	{
-		return (size + (WINTUN_PACKET_ALIGN - 1)) & ~(WINTUN_PACKET_ALIGN - 1);
-	}
-
-	static inline ULONG
-		wintun_ring_wrap(ULONG value)
-	{
-		return value & (WINTUN_RING_CAPACITY - 1);
-	}
-
 
 	class wintun_windows_service
 		: public boost::asio::detail::service_base<wintun_windows_service>
@@ -347,7 +342,7 @@ namespace avpn {
 			}
 
 			// 获取ring buffer中的可读取的数据大小.
-			auto content_len = wintun_ring_wrap(tail - head);
+			auto content_len = details::wintun_ring_wrap(tail - head);
 
 			// 如果不够TUN_PACKET_HEADER大小, 则说明发生了错误.
 			if (content_len < sizeof(struct TUN_PACKET_HEADER))
@@ -367,7 +362,7 @@ namespace avpn {
 			}
 
 			// 计算对齐大小.
-			auto aligned_packet_size = wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + packet->size);
+			auto aligned_packet_size = details::wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + packet->size);
 
 			// 对齐数据大小不应该大于可读取的数据大小.
 			if (aligned_packet_size > content_len)
@@ -386,7 +381,7 @@ namespace avpn {
 			memcpy((void*)buf.data(), packet->data, packet->size);
 
 			// 计算新的head位置.
-			head = wintun_ring_wrap(head + aligned_packet_size);
+			head = details::wintun_ring_wrap(head + aligned_packet_size);
 			ring->head = head;
 
 			return packet->size;
@@ -409,10 +404,10 @@ namespace avpn {
 			}
 
 			// 计算要发送的数据包对齐大小.
-			auto aligned_packet_size = wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + buf.size());
+			auto aligned_packet_size = details::wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + buf.size());
 
 			// 计算剩余空间的大小.
-			auto buf_space = wintun_ring_wrap(head - tail - WINTUN_PACKET_ALIGN);
+			auto buf_space = details::wintun_ring_wrap(head - tail - WINTUN_PACKET_ALIGN);
 
 			// 如果要发送的数据大小大于剩余空间, 则表示未发送.
 			if (aligned_packet_size > buf_space)
@@ -424,7 +419,7 @@ namespace avpn {
 			memcpy(packet->data, buf.data(), buf.size());
 
 			// 修改send ring的尾部位置.
-			ring->tail = wintun_ring_wrap(tail + aligned_packet_size);
+			ring->tail = details::wintun_ring_wrap(tail + aligned_packet_size);
 
 			// 可通知状态, 发送通知.
 			if (ring->alertable != 0)
@@ -442,7 +437,6 @@ namespace avpn {
 			, m_strand(io_context.get_executor())
 		{
 			static details::init_wintun initer;
-			m_wintun_initer = &initer;
 		}
 
 		~wintun_windows_service()
@@ -457,16 +451,22 @@ namespace avpn {
 
 		bool open(const dev_config& cfg)
 		{
-			// GUID AdapterGuid;
-			// CoCreateGuid(&AdapterGuid);
-
 			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
 
-			if (!m_wintun_initer->handle_)
+			if (!m_wintun_handle)
 			{
-				m_wintun_initer->handle_ = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
-				if (!m_wintun_initer->handle_)
-					m_wintun_initer->handle_ = WintunOpenAdapter(L"AVPN");
+				for (int n = 0; n < 5; n++)
+				{
+					m_wintun_handle = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
+					if (!m_wintun_handle)
+						LOG_WARN << "WintunCreateAdapter fail, try to open exist adapter!";
+					if (!m_wintun_handle)
+						m_wintun_handle = WintunOpenAdapter(L"AVPN");
+					if (!m_wintun_handle)
+						LOG_WARN << "WintunCreateAdapter fail, retry again: " << n;
+					if (m_wintun_handle)
+						break;
+				}
 			}
 			else
 			{
@@ -475,16 +475,14 @@ namespace avpn {
 
 			MIB_UNICASTIPADDRESS_ROW AddressRow;
 			InitializeUnicastIpAddressEntry(&AddressRow);
-			WintunGetAdapterLUID(m_wintun_initer->handle_, &AddressRow.InterfaceLuid);
+			WintunGetAdapterLUID(m_wintun_handle, &AddressRow.InterfaceLuid);
 
 			auto tun_addr = boost::asio::ip::address_v4::from_string(cfg.local_);
 			auto tun_mask = boost::asio::ip::address_v4::from_string(cfg.mask_);
 			auto tun_network = boost::asio::ip::network_v4(tun_addr, tun_mask);
 
 			AddressRow.Address.Ipv4.sin_family = AF_INET;
-			// htonl((10 << 24) | (6 << 16) | (7 << 8) | (7 << 0)); /* 10.6.7.7 */
 			AddressRow.Address.Ipv4.sin_addr.S_un.S_addr = htonl(tun_addr.to_ulong());
-			// This is tun_addr / prefix_length network.
 			AddressRow.OnLinkPrefixLength = (UINT8)tun_network.prefix_length();
 			AddressRow.DadState = IpDadStatePreferred;
 			auto LastError = CreateUnicastIpAddressEntry(&AddressRow);
@@ -567,7 +565,6 @@ namespace avpn {
 			CloseHandle(m_send_event_moved);
 			boost::system::error_code ignore_ec;
 			m_receive_object_moved.close(ignore_ec);
-			// CloseHandle(m_receive_event_moved);
 
 			if (m_send_ring)
 			{
@@ -598,10 +595,10 @@ namespace avpn {
 				m_wintun_file = INVALID_HANDLE_VALUE;
 			}
 
-			if (m_wintun_initer->handle_ != nullptr)
+			if (m_wintun_handle != nullptr)
 			{
-				WintunCloseAdapter(m_wintun_initer->handle_);
-				m_wintun_initer->handle_ = nullptr;
+				WintunCloseAdapter(m_wintun_handle);
+				m_wintun_handle = nullptr;
 			}
 
 			LOG_WARN << "wintun close...";
@@ -679,11 +676,7 @@ namespace avpn {
 							co_return;
 						}
 
-						// auto executor = self_->get_executor();
-						// boost::asio::windows::object_handle object(executor);
-						// object.assign(self_->m_receive_event_moved);
 						auto& object = self_->m_receive_object_moved;
-
 						for (;;)
 						{
 							co_await object.async_wait(uawaitable[ec]);
@@ -850,7 +843,7 @@ namespace avpn {
 		volatile int m_instrand{ 0 };
 		boost::asio::strand<boost::asio::any_io_executor> m_strand;
 
-		details::init_wintun* m_wintun_initer;
+		WINTUN_ADAPTER_HANDLE m_wintun_handle{ 0 };
 		MIB_UNICASTIPADDRESS_ROW m_address_row{ 0 };
 
 		bool m_abort{ true };
