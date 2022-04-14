@@ -111,7 +111,7 @@ template
 >
 struct unique_sub_range_from_section
 {
-    using point_type = Point;
+    typedef Point point_type;
 
     unique_sub_range_from_section(Section const& section, signed_size_type index,
                           CircularIterator circular_iterator,
@@ -123,7 +123,7 @@ struct unique_sub_range_from_section
         , m_previous_point(previous)
         , m_current_point(current)
         , m_circular_iterator(circular_iterator)
-        , m_next_point_retrieved(false)
+        , m_point_retrieved(false)
         , m_strategy(strategy)
         , m_robust_policy(robust_policy)
     {}
@@ -158,18 +158,18 @@ struct unique_sub_range_from_section
 private :
     inline Point const& get_next_point() const
     {
-        if (! m_next_point_retrieved)
+        if (! m_point_retrieved)
         {
             advance_to_non_duplicate_next(m_current_point, m_circular_iterator);
-            m_next_point_retrieved = true;
+            m_point = *m_circular_iterator;
+            m_point_retrieved = true;
         }
-        return *m_circular_iterator;
+        return m_point;
     }
 
     inline void advance_to_non_duplicate_next(Point const& current, CircularIterator& circular_iterator) const
     {
-        using box_point_type = typename geometry::point_type<typename Section::box_type>::type;
-        using robust_point_type = typename robust_point_type<box_point_type, RobustPolicy>::type;
+        typedef typename robust_point_type<Point, RobustPolicy>::type robust_point_type;
         robust_point_type current_robust_point;
         robust_point_type next_robust_point;
         geometry::recalculate(current_robust_point, current, m_robust_policy);
@@ -199,7 +199,8 @@ private :
     Point const& m_previous_point;
     Point const& m_current_point;
     mutable CircularIterator m_circular_iterator;
-    mutable bool m_next_point_retrieved;
+    mutable Point m_point;
+    mutable bool m_point_retrieved;
     Strategy m_strategy;
     RobustPolicy m_robust_policy;
 };

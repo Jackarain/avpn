@@ -189,3 +189,6 @@ boost/numeric/odeint/symplectic_rkn_sb_idm30483.html
 header/boost/numeric/odeint/stepper/velocity_verlet_hpp.html
 boost/numeric/odeint/velocity_verlet.html
 odeint/indexes.html
+odeint/indexes/s01.html
+odeint/indexes/s02.html
+odeint/indexes/s03.html

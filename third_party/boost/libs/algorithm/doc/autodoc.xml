@@ -50,8 +50,6 @@
 
 
 
-
-
 <function name="identity_operation"><type>BOOST_CXX14_CONSTEXPR T</type><template>
           <template-type-parameter name="T"/>
         </template><parameter name=""><paramtype>std::multiplies&lt; T &gt;</paramtype></parameter></function>
@@ -197,8 +195,6 @@
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -421,18 +417,19 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="clamp"><type>BOOST_CXX14_CONSTEXPR T const  &amp;</type><template>
           <template-type-parameter name="T"/>
           <template-type-parameter name="Pred"/>
-        </template><parameter name="val"><paramtype>T const &amp;</paramtype><description><para>The value to be clamped </para></description></parameter><parameter name="lo"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The lower bound of the range to be clamped to </para></description></parameter><parameter name="hi"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The upper bound of the range to be clamped to </para></description></parameter><parameter name="p"><paramtype>Pred</paramtype><description><para>A predicate to use to compare the values. p ( a, b ) returns a boolean. </para></description></parameter><description><para>
+        </template><parameter name="val"><paramtype>T const &amp;</paramtype><description><para>The value to be clamped </para></description></parameter><parameter name="lo"><paramtype>typename boost::mpl::identity&lt; T &gt;::type const &amp;</paramtype><description><para>The lower bound of the range to be clamped to </para></description></parameter><parameter name="hi"><paramtype>typename boost::mpl::identity&lt; T &gt;::type const &amp;</paramtype><description><para>The upper bound of the range to be clamped to </para></description></parameter><parameter name="p"><paramtype>Pred</paramtype><description><para>A predicate to use to compare the values. p ( a, b ) returns a boolean. </para></description></parameter><description><para>
 
 </para></description><returns><para>the value "val" brought into the range [ lo, hi ] using the comparison predicate p. If p ( val, lo ) return lo. If p ( hi, val ) return hi. Otherwise, return the original value.</para>
 </returns></function>
 <function name="clamp"><type>BOOST_CXX14_CONSTEXPR T const  &amp;</type><template>
           <template-type-parameter name="T"/>
-        </template><parameter name="val"><paramtype>const T &amp;</paramtype></parameter><parameter name="lo"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype></parameter><parameter name="hi"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype></parameter></function>
+        </template><parameter name="val"><paramtype>const T &amp;</paramtype><description><para>The value to be clamped </para></description></parameter><parameter name="lo"><paramtype>typename boost::mpl::identity&lt; T &gt;::type const &amp;</paramtype><description><para>The lower bound of the range to be clamped to </para></description></parameter><parameter name="hi"><paramtype>typename boost::mpl::identity&lt; T &gt;::type const &amp;</paramtype><description><para>The upper bound of the range to be clamped to </para></description></parameter><description><para>
+
+</para></description><returns><para>the value "val" brought into the range [ lo, hi ]. If the value is less than lo, return lo. If the value is greater than "hi", return hi. Otherwise, return the original value.</para>
+</returns></function>
 <function name="clamp_range"><type>BOOST_CXX14_CONSTEXPR OutputIterator</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator"/>
@@ -589,8 +586,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -913,8 +908,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="any_of"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="Predicate"/>
@@ -1007,8 +1000,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -1334,8 +1325,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="copy_n"><type>BOOST_CXX14_CONSTEXPR OutputIterator</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="Size"/>
@@ -1412,8 +1401,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -1704,8 +1691,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="iota"><type>BOOST_CXX14_CONSTEXPR void</type><template>
           <template-type-parameter name="ForwardIterator"/>
           <template-type-parameter name="T"/>
@@ -1892,8 +1877,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="is_partitioned"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="UnaryPredicate"/>
@@ -1976,8 +1959,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 <header name="boost/algorithm/cxx11/is_permutation.hpp">
 <namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -2296,8 +2277,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="is_permutation"><type>bool</type><template>
           <template-type-parameter name="ForwardIterator1"/>
           <template-type-parameter name="ForwardIterator2"/>
@@ -2439,8 +2418,6 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 
 
-
-
 <function name="is_sorted_until"><type>BOOST_CXX14_CONSTEXPR ForwardIterator</type><template>
           <template-type-parameter name="ForwardIterator"/>
           <template-type-parameter name="Pred"/>
@@ -2480,7 +2457,7 @@ Suggested by olafvdspek in <ulink url="https://svn.boost.org/trac/boost/ticket/3
 
 </para></description><returns><para>the point in the range R where the elements are unordered</para>
 </returns></function>
-<function name="is_sorted"><type>BOOST_CXX14_CONSTEXPR boost::lazy_disable_if_c&lt; boost::is_same&lt; R, Pred &gt;::value, boost::type_identity&lt; bool &gt; &gt;::type</type><template>
+<function name="is_sorted"><type>BOOST_CXX14_CONSTEXPR boost::lazy_disable_if_c&lt; boost::is_same&lt; R, Pred &gt;::value, boost::mpl::identity&lt; bool &gt; &gt;::type</type><template>
           <template-type-parameter name="R"/>
           <template-type-parameter name="Pred"/>
         </template><parameter name="range"><paramtype>const R &amp;</paramtype><description><para>The range to be tested. </para></description></parameter><parameter name="p"><paramtype>Pred</paramtype><description><para>A binary predicate that returns true if two elements are ordered. </para></description></parameter><description><para>
@@ -2635,8 +2612,6 @@ equal to the previous one.</para><para>
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -2915,8 +2890,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="one_of"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="Predicate"/>
@@ -3113,8 +3086,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="partition_copy"><type>BOOST_CXX14_CONSTEXPR std::pair&lt; OutputIterator1, OutputIterator2 &gt;</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator1"/>
@@ -3233,8 +3204,6 @@ equal to the previous one.</para><para>
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -3545,8 +3514,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="equal"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
           <template-type-parameter name="InputIterator1"/>
           <template-type-parameter name="InputIterator2"/>
@@ -3608,8 +3575,6 @@ equal to the previous one.</para><para>
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -3941,8 +3906,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="exclusive_scan"><type>OutputIterator</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator"/>
@@ -3982,8 +3945,6 @@ equal to the previous one.</para><para>
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -4305,8 +4266,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="inclusive_scan"><type>OutputIterator</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator"/>
@@ -4353,8 +4312,6 @@ equal to the previous one.</para><para>
 
 </para><namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -4680,8 +4637,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="transform_exclusive_scan"><type>OutputIterator</type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator"/>
@@ -4727,8 +4682,6 @@ equal to the previous one.</para><para>
 <header name="boost/algorithm/cxx17/transform_inclusive_scan.hpp">
 <namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -5042,8 +4995,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="transform_reduce"><type>T</type><template>
           <template-type-parameter name="InputIterator1"/>
           <template-type-parameter name="InputIterator2"/>
@@ -5103,8 +5054,6 @@ equal to the previous one.</para><para>
 <header name="boost/algorithm/find_backward.hpp">
 <namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -5327,8 +5276,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="find_not"><type>BOOST_CXX14_CONSTEXPR InputIter</type><template>
           <template-type-parameter name="InputIter"/>
           <template-type-parameter name="Sentinel"/>
@@ -5482,8 +5429,6 @@ equal to the previous one.</para><para>
 <header name="boost/algorithm/gather.hpp">
 <namespace name="boost">
 <namespace name="algorithm">
-
-
 
 
 
@@ -5677,8 +5622,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="hex"><type><emphasis>unspecified</emphasis></type><template>
           <template-type-parameter name="InputIterator"/>
           <template-type-parameter name="OutputIterator"/>
@@ -5778,193 +5721,6 @@ equal to the previous one.</para><para>
 
 </para></description><returns><para>A container with the decoded text </para>
 </returns></function>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</namespace>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-</namespace>
-</header>
-<header name="boost/algorithm/is_clamped.hpp">
-<para>IsClamped algorithm. </para><para><para>Ivan Matek, Marshall Clow </para>
-
-</para><namespace name="boost">
-<namespace name="algorithm">
-
-
-
-
-
-
-
-
-
-
-
-
-<function name="is_clamped"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
-          <template-type-parameter name="T"/>
-          <template-type-parameter name="Pred"/>
-        </template><parameter name="val"><paramtype>T const &amp;</paramtype><description><para>The value to be checked </para></description></parameter><parameter name="lo"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The lower bound of the range </para></description></parameter><parameter name="hi"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The upper bound of the range </para></description></parameter><parameter name="p"><paramtype>Pred</paramtype><description><para>A predicate to use to compare the values. p ( a, b ) returns a boolean. </para></description></parameter><description><para>
-
-</para></description><returns><para>true if value "val" is in the range [ lo, hi ] using the comparison predicate p. If p ( val, lo ) return false. If p ( hi, val ) return false. Otherwise, returns true.</para>
-</returns></function>
-<function name="is_clamped"><type>BOOST_CXX14_CONSTEXPR bool</type><template>
-          <template-type-parameter name="T"/>
-        </template><parameter name="val"><paramtype>const T &amp;</paramtype><description><para>The value to be checked </para></description></parameter><parameter name="lo"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The lower bound of the range </para></description></parameter><parameter name="hi"><paramtype>typename boost::type_identity&lt; T &gt;::type const &amp;</paramtype><description><para>The upper bound of the range </para></description></parameter><description><para>
-
-</para></description><returns><para>true if value "val" is in the range [ lo, hi ] using operator &lt; for comparison. If the value is less than lo, return false. If the value is greater than hi, return false. Otherwise, returns true.</para>
-</returns></function>
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -6303,8 +6059,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 </namespace>
 
 
@@ -6351,8 +6105,6 @@ equal to the previous one.</para><para>
 <note><para>Returns the first iterator 'it' in the sequence [first, last) for which is_partitioned(first, it, p) is false. Returns last if the entire sequence is partitioned. Complexity: O(N). </para>
 </note>
 </para></description></function>
-
-
 
 
 
@@ -6692,8 +6444,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="boyer_moore_search"><type>std::pair&lt; corpusIter, corpusIter &gt;</type><template>
           <template-type-parameter name="patIter"/>
           <template-type-parameter name="corpusIter"/>
@@ -6835,8 +6585,6 @@ equal to the previous one.</para><para>
 <constructor><parameter name="first"><paramtype>patIter</paramtype></parameter><parameter name="last"><paramtype>patIter</paramtype></parameter></constructor>
 <destructor/>
 </class>
-
-
 
 
 
@@ -7087,8 +6835,6 @@ equal to the previous one.</para><para>
 
 
 
-
-
 <function name="knuth_morris_pratt_search"><type>std::pair&lt; corpusIter, corpusIter &gt;</type><template>
           <template-type-parameter name="patIter"/>
           <template-type-parameter name="corpusIter"/>
@@ -7244,8 +6990,6 @@ Suggested by Sean Parent in his CppCon 2015 keynote </para><namespace name="boos
 <function name="partition_subrange"><type>void</type><template>
           <template-type-parameter name="Iterator"/>
         </template><parameter name="first"><paramtype>Iterator</paramtype></parameter><parameter name="last"><paramtype>Iterator</paramtype></parameter><parameter name="sub_first"><paramtype>Iterator</paramtype></parameter><parameter name="sub_last"><paramtype>Iterator</paramtype></parameter></function>
-
-
 
 
 

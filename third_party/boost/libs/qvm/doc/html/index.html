@@ -39,7 +39,7 @@ function switch_style()
 <li><a href="#tutorial">Tutorial</a>
 <ul class="sectlevel2">
 <li><a href="#_quaternions_vectors_matrices">Quaternions, Vectors, Matrices</a></li>
-<li><a href="#_cc_arrays">C/C&#43;&#43; Arrays</a></li>
+<li><a href="#_c_arrays">C Arrays</a></li>
 <li><a href="#view_proxy">View proxies</a></li>
 <li><a href="#_swizzling">Swizzling</a></li>
 <li><a href="#enable_if">SFINAE/enable_if</a></li>
@@ -512,7 +512,7 @@ QVM does not depend on Boost or other libraries.
 <hr>
 </div>
 <div class="sect2">
-<h3 id="_cc_arrays">C/C&#43;&#43; Arrays</h3>
+<h3 id="_c_arrays">C Arrays</h3>
 <div class="paragraph">
 <p>In <code>boost/qvm/quat_traits_array.hpp</code>, <code>vec_traits_array.hpp</code> and <code>mat_traits_array.hpp</code>, QVM defines appropriate <a href="#quat_traits"><code>quat_traits</code></a>, <a href="#vec_traits"><code>vec_traits</code></a> and <a href="#mat_traits"><code>mat_traits</code></a> specializations that allow QVM functions to operate directly on plain old C arrays:</p>
 </div>
@@ -539,9 +539,6 @@ QVM does not depend on Boost or other libraries.
 <pre class="rouge highlight nowrap"><code data-lang="c++"><span class="kt">float</span> <span class="n">v</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">};</span>
 <span class="n">vref</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">*=</span> <span class="mi">42</span><span class="p">;</span></code></pre>
 </div>
-</div>
-<div class="paragraph">
-<p>If C&#43;&#43;-11 is available, the same headers define appropriate <code>quat_traits</code>, <code>vec_traits</code> and <code>mat_traits</code> for <code>std::array</code> objects.</p>
 </div>
 <hr>
 </div>

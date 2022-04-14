@@ -43,7 +43,6 @@ void test1(){
     {
         boost::archive::text_oarchive oa(ss);
         oa << a;
-        ss.flush();
     }
     A a1;
     {
@@ -87,7 +86,6 @@ void test2(){
         boost::archive::text_oarchive oa(ss);
         oa << b;
         oa << b_ptr;
-        ss.flush();
     }
     B b1;
     B * b1_ptr;
@@ -131,7 +129,6 @@ void test3(){
         boost::archive::text_oarchive oa(ss);
         oa << d;
         oa << b_ptr;
-        ss.flush();
     }
     D d1;
     B * b1_ptr;
@@ -203,7 +200,6 @@ void test4(){
     {
         boost::archive::text_oarchive oa(ss);
         oa << f;
-        ss.flush();
     }
     F f1;
     {
@@ -270,7 +266,6 @@ void test5(){
     {
         boost::archive::text_oarchive oa(ss);
         oa << g;
-        ss.flush();
     }
     G g1;
     {
@@ -345,7 +340,6 @@ int test6()
   {
     boost::archive::text_oarchive oa(oss);
     oa<<const_cast<const bar&>(b);
-    oss.flush();
   }
 
   bar b1;
@@ -371,7 +365,6 @@ void test7(){
         l.push_back(b_ptr);
         boost::archive::text_oarchive oa(ss);
         oa << const_cast<const std::list<const B *> &>(l);
-        ss.flush();
     }
     B b1;
     {

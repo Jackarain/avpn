@@ -14,10 +14,10 @@
 [heading Boost Release 1.79]
 
 * Fixed [@https://github.com/boostorg/optional/issues/98 issue #98].
-
-[heading Boost Release 1.77]
-
 * Fixed [@https://github.com/boostorg/optional/issues/92 issue #92].
+* Added support for `BOOST_NO_IOSTREAM`.
+* Now aligned storage uses `unsigned char` rather than `char` to avoid UB.
+* Now using cv-unqualified `value_type` with placement `new` to avoid UB.
 
 [heading Boost Release 1.76]
 
@@ -32,7 +32,7 @@
 [heading Boost Release 1.73]
 
 * Fixed [@https://github.com/boostorg/optional/issues/78 issue #78].
-* `boost::none` is now declared as an inline variable (on compilers taht support it): there is only one instance of `boost::none` across all translation units.
+* `boost::none` is now declared as an inline variable (on compilers that support it): there is only one instance of `boost::none` across all translation units.
 * Fixed a number of compilation errors in GCC 4.4.7 in `optional<T>` for trivial `T`s. Thanks to Robert Leahy for the fix. For details see [@https://github.com/boostorg/optional/pull/80 pr #78].
 * Now surpressing warning `-Wweak-vtables`.
 

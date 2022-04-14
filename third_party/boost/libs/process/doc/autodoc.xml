@@ -1,7 +1,5 @@
 <?xml version="1.0" standalone="yes"?>
-<library-reference><header name="boost/process.hpp">
-<para>Convenience header which includes all public and platform-independent boost.process header files. </para></header>
-<header name="boost/process/args.hpp">
+<library-reference><header name="boost/process/args.hpp">
 <para>This header provides the <globalname alt="boost::process::args">args</globalname> property. It also provides the alternative name <globalname alt="boost::process::argv">argv</globalname> .</para><para> 
 <programlisting language="c++">
 namespace boost {

@@ -1,2 +1,2 @@
-Release notes for Hana 1.8.0
+Release notes for Hana 1.6.2
 ============================

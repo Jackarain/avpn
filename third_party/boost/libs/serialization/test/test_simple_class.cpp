@@ -14,11 +14,9 @@
 #include <cstdio> // remove
 #include <fstream>
 #include <cmath>
+#include <boost/math/special_functions/next.hpp>
 
 #include <boost/config.hpp>
-#if BOOST_CXX_VERSION > 199711L // only include floating point if C++ version >= C++11
-#include <boost/math/special_functions/next.hpp>
-#endif
 
 #if defined(BOOST_NO_STDC_NAMESPACE)
 namespace std{
@@ -53,10 +51,8 @@ bool A::check_equal(const A &rhs) const
     BOOST_CHECK_EQUAL(u, rhs.u);
     BOOST_CHECK_EQUAL(v, rhs.v);
     BOOST_CHECK_EQUAL(l, rhs.l);
-    #if BOOST_CXX_VERSION > 199711L // only include floating point if C++ version >= C++11
-        BOOST_CHECK(std::abs( boost::math::float_distance(w, rhs.w)) < 2);
-        BOOST_CHECK(std::abs( boost::math::float_distance(x, rhs.x)) < 2);
-    #endif
+    BOOST_CHECK(std::abs( boost::math::float_distance(w, rhs.w)) < 2);
+    BOOST_CHECK(std::abs( boost::math::float_distance(x, rhs.x)) < 2);
     BOOST_CHECK(!(0 != y.compare(rhs.y)));
     #ifndef BOOST_NO_STD_WSTRING
     BOOST_CHECK(!(0 != z.compare(rhs.z)));

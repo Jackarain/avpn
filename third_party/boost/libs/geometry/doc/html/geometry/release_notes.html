@@ -37,8 +37,58 @@
 <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; "><li class="listitem">
           <a href="https://github.com/boostorg/geometry/pull/977" target="_top">977</a>
           Rescaling is turned off by default. This avoids many related bugs in set
-          operations and buffer
+          operations and buffer.
         </li></ul></div>
+<p>
+      <span class="bold"><strong>Improvements</strong></span>
+    </p>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/pull/961" target="_top">961</a>
+          Added Web Mercator projection.
+        </li>
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/pull/966" target="_top">966</a>
+          More efficient cartesian distance strategy used in simplify.
+        </li>
+</ul></div>
+<p>
+      <span class="bold"><strong>Solved issues</strong></span>
+    </p>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/issues/956" target="_top">956</a>
+          Result of simplify algorithm with incorrect closure.
+        </li>
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/issues/962" target="_top">962</a>
+          Runtime error in R-tree deserialization due to load factor.
+        </li>
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/issues/971" target="_top">971</a>
+          R-tree insertion time impacted by use of long double on ARM platforms.
+        </li>
+</ul></div>
+<p>
+      <span class="bold"><strong>Bugfixes</strong></span>
+    </p>
+<div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/pull/936" target="_top">936</a>
+          Envelope of polygon containing pole.
+        </li>
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/pull/948" target="_top">948</a>
+          Spherical and geographic envelope for near meridian segments.
+        </li>
+<li class="listitem">
+          <a href="https://github.com/boostorg/geometry/pull/974" target="_top">974</a>
+          Spheroidal normalization utilities for NaN coordinates.
+        </li>
+<li class="listitem">
+          Various fixes in set operations and buffer.
+        </li>
+</ul></div>
 <h4>
 <a name="geometry.release_notes.h1"></a>
       <span class="phrase"><a name="geometry.release_notes.boost_1_78"></a></span><a class="link" href="release_notes.html#geometry.release_notes.boost_1_78">Boost

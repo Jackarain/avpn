@@ -24,15 +24,13 @@
 #include <boost/any.hpp>
 #include <boost/function/function3.hpp>
 #include <boost/type_traits/is_convertible.hpp>
+#include <typeinfo>
 #include <boost/mpl/bool.hpp>
+#include <stdexcept>
+#include <sstream>
+#include <map>
 #include <boost/type.hpp>
 #include <boost/smart_ptr.hpp>
-#include <exception>
-#include <map>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <typeinfo>
 
 namespace boost {
 
@@ -72,17 +70,17 @@ public:
 //////////////////////////////////////////////////////////////////////
 
 struct dynamic_property_exception : public std::exception {
-  ~dynamic_property_exception() throw() BOOST_OVERRIDE {}
-  const char* what() const throw() BOOST_OVERRIDE = 0;
+  virtual ~dynamic_property_exception() throw() {}
+  virtual const char* what() const throw() = 0;
 };
 
 struct property_not_found : public dynamic_property_exception {
   std::string property;
   mutable std::string statement;
   property_not_found(const std::string& property) : property(property) {}
-  ~property_not_found() throw() BOOST_OVERRIDE {}
+  virtual ~property_not_found() throw() {}
 
-  const char* what() const throw() BOOST_OVERRIDE {
+  const char* what() const throw() {
     if(statement.empty())
       statement =
         std::string("Property not found: ") + property + ".";
@@ -95,9 +93,9 @@ struct dynamic_get_failure : public dynamic_property_exception {
   std::string property;
   mutable std::string statement;
   dynamic_get_failure(const std::string& property) : property(property) {}
-  ~dynamic_get_failure() throw() BOOST_OVERRIDE {}
+  virtual ~dynamic_get_failure() throw() {}
 
-  const char* what() const throw() BOOST_OVERRIDE {
+  const char* what() const throw() {
     if(statement.empty())
       statement =
         std::string(
@@ -109,9 +107,9 @@ struct dynamic_get_failure : public dynamic_property_exception {
 };
 
 struct dynamic_const_put_error  : public dynamic_property_exception {
-  ~dynamic_const_put_error() throw() BOOST_OVERRIDE {}
+  virtual ~dynamic_const_put_error() throw() {}
 
-  const char* what() const throw() BOOST_OVERRIDE {
+  const char* what() const throw() {
     return "Attempt to put a value into a const property map: ";
   }
 };
@@ -171,27 +169,27 @@ public:
   explicit dynamic_property_map_adaptor(const PropertyMap& property_map_)
     : property_map_(property_map_) { }
 
-  boost::any get(const any& key_) BOOST_OVERRIDE
+  virtual boost::any get(const any& key_)
   {
     return get_wrapper_xxx(property_map_, any_cast<typename boost::property_traits<PropertyMap>::key_type>(key_));
   }
 
-  std::string get_string(const any& key_) BOOST_OVERRIDE
+  virtual std::string get_string(const any& key_)
   {
     std::ostringstream out;
     out << get_wrapper_xxx(property_map_, any_cast<typename boost::property_traits<PropertyMap>::key_type>(key_));
     return out.str();
   }
 
-  void put(const any& in_key, const any& in_value) BOOST_OVERRIDE
+  virtual void put(const any& in_key, const any& in_value)
   {
     do_put(in_key, in_value,
            mpl::bool_<(is_convertible<category*,
                                       writable_property_map_tag*>::value)>());
   }
 
-  const std::type_info& key()   const BOOST_OVERRIDE { return typeid(key_type); }
-  const std::type_info& value() const BOOST_OVERRIDE { return typeid(value_type); }
+  virtual const std::type_info& key()   const { return typeid(key_type); }
+  virtual const std::type_info& value() const { return typeid(value_type); }
 
   PropertyMap&       base()       { return property_map_; }
   const PropertyMap& base() const { return property_map_; }

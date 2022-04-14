@@ -220,12 +220,21 @@ namespace boost { namespace fusion
             void
             assign_sequence(Sequence&& seq)
             {
-#ifndef BOOST_NO_CXX17_FOLD_EXPRESSIONS
-                (void(store<I, T>::elem = vector_detail::forward_at_c<I>(static_cast<Sequence&&>(seq))), ...);
-#else
-                int nofold[] = { (void(store<I, T>::elem = vector_detail::forward_at_c<I>(static_cast<Sequence&&>(seq))), 0)..., 0 };
-                (void)nofold;
-#endif
+                assign(std::forward<Sequence>(seq), detail::index_sequence<I...>());
+            }
+
+            template <typename Sequence>
+            BOOST_CXX14_CONSTEXPR BOOST_FUSION_GPU_ENABLED
+            void
+            assign(Sequence&&, detail::index_sequence<>) {}
+
+            template <typename Sequence, std::size_t N, std::size_t ...M>
+            BOOST_CXX14_CONSTEXPR BOOST_FUSION_GPU_ENABLED
+            void
+            assign(Sequence&& seq, detail::index_sequence<N, M...>)
+            {
+                at_impl(mpl::int_<N>()) = vector_detail::forward_at_c<N>(seq);
+                assign(std::forward<Sequence>(seq), detail::index_sequence<M...>());
             }
 
         private:

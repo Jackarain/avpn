@@ -123,7 +123,7 @@ template<>
 struct image_read_info< raw_tag >
 {
     /// Default contructor.
-    image_read_info()
+    image_read_info< raw_tag >()
     : _valid( false )
     {}
 

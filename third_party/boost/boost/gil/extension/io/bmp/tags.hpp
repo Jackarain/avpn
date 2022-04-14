@@ -73,7 +73,7 @@ template<>
 struct image_read_info< bmp_tag >
 {
     /// Default contructor.
-    image_read_info()
+    image_read_info< bmp_tag >()
     : _top_down(false)
     , _valid( false )
     {}

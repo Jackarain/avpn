@@ -1,5 +1,5 @@
 /*
-Copyright 2020-2022 Glen Joseph Fernandes
+Copyright 2020-2021 Glen Joseph Fernandes
 (glenjofe@gmail.com)
 
 Distributed under the Boost Software License, Version 1.0.
@@ -427,72 +427,9 @@ allocator_allocate(A& a, typename allocator_size_type<A>::type n,
 }
 #endif
 
-namespace detail {
-
-#if defined(BOOST_NO_CXX11_ALLOCATOR)
-template<class T, T>
-struct alloc_no {
-    char x, y;
-};
-
-template<class A, class T>
-class alloc_has_construct {
-    template<class O>
-    static alloc_no<void(O::*)(T*), &O::construct>
-    check(int);
-
-    template<class O>
-    static alloc_no<void(O::*)(T*) const, &O::construct>
-    check(int);
-
-    template<class O>
-    static alloc_no<void(*)(T*), &O::construct>
-    check(int);
-
-    template<class>
-    static char check(long);
-
-public:
-    static const bool value = sizeof(check<A>(0)) > 1;
-};
-#else
-template<class A, class T, class... Args>
-class alloc_has_construct {
-    template<class O>
-    static auto check(int)
-    -> alloc_no<decltype(std::declval<O&>().construct(std::declval<T*>(),
-        std::declval<Args&&>()...))>;
-
-    template<class>
-    static char check(long);
-
-public:
-    BOOST_STATIC_CONSTEXPR bool value = sizeof(check<A>(0)) > 1;
-};
-#endif
-
-template<bool, class = void>
-struct alloc_if { };
-
-template<class T>
-struct alloc_if<true, T> {
-    typedef T type;
-};
-
-} /* detail */
-
 #if defined(BOOST_NO_CXX11_ALLOCATOR)
 template<class A, class T>
-inline typename detail::alloc_if<detail::alloc_has_construct<A,
-    T>::value>::type
-allocator_construct(A& a, T* p)
-{
-    a.construct(p);
-}
-
-template<class A, class T>
-inline typename detail::alloc_if<!detail::alloc_has_construct<A,
-    T>::value>::type
+inline void
 allocator_construct(A&, T* p)
 {
     ::new((void*)p) T();
@@ -530,6 +467,24 @@ allocator_construct(A&, T* p, V& v)
 }
 #endif
 #else
+namespace detail {
+
+template<class A, class T, class... Args>
+class alloc_has_construct {
+    template<class O>
+    static auto check(int)
+    -> alloc_no<decltype(std::declval<O&>().construct(std::declval<T*>(),
+        std::declval<Args&&>()...))>;
+
+    template<class>
+    static char check(long);
+
+public:
+    BOOST_STATIC_CONSTEXPR bool value = sizeof(check<A>(0)) > 1;
+};
+
+} /* detail */
+
 template<class A, class T, class... Args>
 inline typename std::enable_if<detail::alloc_has_construct<A, T,
     Args...>::value>::type
@@ -547,30 +502,17 @@ allocator_construct(A&, T* p, Args&&... args)
 }
 #endif
 
-namespace detail {
-
 #if defined(BOOST_NO_CXX11_ALLOCATOR)
 template<class A, class T>
-class alloc_has_destroy {
-    template<class O>
-    static alloc_no<void(O::*)(T*), &O::destroy>
-    check(int);
-
-    template<class O>
-    static alloc_no<void(O::*)(T*) const, &O::destroy>
-    check(int);
-
-    template<class O>
-    static alloc_no<void(*)(T*), &O::destroy>
-    check(int);
-
-    template<class>
-    static char check(long);
-
-public:
-    static const bool value = sizeof(check<A>(0)) > 1;
-};
+inline void
+allocator_destroy(A&, T* p)
+{
+    p->~T();
+    (void)p;
+}
 #else
+namespace detail {
+
 template<class A, class T>
 class alloc_has_destroy {
     template<class O>
@@ -583,28 +525,33 @@ class alloc_has_destroy {
 public:
     BOOST_STATIC_CONSTEXPR bool value = sizeof(check<A>(0)) > 1;
 };
-#endif
 
 } /* detail */
 
 template<class A, class T>
-inline typename detail::alloc_if<detail::alloc_has_destroy<A, T>::value>::type
+inline typename std::enable_if<detail::alloc_has_destroy<A, T>::value>::type
 allocator_destroy(A& a, T* p)
 {
     a.destroy(p);
 }
 
 template<class A, class T>
-inline typename detail::alloc_if<!detail::alloc_has_destroy<A, T>::value>::type
+inline typename std::enable_if<!detail::alloc_has_destroy<A, T>::value>::type
 allocator_destroy(A&, T* p)
 {
     p->~T();
     (void)p;
 }
+#endif
 
 namespace detail {
 
 #if defined(BOOST_NO_CXX11_ALLOCATOR)
+template<class T, T>
+struct alloc_no {
+    char x, y;
+};
+
 template<class A>
 class alloc_has_max_size {
     template<class O>
@@ -639,6 +586,14 @@ public:
     BOOST_STATIC_CONSTEXPR bool value = sizeof(check<A>(0)) > 1;
 };
 #endif
+
+template<bool, class>
+struct alloc_if { };
+
+template<class T>
+struct alloc_if<true, T> {
+    typedef T type;
+};
 
 } /* detail */
 
@@ -712,75 +667,6 @@ inline typename detail::alloc_if<!detail::alloc_has_soccc<A>::value, A>::type
 allocator_select_on_container_copy_construction(const A& a)
 {
     return a;
-}
-
-template<class A, class T>
-inline void
-allocator_destroy_n(A& a, T* p, std::size_t n)
-{
-    while (n > 0) {
-        boost::allocator_destroy(a, p + --n);
-    }
-}
-
-namespace detail {
-
-template<class A, class T>
-class alloc_destroyer {
-public:
-    alloc_destroyer(A& a, T* p) BOOST_NOEXCEPT
-        : a_(a), p_(p), n_(0) { }
-
-    ~alloc_destroyer() {
-        boost::allocator_destroy_n(a_, p_, n_);
-    }
-
-    std::size_t& size() BOOST_NOEXCEPT {
-        return n_;
-    }
-
-private:
-    alloc_destroyer(const alloc_destroyer&);
-    alloc_destroyer& operator=(const alloc_destroyer&);
-
-    A& a_;
-    T* p_;
-    std::size_t n_;
-};
-
-} /* detail */
-
-template<class A, class T>
-inline void
-allocator_construct_n(A& a, T* p, std::size_t n)
-{
-    detail::alloc_destroyer<A, T> d(a, p);
-    for (std::size_t& i = d.size(); i < n; ++i) {
-        boost::allocator_construct(a, p + i);
-    }
-    d.size() = 0;
-}
-
-template<class A, class T>
-inline void
-allocator_construct_n(A& a, T* p, std::size_t n, const T* l, std::size_t m)
-{
-    detail::alloc_destroyer<A, T> d(a, p);
-    for (std::size_t& i = d.size(); i < n; ++i) {
-        boost::allocator_construct(a, p + i, l[i % m]);
-    }
-    d.size() = 0;
-}
-
-template<class A, class T, class I>
-inline void
-allocator_construct_n(A& a, T* p, std::size_t n, I b)
-{
-    detail::alloc_destroyer<A, T> d(a, p);
-    for (std::size_t& i = d.size(); i < n; void(++i), void(++b)) {
-        boost::allocator_construct(a, p + i, *b);
-    }
-    d.size() = 0;
 }
 
 #if !defined(BOOST_NO_CXX11_TEMPLATE_ALIASES)

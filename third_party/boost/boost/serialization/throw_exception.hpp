@@ -17,6 +17,10 @@
 
 #include <boost/config.hpp>
 
+#ifndef BOOST_NO_EXCEPTIONS
+#include <exception>
+#endif
+
 namespace boost {
 namespace serialization {
 
@@ -28,8 +32,7 @@ BOOST_NORETURN inline void throw_exception(std::exception const & e) {
 
 #else
 
-template<class E>
-BOOST_NORETURN inline void throw_exception(E const & e){
+template<class E> BOOST_NORETURN inline void throw_exception(E const & e){
     throw e;
 }
 

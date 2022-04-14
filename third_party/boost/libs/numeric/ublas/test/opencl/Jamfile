@@ -16,7 +16,6 @@ using clblas ;
 project boost/ublas/test/opencl
     : requirements
       <toolset>gcc:<cxxflags>-Wno-ignored-attributes
-      <toolset>clang:<cxxflags>-Wno-ignored-attributes
       [ ac.check-library /clblas//clblas : <library>/clblas//clblas <library>/opencl//opencl : <build>no ]
     ;
 

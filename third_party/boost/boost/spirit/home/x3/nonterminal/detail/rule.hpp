@@ -12,6 +12,7 @@
 #include <boost/spirit/home/x3/core/parser.hpp>
 #include <boost/spirit/home/x3/core/skip_over.hpp>
 #include <boost/spirit/home/x3/directive/expect.hpp>
+#include <boost/spirit/home/x3/support/utility/sfinae.hpp>
 #include <boost/spirit/home/x3/nonterminal/detail/transform_attribute.hpp>
 #include <boost/utility/addressof.hpp>
 
@@ -97,14 +98,15 @@ namespace boost { namespace spirit { namespace x3 { namespace detail
 
     template <typename ID, typename Iterator, typename Context>
     struct has_on_error<ID, Iterator, Context,
-            decltype(void(
+        typename disable_if_substitution_failure<
+            decltype(
                 std::declval<ID>().on_error(
                     std::declval<Iterator&>()
                   , std::declval<Iterator>()
                   , std::declval<expectation_failure<Iterator>>()
                   , std::declval<Context>()
                 )
-            ))
+            )>::type
         >
       : mpl::true_
     {};
@@ -114,14 +116,15 @@ namespace boost { namespace spirit { namespace x3 { namespace detail
 
     template <typename ID, typename Iterator, typename Attribute, typename Context>
     struct has_on_success<ID, Iterator, Context, Attribute,
-            decltype(void(
+        typename disable_if_substitution_failure<
+            decltype(
                 std::declval<ID>().on_success(
                     std::declval<Iterator&>()
-                  , std::declval<Iterator&>()
+                  , std::declval<Iterator>()
                   , std::declval<Attribute&>()
                   , std::declval<Context>()
                 )
-            ))
+            )>::type
         >
       : mpl::true_
     {};
@@ -158,7 +161,7 @@ namespace boost { namespace spirit { namespace x3 { namespace detail
     {
         template <typename Iterator, typename Context, typename ActualAttribute>
         static bool call_on_success(
-            Iterator& /* before */, Iterator& /* after */
+            Iterator& /* first */, Iterator const& /* last */
           , Context const& /* context */, ActualAttribute& /* attr */
           , mpl::false_ /* No on_success handler */ )
         {
@@ -167,15 +170,14 @@ namespace boost { namespace spirit { namespace x3 { namespace detail
 
         template <typename Iterator, typename Context, typename ActualAttribute>
         static bool call_on_success(
-            Iterator& before, Iterator& after
+            Iterator& first, Iterator const& last
           , Context const& context, ActualAttribute& attr
           , mpl::true_ /* Has on_success handler */)
         {
-            x3::skip_over(before, after, context);
             bool pass = true;
             ID().on_success(
-                before
-              , after
+                first
+              , last
               , attr
               , make_context<parse_pass_context_tag>(pass, context)
             );

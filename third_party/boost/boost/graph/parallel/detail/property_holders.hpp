@@ -15,7 +15,6 @@
 
 #include <boost/mpi/datatype.hpp>
 #include <boost/property_map/property_map.hpp>
-#include <boost/property_map/parallel/parallel_property_maps.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/mpl/and.hpp>
 #include <boost/graph/parallel/detail/untracked_pair.hpp>

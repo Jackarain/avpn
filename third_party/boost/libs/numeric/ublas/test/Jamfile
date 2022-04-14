@@ -255,3 +255,5 @@ test-suite numeric/uBLAS
       [ compile minimal_allocator_test.cpp ]
     ;
 
+build-project opencl ;
+build-project tensor ;

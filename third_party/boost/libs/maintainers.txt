@@ -103,7 +103,7 @@ nowide                Alexander Grund <alex -at- grundis.de>
 numeric/conversion    Fernando Cacciola <fernando_cacciola -at- ciudad.com.ar>, Brandon Kohn <blkohn -at- hotmail.com>
 numeric/interval      Sylvain Pion <Sylvain.Pion -at- sophia.inria.fr>, Herve Bronnimann <hbr -at- poly.edu>, Guillaume Melquiond <guillaume.melquiond -at- ens-lyon.fr>
 numeric/odeint        Karsten Ahnert <karsten.ahnert -at- gmx.de>, Mario Mulansky <mario.mulansky -at- gmx.net>
-numeric/ublas         David Bellot <david.bellot -at- gmail.com>, Cem Bassoy <cem.bassoy -at- gmail.com>, Stefan Seefeld <stefan -at- seefeld.name>
+numeric/ublas         David Bellot <david.bellot -at- gmail.com>, Stefan Seefeld <stefan -at- seefeld.name>
 operators             Daniel Frey <d.frey -at- gmx.de>
 optional              Fernando Cacciola <fernando_cacciola -at- ciudad.com.ar>, Andrzej Krzemienski <akrzemi1 -at- gmail.com>
 outcome               Niall Douglas <s -underscore- sourceforge -at- nedprod -dot- com>
@@ -146,7 +146,6 @@ statechart            Andreas Huber <ahd6974-boostorg -at- yahoo.com>
 static_assert         John Maddock <john -at- johnmaddock.co.uk>
 static_string         Krystian Stasiowski <sdkrystian@gmail.com>, Vinnie Falco <vinnie.falco@gmail.com>
 stl_interfaces        Zach Laine <whatwasthataddress -at- gmail.com>
-sync                  Tim Blechmann <tim -at- klingt.org>, Andrey Semashev <andrey.semashev -at- gmail.com>, Vicente J. Botet Escriba <vicente.botet -at- wanadoo.fr>
 system                Peter Dimov <pdimov -at- gmail.com>
 test                  Gennadiy Rozental <rogeeff -at- gmail.com>, Raffi Enficiaud <raffi.enficiaud -at- free.fr>
 thread                Vicente J. Botet Escriba <vicente.botet -at- wanadoo.fr>

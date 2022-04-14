@@ -124,14 +124,13 @@ template
     typename Box,
     typename RobustPolicy
 >
-inline bool preceding(int dir,
-                      Point const& point,
-                      Box const& point_box,
-                      Box const& other_box,
-                      RobustPolicy const& robust_policy)
+static inline bool preceding(int dir,
+                             Point const& point,
+                             Box const& point_box,
+                             Box const& other_box,
+                             RobustPolicy const& robust_policy)
 {
-    using box_point_type = typename geometry::point_type<Box>::type;
-    typename geometry::robust_point_type<box_point_type, RobustPolicy>::type robust_point;
+    typename geometry::robust_point_type<Point, RobustPolicy>::type robust_point;
     geometry::recalculate(robust_point, point, robust_policy);
 
     // After recalculate() to prevent warning: 'robust_point' may be used uninitialized
@@ -149,11 +148,11 @@ template
     typename Box,
     typename RobustPolicy
 >
-inline bool exceeding(int dir,
-                      Point const& point,
-                      Box const& point_box,
-                      Box const& other_box,
-                      RobustPolicy const& robust_policy)
+static inline bool exceeding(int dir,
+                             Point const& point,
+                             Box const& point_box,
+                             Box const& other_box,
+                             RobustPolicy const& robust_policy)
 {
     return preceding<Dimension>(-dir, point, point_box, other_box, robust_policy);
 }

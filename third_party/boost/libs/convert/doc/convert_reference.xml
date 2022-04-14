@@ -237,8 +237,8 @@ boost::optional&lt;string&gt; s = boost::convert&lt;string&gt;(123.456);
 <method name="pos" cv="const"><type>int</type><template>
           <template-type-parameter name="Type"/>
         </template></method>
-<method name="printf_format" cv="const"><type>char const  *</type><parameter name="pos"><paramtype>int</paramtype></parameter></method>
-<method name="sscanf_format" cv="const"><type>char const  *</type><parameter name="pos"><paramtype>int</paramtype></parameter></method>
+<method name="pformat" cv="const"><type>char const  *</type><parameter name="pos"><paramtype>int</paramtype></parameter></method>
+<method name="format" cv="const"><type>char const  *</type><parameter name="pos"><paramtype>int</paramtype></parameter></method>
 </method-group>
 </struct>
 

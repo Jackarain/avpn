@@ -11,6 +11,13 @@ add_library(Boost::preprocessor ALIAS boost_preprocessor)
 
 target_include_directories(boost_preprocessor INTERFACE include)
 
+if(BOOST_SUPERPROJECT_VERSION)
+
+  include(BoostInstall)
+  boost_install(TARGETS boost_preprocessor HEADER_DIRECTORY include/)
+
+endif()
+
 if(BUILD_TESTING)
 
   add_subdirectory(test)

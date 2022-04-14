@@ -11,6 +11,5 @@
 
 #include <boost/phoenix/stl/algorithm.hpp>
 #include <boost/phoenix/stl/container.hpp>
-#include <boost/phoenix/stl/tuple.hpp>
 
 #endif

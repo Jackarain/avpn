@@ -14,7 +14,6 @@
 #endif
 
 #include <boost/property_map/property_map.hpp>
-#include <boost/property_map/parallel/parallel_property_maps.hpp>
 
 namespace boost { namespace graph { namespace distributed { namespace detail {
 

@@ -204,13 +204,15 @@ void test_subimage()
 
 void test_dynamic_image_test()
 {
-    gil::any_image
+    using my_img_types = mp11::mp_list
     <
         gil::gray8_image_t,
         gil::gray16_image_t,
         gil::rgb8_image_t,
         gil::gray1_image_t
-    > image;
+    >;
+
+    gil::any_image<my_img_types> image;
 
     gil::read_image(pnm_filename.c_str(), image, gil::pnm_tag());
 

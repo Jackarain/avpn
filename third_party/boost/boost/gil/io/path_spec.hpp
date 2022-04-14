@@ -8,7 +8,29 @@
 #ifndef BOOST_GIL_IO_PATH_SPEC_HPP
 #define BOOST_GIL_IO_PATH_SPEC_HPP
 
-#include <boost/gil/io/detail/filesystem.hpp>
+#ifdef BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
+// Disable warning: conversion to 'std::atomic<int>::__integral_type {aka int}' from 'long int' may alter its value
+#if defined(BOOST_CLANG)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#endif
+
+#if defined(BOOST_GCC) && (BOOST_GCC >= 40900)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+
+#define BOOST_FILESYSTEM_VERSION 3
+#include <boost/filesystem/path.hpp>
+
+#if defined(BOOST_CLANG)
+#pragma clang diagnostic pop
+#endif
+
+#if defined(BOOST_GCC) && (BOOST_GCC >= 40900)
+#pragma GCC diagnostic pop
+#endif
+#endif // BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
 
 #include <cstdlib>
 #include <string>
@@ -31,8 +53,15 @@ template<int i> struct is_supported_path_spec<char [i]>             : std::true_
 template<int i> struct is_supported_path_spec<const wchar_t [i]>    : std::true_type {};
 template<int i> struct is_supported_path_spec<wchar_t [i]>          : std::true_type {};
 
-template<> struct is_supported_path_spec<filesystem::path> : std::true_type {};
-template<> struct is_supported_path_spec<filesystem::path const> : std::true_type {};
+#ifdef BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
+template<> struct is_supported_path_spec< filesystem::path > : std::true_type {};
+template<> struct is_supported_path_spec< const filesystem::path > : std::true_type {};
+#endif // BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
+
+
+///
+/// convert_to_string
+///
 
 inline std::string convert_to_string( std::string const& obj)
 {
@@ -58,10 +87,16 @@ inline std::string convert_to_string( char* str )
     return std::string( str );
 }
 
-inline std::string convert_to_string(filesystem::path const& path)
+#ifdef BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
+inline std::string convert_to_string( const filesystem::path& path )
 {
-    return convert_to_string(path.string());
+    return convert_to_string( path.string() );
 }
+#endif // BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
+
+///
+/// convert_to_native_string
+///
 
 inline const char* convert_to_native_string( char* str )
 {
@@ -96,6 +131,8 @@ inline const char* convert_to_native_string( const std::wstring& str )
     return c;
 }
 
-}}} // namespace boost::gil::detail
+} // namespace detail
+} // namespace gil
+} // namespace boost
 
 #endif

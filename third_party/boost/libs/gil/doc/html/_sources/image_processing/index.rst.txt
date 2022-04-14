@@ -11,5 +11,3 @@ features, structures and algorithms, for image processing and analysis.
    overview
    basics
    affine-region-detectors
-   contrast_enhancement/index
-

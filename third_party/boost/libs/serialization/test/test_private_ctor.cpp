@@ -42,7 +42,6 @@ int test_main(int /* argc */, char * /* argv */[])
     {
         boost::archive::text_oarchive oa(ss);
         oa << v;
-        ss.flush();
     }
     V v1;
     {
@@ -55,7 +54,6 @@ int test_main(int /* argc */, char * /* argv */[])
     {
         boost::archive::text_oarchive oa(ss);
         oa << vptr;
-        ss.flush();
     }
     V *vptr1;
     {

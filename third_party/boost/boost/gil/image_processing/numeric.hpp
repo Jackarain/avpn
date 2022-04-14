@@ -1,6 +1,5 @@
 //
 // Copyright 2019 Olzhas Zhumabek <anonymous.from.applecity@gmail.com>
-// Copyright 2021 Pranam Lashkari <plashkari628@gmail.com>
 //
 // Use, modification and distribution are subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
@@ -9,8 +8,8 @@
 #ifndef BOOST_GIL_IMAGE_PROCESSING_NUMERIC_HPP
 #define BOOST_GIL_IMAGE_PROCESSING_NUMERIC_HPP
 
-#include <boost/gil/image_processing/kernel.hpp>
-#include <boost/gil/image_processing/convolve.hpp>
+#include <boost/gil/extension/numeric/kernel.hpp>
+#include <boost/gil/extension/numeric/convolve.hpp>
 #include <boost/gil/image_view.hpp>
 #include <boost/gil/typedefs.hpp>
 #include <boost/gil/detail/math.hpp>
@@ -49,7 +48,7 @@ inline double lanczos(double x, std::ptrdiff_t a)
     if (0 <= x && x <= 0)
         return 1;
 
-    if (static_cast<double>(-a) < x && x < static_cast<double>(a))
+    if (-a < x && x < a)
         return normalized_sinc(x) / normalized_sinc(x / static_cast<double>(a));
 
     return 0;

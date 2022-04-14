@@ -77,7 +77,7 @@ template<>
 struct image_read_info< targa_tag >
 {
     /// Default contructor.
-    image_read_info()
+    image_read_info< targa_tag >()
     : _screen_origin_bit(false)
     , _valid( false )
     {}

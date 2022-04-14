@@ -60,12 +60,13 @@ make_writer( const std::wstring&                  file_name
                                      );
 }
 
+#ifdef BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
 template< typename FormatTag >
 inline
 typename get_writer< std::wstring
                    , FormatTag
                    >::type
-make_writer( detail::filesystem::path const& path
+make_writer( const filesystem::path&              path
            , const image_write_info< FormatTag >& info
            )
 {
@@ -73,6 +74,7 @@ make_writer( detail::filesystem::path const& path
                       , info
                       );
 }
+#endif // BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
 
 template <typename Device, typename FormatTag>
 inline
@@ -123,12 +125,13 @@ make_writer( const std::wstring& file_name
                       );
 }
 
+#ifdef BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
 template< typename FormatTag >
 inline
 typename get_writer< std::wstring
                    , FormatTag
                    >::type
-make_writer( detail::filesystem::path const& path
+make_writer( const filesystem::path& path
            , const FormatTag&        tag
            )
 {
@@ -136,6 +139,7 @@ make_writer( detail::filesystem::path const& path
                       , tag
                       );
 }
+#endif // BOOST_GIL_IO_ADD_FS_PATH_SUPPORT
 
 template <typename Device, typename FormatTag>
 inline

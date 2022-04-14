@@ -17,6 +17,5 @@
 #include <boost/fusion/view/transform_view.hpp>
 #include <boost/fusion/view/zip_view.hpp>
 #include <boost/fusion/view/flatten_view.hpp>
-#include <boost/fusion/view/identity_view.hpp>
 
 #endif

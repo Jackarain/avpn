@@ -5,17 +5,12 @@
 // See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt
 //
-
 #include <boost/gil.hpp>
 #include <boost/gil/extension/io/jpeg.hpp>
 #include <boost/gil/extension/numeric/sampler.hpp>
 #include <boost/gil/extension/numeric/resample.hpp>
 
-// Performs an arbitrary affine transformation on the image.
-
-// This example relies on the matrices and functions available in GIL to define the operation,
-// in include/boost/gil/extension/numeric/affine.hpp
-// and calls resample_pixels(), avaiable in the numeric extension, to apply it
+// Example for resample_pixels() in the numeric extension
 
 int main()
 {

@@ -71,11 +71,6 @@ class InstanceCounter {
 public:
     InstanceCounter() { increment(); }
     InstanceCounter(const InstanceCounter& y) { y.increment(); }
-    InstanceCounter& operator=(const InstanceCounter& y) {
-        decrement();
-        y.increment();
-        return *this;
-    }
     ~InstanceCounter() { decrement(); }
     static int count() { return ms_count; }
 private:
@@ -111,9 +106,12 @@ struct MyInputIterator {
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
     explicit MyInputIterator(const vector_iterator& it) : m_it(it) {}
-
-    // Default assignment operator
-
+    MyInputIterator& operator = (const MyInputIterator& it) {
+        if (this == &it)
+            return *this;
+        m_it = it.m_it;
+        return *this;
+    }
     reference operator * () const { return *m_it; }
     pointer operator -> () const { return &(operator*()); }
     MyInputIterator& operator ++ () {

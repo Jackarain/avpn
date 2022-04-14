@@ -381,10 +381,9 @@ namespace boost { namespace stl_interfaces { BOOST_STL_INTERFACES_NAMESPACE_V1 {
                 std::enable_if_t<!v1_dtl::plus_eq<D, difference_type>::value>>
         constexpr auto
         operator--() noexcept(noexcept(--access::base(std::declval<D &>())))
-            -> decltype(--access::base(std::declval<D &>()), std::declval<D &>())
+            -> decltype(--access::base(std::declval<D &>()))
         {
-            --access::base(derived());
-            return derived();
+            return --access::base(derived());
         }
 
         template<typename D = Derived>
