@@ -57,10 +57,15 @@ endif()
 
 add_library(libavpn ${avpn_SRCS})
 
+file(GLOB rc_SRCS)
+if (WIN32)
+	list (APPEND rc_SRCS src/resource/avpn.rc)
+endif()
+
 add_executable(avpn
 	src/main/main.cpp
 
-	src/resource/avpn.rc
+	${rc_SRCS}
 )
 
 # 其实 target_precompile_headers(avpn PUBLIC stdafx.hpp) 就可以了
