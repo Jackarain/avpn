@@ -189,7 +189,8 @@ namespace avpn
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
 		, m_fec_timer(m_main_ioc)
-		, m_wait_timer(m_main_ioc)
+		, m_connect_retry_timer(m_main_ioc)
+		, m_keepalive_timer(m_main_ioc)
 	{
 		LOG_DBG << "Start unique counter: " << gen_unique_number();
 	}
@@ -270,7 +271,7 @@ namespace avpn
 
 		if (m_params.data_shards_ > 1)
 		{
-			LOG_DBG << "Start fec dispatch.";
+			LOG_DBG << "Start fec dispatch";
 			boost::asio::co_spawn(m_main_ioc.get_executor(),
 				[this]() mutable -> boost::asio::awaitable<void>
 				{
@@ -280,13 +281,13 @@ namespace avpn
 				}, boost::asio::detached);
 		}
 
-		// 发起TCP连接协程.
-		LOG_DBG << "Start tcp socket.";
+		// 发起客户端TCP连接协程.
+		LOG_DBG << "Start tcp socket";
 		boost::asio::co_spawn(m_main_ioc.get_executor(),
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
-				co_await start_tcp_connect();
-				LOG_WARN << "start_client_connect, Tcp client socket quit...";
+				co_await start_tcp_client_connect();
+				LOG_WARN << "start_tcp_client_connect, Tcp client socket quit...";
 				co_return;
 			}, boost::asio::detached);
 
@@ -350,7 +351,8 @@ namespace avpn
 		for (auto& u : m_udp_sockets)
 			u->sock_.close(ignore_ec);
 
-		m_wait_timer.cancel(ignore_ec);
+		m_connect_retry_timer.cancel(ignore_ec);
+		m_keepalive_timer.cancel(ignore_ec);
 
 		m_routes.clear();
 		m_prefix_length = -1;
@@ -573,7 +575,7 @@ namespace avpn
 		co_return;
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_tcp_connect()
+	boost::asio::awaitable<void> vpn_tunnel::start_tcp_client_connect()
 	{
 		boost::system::error_code ec;
 		static std::atomic_int64_t id{ 1 };
@@ -628,14 +630,15 @@ namespace avpn
 
 			if (!ok)
 			{
+				m_client = {};
 				connection_ptr.reset();
 
 				if (!m_abort)
 				{
 					LOG_DBG << "connect fail, wait a moment to reconnect...";
 
-					m_wait_timer.expires_from_now(std::chrono::seconds(5));
-					co_await m_wait_timer.async_wait(uawaitable[ec]);
+					m_connect_retry_timer.expires_from_now(std::chrono::seconds(5));
+					co_await m_connect_retry_timer.async_wait(uawaitable[ec]);
 				}
 
 				continue;
@@ -703,6 +706,7 @@ namespace avpn
 
 	void vpn_tunnel::keepalive()
 	{
+		// 作为服务器时, 启动一个线程专门处理超时连接.
 		if (m_identity == Identity::avpn_server)
 		{
 			static std::thread keepalive_thread([this]() mutable
@@ -714,6 +718,7 @@ namespace avpn
 			return;
 		}
 
+		// 作为客户端时, 每隔keepalive时间发送keepavlie消息.
 		boost::asio::co_spawn(m_main_ioc.get_executor(),
 			[this]() mutable->boost::asio::awaitable<void>
 		{
@@ -721,8 +726,8 @@ namespace avpn
 
 			auto wait_moment = [&]() mutable -> boost::asio::awaitable<void>
 			{
-				m_wait_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
-				co_await m_wait_timer.async_wait(uawaitable[ec]);
+				m_keepalive_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
+				co_await m_keepalive_timer.async_wait(uawaitable[ec]);
 				co_await boost::asio::this_coro::executor;
 			};
 
@@ -730,6 +735,8 @@ namespace avpn
 
 			std::random_device rd;
 			std::mt19937 g(rd());
+
+			LOG_DBG << "Start client keepalive";
 
 			while (!m_abort)
 			{
@@ -889,8 +896,8 @@ namespace avpn
 
 			while (!m_abort)
 			{
-				m_wait_timer.expires_from_now(std::chrono::seconds(60));
-				co_await m_wait_timer.async_wait(uawaitable[ec]);
+				m_keepalive_timer.expires_from_now(std::chrono::seconds(60));
+				co_await m_keepalive_timer.async_wait(uawaitable[ec]);
 
 				check_remotes();
 				check_incomings();

@@ -278,8 +278,8 @@ namespace avpn {
 		boost::asio::awaitable<void> start_tcp_connection(
 			size_t connection_id, tcp::socket stream);
 
-		// 开始发起tcp连接.
-		boost::asio::awaitable<void> start_tcp_connect();
+		// 作为client, 开始发起tcp连接.
+		boost::asio::awaitable<void> start_tcp_client_connect();
 
 		// 用于超时相关处理.
 		void keepalive();
@@ -443,7 +443,12 @@ namespace avpn {
 		// 这是fec工作的核心, 运行负载将会很高, 如何减少这个工作
 		// 负载是个值得思考的问题.
 		timer m_fec_timer;
-		timer m_wait_timer;
+
+		// 连接重试定时器.
+		timer m_connect_retry_timer;
+
+		// keepalive定时器.
+		timer m_keepalive_timer;
 
 		// 退出标志.
 		bool m_abort{ false };
