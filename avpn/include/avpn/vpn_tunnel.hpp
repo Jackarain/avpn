@@ -218,26 +218,6 @@ namespace avpn {
 	class avpn_service;
 	class vpn_tunnel
 	{
-		using string_body = boost::beast::http::string_body;
-		using string_response = boost::beast::http::response<string_body>;
-
-		using dynamic_body = boost::beast::http::dynamic_body;
-		using dynamic_request = boost::beast::http::request<dynamic_body>;
-		using request_parser = boost::beast::http::request_parser<dynamic_request::body_type>;
-
-		using http_status = boost::beast::http::status;
-		using fields = boost::beast::http::fields;
-
-		struct http_params
-		{
-			std::vector<std::string> command_;
-			size_t connection_id_;
-			boost::beast::tcp_stream& stream_;
-			dynamic_request& request_;
-			request_parser& parser_;
-			boost::beast::flat_buffer& buffer_;
-		};
-
 		vpn_tunnel(const vpn_tunnel&) = delete;
 		vpn_tunnel& operator=(const vpn_tunnel&) = delete;
 
