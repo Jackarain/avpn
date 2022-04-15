@@ -162,7 +162,6 @@ namespace avpn {
 		std::deque<std::string> tcp_msg_deque_;		// tcp发送队列.
 		bool deque_writing_{ false };				// tcp发送标志.
 
-		timer reconnect_timer_;						// 重连定时器, 作为client时使用.
 		int64_t connection_id_{ -1 };				// 连接id.
 	};
 
@@ -280,11 +279,12 @@ namespace avpn {
 
 		// 作为client, 开始发起tcp连接.
 		boost::asio::awaitable<void> start_tcp_client_connect();
+		boost::asio::awaitable<bool> connect_server(vpn_connection_ptr& connection_ptr);
 
 		// 用于超时相关处理.
 		void keepalive();
 		void server_checktimeout();
-		void tcp_expires_after(vpn_connection& connection, int seconds);
+		void reset_connection_expires(vpn_connection& connection);
 
 		// 启动TCP读取协程, 将读取到的数据包交由process_tcp_packet处理.
 		boost::asio::awaitable<void> start_tcp_read_loop(vpn_connection_ptr connection_ptr);

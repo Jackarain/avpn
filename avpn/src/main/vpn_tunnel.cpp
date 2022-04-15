@@ -121,7 +121,6 @@ namespace avpn
 		, enc_matrix_(enc_matrix)
 		, remote_host_(host)
 		, tcp_stream_(executor)
-		, reconnect_timer_(executor)
 	{}
 
 	vpn_connection::~vpn_connection()
@@ -136,7 +135,6 @@ namespace avpn
 	{
 		boost::system::error_code ignore_ec;
 
-		reconnect_timer_.cancel(ignore_ec);
 		tcp_stream_.close(ignore_ec);
 
 		// tcp_msg_deque_.clear();
@@ -580,128 +578,150 @@ namespace avpn
 		boost::system::error_code ec;
 		static std::atomic_int64_t id{ 1 };
 
+		std::shared_ptr<vpn_connection> connection_ptr =
+			std::make_shared<vpn_connection>(
+				m_main_ioc.get_executor(), "", &m_enc_matrix, &m_dec_matrix);
+		connection_ptr->connection_id_ = id++;
+		m_client = connection_ptr;
+
+		// 发起向服务器的连接.
 		while (!m_abort)
 		{
-			std::shared_ptr<vpn_connection> connection_ptr =
-				std::make_shared<vpn_connection>(
-					m_main_ioc.get_executor(), "", &m_enc_matrix, &m_dec_matrix);
-			connection_ptr->connection_id_ = id++;
-			m_client = connection_ptr;
+			auto ret = co_await connect_server(connection_ptr);
+			if (m_abort)
+				co_return;
 
-			auto& connection = *connection_ptr;
-			auto& stream = connection_ptr->tcp_stream_;
-			bool ok = false;
+			if (!ret)
+				continue;
 
-			for (auto it = m_upstreams.begin();
-				it != m_upstreams.end() && !m_abort && !ok; it++)
+			break;
+		}
+
+		// 发起认证请求.
+
+		// 协议格式:
+		// type(number)
+		// auth_code(number)
+		// tail(skip)
+
+		std::string msg(normal_mtu, 0);
+		stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
+
+		writer.WriteExponentialGolomb(vpt_auth);
+		writer.WriteExponentialGolomb((int32_t)google_auth_code(test_google_key));
+		writer.WriteTail();
+
+		msg.resize(writer.ByteOffset());
+
+		co_await forward_tcp_write(connection_ptr, std::move(msg));
+
+		while (!m_abort)
+		{
+			// 发起读写协程.
+			co_await start_tcp_read_loop(connection_ptr);
+
+			// 如果没有中止服务, 则重连后继续服务.
+			while (!m_abort)
 			{
-				auto upstream = *it;
-				util::uri parser;
+				auto ret = co_await connect_server(connection_ptr);
+				if (m_abort || ret)
+					break;
+			}
+		}
 
-				if (!parser.parse(upstream))
-					continue;
+		if (!m_abort)
+		{
+			// 通知连接断开...
+			tunnel_status cs;
 
-				if (boost::to_lower_copy(std::string(parser.scheme())) == "udp")
-					continue;
+			cs.status_ = connection_status::st_disconnect;
+			m_vpn_service.on_status(cs);
+		}
 
-				tcp::resolver resolver{ m_main_ioc };
-				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_ERR << "start_tcp_connect, async_resolve: " << ec.message();
-					continue;
-				}
+		LOG_WARN << "start_tcp_client_connect, quit...";
+		co_return;
+	}
 
-				co_await asio_util::async_connect(stream, results,
-					boost::asio::redirect_error(boost::asio::bind_cancellation_slot(m_cancel_sig.slot(),
-						boost::asio::use_awaitable), ec));
-				if (ec)
-				{
-					LOG_ERR << "start_tcp_connect, async_connect: " << ec.message();
-					continue;
-				}
+	boost::asio::awaitable<bool> vpn_tunnel::connect_server(vpn_connection_ptr& connection_ptr)
+	{
+		auto& connection = *connection_ptr;
+		auto& stream = connection_ptr->tcp_stream_;
+		bool ok = false;
+		boost::system::error_code ec;
 
-				boost::asio::ip::tcp::no_delay option(true);
-				stream.set_option(option);
+		for (auto it = m_upstreams.begin();
+			it != m_upstreams.end() && !m_abort && !ok; it++)
+		{
+			auto upstream = *it;
+			util::uri parser;
 
-				ok = true;
+			if (!parser.parse(upstream))
+				continue;
+
+			// skip udp url.
+			if (boost::to_lower_copy(std::string(parser.scheme())) == "udp")
+				continue;
+
+			tcp::resolver resolver{ m_main_ioc };
+			auto const results = co_await resolver.async_resolve(
+				std::string(parser.host()), std::string(parser.port()), uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "connect_server, async_resolve: " << ec.message();
+				continue;
 			}
 
-			if (!ok)
+			// start async connect to server.
+			co_await asio_util::async_connect(stream, results,
+				boost::asio::redirect_error(boost::asio::bind_cancellation_slot(m_cancel_sig.slot(),
+					boost::asio::use_awaitable), ec));
+			if (m_abort)
 			{
-				m_client = {};
-				connection_ptr.reset();
+				LOG_ERR << "connect_server, async_connect abort";
+				co_return false;
+			}
 
-				if (!m_abort)
-				{
-					LOG_DBG << "connect fail, wait a moment to reconnect...";
+			if (ec)
+			{
+				LOG_ERR << "connect_server, async_connect: " << ec.message();
+				LOG_DBG << "connect to server fail, wait a moment to reconnect...";
 
-					m_connect_retry_timer.expires_from_now(std::chrono::seconds(5));
-					co_await m_connect_retry_timer.async_wait(uawaitable[ec]);
-				}
+				m_connect_retry_timer.expires_from_now(std::chrono::seconds(5));
+				co_await m_connect_retry_timer.async_wait(uawaitable[ec]);
+
+				if (m_abort)
+					co_return false;
 
 				continue;
 			}
 
-			std::string remote_host;
-			auto endp = stream.remote_endpoint(ec);
-			if (!ec)
+			// connect to server successfully, set no_delay option for tcp socket.
+			boost::asio::ip::tcp::no_delay option(true);
+			stream.set_option(option);
+
+			ok = true;
+		}
+
+		std::string remote_host;
+		auto endp = stream.remote_endpoint(ec);
+		if (!ec)
+		{
+			if (endp.address().is_v6())
 			{
-				if (endp.address().is_v6())
-				{
-					remote_host = "[" + endp.address().to_string()
-						+ "]:" + std::to_string(endp.port());
-				}
-				else
-				{
-					remote_host = endp.address().to_string()
-						+ ":" + std::to_string(endp.port());
-				}
+				remote_host = "[" + endp.address().to_string()
+					+ "]:" + std::to_string(endp.port());
 			}
-
-			connection.remote_host_ = remote_host;
-			LOG_DBG << "start_tcp_connect, connected to: " << remote_host;
-
-			// 发起认证请求.
-
-			// 协议格式:
-			// type(number)
-			// auth_code(number)
-			// tail(skip)
-
-			std::string msg(normal_mtu, 0);
-			stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
-
-			writer.WriteExponentialGolomb(vpt_auth);
-			writer.WriteExponentialGolomb((int32_t)google_auth_code(test_google_key));
-			writer.WriteTail();
-
-			msg.resize(writer.ByteOffset());
-
-			co_await forward_tcp_write(connection_ptr, std::move(msg));
-
-			// 发起读写协程.
-			co_await start_tcp_read_loop(connection_ptr);
-
-			if (!m_abort)
+			else
 			{
-				LOG_DBG << "read error, wait a moment to reconnect...";
-				// 通知连接断开...
-				tunnel_status cs;
-
-				cs.status_ = connection_status::st_disconnect;
-				m_vpn_service.on_status(cs);
-
-				auto& wait = connection.reconnect_timer_;
-
-				wait.expires_from_now(std::chrono::seconds(5));
-				co_await wait.async_wait(uawaitable[ec]);
+				remote_host = endp.address().to_string()
+					+ ":" + std::to_string(endp.port());
 			}
 		}
 
-		LOG_WARN << "start_tcp_connect, quit...";
-		co_return;
+		connection.remote_host_ = remote_host;
+		LOG_DBG << "connect_server, connected to: " << remote_host;
+
+		co_return true;
 	}
 
 	void vpn_tunnel::keepalive()
@@ -909,8 +929,7 @@ namespace avpn
 		ioc.run();
 	}
 
-	void vpn_tunnel::tcp_expires_after(
-		[[maybe_unused]] vpn_connection& connection, [[maybe_unused]] int seconds)
+	void vpn_tunnel::reset_connection_expires(vpn_connection& connection)
 	{
 		connection.keepalive_ = time_clock::steady_clock::now();
 	}
@@ -995,7 +1014,7 @@ namespace avpn
 			co_return;
 		case vpt_keepalive:
 			// 更新tcp的keepalive时间.
-			tcp_expires_after(connection, 0);
+			reset_connection_expires(connection);
 			break;
 		case vpt_udp_handshake:
 			break;
@@ -1043,6 +1062,8 @@ namespace avpn
 			break;
 		case vpt_keepalive:
 			connection_ptr = co_await do_udp_keepalive(reader, sock, endp);
+			if (connection_ptr)
+				reset_connection_expires(*connection_ptr);
 			break;
 		case vpt_keepalive_reply:
 			co_return;
@@ -1910,7 +1931,12 @@ namespace avpn
 			auto uint_src = src_addr.address().to_v4().to_uint();
 			auto connection_ptr = lookup_connection(uint_src);
 			if (connection_ptr)
+			{
 				connection_ptr->endps_.update(*endp);
+
+				// 更新超时计时.
+				reset_connection_expires(*connection_ptr);
+			}
 		}
 
 		// 只有在身份为server时, 并且为内网数据包, 则直接找到对应链转发.
@@ -1975,6 +2001,8 @@ namespace avpn
 			LOG_ERR << "do_vpt_fec_packet vaddr is invalid: " << vaddr;
 			co_return connection_ptr;
 		}
+
+		reset_connection_expires(*connection_ptr);
 
 		uint32_t gid = 0;
 		if (!reader.ReadExponentialGolomb(&gid))
