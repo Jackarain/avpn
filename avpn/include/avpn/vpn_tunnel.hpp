@@ -162,6 +162,10 @@ namespace avpn {
 		std::deque<std::string> tcp_msg_deque_;		// tcp发送队列.
 		bool deque_writing_{ false };				// tcp发送标志.
 
+		// 延迟退出, 用于作为server时, client断开tcp连接后, 并不立马退出协程, 以保持一个
+		// timeout周期的生命期, 以便等clinet在这个时间内重连上来后, 即不再销毁应该connection.
+		timer wait_timer_;
+
 		int64_t connection_id_{ -1 };				// 连接id.
 	};
 
@@ -313,6 +317,8 @@ namespace avpn {
 		boost::asio::awaitable<void> do_client_vpt_auth(
 			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
 
+		boost::asio::awaitable<vpn_connection_ptr> do_tcp_keepalive(
+			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
 		boost::asio::awaitable<vpn_connection_ptr> do_udp_keepalive(
 			stream_endian::bitstream& reader, udp::socket& sock, const udp::endpoint& endp);
 
