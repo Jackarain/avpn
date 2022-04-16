@@ -194,7 +194,8 @@ namespace avpn
 		, m_connect_retry_timer(m_main_ioc)
 		, m_keepalive_timer(m_main_ioc)
 	{
-		LOG_DBG << "Start unique counter: " << gen_unique_number();
+		m_server_guid = gen_unique_string(32);
+		LOG_DBG << "Start unique counter: " << m_server_guid;
 	}
 
 	vpn_tunnel::~vpn_tunnel()
@@ -285,13 +286,7 @@ namespace avpn
 
 		// 发起客户端TCP连接协程.
 		LOG_DBG << "Start tcp socket";
-		boost::asio::co_spawn(m_main_ioc.get_executor(),
-			[this]() mutable -> boost::asio::awaitable<void>
-			{
-				co_await start_tcp_client_connect();
-				LOG_WARN << "start_tcp_client_connect, Tcp client socket quit...";
-				co_return;
-			}, boost::asio::detached);
+		start_client_tcp_connect();
 
 		// 发起保活协程.
 		keepalive();
@@ -559,9 +554,31 @@ namespace avpn
 
 		LOG_DBG << "Client incoming: " << remote_host << ", connection id: " << connection_id;
 
+		// 对所有连接上来的client发送server的通信guid.
+
+		// 协议格式:
+		// type(number)
+		// tail(skip)
+		// communication guid(string)
+
+		std::string msg(normal_mtu, 0);
+		stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
+
+		writer.WriteExponentialGolomb(vpt_communication_guid);
+		writer.WriteTail();
+		writer.WriteString(m_server_guid.data(), m_server_guid.size());
+
+		msg.resize(writer.ByteOffset());
+
+		co_await forward_tcp_write(connection_ptr, msg);
+
 		// 启动读写协程.
 		boost::asio::co_spawn(executor,
-			start_tcp_read_loop(connection_ptr), [this, id = connection_id](std::exception_ptr) mutable
+			[this, connection_ptr]() mutable -> boost::asio::awaitable<void>
+			{
+				co_await start_tcp_read_loop(connection_ptr);
+			},
+			[this, id = connection_id](std::exception_ptr) mutable
 			{
 				remove_incoming(id);
 			});
@@ -569,7 +586,17 @@ namespace avpn
 		co_return;
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_tcp_client_connect()
+	void vpn_tunnel::start_client_tcp_connect()
+	{
+		boost::asio::co_spawn(m_main_ioc.get_executor(),
+			[this]() mutable -> boost::asio::awaitable<void>
+			{
+				co_await client_connect_server();
+				co_return;
+			}, boost::asio::detached);
+	}
+
+	boost::asio::awaitable<void> vpn_tunnel::client_connect_server()
 	{
 		boost::system::error_code ec;
 		static std::atomic_int64_t id{ 1 };
@@ -614,7 +641,9 @@ namespace avpn
 		while (!m_abort)
 		{
 			// 发起读写协程.
-			co_await start_tcp_read_loop(connection_ptr);
+			auto brk = co_await start_tcp_read_loop(connection_ptr);
+			if (brk)
+				break;
 
 			// 如果没有中止服务, 则重连后继续服务.
 			while (!m_abort)
@@ -632,9 +661,13 @@ namespace avpn
 
 			cs.status_ = connection_status::st_disconnect;
 			m_vpn_service.on_status(cs);
+
+			LOG_WARN << "client_connect_server, to reconnect...";
+			start_client_tcp_connect();
+			co_return;
 		}
 
-		LOG_WARN << "start_tcp_client_connect, quit...";
+		LOG_WARN << "client_connect_server, quit...";
 		co_return;
 	}
 
@@ -939,7 +972,7 @@ namespace avpn
 		connection.keepalive_ = time_clock::steady_clock::now();
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::start_tcp_read_loop(vpn_connection_ptr connection_ptr)
+	boost::asio::awaitable<bool> vpn_tunnel::start_tcp_read_loop(vpn_connection_ptr connection_ptr)
 	{
 		auto connection_id = connection_ptr->connection_id_;
 		auto stream = &connection_ptr->tcp_stream_;
@@ -947,6 +980,8 @@ namespace avpn
 		boost::beast::error_code ec;
 		boost::asio::streambuf buffer;
 		uint32_t start_len_tag = 0;
+		std::string communication_guid = m_server_guid;
+		bool reconnect = false;
 
 		LOG_DBG << "start_tcp_read_loop, connection id: " << connection_id << ", start...";
 
@@ -992,7 +1027,7 @@ namespace avpn
 			{
 				LOG_ERR << "start_tcp_read_loop, id: "
 					<< connection_id << ", verify message type fail.";
-				co_return;
+				co_return false;
 			}
 
 			co_await process_tcp_packet(type, reader, connection_ptr);
@@ -1000,12 +1035,23 @@ namespace avpn
 
 			// 如果作为服务器端时, 连接id发生变化, 说明client中断tcp连接
 			// 后重连成功.
-			if (connection_ptr->connection_id_ != connection_id)
+			if (m_identity == Identity::avpn_server &&
+				connection_ptr->connection_id_ != connection_id)
 			{
 				LOG_DBG << "start_tcp_read_loop, connection id: "
 					<< connection_id << " recover to: " << connection_ptr->connection_id_;
 				connection_id = connection_ptr->connection_id_;
 				stream = &connection_ptr->tcp_stream_;
+			}
+
+			// 作为client的时, 如果通信id发生改变, 则重新协议连接.
+			if (m_identity == Identity::avpn_client &&
+				!communication_guid.empty() &&
+				communication_guid != m_server_guid)
+			{
+				stream->close(ec);
+				reconnect = true;
+				break;
 			}
 		}
 
@@ -1018,11 +1064,17 @@ namespace avpn
 			wait_timer.expires_from_now(std::chrono::seconds(60));
 			co_await wait_timer.async_wait(uawaitable[ec]);
 
-			co_return;
+			co_return false;
 		}
 
-		LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " quit...";
-		co_return;
+		if (!reconnect)
+		{
+			LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " quit...";
+			co_return false;
+		}
+
+		// 重新协议连接服务器.
+		co_return true;
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::process_tcp_packet(uint32_t type,
@@ -1037,6 +1089,17 @@ namespace avpn
 				co_await do_server_vpt_auth(reader, connection_ptr);
 			else
 				co_await do_client_vpt_auth(reader, connection_ptr);
+			co_return;
+		case vpt_communication_guid:
+			{
+				reader.ReadTail();
+				auto remaining = reader.AllSize() - reader.ByteOffset();
+				std::string guid(remaining, 0);
+				reader.ReadString((char*)guid.data(), remaining);
+
+				if (guid != m_server_guid)
+					m_server_guid = guid;
+			}
 			co_return;
 		case vpt_keepalive:
 			co_await do_tcp_keepalive(reader, connection_ptr);

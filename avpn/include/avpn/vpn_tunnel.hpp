@@ -58,6 +58,7 @@ namespace avpn {
 		vpt_keepalive,
 		vpt_keepalive_reply,
 		vpt_auth,
+		vpt_communication_guid,
 	};
 
 
@@ -262,7 +263,8 @@ namespace avpn {
 			size_t connection_id, tcp::socket stream);
 
 		// 作为client, 开始发起tcp连接.
-		boost::asio::awaitable<void> start_tcp_client_connect();
+		void start_client_tcp_connect();
+		boost::asio::awaitable<void> client_connect_server();
 		boost::asio::awaitable<bool> connect_server(vpn_connection_ptr& connection_ptr);
 
 		// 用于超时相关处理.
@@ -271,7 +273,7 @@ namespace avpn {
 		void reset_connection_expires(vpn_connection& connection);
 
 		// 启动TCP读取协程, 将读取到的数据包交由process_tcp_packet处理.
-		boost::asio::awaitable<void> start_tcp_read_loop(vpn_connection_ptr connection_ptr);
+		boost::asio::awaitable<bool> start_tcp_read_loop(vpn_connection_ptr connection_ptr);
 		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
 
 		// 协议处理函数, tcp和udp处理函数.
@@ -352,6 +354,8 @@ namespace avpn {
 
 		// 通道参数配置, 包含fec参数.
 		tunnel_params m_params;
+		// 初始server guid.
+		std::string m_server_guid;
 
 		std::vector<std::string> m_upstreams;
 		std::vector<std::string> m_tcp_listens;
