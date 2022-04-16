@@ -231,50 +231,120 @@ namespace avpn {
 			const tunnel_params& params, avpn_service& service);
 		~vpn_tunnel();
 
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// 公共 Server 相关实现.
+
 		// 根据用户设置的参数, 启动一个server.
 		void start_server_listen(std::vector<std::string> tcp_listens,
 			std::vector<std::string> udp_listens);
 
+		// 将tun读取到的数据包交由server按连接上来的client
+		// 进行透传处理.
+		void server_forward_tun(vpn_message&&, endpoint_pair&&);
+
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// 公共 Client 相关实现.
+
 		// 启动一个client时向server发起连接.
 		void start_client_connect(const std::vector<std::string>&);
+
+		// 将tun读取到的数据包交由client透传到server.
+		void client_forward_tun(vpn_message&&, endpoint_pair&&);
+
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// 公共 共同实现.
 
 		// 关闭tunnel.
 		void close();
 
-		// 根据运行身份的不同, 将tun读取到的数据包分别交由
-		// server_forward_tun 或 client_forward_tun 进行透传.
-		void server_forward_tun(vpn_message&&, endpoint_pair&&);
-		void client_forward_tun(vpn_message&&, endpoint_pair&&);
-
-		// 本机虚拟网络.
+		// 本机虚拟网络, TODO: server端也要有地址.
 		boost::asio::ip::network_v4 vnet_ipaddr() const;
 
 		// 虚拟网络信息, 包含虚拟网关信息在vnet的address中.
-		boost::asio::ip::network_v4 vnet() const;
+		boost::asio::ip::network_v4 vsubnet() const;
 
 	private:
+
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// Server 相关实现.
+
 		// 初始化tcp连接接收器, 即ws服务器的acceptor.
 		bool init_tcp_acceptors();
 
 		// listen client连接, 一旦有客户端连接成功, 将启动start_tcp_connection
 		// 处理这个客户端连接.
 		boost::asio::awaitable<void> start_tcp_listen(tcp::acceptor& a);
+
+		// 发送vpt_communication_guid协议.
+		std::string make_communication_guid();
+
+		// client通过tcp连接上来开始这个connection的处理函数.
 		boost::asio::awaitable<void> start_tcp_connection(
 			size_t connection_id, tcp::socket stream);
 
-		// 作为client, 开始发起tcp连接.
+		// server循环读取并处理client的tcp消息.
+		boost::asio::awaitable<void> server_tcp_read_loop(vpn_connection_ptr connection_ptr);
+
+		// 启动udp server.
+		boost::asio::awaitable<void> start_udp_server();
+
+		// server端超时检查.
+		void server_checktimeout();
+
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// Client 相关实现.
+
+		// 开始发起向server的tcp连接.
 		void start_client_tcp_connect();
+		// 发送vpt_auth协议.
+		std::string make_auth();
+
 		boost::asio::awaitable<void> client_connect_server();
 		boost::asio::awaitable<bool> connect_server(vpn_connection_ptr& connection_ptr);
+		// client循环读取并处理server的tcp消息.
+		boost::asio::awaitable<bool> client_tcp_read_loop(vpn_connection_ptr connection_ptr);
+
+		// 启动udp client.
+		boost::asio::awaitable<void> start_udp_client();
+
+		// client端超时检查.
+		void client_checktimeout();
+
+
+
+
+
+		//////////////////////////////////////////////////////////////////////////
+		/// 共同实现.
+
+		// 用于读取index上udp socket的数据.
+		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
 
 		// 用于超时相关处理.
 		void keepalive();
-		void server_checktimeout();
+
 		void reset_connection_expires(vpn_connection& connection);
 
-		// 启动TCP读取协程, 将读取到的数据包交由process_tcp_packet处理.
-		boost::asio::awaitable<bool> start_tcp_read_loop(vpn_connection_ptr connection_ptr);
-		boost::asio::awaitable<void> start_udp_read_loop(size_t index);
 
 		// 协议处理函数, tcp和udp处理函数.
 		boost::asio::awaitable<void> process_tcp_packet(uint32_t type,
@@ -294,11 +364,6 @@ namespace avpn {
 		boost::asio::awaitable<void> forward_tunnel_write(
 			vpn_connection_ptr connection_ptr, vpn_message msg);
 
-		// 启动udp socket服务, 成功后自动启动start_udp_read_loop进入循环
-		// 读取udp数据包请求.
-		boost::asio::awaitable<void> start_udp_server();
-		boost::asio::awaitable<void> start_udp_client();
-
 		// 管理vpn_connection_ptr相关操作.
 		void add_connection(vpn_connection_ptr& connection_ptr, uint32_t vaddr);
 		void remove_connection(uint32_t vaddr);
@@ -310,6 +375,10 @@ namespace avpn {
 
 		// IP分配器, 用于server给连接上来的client分配虚拟IP.
 		std::tuple<std::string, uint32_t> ip_assigner();
+
+		boost::asio::awaitable<int> tcp_read_message(tcp::socket& stream,
+			boost::asio::streambuf& buffer, int64_t& connection_id);
+
 		// 压缩相关协议.
 		int vpt_compress(int type, std::string& content);
 
@@ -317,6 +386,9 @@ namespace avpn {
 		boost::asio::awaitable<void> do_server_vpt_auth(
 			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
 		boost::asio::awaitable<void> do_client_vpt_auth(
+			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
+
+		boost::asio::awaitable<void> do_communication_guid(
 			stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr);
 
 		boost::asio::awaitable<vpn_connection_ptr> do_tcp_keepalive(
@@ -381,7 +453,7 @@ namespace avpn {
 			time_point last_see_;
 			udp::socket sock_;
 		};
-		using udp_socket_ptr = std::unique_ptr<udp_socket>;
+		using udp_socket_ptr = std::shared_ptr<udp_socket>;
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
 		// 运行的身份.

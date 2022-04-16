@@ -388,7 +388,7 @@ namespace avpn {
 				m_start_tuntap = true;
 				m_tunnel_status = cs;
 
-				setup_tun(m_vpn_tunnel.vnet());
+				setup_tun(m_vpn_tunnel.vsubnet());
 
 				LOG_DBG << "vpn device start...";
 
