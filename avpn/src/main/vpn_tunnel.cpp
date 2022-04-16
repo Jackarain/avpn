@@ -1020,7 +1020,7 @@ namespace avpn
 		auto stream = &connection_ptr->tcp_stream_;
 
 		boost::asio::streambuf buffer;
-		uint32_t start_len_tag = 0;
+		int start_len_tag = 0;
 		bool force_reconnect = false;
 
 		LOG_DBG << "client_tcp_read_loop, connection id: " << connection_id << ", start...";
@@ -1435,7 +1435,7 @@ namespace avpn
 		case vpt_udp:
 			[[fallthrough]];
 		case vpt_tcp:
-			co_await do_vpt_packet((uint8_t)type, reader, nullptr);
+			co_await do_vpt_tcp_packet((uint8_t)type, reader);
 			co_return;
 		case vpt_fec:
 			co_await do_vpt_fec_packet(reader);
@@ -1490,7 +1490,7 @@ namespace avpn
 		case vpt_udp:
 			[[fallthrough]];
 		case vpt_tcp:
-			co_await do_vpt_packet(type, reader, &endp);
+			co_await do_vpt_udp_packet(type, reader, endp);
 			co_return;
 		case vpt_compress_fec:
 			co_await do_vpt_compress(reader, bufs);
@@ -2198,8 +2198,8 @@ namespace avpn
 		co_return true;
 	}
 
-	boost::asio::awaitable<void> vpn_tunnel::do_vpt_packet(uint8_t type,
-		stream_endian::bitstream& reader, const udp::endpoint* endp)
+	boost::asio::awaitable<void> vpn_tunnel::do_vpt_udp_packet(
+		uint8_t type, stream_endian::bitstream& reader, const udp::endpoint& endp)
 	{
 		// 协议格式:
 		// type(number)
@@ -2220,13 +2220,13 @@ namespace avpn
 		udp::endpoint uendp(dst_addr.address(), 0);
 
 		// 只有在身份为server时, 才会更新endpoint.
-		if (m_identity == Identity::avpn_server && endp)
+		if (m_identity == Identity::avpn_server)
 		{
 			auto uint_src = src_addr.address().to_v4().to_uint();
 			auto connection_ptr = lookup_connection(uint_src);
 			if (connection_ptr)
 			{
-				connection_ptr->endps_.update(*endp);
+				connection_ptr->endps_.update(endp);
 
 				// 更新超时计时.
 				reset_connection_expires(*connection_ptr);
@@ -2254,7 +2254,56 @@ namespace avpn
 		}
 
 		if (type == vpt_icmp)
-			LOG_DBG << "Recvive icmp, write tun icmp: " << dst_addr;
+			LOG_DBG << "do_vpt_udp_packet, recvive icmp, write tun icmp: " << dst_addr;
+
+		m_vpn_service.do_tuntap_write(std::string((char*)content, content_size));
+
+		co_return;
+	}
+
+	boost::asio::awaitable<void> vpn_tunnel::do_vpt_tcp_packet(
+		uint8_t type, stream_endian::bitstream& reader)
+	{
+		// 协议格式:
+		// type(number)
+		// tail(skip)
+		// content
+
+		reader.ReadTail();
+
+		auto content = reader.GetOriginPtr() + reader.ByteOffset();
+		size_t content_size = reader.RemainingBitCount() / 8;
+
+		// 处理内网数据包.
+		auto ep = avpn::lookup_endpoint_pair((const uint8_t*)content, content_size);
+		auto& dst_addr = ep.dst_;
+		auto& src_addr = ep.src_;
+
+		auto uint_dst = dst_addr.address().to_v4().to_uint();
+		udp::endpoint uendp(dst_addr.address(), 0);
+
+		// 只有在身份为server时, 并且为内网数据包, 则直接找到对应链转发.
+		if (m_identity == Identity::avpn_server && same_ipv4_network(m_subnet, uint_dst))
+		{
+			// 不允许内网传输.
+			if (!m_params.c2c_)
+				co_return;
+
+			auto connection_ptr = lookup_connection(uint_dst);
+			if (connection_ptr)
+			{
+				avpn::vpn_message msg;
+				msg.type = type;
+				msg.content_.assign((char*)content, content_size);
+
+				// 内网转发.
+				co_await forward_tunnel_write(connection_ptr, std::move(msg));
+				co_return;
+			}
+		}
+
+		if (type == vpt_icmp)
+			LOG_DBG << "do_vpt_tcp_packet, recvive icmp, write tun icmp: " << dst_addr;
 
 		m_vpn_service.do_tuntap_write(std::string((char*)content, content_size));
 

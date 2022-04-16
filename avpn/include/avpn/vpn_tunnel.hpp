@@ -399,8 +399,11 @@ namespace avpn {
 		boost::asio::awaitable<bool> do_vpt_compress(
 			stream_endian::bitstream& reader, std::string& bufs);
 
-		boost::asio::awaitable<void> do_vpt_packet(uint8_t type,
-			stream_endian::bitstream& reader, const udp::endpoint* endp);
+		boost::asio::awaitable<void> do_vpt_udp_packet(uint8_t type,
+			stream_endian::bitstream& reader, const udp::endpoint& endp);
+
+		boost::asio::awaitable<void> do_vpt_tcp_packet(uint8_t type,
+			stream_endian::bitstream& reader);
 
 		boost::asio::awaitable<vpn_connection_ptr>
 			do_vpt_fec_packet(stream_endian::bitstream& reader);
