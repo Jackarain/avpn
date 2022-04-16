@@ -652,7 +652,11 @@ namespace avpn
 			{
 				auto ret = co_await connect_server(connection_ptr);
 				if (m_abort || ret)
+				{
+					connection_ptr->tcp_msg_deque_.clear();
+					m_client = connection_ptr;
 					break;
+				}
 			}
 		}
 
@@ -885,6 +889,10 @@ namespace avpn
 				writer.WriteTail();
 
 				msg.resize(writer.ByteOffset());
+
+				auto local_endp = connection_ptr->tcp_stream_.local_endpoint(ec);
+				LOG_DBG << "vpn_tunnel::keepalive, local endpoint: "
+					<< local_endp << ", socket: " << &connection_ptr->tcp_stream_;
 
 				co_await forward_tcp_write(connection_ptr, std::move(msg));
 
@@ -1214,7 +1222,10 @@ namespace avpn
 			boost::system::error_code ec;
 			while (!m_abort && !message_deque.empty())
 			{
-				auto& message = message_deque.front();
+				// 直接从队列中取出, 避免遗留在队列中.
+				auto message = std::move(message_deque.front());
+				message_deque.pop_front();
+
 				uint32_t start_len_tag = htonl((uint32_t)message.size());
 
 				co_await boost::asio::async_write(connection.tcp_stream_,
@@ -1234,8 +1245,6 @@ namespace avpn
 						<< " async_write body error: " << ec.message();
 					co_return;
 				}
-
-				message_deque.pop_front();
 			}
 		}
 	}
@@ -1949,8 +1958,10 @@ namespace avpn
 				<< exist->connection_id_ << " with: "
 				<< id << ", vnet: " << exist->vnet_;
 
-			// 移除原来的连接.
+			// 移除incoming表中的weak指针.
 			remove_incoming(id);
+			// 清理发送队列.
+			connection_ptr->tcp_msg_deque_.clear();
 		}
 
 		reset_connection_expires(*connection_ptr);
