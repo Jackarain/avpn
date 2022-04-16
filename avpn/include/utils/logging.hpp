@@ -1158,21 +1158,37 @@ public:
 #undef LOG_WARN
 #undef LOG_ERR
 #undef LOG_FILE
-#undef LOG_FORMAT
+
+#undef LOG_FMT
+#undef LOG_IFMT
+#undef LOG_WFMT
+#undef LOG_EFMT
+#undef LOG_FFMT
 
 #define LOG_DBG util::logger___(util::_logger_debug_id__)
 #define LOG_INFO util::logger___(util::_logger_info_id__)
 #define LOG_WARN util::logger___(util::_logger_warn_id__)
 #define LOG_ERR util::logger___(util::_logger_error_id__)
 #define LOG_FILE util::logger___(util::_logger_file_id__, true)
+
 #define LOG_FMT(...) util::logger___(util::_logger_debug_id__).format_to(__VA_ARGS__)
+#define LOG_IFMT(...) util::logger___(util::_logger_info_id__).format_to(__VA_ARGS__)
+#define LOG_WFMT(...) util::logger___(util::_logger_warn_id__).format_to(__VA_ARGS__)
+#define LOG_EFMT(...) util::logger___(util::_logger_error_id__).format_to(__VA_ARGS__)
+#define LOG_FFMT(...) util::logger___(util::_logger_file_id__, true).format_to(__VA_ARGS__)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_WARN LOG_WARN << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_ERR LOG_ERR << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_FILE LOG_FILE << "(" << __FILE__ << ":" << __LINE__ << "): "
+
 #define VLOG_FMT(...) (LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_IFMT(...) (LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_WFMT(...) (LOG_WARN << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_EFMT(...) (LOG_ERR << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_FFMT(...) (LOG_FILE << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+
 
 #define INIT_ASYNC_LOGGING() [[maybe_unused]] util::auto_init_async_logger ____init_logger____
 
@@ -1183,21 +1199,36 @@ public:
 #undef LOG_WARN
 #undef LOG_ERR
 #undef LOG_FILE
+
 #undef LOG_FMT
+#undef LOG_IFMT
+#undef LOG_WFMT
+#undef LOG_EFMT
+#undef LOG_FFMT
 
 #define LOG_DBG util::empty_logger___()
 #define LOG_INFO util::empty_logger___()
 #define LOG_WARN util::empty_logger___()
 #define LOG_ERR util::empty_logger___()
 #define LOG_FILE util::empty_logger___()
+
 #define LOG_FMT(...) util::empty_logger___()
+#define LOG_IFMT(...) util::empty_logger___()
+#define LOG_WFMT(...) util::empty_logger___()
+#define LOG_EFMT(...) util::empty_logger___()
+#define LOG_FFMT(...) util::empty_logger___()
 
 #define VLOG_DBG LOG_DBG
 #define VLOG_INFO LOG_INFO
 #define VLOG_WARN LOG_WARN
 #define VLOG_ERR LOG_ERR
 #define VLOG_FILE LOG_FILE
+
 #define VLOG_FMT LOG_FMT
+#define VLOG_IFMT LOG_IFMT
+#define VLOG_WFMT LOG_WFMT
+#define VLOG_EFMT LOG_EFMT
+#define VLOG_FFMT LOG_FFMT
 
 #define INIT_ASYNC_LOGGING() void
 
