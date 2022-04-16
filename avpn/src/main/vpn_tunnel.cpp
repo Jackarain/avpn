@@ -1163,12 +1163,13 @@ namespace avpn
 					udp_socket{ time_clock::steady_clock::now(), std::move(sock) });
 
 				m_udp_sockets.emplace_back(std::move(tmp));
+				auto& usock_ptr = m_udp_sockets[i];
 
 				for (size_t fast = 0; fast < 2; fast++)
 				{
 					LOG_DBG << "start_udp_client, new udp socket, local endpoint: ["
-						<< m_udp_sockets[i]->sock_.local_endpoint().address().to_string() << "]:"
-						<< m_udp_sockets[i]->sock_.local_endpoint().port();
+						<< usock_ptr->sock_.local_endpoint().address().to_string() << "]:"
+						<< usock_ptr->sock_.local_endpoint().port();
 
 					boost::asio::co_spawn(m_main_ioc.get_executor(),
 						start_udp_read_loop(i), boost::asio::detached);
@@ -1181,7 +1182,141 @@ namespace avpn
 
 	void vpn_tunnel::client_checktimeout()
 	{
+		auto check_clients = [this]() mutable -> boost::asio::awaitable<void> {
+			boost::system::error_code ec;
 
+			auto wait_moment = [&]() mutable -> boost::asio::awaitable<void>
+			{
+				m_keepalive_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
+				co_await m_keepalive_timer.async_wait(uawaitable[ec]);
+				co_await boost::asio::this_coro::executor;
+			};
+
+			uint32_t vaddr = 0;
+
+			std::random_device rd;
+			std::mt19937 g(rd());
+
+			LOG_DBG << "client_checktimeout, start check_clients";
+
+			while (!m_abort)
+			{
+				// 判断client是否打开.
+				auto connection_ptr = m_client.lock();
+				if (!connection_ptr)
+				{
+					co_await wait_moment();
+					continue;
+				}
+
+				// 判断是否获得虚拟地址, 也就是是否协商认证完成.
+				vaddr = connection_ptr->vnet_;
+
+				if (vaddr == 0 ||
+					connection_ptr->connection_id_ <= 0 ||
+					!connection_ptr->tcp_stream_.is_open())
+				{
+					// 立即rest, 不再占用connection对象的引用计数.
+					connection_ptr.reset();
+
+					co_await wait_moment();
+					continue;
+				}
+
+				// 复制一份临时的udp socket.
+				auto tmp_udp_sockets = m_udp_sockets;
+
+				// 如果client其中某个udp socket长时间没响应, 则关闭后重新创建.
+				auto now = time_clock::steady_clock::now();
+				for (auto i = 0; i < tmp_udp_sockets.size(); i++)
+				{
+					if (m_abort)
+						break;
+
+					auto& usock_ptr = tmp_udp_sockets[i];
+					auto& obj = *usock_ptr;
+					auto& usock = obj.sock_;
+
+					if (now - usock_ptr->last_see_ < std::chrono::seconds(60))
+						continue;
+
+					auto local_endp = usock.local_endpoint();
+					auto protocol = local_endp.protocol();
+
+					usock.close(ec);
+
+					udp::socket new_usock(m_main_ioc, udp::endpoint(protocol, 0));
+					auto new_endp = new_usock.local_endpoint(ec);
+					if (ec)
+					{
+						LOG_ERR << "Renew udp socket: "
+							<< local_endp << " -> " << new_endp << ", ec: " << ec.message();
+					}
+					else
+					{
+						LOG_INFO << "Renew udp socket: " << local_endp << " -> " << new_endp;
+					}
+
+					// 新建udp socket.
+					usock_ptr = std::make_shared<udp_socket>(now, std::move(new_usock));
+					m_udp_sockets[i] = usock_ptr;
+				}
+
+				// 随机打乱这些udp socket以排序.
+				std::shuffle(tmp_udp_sockets.begin(), tmp_udp_sockets.end(), g);
+
+				// 创建make_keepalive用于创建keepalive消息.
+				auto make_keepalive = [&]() -> std::string
+				{
+					std::string msg(normal_mtu, 0);
+
+					stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
+
+					writer.WriteExponentialGolomb(vpt_keepalive);
+					writer.WriteExponentialGolomb(vaddr);
+					writer.WriteTail();
+
+					msg.resize(writer.ByteOffset());
+
+					return msg;
+				};
+
+				// 发送udp的keepalive消息.
+				for (auto& usock_ptr : tmp_udp_sockets)
+				{
+					if (m_abort)
+						break;
+
+					auto& u = *usock_ptr;
+					auto& usock = u.sock_;
+
+					auto endp = m_remote_endps.acquire();
+					co_await forward_udp_write(usock, endp, make_keepalive());
+				}
+
+				// 发送tcp的keepalive消息.
+				auto local_endp = connection_ptr->tcp_stream_.local_endpoint(ec);
+
+				LOG_DBG << "vpn_tunnel::keepalive, local endpoint: "
+					<< local_endp << ", socket: " << &connection_ptr->tcp_stream_;
+
+				co_await forward_tcp_write(connection_ptr, make_keepalive());
+
+				// 定时延迟一段时间.
+				co_await wait_moment();
+			}
+
+			LOG_WARN << "vpn_tunnel::keepalive, client quit...";
+			co_return;
+		};
+
+		// 作为客户端时, 每隔keepalive时间发送keepavlie消息.
+		boost::asio::co_spawn(m_main_ioc.get_executor(),
+			[this, check_clients = std::move(check_clients)]() mutable->boost::asio::awaitable<void>
+			{
+				co_await check_clients();
+				co_return;
+			}, boost::asio::detached);
 	}
 
 
@@ -1249,135 +1384,11 @@ namespace avpn
 			return;
 		}
 
-		// 作为客户端时, 每隔keepalive时间发送keepavlie消息.
-		boost::asio::co_spawn(m_main_ioc.get_executor(),
-			[this]() mutable->boost::asio::awaitable<void>
+		if (m_identity == Identity::avpn_client)
 		{
-			boost::system::error_code ec;
-
-			auto wait_moment = [&]() mutable -> boost::asio::awaitable<void>
-			{
-				m_keepalive_timer.expires_from_now(std::chrono::milliseconds(m_params.keepalive_));
-				co_await m_keepalive_timer.async_wait(uawaitable[ec]);
-				co_await boost::asio::this_coro::executor;
-			};
-
-			uint32_t vaddr = 0;
-
-			std::random_device rd;
-			std::mt19937 g(rd());
-
-			LOG_DBG << "Start client keepalive";
-
-			while (!m_abort)
-			{
-				// 判断client是否打开.
-				auto connection_ptr = m_client.lock();
-				if (!connection_ptr)
-				{
-					co_await wait_moment();
-					continue;
-				}
-
-				vaddr = connection_ptr->vnet_;
-
-				if (vaddr == 0 ||
-					connection_ptr->connection_id_ <= 0 ||
-					!connection_ptr->tcp_stream_.is_open())
-				{
-					connection_ptr.reset();
-
-					co_await wait_moment();
-					continue;
-				}
-
-				// 随机打乱这些udp socket以排序.
-				std::vector<udp_socket*> udps;
-				for (auto& u : m_udp_sockets)
-					udps.push_back(u.get());
-
-				std::shuffle(udps.begin(), udps.end(), g);
-
-				// 如果client其中某个udp socket长时间没响应, 则关闭后重新创建.
-				auto now = time_clock::steady_clock::now();
-				for (auto& usock_ptr : udps)
-				{
-					if (m_abort)
-						break;
-
-					auto& u = *usock_ptr;
-					auto& usock = u.sock_;
-
-					if (now - usock_ptr->last_see_ < std::chrono::seconds(60))
-						continue;
-
-					auto local_endp = usock.local_endpoint();
-					auto protocol = local_endp.protocol();
-
-					usock.close(ec);
-
-					udp::socket new_usock(m_main_ioc, udp::endpoint(protocol, 0));
-
-					auto new_endp = new_usock.local_endpoint(ec);
-					if (ec)
-					{
-						LOG_INFO << "Reset udp socket: "
-							<< local_endp << " -> " << new_endp << ", ec: " << ec.message();
-					}
-					else
-					{
-						LOG_INFO << "Reset udp socket: " << local_endp << " -> " << new_endp;
-					}
-
-					u.sock_ = std::move(new_usock);
-					u.last_see_ = now;
-				}
-
-				// 发送udp的keepalive消息.
-				for (auto& usock_ptr : udps)
-				{
-					if (m_abort)
-						break;
-
-					auto& u = *usock_ptr;
-					auto& usock = u.sock_;
-
-					std::string msg(normal_mtu, 0);
-
-					stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
-
-					writer.WriteExponentialGolomb(vpt_keepalive);
-					writer.WriteExponentialGolomb(vaddr);
-					writer.WriteTail();
-
-					msg.resize(writer.ByteOffset());
-
-					auto endp = m_remote_endps.acquire();
-					co_await forward_udp_write(usock, endp, std::move(msg));
-				}
-
-				// 发送tcp的keepalive消息.
-				std::string msg(normal_mtu, 0);
-				stream_endian::bitstream writer((uint8_t*)msg.data(), normal_mtu);
-
-				writer.WriteExponentialGolomb(vpt_keepalive);
-				writer.WriteExponentialGolomb(vaddr);
-				writer.WriteTail();
-
-				msg.resize(writer.ByteOffset());
-
-				auto local_endp = connection_ptr->tcp_stream_.local_endpoint(ec);
-				LOG_DBG << "vpn_tunnel::keepalive, local endpoint: "
-					<< local_endp << ", socket: " << &connection_ptr->tcp_stream_;
-
-				co_await forward_tcp_write(connection_ptr, std::move(msg));
-
-				// 定时处理.
-				co_await wait_moment();
-			}
-
-			LOG_WARN << "vpn_tunnel::keepalive, client quit...";
-		}, boost::asio::detached);
+			client_checktimeout();
+			return;
+		}
 	}
 
 	void vpn_tunnel::reset_connection_expires(vpn_connection& connection)
