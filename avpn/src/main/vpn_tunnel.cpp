@@ -1294,11 +1294,13 @@ namespace avpn
 					co_await forward_udp_write(usock, endp, make_keepalive());
 				}
 
+#if 0
 				// 发送tcp的keepalive消息.
 				auto local_endp = connection_ptr->tcp_stream_.local_endpoint(ec);
 
 				LOG_DBG << "vpn_tunnel::keepalive, local endpoint: "
 					<< local_endp << ", socket: " << &connection_ptr->tcp_stream_;
+#endif
 
 				co_await forward_tcp_write(connection_ptr, make_keepalive());
 
