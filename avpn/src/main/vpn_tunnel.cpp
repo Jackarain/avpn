@@ -1223,7 +1223,7 @@ namespace avpn
 			while (!m_abort && !message_deque.empty())
 			{
 				// 直接从队列中取出, 避免遗留在队列中.
-				auto message = std::move(message_deque.front());
+				std::string message(std::move(message_deque.front()));
 				message_deque.pop_front();
 
 				uint32_t start_len_tag = htonl((uint32_t)message.size());
