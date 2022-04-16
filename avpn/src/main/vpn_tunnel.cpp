@@ -588,6 +588,8 @@ namespace avpn
 
 	void vpn_tunnel::start_client_tcp_connect()
 	{
+		m_server_guid = "";
+
 		boost::asio::co_spawn(m_main_ioc.get_executor(),
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
@@ -980,7 +982,6 @@ namespace avpn
 		boost::beast::error_code ec;
 		boost::asio::streambuf buffer;
 		uint32_t start_len_tag = 0;
-		std::string communication_guid = m_server_guid;
 		bool reconnect = false;
 
 		LOG_DBG << "start_tcp_read_loop, connection id: " << connection_id << ", start...";
@@ -1045,12 +1046,11 @@ namespace avpn
 			}
 
 			// 作为client的时, 如果通信id发生改变, 则重新协议连接.
-			if (m_identity == Identity::avpn_client &&
-				!communication_guid.empty() &&
-				communication_guid != m_server_guid)
+			if (m_identity == Identity::avpn_client && m_communication_guid_changed)
 			{
 				stream->close(ec);
 				reconnect = true;
+				m_communication_guid_changed = false;
 				break;
 			}
 		}
@@ -1098,7 +1098,11 @@ namespace avpn
 				reader.ReadString((char*)guid.data(), remaining);
 
 				if (guid != m_server_guid)
+				{
+					if (!m_server_guid.empty())
+						m_communication_guid_changed = true;
 					m_server_guid = guid;
+				}
 			}
 			co_return;
 		case vpt_keepalive:

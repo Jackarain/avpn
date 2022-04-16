@@ -356,6 +356,7 @@ namespace avpn {
 		tunnel_params m_params;
 		// 初始server guid.
 		std::string m_server_guid;
+		bool m_communication_guid_changed{ false };
 
 		std::vector<std::string> m_upstreams;
 		std::vector<std::string> m_tcp_listens;
