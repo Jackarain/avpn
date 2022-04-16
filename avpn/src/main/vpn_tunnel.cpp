@@ -730,7 +730,7 @@ namespace avpn
 		{
 			for (size_t n = 0; n < m_udp_sockets.size(); n++)
 			{
-				LOG_DBG << "start_udp_server, local endpoint: ["
+				LOG_DBG << "start_udp_server, listen endpoint: ["
 					<< m_udp_sockets[n]->sock_.local_endpoint().address().to_string() << "]:"
 					<< m_udp_sockets[n]->sock_.local_endpoint().port();
 
