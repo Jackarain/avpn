@@ -1012,7 +1012,7 @@ namespace avpn
 				if (start_len_tag > normal_mtu)
 				{
 					LOG_ERR << "start_tcp_read_loop, id: "
-						<< connection_id << ", verify message size fail.";
+						<< connection_id << ", verify message size fail: " << start_len_tag;
 					break;
 				}
 				buffer.consume(4);
