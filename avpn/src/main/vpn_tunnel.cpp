@@ -1003,7 +1003,7 @@ namespace avpn
 			if (connection_ptr->connection_id_ != connection_id)
 			{
 				LOG_DBG << "start_tcp_read_loop, connection id: "
-					<< connection_id << " change to: " << connection_ptr->connection_id_;
+					<< connection_id << " recover to: " << connection_ptr->connection_id_;
 				connection_id = connection_ptr->connection_id_;
 				stream = &connection_ptr->tcp_stream_;
 			}
@@ -1871,6 +1871,10 @@ namespace avpn
 			auto id = connection_ptr->connection_id_;
 			exist->tcp_stream_ = std::move(connection_ptr->tcp_stream_);
 			connection_ptr = exist;
+
+			LOG_DBG << "do_tcp_keepalive, recover exist: "
+				<< exist->connection_id_ << " with: "
+				<< id << ", vnet: " << exist->vnet_;
 
 			// 移除原来的连接.
 			remove_incoming(id);
