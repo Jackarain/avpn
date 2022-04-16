@@ -1093,10 +1093,12 @@ namespace avpn
 		case vpt_communication_guid:
 			{
 				reader.ReadTail();
+
 				auto remaining = reader.AllSize() - reader.ByteOffset();
 				std::string guid(remaining, 0);
 				reader.ReadString((char*)guid.data(), remaining);
 
+				// 如果guid不同, 则需要重新从头协议连接.
 				if (guid != m_server_guid)
 				{
 					if (!m_server_guid.empty())
@@ -1928,10 +1930,14 @@ namespace avpn
 
 		if (!reader.ReadExponentialGolomb(&vaddr))
 		{
-			LOG_ERR << "do_tcp_keepalive read vaddr error!";
+			LOG_ERR << "do_tcp_keepalive, read vaddr error!";
 			co_return connection_ptr;
 		}
 
+		LOG_DBG << "do_tcp_keepalive, vaddr: "
+			<< vaddr << ", host: " << connection_ptr->remote_host_;
+
+		// 客户端发过来的keepalive, 如果vnet为0, 表示这个客户端正在recover连接.
 		if (connection_ptr->vnet_ == 0)
 		{
 			auto exist = lookup_connection(vaddr);
