@@ -127,9 +127,9 @@ namespace avpn
 	vpn_connection::~vpn_connection()
 	{
 		if (remote_host_.empty())
-			LOG_WARN << "vpn connection leave";
+			LOG_WARN << "vpn connection leave: " << connection_id_;
 		else
-			LOG_WARN << "vpn connection leave, remote: " << remote_host_;
+			LOG_WARN << "vpn connection leave: " << connection_id_ << ", remote: " << remote_host_;
 	}
 
 	void vpn_connection::reset()
@@ -1009,15 +1009,20 @@ namespace avpn
 			}
 		}
 
-		LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " quit...";
-
 		// 如果是一个有效的connection, 则尝试等待60s, 让client能有机会重连上来.
 		if (!m_abort && m_identity == Identity::avpn_server && connection_ptr->vnet_ != 0)
 		{
+			LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " wait client recover...";
+
 			auto& wait_timer = connection_ptr->wait_timer_;
 			wait_timer.expires_from_now(std::chrono::seconds(60));
 			co_await wait_timer.async_wait(uawaitable[ec]);
+
+			co_return;
 		}
+
+		LOG_WARN << "start_tcp_read_loop, id: " << connection_id << " quit...";
+		co_return;
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::process_tcp_packet(uint32_t type,
@@ -1172,7 +1177,7 @@ namespace avpn
 		boost::system::error_code ec;
 		co_await sock.async_send_to(boost::asio::buffer(msg), endp, uawaitable[ec]);
 		if (ec)
-			LOG_DBG << "forward_udp_write, async_send_to " << endp << ", error: " << ec.message();
+			LOG_WARN << "forward_udp_write, async_send_to " << endp << ", error: " << ec.message();
 
 		co_return;
 	}
