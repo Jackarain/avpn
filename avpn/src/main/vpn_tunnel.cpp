@@ -1224,8 +1224,8 @@ namespace avpn
 			{
 				// 直接从队列中取出, 避免遗留在队列中.
 				std::string message(std::move(message_deque.front()));
-				message_deque.pop_front();
 
+				// 长度前辍.
 				uint32_t start_len_tag = htonl((uint32_t)message.size());
 
 				co_await boost::asio::async_write(connection.tcp_stream_,
@@ -1245,6 +1245,8 @@ namespace avpn
 						<< " async_write body error: " << ec.message();
 					co_return;
 				}
+
+				message_deque.pop_front();
 			}
 		}
 	}
