@@ -342,9 +342,7 @@ namespace avpn {
 
 		// 用于超时相关处理.
 		void keepalive();
-
 		void reset_connection_expires(vpn_connection& connection);
-
 
 		// 协议处理函数, tcp和udp处理函数.
 		boost::asio::awaitable<void> process_tcp_packet(uint32_t type,
