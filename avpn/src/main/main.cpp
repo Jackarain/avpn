@@ -269,7 +269,6 @@ int main(int argc, char** argv)
 		std::vector<std::string> print_args;
 		print_args.assign(argv, argv + argc);
 		LOG_DBG << "Run: " << boost::algorithm::join(print_args, " ");
-		VLOG_FMT("{}, {}", 11, "hehe") << "->world";
 
 		if (vm.count("config"))
 		{
