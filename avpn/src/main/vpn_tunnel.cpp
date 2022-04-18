@@ -725,14 +725,17 @@ namespace avpn
 			m_udp_sockets.emplace_back(std::move(sockptr));
 		}
 
+		auto tmp_udp_sockets = m_udp_sockets;
+
 		// 按socket数量启动udp读取协程, 为接收提高效率, 发起8倍接收.
 		for (size_t fast = 0; fast < 8; fast++)
 		{
-			for (size_t n = 0; n < m_udp_sockets.size(); n++)
+			for (size_t n = 0; n < tmp_udp_sockets.size(); n++)
 			{
+				auto usock_ptr = tmp_udp_sockets[n];
 				LOG_DBG << "start_udp_server, listen endpoint: ["
-					<< m_udp_sockets[n]->sock_.local_endpoint().address().to_string() << "]:"
-					<< m_udp_sockets[n]->sock_.local_endpoint().port();
+					<< usock_ptr->sock_.local_endpoint().address().to_string() << "]:"
+					<< usock_ptr->sock_.local_endpoint().port();
 
 				boost::asio::co_spawn(m_main_ioc.get_executor(),
 					start_udp_read_loop(n), boost::asio::detached);
@@ -1628,7 +1631,8 @@ namespace avpn
 				}
 
 				// 多倍流量模式, 有多个冗余, 则发送多次.
-				auto usize = m_udp_sockets.size();
+				auto tmp_udp_sockets = m_udp_sockets;
+				auto usize = tmp_udp_sockets.size();
 
 				// 计算冗余数据大小, 并循环发送, 最大5倍发包模式.
 				auto num_duplicate = m_params.parity_shards_;
@@ -1642,7 +1646,7 @@ namespace avpn
 
 				if (num_duplicate == 1)
 				{
-					auto& usock = m_udp_sockets[std::rand() % usize]->sock_;
+					auto& usock = tmp_udp_sockets[std::rand() % usize]->sock_;
 					auto uendp = remote_endpoint->acquire();
 
 					co_await forward_udp_write(usock, uendp, std::move(pkt));
@@ -1653,7 +1657,7 @@ namespace avpn
 				{
 					auto duplicate = pkt;
 
-					auto& usock = m_udp_sockets[n % usize]->sock_;
+					auto& usock = tmp_udp_sockets[n % usize]->sock_;
 					auto uendp = remote_endpoint->acquire();
 
 					co_await forward_udp_write(usock, uendp, std::move(duplicate));
