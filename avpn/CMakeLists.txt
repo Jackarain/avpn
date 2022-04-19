@@ -40,6 +40,9 @@ file(GLOB avpn_SRCS
 	include/utils/*.hpp
 	src/utils/*.cpp
 
+	include/socks/*.hpp
+	src/socks/*.cpp
+
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
 	src/main/reedsolomon.cpp
