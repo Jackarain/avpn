@@ -267,34 +267,9 @@ namespace std
 
 namespace util {
 
-	inline logger___& operator<<(logger___& log, const boost::asio::ip::udp::endpoint& endp)
-	{
-		log << endp.address().to_string() << ":" << endp.port();
-		return log;
-	}
-
-	inline logger___& operator<<(logger___&& log, const boost::asio::ip::udp::endpoint& endp)
-	{
-		log << endp.address().to_string() << ":" << endp.port();
-		return log;
-	}
-
-
-	inline logger___& operator<<(logger___& log, const boost::asio::ip::tcp::endpoint& endp)
-	{
-		log << endp.address().to_string() << ":" << endp.port();
-		return log;
-	}
-
 	inline logger___& operator<<(logger___& log, const avpn::endpoint_pair& endp)
 	{
 		log << endp.to_string();
-		return log;
-	}
-
-	inline logger___& operator<<(logger___&& log, const boost::asio::ip::tcp::endpoint& endp)
-	{
-		log << endp.address().to_string() << ":" << endp.port();
 		return log;
 	}
 

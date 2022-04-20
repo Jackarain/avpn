@@ -984,6 +984,22 @@ public:
 		std::format_to(std::back_inserter(out_), "{}h", v.count());
 		return *this;
 	}
+	template<typename EndpointType>
+#ifdef __cpp_lib_concepts
+	requires requires (EndpointType t)
+	{
+		{ t.address() } -> std::convertible_to<boost::asio::ip::address>;
+		{ t.port() } -> std::convertible_to<boost::uint_least16_t>;
+	}
+#endif
+	inline logger___& operator<<(const EndpointType& v)
+	{
+		if (!logging_flag())
+			return *this;
+		std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+		return *this;
+	}
+
 #if (__cplusplus >= 202002L)
 	inline logger___& operator<<(const std::chrono::days& v)
 	{
