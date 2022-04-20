@@ -544,6 +544,7 @@ namespace avpn
 		}
 
 		LOG_WARN << "start_tcp_listen exit ...";
+		co_return;
 	}
 
 	std::string vpn_tunnel::make_communication_guid()
