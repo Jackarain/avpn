@@ -85,8 +85,6 @@ namespace socks {
 		tcp::socket m_local_socket;
 		tcp::socket m_remote_socket;
 		size_t m_connection_id;
-		int m_method{ 0 };
-		// boost::asio::streambuf m_local_buffer;
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server> m_socks_server;
 		bool m_abort{ false };

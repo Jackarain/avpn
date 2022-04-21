@@ -11,10 +11,11 @@
 #include "socks/socks_server.hpp"
 #include "utils/uawaitable.hpp"
 
+#include "utils/scoped_exit.hpp"
 #include "utils/misc.hpp"
 #include "utils/io.hpp"
+#include "utils/async_connect.hpp"
 #include "vpncore/endpoint_pair.hpp"
-#include "utils/scoped_exit.hpp"
 
 #include <boost/asio/experimental/awaitable_operators.hpp>
 
@@ -23,6 +24,7 @@ namespace socks {
 	using namespace boost::asio::experimental::awaitable_operators;
 	using namespace stream_endian;
 	using namespace util;
+	using namespace boost::asio;
 
 	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server> server)
 		: m_local_socket(std::move(socket))
@@ -133,14 +135,14 @@ namespace socks {
 		// 循环读取客户端支持的代理方式.
 		p = m_local_buffer.data();
 
-		m_method = SOCKS5_AUTH_UNACCEPTABLE;
+		int method = SOCKS5_AUTH_UNACCEPTABLE;
 		bool support_auth = false;
 		while (bytes != 0)
 		{
 			int m = read_int8(p);
 
 			if (m == SOCKS5_AUTH_NONE || m == SOCKS5_AUTH)
-				m_method = m;
+				method = m;
 
 			if (m == SOCKS5_AUTH)
 				support_auth = true;
@@ -156,14 +158,14 @@ namespace socks {
 			write_int8(socks_version, p);
 			write_int8(SOCKS5_AUTH_UNACCEPTABLE, p);
 
-			m_method = SOCKS5_AUTH_UNACCEPTABLE;
+			method = SOCKS5_AUTH_UNACCEPTABLE;
 		}
 		else
 		{
 			// 回复客户端, server所选择的代理方式.
 			p = m_local_buffer.data();
 			write_int8(socks_version, p);
-			write_int8(m_method, p);
+			write_int8(method, p);
 		}
 
 		//  +----+--------+
@@ -182,14 +184,14 @@ namespace socks {
 			co_return;
 		}
 
-		if (m_method == SOCKS5_AUTH_UNACCEPTABLE)
+		if (method == SOCKS5_AUTH_UNACCEPTABLE)
 		{
 			LOG_WARN << "id: " << m_connection_id << ", no acceptable methods for server";
 			co_return;
 		}
 
 		// 认证模式, 则进入认证子协程.
-		if (m_method == SOCKS5_AUTH)
+		if (method == SOCKS5_AUTH)
 		{
 			auto ret = co_await socks_auth();
 			if (!ret)
@@ -274,7 +276,8 @@ namespace socks {
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
-				co_await remote_socket.async_connect(dst_endpoint, uawaitable[ec]);
+				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
+				co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
@@ -302,7 +305,8 @@ namespace socks {
 				{
 					dst_endpoint = endpoint;
 
-					co_await remote_socket.async_connect(dst_endpoint, uawaitable[ec]);
+					auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
+					co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
 					if (!ec)
 					{
 						connected = true;
@@ -333,7 +337,8 @@ namespace socks {
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
-				co_await remote_socket.async_connect(dst_endpoint, uawaitable[ec]);
+				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
+				co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
