@@ -97,6 +97,11 @@ namespace socks {
 			co_await socks_connect_v5();
 			co_return;
 		}
+		if (socks_version == SOCKS_VERSION_4)
+		{
+			co_await socks_connect_v4();
+			co_return;
+		}
 
 		co_return;
 	}
@@ -435,6 +440,150 @@ namespace socks {
 		co_return;
 	}
 
+	boost::asio::awaitable<void> socks_session::socks_connect_v4()
+	{
+		char* p = m_local_buffer.data();
+
+		auto socks_version = read_int8(p);
+		BOOST_ASSERT(socks_version == SOCKS_VERSION_4);
+		auto command = read_int8(p);
+
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//  | 1  | 1  |    2    |         4         | variable     | 1  |
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//            [                             ]
+
+		boost::system::error_code ec;
+		auto bytes = co_await boost::asio::async_read(m_local_socket,
+			boost::asio::buffer(m_local_buffer, 6),
+				boost::asio::transfer_exactly(6),
+					uawaitable[ec]);
+		if (ec)
+		{
+			LOG_WARN << "id: " << m_connection_id << ", read socks4 dst: " << ec.message();
+			co_return;
+		}
+
+		tcp::endpoint dst_endpoint;
+		p = m_local_buffer.data();
+
+		auto port = read_uint16(p);
+		dst_endpoint.port(port);
+		dst_endpoint.address(boost::asio::ip::address_v4(read_uint32(p)));
+
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//  | 1  | 1  |    2    |         4         | variable     | 1  |
+		//  +----+----+----+----+----+----+----+----+----+----+....+----+
+		//                                          [                   ]
+		boost::asio::streambuf sbuf;
+		bytes = co_await boost::asio::async_read_until(m_local_socket,
+			sbuf, '\0', uawaitable[ec]);
+		if (ec)
+		{
+			LOG_WARN << "id: " << m_connection_id << ", read socks4 userid: " << ec.message();
+			co_return;
+		}
+
+		std::string userid;
+		if (bytes > 1)
+		{
+			userid.resize(bytes - 1);
+			sbuf.sgetn(&userid[0], bytes - 1);
+		}
+		sbuf.commit(1);
+
+		// TODO: 用户认证逻辑.
+		bool verify_passed = true; // verify_passed = do_auth(client, m_uname, m_passwd);
+		if (!verify_passed)
+		{
+			//  +----+----+----+----+----+----+----+----+
+			//  | VN | CD | DSTPORT |      DSTIP        |
+			//  +----+----+----+----+----+----+----+----+
+			//  | 1  | 1  |    2    |         4         |
+			//  +----+----+----+----+----+----+----+----+
+			//  [                                       ]
+
+			p = m_local_buffer.data();
+			write_int8(0, p);
+			write_int8(SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW, p);
+
+			write_uint16(dst_endpoint.port(), p);
+			write_uint32(dst_endpoint.address().to_v4().to_ulong(), p);
+
+			bytes = co_await boost::asio::async_write(m_local_socket,
+				boost::asio::buffer(m_local_buffer, 8),
+					boost::asio::transfer_exactly(8),
+						uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WARN << "id: " << m_connection_id << ", write socks4 no allow: " << ec.message();
+				co_return;
+			}
+
+			LOG_WARN << "id: " << m_connection_id << ", socks4 " << userid << " auth fail";
+			co_return;
+		}
+
+		int error_code = SOCKS4_REQUEST_GRANTED;
+		tcp::socket& remote_socket = m_remote_socket;
+		if (command == SOCKS_CMD_CONNECT)
+		{
+			auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
+			co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WFMT("id: {}, connect to target {}:{} error: {}",
+					m_connection_id, dst_endpoint.address().to_string(), port, ec.message());
+				error_code = SOCKS4_CANNOT_CONNECT_TARGET_SERVER;
+			}
+		}
+		else
+		{
+			error_code = SOCKS4_REQUEST_REJECTED_OR_FAILED;
+			LOG_WFMT("id: {}, unsupported command for socks4", m_connection_id);
+		}
+
+		//  +----+----+----+----+----+----+----+----+
+		//  | VN | CD | DSTPORT |      DSTIP        |
+		//  +----+----+----+----+----+----+----+----+
+		//  | 1  | 1  |    2    |         4         |
+		//  +----+----+----+----+----+----+----+----+
+		//  [                                       ]
+		p = m_local_buffer.data();
+		write_int8(0, p);
+		write_int8(error_code, p);
+
+		// 返回IP:PORT.
+		write_uint16(dst_endpoint.port(), p);
+		write_uint32(dst_endpoint.address().to_v4().to_ulong(), p);
+
+		bytes = co_await boost::asio::async_write(m_local_socket,
+			boost::asio::buffer(m_local_buffer, 8),
+				boost::asio::transfer_exactly(8),
+					uawaitable[ec]);
+		if (ec)
+		{
+			LOG_WARN << "id: " << m_connection_id << ", write socks4 response: " << ec.message();
+			co_return;
+		}
+
+		if (error_code != SOCKS4_REQUEST_GRANTED)
+			co_return;
+
+		co_await(
+			transfer(m_local_socket, remote_socket)
+			&&
+			transfer(remote_socket, m_local_socket)
+			);
+
+		LOG_DBG << "id: " << m_connection_id << ", transfer completed";
+		co_return;
+	}
+
 	boost::asio::awaitable<bool> socks_session::socks_auth()
 	{
 		//  +----+------+----------+------+----------+
@@ -530,6 +679,7 @@ namespace socks {
 		auto client = endp.address().to_string();
 		client += ":" + std::to_string(endp.port());
 
+		// TODO: 用户认证逻辑.
 		bool verify_passed = true; // verify_passed = do_auth(client, m_uname, m_passwd);
 
 		p = m_local_buffer.data();

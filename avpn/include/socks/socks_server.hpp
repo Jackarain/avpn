@@ -60,6 +60,14 @@ namespace socks {
 		SOCKS5_UNASSIGNED
 	};
 
+	enum {
+		SOCKS4_REQUEST_GRANTED = 90,
+		SOCKS4_REQUEST_REJECTED_OR_FAILED,
+		SOCKS4_CANNOT_CONNECT_TARGET_SERVER,
+		SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW,
+	};
+
+
 	class socks_server;
 	class socks_session
 		: public std::enable_shared_from_this<socks_session>
@@ -78,6 +86,7 @@ namespace socks {
 	private:
 		boost::asio::awaitable<void> start_socks_proxy();
 		boost::asio::awaitable<void> socks_connect_v5();
+		boost::asio::awaitable<void> socks_connect_v4();
 		boost::asio::awaitable<bool> socks_auth();
 		boost::asio::awaitable<void> transfer(tcp::socket& from, tcp::socket& to);
 
