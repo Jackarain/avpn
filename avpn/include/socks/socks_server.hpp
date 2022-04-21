@@ -118,7 +118,10 @@ namespace socks {
 	public:
 		void open();
 		void close();
+
 		void remove_client(size_t id);
+		bool do_auth(std::string userid, std::string passwd);
+		bool none_auth();
 
 	private:
 		boost::asio::awaitable<void> start_socks_listen(tcp::acceptor& a);

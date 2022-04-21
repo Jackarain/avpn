@@ -156,7 +156,9 @@ namespace socks {
 		}
 
 		// 客户端不支持认证, 而如果服务端需要认证, 回复客户端不接受.
-		if (!support_auth && false)
+		auto server = m_socks_server.lock();
+
+		if (!support_auth && !server && !server->none_auth())
 		{
 			// 回复客户端, 不接受客户端的的代理请求.
 			p = m_local_buffer.data();
@@ -375,7 +377,6 @@ namespace socks {
 			write_int8(SOCKS_VERSION_5, p); // VER
 			write_int8(error_code, p);		// REP
 			write_int8(0x00, p);			// RSV
-			write_int8(atyp, p);			// ATYP
 
 			if (dst_endpoint.address().is_v4())
 			{
@@ -496,8 +497,16 @@ namespace socks {
 		}
 		sbuf.commit(1);
 
-		// TODO: 用户认证逻辑.
-		bool verify_passed = true; // verify_passed = do_auth(client, m_uname, m_passwd);
+		// 用户认证逻辑.
+		bool verify_passed = false;
+		auto server = m_socks_server.lock();
+
+		if (server)
+		{
+			verify_passed = server->do_auth(userid, "");
+			server.reset();
+		}
+
 		if (!verify_passed)
 		{
 			//  +----+----+----+----+----+----+----+----+
@@ -679,8 +688,15 @@ namespace socks {
 		auto client = endp.address().to_string();
 		client += ":" + std::to_string(endp.port());
 
-		// TODO: 用户认证逻辑.
-		bool verify_passed = true; // verify_passed = do_auth(client, m_uname, m_passwd);
+		// 用户认证逻辑.
+		bool verify_passed = false;
+		auto server = m_socks_server.lock();
+
+		if (server)
+		{
+			verify_passed = server->do_auth(uname, passwd);
+			server.reset();
+		}
 
 		p = m_local_buffer.data();
 		write_int8(0x01, p);			// version 只能是1.
@@ -776,6 +792,16 @@ namespace socks {
 	void socks_server::remove_client(size_t id)
 	{
 		m_clients.erase(id);
+	}
+
+	bool socks_server::do_auth(std::string userid, std::string passwd)
+	{
+		return true;
+	}
+
+	bool socks_server::none_auth()
+	{
+		return true;
 	}
 
 	boost::asio::awaitable<void> socks_server::start_socks_listen(tcp::acceptor& a)
