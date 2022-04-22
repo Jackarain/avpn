@@ -994,7 +994,7 @@ std::vector<driver_info> enum_drivers()
 	auto drivers = boost::nowide::widen(str);
 
 	std::vector<std::wstring> lines;
-	boost::split_regex(lines, drivers, boost::regex("\n"));
+	boost::split_regex(lines, drivers, boost::wregex(L"\n"));
 
 	std::vector<std::wstring> fields;
 	driver_info info;
