@@ -169,7 +169,24 @@ namespace socks {
 		else
 		{
 			auto endp = net::ip::make_address(hostname, ec);
-			if (ec) co_return;
+			if (ec)
+			{
+				auto executor = co_await boost::asio::this_coro::executor;
+				tcp::resolver resolver{ executor };
+				auto error = ec;
+
+				auto target_endpoints = co_await resolver.async_resolve(
+					hostname, std::to_string(port), uawaitable[ec]);
+				if (ec) co_return;
+
+				if (target_endpoints.empty())
+				{
+					ec = error;
+					co_return;
+				}
+
+				endp = (*target_endpoints).endpoint().address().to_v4();
+			}
 
 			if (endp.is_v4())
 			{
@@ -326,7 +343,23 @@ namespace socks {
 
 		auto address = net::ip::make_address_v4(hostname, ec);
 		if (ec)
-			co_return;
+		{
+			auto executor = co_await boost::asio::this_coro::executor;
+			tcp::resolver resolver{ executor };
+			auto error = ec;
+
+			auto target_endpoints = co_await resolver.async_resolve(
+				hostname, std::to_string(port), uawaitable[ec]);
+			if (ec) co_return;
+
+			if (target_endpoints.empty())
+			{
+				ec = error;
+				co_return;
+			}
+
+			address = (*target_endpoints).endpoint().address().to_v4();
+		}
 
 		write<uint32_t>(address.to_uint(), req); // DST I
 
