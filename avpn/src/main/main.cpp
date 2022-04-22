@@ -185,7 +185,9 @@ int main(int argc, char** argv)
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
 	std::vector<std::string> socks_listens;
-
+	std::string socks_interface;
+	std::string socks_userid;
+	std::string socks_passwd;
 	int data_shards;
 	int parity_shards;
 	int mode;
@@ -222,6 +224,10 @@ int main(int argc, char** argv)
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
 
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken(), "For socks4/5 server listen.")
+
+		("socks_interface", po::value<std::string>(&socks_interface)->default_value(""), "Bind interface for socks4/5 connection.")
+		("socks_userid", po::value<std::string>(&socks_userid)->default_value(""), "Socks4/5 auth user id.")
+		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value(""), "Socks4/5 auth password.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
@@ -399,9 +405,14 @@ int main(int argc, char** argv)
 			continue;
 		}
 
+		socks::socks_server_option opt;
+		opt.usrdid_ = socks_userid;
+		opt.passwd_ = socks_passwd;
+		opt.bind_addr_ = socks_interface;
+
 		socks_servers.emplace_back(
 			std::make_shared<socks::socks_server>(
-				ios.get_io_context(), endp));
+				ios.get_io_context(), endp, opt));
 	}
 
 	if (controller_port == -1)

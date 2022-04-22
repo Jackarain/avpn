@@ -302,10 +302,13 @@ namespace socks {
 				return true;
 
 			tcp::endpoint bind_endpoint(bind_interface, 0);
-
 			boost::system::error_code err;
-			stream.bind(bind_endpoint, err);
 
+			stream.open(bind_endpoint.protocol(), err);
+			if (err)
+				return false;
+
+			stream.bind(bind_endpoint, err);
 			if (err)
 				return false;
 
