@@ -2284,7 +2284,6 @@ namespace avpn
 		// 处理内网数据包.
 		auto ep = avpn::lookup_endpoint_pair((const uint8_t*)content, content_size);
 		auto& dst_addr = ep.dst_;
-		auto& src_addr = ep.src_;
 
 		auto uint_dst = dst_addr.address().to_v4().to_uint();
 		udp::endpoint uendp(dst_addr.address(), 0);
