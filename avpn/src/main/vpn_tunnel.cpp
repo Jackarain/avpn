@@ -1576,9 +1576,9 @@ namespace avpn
 	{
 		auto& connection = *connection_ptr;
 
-		// 如果发送模式为tcp, 或为tcp/udp混合发送模式, 并且当前发送空闲
-		// 时, 则直接调用tcp发送.
-		// 当udp不可用时, 直接使用tcp发送.
+		// 如果发送模式为tcp, 或为tcp/udp混合发送模式, 并且当
+		// 前发送空闲时, 则直接调用tcp发送.
+		// 当udp不可用时, 也直接使用tcp发送.
 		if (m_params.mode_ == vpn_tcp_mode::only_tcp
 			|| (m_params.mode_ == vpn_tcp_mode::tcpudp_mix && !connection.deque_writing_)
 			|| m_udp_sockets.size() == 0
