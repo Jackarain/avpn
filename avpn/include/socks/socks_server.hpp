@@ -62,7 +62,7 @@ namespace socks {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	struct socks_option
+	struct socks_server_option
 	{
 		std::string usrdid_;
 		std::string passwd_;
@@ -76,7 +76,7 @@ namespace socks {
 
 	public:
 		socks_server(boost::asio::io_context& ioc,
-			const tcp::endpoint& endp, socks_option opt = {});
+			const tcp::endpoint& endp, socks_server_option opt = {});
 		~socks_server() = default;
 
 	public:
@@ -92,7 +92,7 @@ namespace socks {
 	private:
 		boost::asio::io_context& m_io_context;
 		tcp::acceptor m_acceptor;
-		socks_option m_option;
+		socks_server_option m_option;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_clients;
 		bool m_abort{ false };
 	};

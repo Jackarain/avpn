@@ -9,12 +9,14 @@
 //
 
 #include "socks/socks_server.hpp"
-#include "utils/uawaitable.hpp"
+#include "socks/socks_enums.hpp"
 
+#include "utils/uawaitable.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/misc.hpp"
 #include "utils/io.hpp"
 #include "utils/async_connect.hpp"
+
 #include "vpncore/endpoint_pair.hpp"
 
 #include <boost/asio/experimental/awaitable_operators.hpp>
@@ -25,48 +27,6 @@ namespace socks {
 	using namespace stream_endian;
 	using namespace util;
 	using namespace boost::asio;
-
-	enum {
-		SOCKS_VERSION_4 = 4,
-		SOCKS_VERSION_5 = 5
-	};
-
-	enum {
-		SOCKS5_AUTH_NONE = 0x00,
-		SOCKS5_AUTH = 0x02,
-		SOCKS5_AUTH_UNACCEPTABLE = 0xFF
-	};
-
-	enum {
-		SOCKS5_ATYP_IPV4 = 0x01,
-		SOCKS5_ATYP_DOMAINNAME = 0x03,
-		SOCKS5_ATYP_IPV6 = 0x04
-	};
-
-	enum {
-		SOCKS_CMD_CONNECT = 0x01,
-		SOCKS_CMD_BIND = 0x02,
-		SOCKS5_CMD_UDP = 0x03
-	};
-
-	enum {
-		SOCKS5_SUCCEEDED = 0x00,
-		SOCKS5_GENERAL_SOCKS_SERVER_FAILURE,
-		SOCKS5_CONNECTION_NOT_ALLOWED_BY_RULESET,
-		SOCKS5_NETWORK_UNREACHABLE,
-		SOCKS5_CONNECTION_REFUSED,
-		SOCKS5_TTL_EXPIRED,
-		SOCKS5_COMMAND_NOT_SUPPORTED,
-		SOCKS5_ADDRESS_TYPE_NOT_SUPPORTED,
-		SOCKS5_UNASSIGNED
-	};
-
-	enum {
-		SOCKS4_REQUEST_GRANTED = 90,
-		SOCKS4_REQUEST_REJECTED_OR_FAILED,
-		SOCKS4_CANNOT_CONNECT_TARGET_SERVER,
-		SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW,
-	};
 
 	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server> server)
 		: m_local_socket(std::move(socket))
@@ -798,7 +758,7 @@ namespace socks {
 	//////////////////////////////////////////////////////////////////////////
 
 	socks_server::socks_server(boost::asio::io_context& ioc,
-		const tcp::endpoint& endp, socks_option opt)
+		const tcp::endpoint& endp, socks_server_option opt)
 		: m_io_context(ioc)
 		, m_acceptor(ioc, endp)
 		, m_option(std::move(opt))
