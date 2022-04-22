@@ -1232,7 +1232,7 @@ namespace avpn
 
 				// 如果client其中某个udp socket长时间没响应, 则关闭后重新创建.
 				auto now = time_clock::steady_clock::now();
-				for (auto i = 0; i < tmp_udp_sockets.size(); i++)
+				for (size_t i = 0; i < tmp_udp_sockets.size(); i++)
 				{
 					if (m_abort)
 						break;
@@ -2070,7 +2070,7 @@ namespace avpn
 	}
 
 	boost::asio::awaitable<void> vpn_tunnel::do_communication_guid(
-		stream_endian::bitstream& reader, vpn_connection_ptr& connection_ptr)
+		stream_endian::bitstream& reader, vpn_connection_ptr&)
 	{
 		reader.ReadTail();
 

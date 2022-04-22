@@ -344,7 +344,7 @@ namespace socks {
 		}
 		else if (atyp == SOCKS5_ATYP_DOMAINNAME)
 		{
-			for (int i = 0; i < bytes - 2; i++)
+			for (size_t i = 0; i < bytes - 2; i++)
 				domain.push_back(read<int8_t>(p));
 			port = read<uint16_t>(p);
 			LOG_DBG << "id: " << m_connection_id << ", " << m_local_socket.remote_endpoint()
@@ -495,7 +495,7 @@ namespace socks {
 	{
 		char* p = m_local_buffer.data();
 
-		auto socks_version = read<int8_t>(p);
+		[[maybe_unused]] auto socks_version = read<int8_t>(p);
 		BOOST_ASSERT(socks_version == SOCKS_VERSION_4);
 		auto command = read<int8_t>(p);
 
@@ -700,7 +700,7 @@ namespace socks {
 		std::string uname;
 
 		p = m_local_buffer.data();
-		for (int i = 0; i < bytes - 1; i++)
+		for (size_t i = 0; i < bytes - 1; i++)
 			uname.push_back(read<int8_t>(p));
 
 		int passwd_len = read<uint8_t>(p);
@@ -730,7 +730,7 @@ namespace socks {
 		std::string passwd;
 
 		p = m_local_buffer.data();
-		for (int i = 0; i < bytes; i++)
+		for (size_t i = 0; i < bytes; i++)
 			passwd.push_back(read<int8_t>(p));
 
 		// SOCKS5验证用户和密码.

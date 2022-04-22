@@ -68,7 +68,7 @@ namespace socks {
 		}
 
 		request.commit(bytes_to_write);
-		auto bytes = co_await net::async_write(
+		[[maybe_unused]] auto bytes = co_await net::async_write(
 			socket, request, uawaitable[ec]);
 		if (ec) co_return;
 		BOOST_ASSERT(bytes_to_write == bytes);
