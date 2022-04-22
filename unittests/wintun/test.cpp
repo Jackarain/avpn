@@ -387,7 +387,7 @@ int write_wintun(std::string_view buf)
 	}
 
 	// 计算要发送的数据包对齐大小.
-	auto aligned_packet_size = wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + buf.size());
+	auto aligned_packet_size = wintun_ring_packet_align(ULONG(sizeof(struct TUN_PACKET_HEADER) + buf.size()));
 
 	// 计算剩余空间的大小.
 	auto buf_space = wintun_ring_wrap(head - tail - WINTUN_PACKET_ALIGN);
@@ -401,7 +401,7 @@ int write_wintun(std::string_view buf)
 
 	// 复制数据到发送ring buffer.
 	auto packet = (struct TUN_PACKET*)&ring->data[tail];
-	packet->size = buf.size();
+	packet->size = (uint32_t)buf.size();
 	memcpy(packet->data, buf.data(), buf.size());
 
 	// 修改send ring的尾部位置.
@@ -411,7 +411,7 @@ int write_wintun(std::string_view buf)
 	if (ring->alertable != 0)
 		SetEvent(g_send_event_moved);
 
-	return buf.size();
+	return (int)buf.size();
 }
 
 int read_wintun(std::string_view buf)
@@ -642,7 +642,7 @@ bool open_tun()
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
 				auto rate = (double)size / ((double)ms.count() / 1000);
 
-				LOG_DBG << "Send: " << add_suffix(rate, "/s");
+				LOG_DBG << "Send: " << add_suffix((float)rate, "/s");
 			}
 		}
 	});
@@ -709,7 +709,7 @@ bool open_tun()
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
 				auto rate = (double)size / ((double)ms.count() / 1000);
 
-				LOG_DBG << "Recvive: " << add_suffix(rate, "/s");
+				LOG_DBG << "Recvive: " << add_suffix((float)rate, "/s");
 			}
 		}
 	});
