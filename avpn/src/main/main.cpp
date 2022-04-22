@@ -64,6 +64,11 @@ namespace po = boost::program_options;
 #include "utils/io_context_pool.hpp"
 #include "utils/fileop.hpp"
 #include "utils/misc.hpp"
+#include "socks/socks_server.hpp"
+#include "socks/socks_client.hpp"
+
+#include <boost/asio/experimental/promise.hpp>
+#include <boost/asio/bind_cancellation_slot.hpp>
 
 int platform_init()
 {
@@ -179,6 +184,8 @@ int main(int argc, char** argv)
 	std::vector<std::string> upstreams;
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
+	std::vector<std::string> socks_listens;
+
 	int data_shards;
 	int parity_shards;
 	int mode;
@@ -213,6 +220,8 @@ int main(int argc, char** argv)
 		("tun", po::value<std::string>(&ifdev)->default_value(""), "Tun device.")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
+
+		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken(), "For socks4/5 server listen.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
@@ -376,6 +385,25 @@ int main(int argc, char** argv)
 	// 创建pid文件.
 	create_pid(ifdev);
 
+	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
+
+	for (auto& socks : socks_listens)
+	{
+		boost::system::error_code ec;
+		boost::asio::ip::tcp::endpoint endp;
+		make_listen_endpoint(socks, endp, ec);
+		if (ec)
+		{
+			LOG_WARN << "socks server param: "
+				<< socks << " listen: " << ec.message();
+			continue;
+		}
+
+		socks_servers.emplace_back(
+			std::make_shared<socks::socks_server>(
+				ios.get_io_context(), endp));
+	}
+
 	if (controller_port == -1)
 	{
 		avpn::avpn_service srv{ ios, cfg };
@@ -383,9 +411,17 @@ int main(int argc, char** argv)
 
 		// 处理中止信号.
 		terminator_signal.async_wait(
-			[&ios, &srv](const boost::system::error_code&, int)
+			[&ios, &srv, &socks_servers](const boost::system::error_code&, int)
 			{
 				LOG_DBG << "terminator is called!";
+
+				for (auto& s : socks_servers)
+				{
+					if (!s)
+						continue;
+					s->close();
+				}
+
 				srv.stop();
 				ios.stop();
 			});
