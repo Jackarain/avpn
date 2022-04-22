@@ -221,7 +221,7 @@ namespace logger_aux__ {
 	{
 		struct LocalTime {
 			std::time_t time_;
-			std::tm tm_{ 0 };
+			std::tm tm_;
 
 			LocalTime(std::time_t t) : time_(t) {}
 
