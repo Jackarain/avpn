@@ -372,25 +372,28 @@ namespace socks {
 		co_return;
 	}
 
-	boost::asio::awaitable<boost::system::error_code>
-	async_socks_handshake(tcp::socket& socket, socks_client_option opt /*= {}*/)
+	namespace detail
 	{
-		boost::system::error_code ec;
+		boost::asio::awaitable<boost::system::error_code>
+			do_socks_handshake(tcp::socket& socket, socks_client_option opt /*= {}*/)
+		{
+			boost::system::error_code ec;
 
-		if (opt.version == 5)
-		{
-			co_await do_socks5(socket, opt, ec);
-		}
-		else if (opt.version == 4)
-		{
-			co_await do_socks4(socket, opt, ec);
-		}
-		else
-		{
-			ec = socks::errc::socks_unsupported_version;
-		}
+			if (opt.version == 5)
+			{
+				co_await do_socks5(socket, opt, ec);
+			}
+			else if (opt.version == 4)
+			{
+				co_await do_socks4(socket, opt, ec);
+			}
+			else
+			{
+				ec = socks::errc::socks_unsupported_version;
+			}
 
-		co_return ec;
+			co_return ec;
+		}
 	}
 
 }
