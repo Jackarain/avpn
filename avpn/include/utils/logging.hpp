@@ -620,23 +620,26 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 #endif
 
 #if !defined(DISABLE_LOGGER_TO_CONSOLE)
-	HANDLE handle_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	GetConsoleScreenBufferInfo(handle_stdout, &csbi);
-	if (level == _logger_info_id__)
-		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN);
-	else if (level == _logger_debug_id__)
-		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-	else if (level == _logger_warn_id__)
-		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
-	else if (level == _logger_error_id__)
-		SetConsoleTextAttribute(handle_stdout, FOREGROUND_RED | FOREGROUND_INTENSITY);
+	if (!disable_cout)
+	{
+		HANDLE handle_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
+		CONSOLE_SCREEN_BUFFER_INFO csbi;
+		GetConsoleScreenBufferInfo(handle_stdout, &csbi);
+		if (level == _logger_info_id__)
+			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN);
+		else if (level == _logger_debug_id__)
+			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+		else if (level == _logger_warn_id__)
+			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
+		else if (level == _logger_error_id__)
+			SetConsoleTextAttribute(handle_stdout, FOREGROUND_RED | FOREGROUND_INTENSITY);
 
-	WriteConsoleW(handle_stdout, title.data(), (DWORD)title.size(), nullptr, nullptr);
-	SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE);
+		WriteConsoleW(handle_stdout, title.data(), (DWORD)title.size(), nullptr, nullptr);
+		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE);
 
-	WriteConsoleW(handle_stdout, msg.data(), (DWORD)msg.size(), nullptr, nullptr);
-	SetConsoleTextAttribute(handle_stdout, csbi.wAttributes);
+		WriteConsoleW(handle_stdout, msg.data(), (DWORD)msg.size(), nullptr, nullptr);
+		SetConsoleTextAttribute(handle_stdout, csbi.wAttributes);
+	}
 #endif
 
 #if !defined(DISABLE_LOGGER_TO_DBGVIEW)
@@ -644,17 +647,20 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 #endif
 
 #elif !defined(DISABLE_LOGGER_TO_CONSOLE)
-	std::string out;
-	if (level == _logger_info_id__)
-		std::format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
-	else if (level == _logger_debug_id__)
-		std::format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
-	else if (level == _logger_warn_id__)
-		std::format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
-	else if (level == _logger_error_id__)
-		std::format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
-	std::cout << out;
-	std::cout.flush();
+	if (!disable_cout)
+	{
+		std::string out;
+		if (level == _logger_info_id__)
+			std::format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
+		else if (level == _logger_debug_id__)
+			std::format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
+		else if (level == _logger_warn_id__)
+			std::format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
+		else if (level == _logger_error_id__)
+			std::format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
+		std::cout << out;
+		std::cout.flush();
+	}
 #endif
 }
 
