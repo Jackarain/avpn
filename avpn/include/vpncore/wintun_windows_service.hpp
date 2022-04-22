@@ -404,7 +404,7 @@ namespace avpn {
 			}
 
 			// 计算要发送的数据包对齐大小.
-			auto aligned_packet_size = details::wintun_ring_packet_align(sizeof(struct TUN_PACKET_HEADER) + buf.size());
+			auto aligned_packet_size = details::wintun_ring_packet_align((ULONG)(sizeof(struct TUN_PACKET_HEADER) + buf.size()));
 
 			// 计算剩余空间的大小.
 			auto buf_space = details::wintun_ring_wrap(head - tail - WINTUN_PACKET_ALIGN);
@@ -415,7 +415,7 @@ namespace avpn {
 
 			// 复制数据到发送ring buffer.
 			auto packet = (struct TUN_PACKET*)&ring->data[tail];
-			packet->size = buf.size();
+			packet->size = (uint32_t)buf.size();
 			memcpy(packet->data, buf.data(), buf.size());
 
 			// 修改send ring的尾部位置.
@@ -425,7 +425,7 @@ namespace avpn {
 			if (ring->alertable != 0)
 				SetEvent(m_send_event_moved);
 
-			return buf.size();
+			return (int)buf.size();
 		}
 
 	public:
