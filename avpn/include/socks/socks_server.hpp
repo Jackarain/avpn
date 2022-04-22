@@ -37,7 +37,7 @@ namespace socks {
 		~socks_session();
 
 	public:
-		void start();
+		void start(std::string bind_addr);
 		void close();
 
 	private:
@@ -53,6 +53,7 @@ namespace socks {
 		size_t m_connection_id;
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server> m_socks_server;
+		std::string m_bind_addr;
 		bool m_abort{ false };
 	};
 
@@ -66,6 +67,8 @@ namespace socks {
 	{
 		std::string usrdid_;
 		std::string passwd_;
+
+		std::string bind_addr_;
 	};
 
 	class socks_server

@@ -66,8 +66,10 @@ namespace socks {
 		server->remove_client(m_connection_id);
 	}
 
-	void socks_session::start()
+	void socks_session::start(std::string bind_addr)
 	{
+		m_bind_addr = bind_addr;
+
 		boost::asio::co_spawn(m_local_socket.get_executor(),
 			start_socks_proxy(), boost::asio::detached);
 	}
@@ -289,6 +291,27 @@ namespace socks {
 			co_return;
 		}
 
+		auto bind_interface = ip::address::from_string(m_bind_addr, ec);
+		if (ec)
+			m_bind_addr.clear();
+
+		auto check_condition = [this, bind_interface](const boost::system::error_code&,
+			tcp::socket& stream, auto&) mutable
+		{
+			if (m_bind_addr.empty())
+				return true;
+
+			tcp::endpoint bind_endpoint(bind_interface, 0);
+
+			boost::system::error_code err;
+			stream.bind(bind_endpoint, err);
+
+			if (err)
+				return false;
+
+			return true;
+		};
+
 		tcp::endpoint dst_endpoint;
 		std::string domain;
 		uint16_t port = 0;
@@ -308,7 +331,7 @@ namespace socks {
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
+				co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
@@ -337,7 +360,7 @@ namespace socks {
 					dst_endpoint = endpoint;
 
 					auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-					co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
+					co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
 					if (!ec)
 					{
 						connected = true;
@@ -369,7 +392,7 @@ namespace socks {
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
+				co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
@@ -881,7 +904,7 @@ namespace socks {
 				std::make_shared<socks_session>(std::move(socket), connection_id, self);
 			m_clients[connection_id] = new_session;
 
-			new_session->start();
+			new_session->start(m_option.bind_addr_);
 		}
 
 		LOG_WARN << "start_socks_listen exit ...";
