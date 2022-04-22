@@ -107,7 +107,7 @@ avpn.sln项目文件，通过菜单上的编译命令进行编译。
 | tun |		指定tun虚拟网卡名称，在windows上为虚拟网卡的具体名字（有时需要注意空格，比如 "以太网 3" 中间的空格不能丢失），在类unix平台，avpn将会自动创建虚拟网卡，windows平台使用wintun同样也会自动创建虚拟网卡。|
 | upstream |		运行身份作为client时，这个参数指定了目标server和端口，目前版本实现由udp/tcp必须同时运行，所以需要同时指定udp和ws的地址和端口。如--upstream ws://example.com:33333 udp://example.com:33333|
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
-| socks_interface |		内部运行socks server时，指定对发发起连接时，所bind的interface。|
+| socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
 | socks_userid<BR>socks_passwd |		指定socks server的userid/passwd。|
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
