@@ -73,7 +73,7 @@ namespace socks {
 			socks_request_rejected_incorrect_userid,
 		};
 
-		inline boost::system::error_code make_error_code(errc_t e);
+		boost::system::error_code make_error_code(errc_t e);
 	}
 
 	class error_category_impl

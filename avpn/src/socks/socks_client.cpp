@@ -17,6 +17,8 @@
 
 namespace socks {
 
+	namespace net = boost::asio;
+
 	namespace detail {
 
 		template<typename type, typename source>
@@ -49,7 +51,7 @@ namespace socks {
 		auto& port = opt.port;
 
 		std::size_t bytes_to_write = username.empty() ? 3 : 4;
-		boost::asio::streambuf request;
+		net::streambuf request;
 		auto req = static_cast<char*>(request.prepare(bytes_to_write).data());
 
 		write<uint8_t>(SOCKS_VERSION_5, req);		// SOCKS VERSION 5.
@@ -66,14 +68,16 @@ namespace socks {
 		}
 
 		request.commit(bytes_to_write);
-		auto bytes = co_await boost::asio::async_write(
+		auto bytes = co_await net::async_write(
 			socket, request, uawaitable[ec]);
 		if (ec) co_return;
+		BOOST_ASSERT(bytes_to_write == bytes);
 
-		boost::asio::streambuf response;
-		co_await boost::asio::async_read(socket, response,
-			boost::asio::transfer_exactly(2), uawaitable[ec]);
+		net::streambuf response;
+		bytes = co_await net::async_read(socket, response,
+			net::transfer_exactly(2), uawaitable[ec]);
 		if (ec) co_return;
+		BOOST_ASSERT(response.size() == 2);
 
 		auto resp = static_cast<const char*>(response.data().data());
 		auto version = read<uint8_t>(resp);
@@ -108,36 +112,39 @@ namespace socks {
 			request.commit(bytes_to_write);
 
 			// write username & password.
-			co_await boost::asio::async_write(
+			bytes = co_await net::async_write(
 				socket, request, uawaitable[ec]);
+			if (ec) co_return;
+			BOOST_ASSERT(bytes_to_write == bytes);
+
+			response.consume(response.size());
+			bytes = co_await net::async_read(socket, response,
+				net::transfer_exactly(2), uawaitable[ec]);
+			if (ec) co_return;
+			BOOST_ASSERT(response.size() == 2);
+
+			resp = static_cast<const char*>(response.data().data());
+			version = read<uint8_t>(resp);
+			auto status = read<uint8_t>(resp);
+			if (version != 0x01)	// auth version.
+			{
+				ec = socks::errc::socks_unsupported_authentication_version;
+				co_return;
+			}
+
+			if (status != 0x00)
+			{
+				ec = errc::socks_authentication_error;
+				co_return;
+			}
 		}
 		else if (method == SOCKS5_AUTH_NONE) // no need auth...
 		{
-			co_await boost::asio::this_coro::executor;
+			co_await net::this_coro::executor;
 		}
 		else
 		{
 			ec = socks::errc::socks_unsupported_authentication_version;
-			co_return;
-		}
-
-		response.consume(response.size());
-		co_await boost::asio::async_read(socket, response,
-			boost::asio::transfer_exactly(2), uawaitable[ec]);
-		if (ec) co_return;
-
-		resp = static_cast<const char*>(response.data().data());
-		version = read<uint8_t>(resp);
-		auto status = read<uint8_t>(resp);
-		if (version != 0x01)	// auth version.
-		{
-			ec = socks::errc::socks_unsupported_authentication_version;
-			co_return;
-		}
-
-		if (status != 0x00)
-		{
-			ec = errc::socks_authentication_error;
 			co_return;
 		}
 
@@ -161,7 +168,7 @@ namespace socks {
 		}
 		else
 		{
-			auto endp = boost::asio::ip::make_address(hostname, ec);
+			auto endp = net::ip::make_address(hostname, ec);
 			if (ec) co_return;
 
 			if (endp.is_v4())
@@ -183,17 +190,16 @@ namespace socks {
 		}
 
 		request.commit(bytes_to_write);
-		co_await boost::asio::async_write(
+		bytes = co_await net::async_write(
 			socket, request, uawaitable[ec]);
 		if (ec) co_return;
+		BOOST_ASSERT(bytes_to_write == bytes);
 
 		response.consume(response.size());
-		co_await boost::asio::async_read(
-			socket,
-			response,
-			boost::asio::transfer_exactly(10),
-			uawaitable[ec]);
+		bytes = co_await net::async_read(socket, response,
+			net::transfer_exactly(10), uawaitable[ec]);
 		if (ec) co_return;
+		BOOST_ASSERT(response.size() == bytes);
 
 		resp = static_cast<const char*>(response.data().data());
 		version = read<uint8_t>(resp);
@@ -219,15 +225,15 @@ namespace socks {
 		{
 			auto domain_length = read<uint8_t>(resp);
 
-			co_await boost::asio::async_read(socket, response,
-				boost::asio::transfer_exactly(domain_length - 3), uawaitable[ec]);
+			bytes = co_await net::async_read(socket, response,
+				net::transfer_exactly(domain_length - 3), uawaitable[ec]);
 			if (ec) co_return;
 		}
 
 		if (atyp == SOCKS5_ATYP_IPV6)
 		{
-			co_await boost::asio::async_read(socket, response,
-				boost::asio::transfer_exactly(12), uawaitable[ec]);
+			bytes = co_await net::async_read(socket, response,
+				net::transfer_exactly(12), uawaitable[ec]);
 			if (ec) co_return;
 		}
 
@@ -250,8 +256,8 @@ namespace socks {
 		}
 		else if (atyp == SOCKS5_ATYP_IPV4)
 		{
-			boost::asio::ip::tcp::endpoint remote_endp(
-				boost::asio::ip::address_v4(read<uint32_t>(resp)),
+			net::ip::tcp::endpoint remote_endp(
+				net::ip::address_v4(read<uint32_t>(resp)),
 				read<uint16_t>(resp));
 
 			// std::cout << "* SOCKS remote host: " << remote_endp.address().to_string()
@@ -259,12 +265,12 @@ namespace socks {
 		}
 		else if (atyp == SOCKS5_ATYP_IPV6)
 		{
-			boost::asio::ip::address_v6::bytes_type bytes;
+			net::ip::address_v6::bytes_type bytes;
 			for (auto i = 0; i < 16; i++)
 				bytes[i] = read<uint8_t>(resp);
 
-			boost::asio::ip::tcp::endpoint remote_endp(
-				boost::asio::ip::address_v6(bytes),
+			net::ip::tcp::endpoint remote_endp(
+				net::ip::address_v6(bytes),
 				read<uint16_t>(resp));
 
 			// std::cout << "* SOCKS remote host: " << remote_endp.address().to_string()
@@ -299,6 +305,73 @@ namespace socks {
 		co_return;
 	}
 
+	boost::asio::awaitable<void> do_socks4(
+		tcp::socket& socket, socks_client_option opt, boost::system::error_code& ec)
+	{
+		using detail::write;
+		using detail::read;
+
+		auto& username = opt.username;
+		auto& hostname = opt.host;
+		auto& port = opt.port;
+		net::streambuf request;
+
+		std::size_t bytes_to_write = 9 + username.size();
+		auto req = static_cast<char*>(request.prepare(bytes_to_write).data());
+
+		write<uint8_t>(SOCKS_VERSION_4, req);	// SOCKS VERSION 4.
+		write<uint8_t>(SOCKS_CMD_CONNECT, req); // CONNECT.
+
+		write<uint16_t>(port, req);				// DST PORT.
+
+		auto address = net::ip::make_address_v4(hostname, ec);
+		if (ec)
+			co_return;
+
+		write<uint32_t>(address.to_uint(), req); // DST I
+
+		if (!username.empty())
+		{
+			std::copy(username.begin(), username.end(), req);    // USERID
+			req += username.size();
+		}
+		write<uint8_t>(0, req); // NULL.
+
+		request.commit(bytes_to_write);
+		co_await net::async_write(socket, request, uawaitable[ec]);
+		if (ec) co_return;
+
+		net::streambuf response;
+		co_await net::async_read(socket, response,
+			net::transfer_exactly(8), uawaitable[ec]);
+		if (ec) co_return;
+
+		auto resp = static_cast<const unsigned char*>(response.data().data());
+		read<uint8_t>(resp); // VN is the version of the reply code and should be 0.
+		auto cd = read<uint8_t>(resp);
+
+		if (cd != SOCKS4_REQUEST_GRANTED)
+		{
+			switch (cd)
+			{
+			case SOCKS4_REQUEST_REJECTED_OR_FAILED:
+				ec = errc::socks_request_rejected_or_failed;
+				break;
+			case SOCKS4_CANNOT_CONNECT_TARGET_SERVER:
+				ec = errc::socks_request_rejected_cannot_connect;
+				break;
+			case SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW:
+				ec = errc::socks_request_rejected_incorrect_userid;
+				break;
+			default:
+				ec = errc::socks_unknown_error;
+				break;
+			}
+		}
+
+		co_return;
+	}
+
 	boost::asio::awaitable<boost::system::error_code>
 	async_socks_handshake(tcp::socket& socket, socks_client_option opt /*= {}*/)
 	{
@@ -310,7 +383,7 @@ namespace socks {
 		}
 		else if (opt.version == 4)
 		{
-
+			co_await do_socks4(socket, opt, ec);
 		}
 		else
 		{

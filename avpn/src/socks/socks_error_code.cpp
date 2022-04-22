@@ -12,9 +12,11 @@
 
 namespace socks {
 
-	boost::system::error_code errc::make_error_code(errc::errc_t e)
-	{
-		return boost::system::error_code(static_cast<int>(e), socks::error_category());
+	namespace errc {
+		boost::system::error_code make_error_code(errc_t e)
+		{
+			return boost::system::error_code(static_cast<int>(e), socks::error_category());
+		}
 	}
 
 	const char* error_category_impl::name() const BOOST_SYSTEM_NOEXCEPT
