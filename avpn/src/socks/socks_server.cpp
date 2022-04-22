@@ -14,7 +14,6 @@
 #include "utils/uawaitable.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/misc.hpp"
-#include "utils/io.hpp"
 #include "utils/async_connect.hpp"
 
 #include "vpncore/endpoint_pair.hpp"
@@ -23,10 +22,32 @@
 
 
 namespace socks {
+	namespace detail {
+
+		template<typename type, typename source>
+		type read(source& p)
+		{
+			type ret = 0;
+			for (std::size_t i = 0; i < sizeof(type); i++)
+				ret = (ret << 8) | (static_cast<unsigned char>(*p++));
+			return ret;
+		}
+
+		template<typename type, typename target>
+		void write(type v, target& p)
+		{
+			for (auto i = (int)sizeof(type) - 1; i >= 0; i--, p++)
+				*p = static_cast<unsigned char>((v >> (i * 8)) & 0xff);
+		}
+
+	} // detail
+
 	using namespace boost::asio::experimental::awaitable_operators;
-	using namespace stream_endian;
 	using namespace util;
 	using namespace boost::asio;
+
+	using detail::write;
+	using detail::read;
 
 	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server> server)
 		: m_local_socket(std::move(socket))
@@ -91,9 +112,10 @@ namespace socks {
 			LOG_ERR << "id: " << m_connection_id << ", read socks version: " << ec.message();
 			co_return;
 		}
+		BOOST_ASSERT(bytes == 2);
 
 		char* p = m_local_buffer.data();
-		int socks_version = read_int8(p);
+		int socks_version = read<uint8_t>(p);
 		if (socks_version == SOCKS_VERSION_5)
 		{
 			co_await socks_connect_v5();
@@ -112,9 +134,9 @@ namespace socks {
 	{
 		char* p = m_local_buffer.data();
 
-		auto socks_version = read_int8(p);
+		auto socks_version = read<int8_t>(p);
 		BOOST_ASSERT(socks_version == SOCKS_VERSION_5);
-		int nmethods = read_int8(p);
+		int nmethods = read<int8_t>(p);
 		if (nmethods <= 0 || nmethods > 255)
 		{
 			LOG_ERR << "id: " << m_connection_id << ", unsupported method : " << nmethods;
@@ -146,7 +168,7 @@ namespace socks {
 		bool support_auth = false;
 		while (bytes != 0)
 		{
-			int m = read_int8(p);
+			int m = read<int8_t>(p);
 
 			if (m == SOCKS5_AUTH_NONE || m == SOCKS5_AUTH)
 				method = m;
@@ -164,8 +186,8 @@ namespace socks {
 		{
 			// 回复客户端, 不接受客户端的的代理请求.
 			p = m_local_buffer.data();
-			write_int8(socks_version, p);
-			write_int8(SOCKS5_AUTH_UNACCEPTABLE, p);
+			write<uint8_t>(socks_version, p);
+			write<uint8_t>(SOCKS5_AUTH_UNACCEPTABLE, p);
 
 			method = SOCKS5_AUTH_UNACCEPTABLE;
 		}
@@ -173,8 +195,8 @@ namespace socks {
 		{
 			// 回复客户端, server所选择的代理方式.
 			p = m_local_buffer.data();
-			write_int8(socks_version, p);
-			write_int8(method, p);
+			write<uint8_t>(socks_version, p);
+			write<uint8_t>((uint8_t)method, p);
 		}
 
 		//  +----+--------+
@@ -224,16 +246,16 @@ namespace socks {
 		}
 
 		p = m_local_buffer.data();
-		auto ver = read_int8(p);
+		auto ver = read<int8_t>(p);
 		if (ver != SOCKS_VERSION_5)
 		{
 			LOG_WARN << "id: " << m_connection_id << ", socks requests, invalid protocol: " << ver;
 			co_return;
 		}
 
-		int command = read_int8(p);		// CONNECT/BIND/UDP
-		read_int8(p);					// reserved.
-		int atyp = read_int8(p);		// atyp.
+		int command = read<int8_t>(p);		// CONNECT/BIND/UDP
+		read<int8_t>(p);					// reserved.
+		int atyp = read<int8_t>(p);		// atyp.
 
 		//  +----+-----+-------+------+----------+----------+
 		//  |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
@@ -251,7 +273,7 @@ namespace socks {
 			length = 5; // 6 - 1
 		else if (atyp == SOCKS5_ATYP_DOMAINNAME)
 		{
-			length = read_uint8(p) + 2;
+			length = read<uint8_t>(p) + 2;
 			prefix = 0;
 		}
 		else if (atyp == SOCKS5_ATYP_IPV6)
@@ -277,8 +299,8 @@ namespace socks {
 		p = m_local_buffer.data();
 		if (atyp == SOCKS5_ATYP_IPV4)
 		{
-			dst_endpoint.address(boost::asio::ip::address_v4(read_uint32(p)));
-			dst_endpoint.port(read_uint16(p));
+			dst_endpoint.address(boost::asio::ip::address_v4(read<uint32_t>(p)));
+			dst_endpoint.port(read<uint16_t>(p));
 
 			LOG_DBG << "id: " << m_connection_id << ", " << m_local_socket.remote_endpoint() << " use ipv4: "
 				<< dst_endpoint;
@@ -297,8 +319,8 @@ namespace socks {
 		else if (atyp == SOCKS5_ATYP_DOMAINNAME)
 		{
 			for (int i = 0; i < bytes - 2; i++)
-				domain.push_back(read_int8(p));
-			port = read_uint16(p);
+				domain.push_back(read<int8_t>(p));
+			port = read<uint16_t>(p);
 			LOG_DBG << "id: " << m_connection_id << ", " << m_local_socket.remote_endpoint()
 				<< " use domain: " << domain << ":" << port;
 
@@ -336,11 +358,11 @@ namespace socks {
 			for (boost::asio::ip::address_v6::bytes_type::iterator i = addr.begin();
 				i != addr.end(); ++i)
 			{
-				*i = read_int8(p);
+				*i = read<int8_t>(p);
 			}
 
 			dst_endpoint.address(boost::asio::ip::address_v6(addr));
-			dst_endpoint.port(read_uint16(p));
+			dst_endpoint.port(read<uint16_t>(p));
 			LOG_DBG << "id: " << m_connection_id << ", "
 				<< m_local_socket.remote_endpoint() << " use ipv6: " << dst_endpoint;
 
@@ -374,38 +396,38 @@ namespace socks {
 			//  +----+-----+-------+------+----------+----------+
 			//  [                                               ]
 
-			char* p = m_local_buffer.data();
+			p = m_local_buffer.data();
 
-			write_int8(SOCKS_VERSION_5, p); // VER
-			write_int8(error_code, p);		// REP
-			write_int8(0x00, p);			// RSV
+			write<uint8_t>(SOCKS_VERSION_5, p); // VER
+			write<uint8_t>(error_code, p);		// REP
+			write<uint8_t>(0x00, p);			// RSV
 
 			if (dst_endpoint.address().is_v4())
 			{
-				write_int8(SOCKS5_ATYP_IPV4, p);
-				write_uint32(dst_endpoint.address().to_v4().to_ulong(), p);
-				write_uint16(dst_endpoint.port(), p);
+				write<uint8_t>(SOCKS5_ATYP_IPV4, p);
+				write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
+				write<uint16_t>(dst_endpoint.port(), p);
 			}
 			else if (dst_endpoint.address().is_v6())
 			{
-				write_int8(SOCKS5_ATYP_IPV6, p);
+				write<uint8_t>(SOCKS5_ATYP_IPV6, p);
 				auto data = dst_endpoint.address().to_v6().to_bytes();
 				for (auto c : data)
-					write_uint8(c, p);
-				write_uint16(dst_endpoint.port(), p);
+					write<uint8_t>(c, p);
+				write<uint16_t>(dst_endpoint.port(), p);
 			}
 			else if (!domain.empty())
 			{
-				write_int8(SOCKS5_ATYP_DOMAINNAME, p);
-				write_int8(static_cast<int8_t>(domain.size()), p);
-				write_string(domain, p);
-				write_uint16(port, p);
+				write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, p);
+				write<uint8_t>(static_cast<int8_t>(domain.size()), p);
+				std::copy(domain.begin(), domain.end(), p);
+				write<uint16_t>(port, p);
 			}
 			else
 			{
-				write_int8(0x1, p);
-				write_uint32(0, p);
-				write_uint16(0, p);
+				write<uint8_t>(0x1, p);
+				write<uint32_t>(0, p);
+				write<uint16_t>(0, p);
 			}
 
 			bytes = co_await boost::asio::async_write(m_local_socket,
@@ -447,9 +469,9 @@ namespace socks {
 	{
 		char* p = m_local_buffer.data();
 
-		auto socks_version = read_int8(p);
+		auto socks_version = read<int8_t>(p);
 		BOOST_ASSERT(socks_version == SOCKS_VERSION_4);
-		auto command = read_int8(p);
+		auto command = read<int8_t>(p);
 
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
 		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
@@ -472,9 +494,9 @@ namespace socks {
 		tcp::endpoint dst_endpoint;
 		p = m_local_buffer.data();
 
-		auto port = read_uint16(p);
+		auto port = read<uint16_t>(p);
 		dst_endpoint.port(port);
-		dst_endpoint.address(boost::asio::ip::address_v4(read_uint32(p)));
+		dst_endpoint.address(boost::asio::ip::address_v4(read<uint32_t>(p)));
 
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
 		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
@@ -519,11 +541,11 @@ namespace socks {
 			//  [                                       ]
 
 			p = m_local_buffer.data();
-			write_int8(0, p);
-			write_int8(SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW, p);
+			write<uint8_t>(0, p);
+			write<uint8_t>(SOCKS4_REQUEST_REJECTED_USER_NO_ALLOW, p);
 
-			write_uint16(dst_endpoint.port(), p);
-			write_uint32(dst_endpoint.address().to_v4().to_ulong(), p);
+			write<uint16_t>(dst_endpoint.port(), p);
+			write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
 
 			bytes = co_await boost::asio::async_write(m_local_socket,
 				boost::asio::buffer(m_local_buffer, 8),
@@ -565,12 +587,12 @@ namespace socks {
 		//  +----+----+----+----+----+----+----+----+
 		//  [                                       ]
 		p = m_local_buffer.data();
-		write_int8(0, p);
-		write_int8(error_code, p);
+		write<uint8_t>(0, p);
+		write<uint8_t>((uint8_t)error_code, p);
 
 		// 返回IP:PORT.
-		write_uint16(dst_endpoint.port(), p);
-		write_uint32(dst_endpoint.address().to_v4().to_ulong(), p);
+		write<uint16_t>(dst_endpoint.port(), p);
+		write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
 
 		bytes = co_await boost::asio::async_write(m_local_socket,
 			boost::asio::buffer(m_local_buffer, 8),
@@ -618,13 +640,13 @@ namespace socks {
 		}
 
 		auto p = m_local_buffer.data();
-		int auth_version = read_int8(p);
+		int auth_version = read<int8_t>(p);
 		if (auth_version != 1)
 		{
 			LOG_WARN << "id: " << m_connection_id << ", socks negotiation, unsupported socks5 protocol";
 			co_return false;
 		}
-		int name_length = read_uint8(p);
+		int name_length = read<uint8_t>(p);
 		if (name_length <= 0 || name_length > 255)
 		{
 			LOG_WARN << "id: " << m_connection_id << ", socks negotiation, invalid name length";
@@ -653,9 +675,9 @@ namespace socks {
 
 		p = m_local_buffer.data();
 		for (int i = 0; i < bytes - 1; i++)
-			uname.push_back(read_int8(p));
+			uname.push_back(read<int8_t>(p));
 
-		int passwd_len = read_uint8(p);
+		int passwd_len = read<uint8_t>(p);
 		if (passwd_len <= 0 || passwd_len > 255)
 		{
 			LOG_WARN << "id: " << m_connection_id << ", socks negotiation, invalid passwd length";
@@ -683,7 +705,7 @@ namespace socks {
 
 		p = m_local_buffer.data();
 		for (int i = 0; i < bytes; i++)
-			passwd.push_back(read_int8(p));
+			passwd.push_back(read<int8_t>(p));
 
 		// SOCKS5验证用户和密码.
 		auto endp = m_local_socket.remote_endpoint();
@@ -701,14 +723,14 @@ namespace socks {
 		}
 
 		p = m_local_buffer.data();
-		write_int8(0x01, p);			// version 只能是1.
+		write<uint8_t>(0x01, p);			// version 只能是1.
 		if (verify_passed)
 		{
-			write_int8(0x00, p);		// 认证通过返回0x00, 其它值为失败.
+			write<uint8_t>(0x00, p);		// 认证通过返回0x00, 其它值为失败.
 		}
 		else
 		{
-			write_int8(0x01, p);		// 认证返回0x01为失败.
+			write<uint8_t>(0x01, p);		// 认证返回0x01为失败.
 		}
 
 		// 返回认证状态.
