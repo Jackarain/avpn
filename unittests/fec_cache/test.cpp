@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(fec_cache_test)
 			}
 
 			// 模拟接收到数据.
-			fc.update(gid, pid, data_shards, parity_shards, 1450, (uint8_t*)s.data(), s.size());
+			fc.update(gid, (uint16_t)pid, data_shards, parity_shards, 1450, (uint8_t*)s.data(), s.size());
 
 			// 先清理一下垃圾.
 			clean_garbage_total += fc.garbage_clean();
@@ -126,5 +126,5 @@ BOOST_AUTO_TEST_CASE(fec_cache_test)
 	BOOST_TEST_MESSAGE("total_cache_size: " << fc.total_cache_size_);
 	BOOST_TEST_MESSAGE("clean_garbage_total: " << clean_garbage_total);
 
-	BOOST_TEST(remainder == fc.total_cache_size_);
+	BOOST_TEST((int64_t)remainder == fc.total_cache_size_);
 }
