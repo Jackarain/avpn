@@ -105,7 +105,7 @@ namespace socks {
 
 		boost::system::error_code ec;
 
-		auto bytes = co_await boost::asio::async_read(m_local_socket,
+		[[maybe_unused]] auto bytes = co_await boost::asio::async_read(m_local_socket,
 			boost::asio::buffer(m_local_buffer),
 				boost::asio::transfer_exactly(2),
 					uawaitable[ec]);

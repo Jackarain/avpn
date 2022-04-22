@@ -114,7 +114,7 @@ namespace fec {
 					gid_, gsize_, total_, ds_, ps_);
 				fileop::write(std::format("ds{}.param", gid_), params);
 
-				for (auto i = 0; i < all_size; i++)
+				for (size_t i = 0; i < all_size; i++)
 				{
 					auto& d = buffer[i];
 					fileop::write(std::format("ds{}-{}.dat", gid_, i), d);
