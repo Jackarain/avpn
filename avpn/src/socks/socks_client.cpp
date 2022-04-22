@@ -99,7 +99,7 @@ namespace socks {
 
 			request.consume(request.size());
 
-			std::size_t bytes_to_write = username.size() + passwd.size() + 3;
+			bytes_to_write = username.size() + passwd.size() + 3;
 			auto auth = static_cast<char*>(request.prepare(bytes_to_write).data());
 
 			write<uint8_t>(0x01, auth);								// auth version.
@@ -198,8 +198,8 @@ namespace socks {
 			else
 			{
 				write<uint8_t>(SOCKS5_ATYP_IPV6, req); // ipv6.
-				auto bytes = endp.to_v6().to_bytes();
-				std::copy(bytes.begin(), bytes.end(), req);
+				auto v6_bytes = endp.to_v6().to_bytes();
+				std::copy(v6_bytes.begin(), v6_bytes.end(), req);
 				req += 16;
 				write<uint16_t>(port, req);
 				bytes_to_write = 22;
@@ -267,7 +267,7 @@ namespace socks {
 			std::string domain;
 			for (int i = 0; i < domain_length; i++)
 				domain.push_back(read<uint8_t>(resp));
-			auto port = read<uint16_t>(resp);
+			port = read<uint16_t>(resp);
 
 			// std::cout << "* SOCKS remote host: " << domain << ":" << port << std::endl;
 		}
@@ -282,12 +282,12 @@ namespace socks {
 		}
 		else if (atyp == SOCKS5_ATYP_IPV6)
 		{
-			net::ip::address_v6::bytes_type bytes;
+			net::ip::address_v6::bytes_type v6_bytes;
 			for (auto i = 0; i < 16; i++)
-				bytes[i] = read<uint8_t>(resp);
+				v6_bytes[i] = read<uint8_t>(resp);
 
 			net::ip::tcp::endpoint remote_endp(
-				net::ip::address_v6(bytes),
+				net::ip::address_v6(v6_bytes),
 				read<uint16_t>(resp));
 
 			// std::cout << "* SOCKS remote host: " << remote_endp.address().to_string()
