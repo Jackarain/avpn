@@ -114,7 +114,7 @@ namespace avpn {
 		while (!m_abort)
 		{
 			auto& content = msg.content_;
-			content.resize(128 * 1024);
+			content.resize(4 * 1024);
 
 			auto bytes = co_await m_tuntap.async_read_some(
 				boost::asio::buffer(content), uawaitable[ec]);
