@@ -162,7 +162,7 @@ namespace avpn
 
 	bool operator<(const vpn_connection_ptr& lh, const vpn_connection_ptr& rh)
 	{
-		if (lh < rh)
+		if (lh.get() < rh.get())
 			return true;
 		return false;
 	}
