@@ -10,7 +10,6 @@
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/streambuf.hpp>
-#include <boost/asio/spawn.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/post.hpp>

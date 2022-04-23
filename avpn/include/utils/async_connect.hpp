@@ -99,7 +99,7 @@ namespace asio_util {
 				if (cs.is_connected())
 				{
 					boost::weak_ptr<connect_context<Stream, Handler>> weak_ptr = context;
-					cs.assign([weak_ptr, &stream](boost::asio::cancellation_type_t) mutable
+					cs.assign([weak_ptr](boost::asio::cancellation_type_t) mutable
 					{
 						auto context = weak_ptr.lock();
 						if (!context)

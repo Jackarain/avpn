@@ -1318,7 +1318,7 @@ namespace avpn
 
 		// 作为客户端时, 每隔keepalive时间发送keepavlie消息.
 		boost::asio::co_spawn(m_main_ioc.get_executor(),
-			[this, check_clients = std::move(check_clients)]() mutable->boost::asio::awaitable<void>
+			[check_clients = std::move(check_clients)]() mutable->boost::asio::awaitable<void>
 			{
 				co_await check_clients();
 				co_return;
