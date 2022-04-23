@@ -7,15 +7,21 @@
 
 #pragma once
 
-#include "boost/asio/ip/network_v4.hpp"
-#include "boost/asio/io_context.hpp"
-#include "boost/asio/strand.hpp"
-#include "boost/asio/windows/object_handle.hpp"
+#include "utils/logging.hpp"
+#include "utils/scoped_exit.hpp"
 
-#include "boost/throw_exception.hpp"
-#include "boost/nowide/convert.hpp"
+#include "vpncore/tuntap_config.hpp"
+#include "vpncore/endpoint_pair.hpp"
 
-#include "boost/algorithm/string/trim.hpp"
+#include <boost/asio/ip/network_v4.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/strand.hpp>
+#include <boost/asio/windows/object_handle.hpp>
+
+#include <boost/throw_exception.hpp>
+#include <boost/nowide/convert.hpp>
+
+#include <boost/algorithm/string/trim.hpp>
 
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64) || defined(WIN64)
 
@@ -54,12 +60,6 @@
 #include <memory>
 #include <span>
 #include <condition_variable>
-
-#include "vpncore/tuntap_config.hpp"
-#include "vpncore/endpoint_pair.hpp"
-
-#include "utils/scoped_exit.hpp"
-#include "utils/logging.hpp"
 
 extern "C" {
 #include "ring_buffer.h"

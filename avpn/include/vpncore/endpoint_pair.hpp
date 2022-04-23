@@ -9,11 +9,14 @@
 //
 
 #pragma once
-#include <iostream>
+
+#include "utils/logging.hpp"
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/container_hash/hash.hpp>
+
+#include <iostream>
 
 #if defined(__cpp_lib_format)
 #	include <format>
@@ -47,8 +50,6 @@ namespace std {
 #	pragma warning(pop)
 #endif
 #endif
-
-#include "utils/logging.hpp"
 
 namespace avpn {
 

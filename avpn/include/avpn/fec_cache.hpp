@@ -7,6 +7,16 @@
 
 #pragma once
 
+#include "utils/scoped_exit.hpp"
+#include "utils/bitfield.hpp"
+#include "utils/time_clock.hpp"
+#include "utils/io.hpp"
+#include "utils/logging.hpp"
+#include "utils/misc.hpp"
+#include "utils/fileop.hpp"
+
+#include "avpn/reedsolomon.hpp"
+
 #include <boost/assert.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/beast/core/multi_buffer.hpp>
@@ -19,15 +29,6 @@
 #include <set>
 #include <map>
 
-#include "utils/scoped_exit.hpp"
-#include "utils/bitfield.hpp"
-#include "utils/time_clock.hpp"
-#include "utils/io.hpp"
-#include "utils/logging.hpp"
-#include "utils/misc.hpp"
-#include "utils/fileop.hpp"
-
-#include "avpn/reedsolomon.hpp"
 
 namespace fec {
 

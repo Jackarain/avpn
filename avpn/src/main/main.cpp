@@ -10,6 +10,17 @@
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#include "avpn/version.hpp"
+#include "avpn/avpn.hpp"
+#include "avpn/reedsolomon.hpp"
+#include "avpn/controller.hpp"
+
+#include "utils/io_context_pool.hpp"
+#include "utils/fileop.hpp"
+#include "utils/misc.hpp"
+#include "socks/socks_server.hpp"
+#include "socks/socks_client.hpp"
+
 #include <iostream>
 #include <iterator>
 #include <algorithm>
@@ -56,19 +67,6 @@ bool g_avpn_windows_lean_mean = false;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
-#include "avpn/version.hpp"
-#include "avpn/avpn.hpp"
-#include "avpn/reedsolomon.hpp"
-#include "avpn/controller.hpp"
-
-#include "utils/io_context_pool.hpp"
-#include "utils/fileop.hpp"
-#include "utils/misc.hpp"
-#include "socks/socks_server.hpp"
-#include "socks/socks_client.hpp"
-
-#include <boost/asio/experimental/promise.hpp>
-#include <boost/asio/bind_cancellation_slot.hpp>
 
 int platform_init()
 {

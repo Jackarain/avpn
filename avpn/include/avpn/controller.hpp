@@ -5,6 +5,11 @@
 // Email:  jack.wgm at gmail dot com
 //
 
+#include "utils/misc.hpp"
+#include "utils/uawaitable.hpp"
+
+#include "avpn/avpn.hpp"
+
 #include <functional>
 #include <cstring> // for std::memcpy
 
@@ -18,10 +23,6 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
-#include "utils/misc.hpp"
-#include "utils/uawaitable.hpp"
-
-#include "avpn/avpn.hpp"
 
 namespace avpn {
 

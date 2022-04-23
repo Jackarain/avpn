@@ -5,14 +5,13 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#include <iterator>
-#include <string>
-#include <regex>
-
+#include "avpn/controller.hpp"
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
-#include "avpn/controller.hpp"
+#include <iterator>
+#include <string>
+#include <regex>
 
 namespace avpn {
 	static std::string controller_server_host = "127.0.0.1";

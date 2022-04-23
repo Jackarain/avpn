@@ -5,6 +5,11 @@
 // Email:  jack.wgm at gmail dot com
 //
 
+#include "utils/misc.hpp"
+#include "utils/logging.hpp"
+#include "utils/scoped_exit.hpp"
+#include "utils/fileop.hpp"
+
 #include <iostream>
 #include <iterator>
 #include <algorithm>
@@ -66,10 +71,6 @@
 
 #include <boost/date_time/c_local_time_adjustor.hpp>
 
-#include "utils/misc.hpp"
-#include "utils/logging.hpp"
-#include "utils/scoped_exit.hpp"
-
 #ifndef _MSC_VER
 #	pragma GCC diagnostic push
 #	pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -91,8 +92,6 @@
 #ifdef _MSC_VER
 #	pragma warning(disable: 4191)
 #endif // _MSC_VER
-
-#include "utils/fileop.hpp"
 
 namespace fs = std::filesystem;
 

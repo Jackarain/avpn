@@ -7,14 +7,14 @@
 
 #pragma once
 
+#include "utils/xxhash.hpp"
+
 #include <cstddef>
 #include <string>
 #include <string_view>
 #include <random>
 #include <span>
 #include <limits>
-
-#include "utils/xxhash.hpp"
 
 
 namespace crypto_util {

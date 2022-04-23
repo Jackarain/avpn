@@ -7,14 +7,17 @@
 
 #pragma once
 
-#include "boost/asio/ip/network_v4.hpp"
-#include "boost/asio/io_context.hpp"
-#include "boost/asio/stream_file.hpp"
+#include "utils/logging.hpp"
+#include "vpncore/tuntap_config.hpp"
 
-#include "boost/throw_exception.hpp"
-#include "boost/nowide/convert.hpp"
+#include <boost/asio/ip/network_v4.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/stream_file.hpp>
 
-#include "boost/algorithm/string/trim.hpp"
+#include <boost/throw_exception.hpp>
+#include <boost/nowide/convert.hpp>
+
+#include <boost/algorithm/string/trim.hpp>
 
 #if defined(WIN32) || defined(_WIN32) || defined(_WIN64) || defined(WIN64)
 
@@ -66,9 +69,6 @@
 #define TAP_IOCTL_CONFIG_TUN            TAP_CONTROL_CODE(10, METHOD_BUFFERED)
 
 #endif // !TUNTAP_IOCTL_DEFINED
-
-#include "vpncore/tuntap_config.hpp"
-#include "utils/logging.hpp"
 
 namespace avpn {
 

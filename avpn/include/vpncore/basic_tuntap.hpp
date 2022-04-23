@@ -6,13 +6,15 @@
 //
 
 #pragma once
+
+#include "vpncore/tuntap_config.hpp"
+
 #include <string>
 #include <vector>
 #include <memory>
 
 #include <boost/asio.hpp>
 
-#include "vpncore/tuntap_config.hpp"
 
 namespace avpn {
 
