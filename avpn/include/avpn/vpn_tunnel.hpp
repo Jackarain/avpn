@@ -451,6 +451,11 @@ namespace avpn {
 		// 超时的udp_socket.
 		struct udp_socket
 		{
+			udp_socket(time_point now, udp::socket&& sock)
+				: last_see_(now)
+				, sock_(std::move(sock))
+			{}
+
 			time_point last_see_;
 			udp::socket sock_;
 		};
