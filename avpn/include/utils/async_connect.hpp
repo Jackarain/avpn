@@ -18,6 +18,7 @@
 
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
+#include <boost/smart_ptr/weak_ptr.hpp>
 
 #include <iterator>
 #include <atomic>

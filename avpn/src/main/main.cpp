@@ -410,9 +410,11 @@ int main(int argc, char** argv)
 		opt.passwd_ = socks_passwd;
 		opt.bind_addr_ = socks_interface;
 
-		socks_servers.emplace_back(
-			std::make_shared<socks::socks_server>(
-				ios.get_io_context(), endp, opt));
+		auto server = std::make_shared<socks::socks_server>(
+			ios.get_io_context(), endp, opt);
+		server->open();
+
+		socks_servers.emplace_back(std::move(server));
 	}
 
 	if (controller_port == -1)

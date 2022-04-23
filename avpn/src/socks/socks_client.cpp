@@ -10,7 +10,6 @@
 
 #include "socks/socks_client.hpp"
 #include "socks/socks_enums.hpp"
-
 #include "utils/uawaitable.hpp"
 
 #include <cstdlib>

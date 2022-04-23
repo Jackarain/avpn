@@ -8,6 +8,8 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#include "utils/logging.hpp"
+
 #include <memory>
 #include <string>
 #include <array>
@@ -17,8 +19,6 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
-
-#include "utils/logging.hpp"
 
 namespace socks {
 
@@ -77,16 +77,21 @@ namespace socks {
 		socks_server(const socks_server&) = delete;
 		socks_server& operator=(const socks_server&) = delete;
 
+		friend class socks_session;
+
 	public:
 		socks_server(boost::asio::io_context& ioc,
 			const tcp::endpoint& endp, socks_server_option opt = {});
 		~socks_server() = default;
 
 	public:
+		void open();
 		void close();
 
+	private:
 		void remove_client(size_t id);
-		bool do_auth(const std::string& userid, const std::string& passwd);
+		bool do_auth(const std::string& userid,
+			const std::string& passwd, int version = 5);
 		bool auth_require();
 
 	private:
