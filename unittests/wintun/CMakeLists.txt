@@ -48,5 +48,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME tun_tests COMMAND wintun_tests)
+add_test (NAME wintun_tests COMMAND wintun_tests)
 set_target_properties(wintun_tests PROPERTIES FOLDER "AVPN tests")

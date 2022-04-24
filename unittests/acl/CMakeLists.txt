@@ -48,5 +48,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME tun_tests COMMAND acl_tests)
+add_test (NAME acl_tests COMMAND acl_tests)
 set_target_properties(acl_tests PROPERTIES FOLDER "AVPN tests")

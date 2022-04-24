@@ -48,5 +48,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME rs_tests COMMAND reedsolomon_tests)
+add_test (NAME reedsolomon_tests COMMAND reedsolomon_tests)
 set_target_properties(reedsolomon_tests PROPERTIES FOLDER "AVPN tests")

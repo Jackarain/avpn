@@ -47,5 +47,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME fec_tests COMMAND fec_cache_tests)
+add_test (NAME fec_cache_tests COMMAND fec_cache_tests)
 set_target_properties(fec_cache_tests PROPERTIES FOLDER "AVPN tests")

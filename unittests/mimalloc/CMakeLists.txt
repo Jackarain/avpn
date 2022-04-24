@@ -48,5 +48,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME fec_tests COMMAND mimalloc_tests)
+add_test (NAME mimalloc_tests COMMAND mimalloc_tests)
 set_target_properties(mimalloc_tests PROPERTIES FOLDER "AVPN tests")
