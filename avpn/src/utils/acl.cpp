@@ -37,7 +37,7 @@ namespace acl_util {
 		lpm_hmap_t	prefix[LPM_MAX_PREFIX + 1];
 	};
 
-	static const uint32_t zero_address[LPM_MAX_WORDS];
+	static const uint32_t zero_address[LPM_MAX_WORDS] = {0};
 	typedef void (*lpm_dtor_t)(void*, const void*, size_t, void*);
 
 	template <typename Integral>
@@ -128,7 +128,7 @@ namespace acl_util {
 		return true;
 	}
 
-	static lpm_ent_t* hashmap_insert(lpm_hmap_t* hmap, const void* key, size_t len)
+	static lpm_ent_t* hashmap_insert(lpm_hmap_t* hmap, const void* key, const size_t len)
 	{
 		const unsigned target = hmap->nitems + LPM_HASH_STEP;
 		const size_t entlen = offsetof(lpm_ent_t, key[len]);
