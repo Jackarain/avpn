@@ -36,4 +36,14 @@ BOOST_AUTO_TEST_CASE(acl_test)
 		addr = boost::asio::ip::address_v4::from_string("10.0.0.2");
 		target = table.lookup(addr);
 		BOOST_TEST(target == (void*)0);
+
+		auto v6addr = boost::asio::ip::address_v6::from_string("abcd::");
+		boost::asio::ip::network_v6 v6net(v6addr, 16);
+
+		tag = (acl_util::lpm_tag)0xb;
+		table.insert(v6net, tag);
+
+		v6addr = boost::asio::ip::address_v6::from_string("abcd:0000::abcd");
+		target = table.lookup(v6addr);
+		BOOST_TEST(target == (void*)0xb);
 }

@@ -131,7 +131,7 @@ namespace acl_util {
 	static lpm_ent_t* hashmap_insert(lpm_hmap_t* hmap, const void* key, const size_t len)
 	{
 		const unsigned target = hmap->nitems + LPM_HASH_STEP;
-		const size_t entlen = offsetof(lpm_ent_t, key[len]);
+		const size_t entlen = offsetof(lpm_ent_t, key) + len;
 		uint32_t hash, i;
 		lpm_ent_t* entry;
 
