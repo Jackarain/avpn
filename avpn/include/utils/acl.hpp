@@ -38,7 +38,7 @@ namespace acl_util {
 		template<typename AddrType>
 		bool insert(const AddrType& addr, lpm_tag target)
 		{
-			constexpr bool always_true = true;
+			constexpr bool _always_false = true;
 
 			using at = std::decay_t<AddrType>;
 			if constexpr (std::is_same_v<at, net::ip::network_v4>)
@@ -46,7 +46,7 @@ namespace acl_util {
 			else if constexpr (std::is_same_v<at, net::ip::network_v6>)
 				return v6_insert(addr, target);
 			else
-				static_assert(always_true, "address type invalid");
+				static_assert(_always_false, "address type invalid");
 		}
 
 		lpm_tag lookup(const net::ip::address& addr);
