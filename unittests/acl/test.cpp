@@ -15,23 +15,50 @@
 #endif // USE_MIMALLOC
 
 #include <boost/test/included/unit_test.hpp>
+#include <boost/algorithm/string/regex.hpp>
+#include <boost/algorithm/string.hpp>
+
 #include <cstdlib>
 #include <ctime>
+#include <vector>
+#include <string>
+#include <string_view>
 
 #include "utils/acl.hpp"
+#include "CN-ip-cidr.txt.hpp"
+#include "chnroute.txt.hpp"
+
+std::vector<boost::asio::ip::network_v4> load_cn_ip()
+{
+	std::vector<boost::asio::ip::network_v4> result;
+	std::vector<std::string_view> lines;
+
+	std::string_view sv((char*)&chnroute_txt[0], chnroute_txt_len);
+	boost::split(lines, sv, boost::is_any_of("\n"));
+
+	for (auto& s : lines)
+	{
+		if (!s.empty())
+			result.emplace_back(boost::asio::ip::make_network_v4(s));
+	}
+
+	return result;
+}
 
 BOOST_AUTO_TEST_CASE(acl_test)
 {
-		auto addr = boost::asio::ip::address_v4::from_string("36.128.0.0");
-		boost::asio::ip::network_v4 net(addr, 10);
 		acl_util::lpm_table table;
 		acl_util::lpm_tag tag((void*)0xa);
 
-		table.insert(net, tag);
+		{
+			auto nets = load_cn_ip();
+			for (auto& net : nets)
+				table.insert(net, tag);
+		}
 
-		addr = boost::asio::ip::address_v4::from_string("36.129.0.0");
+		auto addr = boost::asio::ip::address_v4::from_string("36.129.0.0");
 		auto target = table.lookup(addr);
-		BOOST_TEST(target == (void*)0xa);
+		BOOST_TEST(target == tag);
 
 		addr = boost::asio::ip::address_v4::from_string("10.0.0.2");
 		target = table.lookup(addr);

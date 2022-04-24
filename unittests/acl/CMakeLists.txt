@@ -1,5 +1,6 @@
 ﻿
 file(GLOB acl_SRCS
+	*.hpp
 	*.cpp
 )
 
