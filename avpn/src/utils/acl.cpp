@@ -38,6 +38,7 @@ namespace acl_util {
 	};
 
 	static const uint32_t zero_address[LPM_MAX_WORDS];
+	typedef void (*lpm_dtor_t)(void*, const void*, size_t, void*);
 
 	template <typename Integral>
 	static inline unsigned ffs_template(Integral x) {
@@ -179,6 +180,41 @@ namespace acl_util {
 		return NULL;
 	}
 
+	void lpm_clear(lpm* p, lpm_dtor_t dtor, void* arg)
+	{
+		for (unsigned n = 0; n <= LPM_MAX_PREFIX; n++) {
+			lpm_hmap_t* hmap = &p->prefix[n];
+
+			if (!hmap->hashsize) {
+				assert(!hmap->bucket);
+				continue;
+			}
+			for (unsigned i = 0; i < hmap->hashsize; i++) {
+				lpm_ent_t* entry = hmap->bucket[i];
+
+				while (entry) {
+					lpm_ent_t* next = entry->next;
+
+					if (dtor) {
+						dtor(arg, entry->key,
+							entry->len, entry->val);
+					}
+					free(entry);
+					entry = next;
+				}
+			}
+			free(hmap->bucket);
+			hmap->bucket = NULL;
+			hmap->hashsize = 0;
+			hmap->nitems = 0;
+		}
+		if (dtor) {
+			dtor(arg, zero_address, 4, p->defvals[0]);
+			dtor(arg, zero_address, 16, p->defvals[1]);
+		}
+		memset(p->bitmask, 0, sizeof(p->bitmask));
+		memset(p->defvals, 0, sizeof(p->defvals));
+	}
 
 
 	lpm_table::lpm_table()
@@ -186,7 +222,9 @@ namespace acl_util {
 	{}
 
 	lpm_table::~lpm_table()
-	{}
+	{
+		lpm_clear(m_lpm.get(), NULL, NULL);
+	}
 
 	bool lpm_table::v4_insert(const net::ip::network_v4& addr, lpm_tag target)
 	{
