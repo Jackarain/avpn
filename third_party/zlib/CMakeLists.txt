@@ -6,7 +6,11 @@ project(zlib C)
 set(VERSION "1.2.11")
 
 option(ASM686 "Enable building i686 assembly implementation" OFF)
-option(AMD64 "Enable building amd64 assembly implementation" ON)		# default on for msvc.
+option(AMD64 "Enable building amd64 assembly implementation" OFF)
+
+if (MSVC)
+	set(AMD64 ON CACHE BOOL "" FORCE)		# default on for msvc.
+endif()
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
