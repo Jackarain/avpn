@@ -46,14 +46,31 @@ namespace acl_util {
 			else if constexpr (std::is_same_v<at, net::ip::network_v6>)
 				return v6_insert(addr, target);
 			else
-				static_assert(_always_false, "address type invalid");
+				static_assert(_always_false, "insert address type invalid");
 		}
 
 		lpm_tag lookup(const net::ip::address& addr);
 
+		template<typename AddrType>
+		bool remove(const AddrType& addr)
+		{
+			constexpr bool _always_false = true;
+
+			using at = std::decay_t<AddrType>;
+			if constexpr (std::is_same_v<at, net::ip::network_v4>)
+				return v4_remove(addr);
+			else if constexpr (std::is_same_v<at, net::ip::network_v6>)
+				return v6_remove(addr);
+			else
+				static_assert(_always_false, "remove address type invalid");
+		}
+
 	private:
 		bool v4_insert(const net::ip::network_v4& addr, lpm_tag target);
 		bool v6_insert(const net::ip::network_v6& addr, lpm_tag target);
+
+		bool v4_remove(const net::ip::network_v4& addr);
+		bool v6_remove(const net::ip::network_v6& addr);
 
 	private:
 		std::unique_ptr<lpm> m_lpm;

@@ -180,6 +180,52 @@ namespace acl_util {
 		return NULL;
 	}
 
+	static int hashmap_remove(lpm_hmap_t* hmap, const void* key, size_t len)
+	{
+		const uint32_t hash = fnv1a_hash(key, len);
+		const unsigned i = hash & (hmap->hashsize - 1);
+		lpm_ent_t* prev = NULL, * entry;
+
+		if (hmap->hashsize == 0) {
+			return -1;
+		}
+		entry = hmap->bucket[i];
+
+		while (entry) {
+			if (entry->len == len && memcmp(entry->key, key, len) == 0) {
+				if (prev) {
+					prev->next = entry->next;
+				}
+				else {
+					hmap->bucket[i] = entry->next;
+				}
+				free(entry);
+				return 0;
+			}
+			prev = entry;
+			entry = entry->next;
+		}
+		return -1;
+	}
+
+	/*
+	 * lpm_remove: remove the specified prefix.
+	 */
+	int lpm_remove(lpm* p, const void* addr, size_t len, unsigned preflen)
+	{
+		const unsigned nwords = (unsigned)LPM_TO_WORDS(len);
+		std::vector<uint32_t> prefix(nwords, 0);
+		assert(len == 4 || len == 16);
+
+		if (preflen == 0) {
+			p->defvals[LPM_LEN_IDX(len)] = NULL;
+			return 0;
+		}
+		compute_prefix(nwords, (const uint32_t*) addr, preflen, &prefix[0]);
+		return hashmap_remove(&p->prefix[preflen], &prefix[0], len);
+	}
+
+
 	void lpm_clear(lpm* p, lpm_dtor_t dtor, void* arg)
 	{
 		for (unsigned n = 0; n <= LPM_MAX_PREFIX; n++) {
@@ -280,6 +326,26 @@ namespace acl_util {
 		}
 
 		return false;
+	}
+
+	bool lpm_table::v4_remove(const net::ip::network_v4& addr)
+	{
+		const int len = 4;
+		auto int_addr = addr.address().to_uint();
+		int ret = lpm_remove(m_lpm.get(), (const void*)&int_addr, len, addr.prefix_length());
+		if (ret != 0)
+			return false;
+		return true;
+	}
+
+	bool lpm_table::v6_remove(const net::ip::network_v6& addr)
+	{
+		const int len = 16;
+		auto byte_addr = addr.address().to_bytes();
+		int ret = lpm_remove(m_lpm.get(), (const void*)&byte_addr[0], len, addr.prefix_length());
+		if (ret != 0)
+			return false;
+		return true;
 	}
 
 	lpm_tag lpm_table::lookup(const net::ip::address& addr)
