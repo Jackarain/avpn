@@ -99,19 +99,31 @@ BOOST_AUTO_TEST_CASE(dh_keyexchange_test)
 
 BOOST_AUTO_TEST_CASE(stream_crypto_test)
 {
-	crypto_util::stream_crypto encrypto("aa1122!@#0a");
-
 	std::string origin = "The quick brown fox jumps over the lazy dog";
 	std::string content = origin;
 
-	encrypto.perform(std::as_writable_bytes(std::span{ content }));
-	std::string encotent = content;
+	crypto_util::stream_crypto enc1("aa1122!@#0a");
+	enc1.perform(std::as_writable_bytes(std::span{ content }));
+	std::string encoded = content;
 
-	crypto_util::stream_crypto decrypto("aa1122!@#0a");
-	decrypto.perform(std::as_writable_bytes(std::span{ content }));
+	crypto_util::stream_crypto dec1("aa1122!@#0a");
+	dec1.perform(std::as_writable_bytes(std::span{ content }));
+	BOOST_TEST(origin == content);
 
-	crypto_util::stream_crypto decrypto2("aa1122*@#0a");
-	decrypto2.perform(std::as_writable_bytes(std::span{ encotent }));
+	crypto_util::stream_crypto dec2("11111111111");
+	dec2.perform(std::as_writable_bytes(std::span{ encoded }));
+	BOOST_TEST(origin != encoded);
 
-	BOOST_TEST(origin != encotent);
+	crypto_util::stream_crypto enc2("aa1122!@#0a");
+	auto h = enc2.aead_encrypt(std::as_writable_bytes(std::span{ content }));
+	encoded = content;
+
+	crypto_util::stream_crypto dec3("aa1122!@#0a");
+	auto r1 = dec3.aead_decrypt(std::as_writable_bytes(std::span{ content }), h);
+	BOOST_TEST(r1 == true);
+	BOOST_TEST(content == origin);
+
+	crypto_util::stream_crypto dec4("11111111111");
+	auto r2 = dec3.aead_decrypt(std::as_writable_bytes(std::span{ encoded }), h);
+	BOOST_TEST(r2 == false);
 }
