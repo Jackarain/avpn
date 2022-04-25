@@ -184,6 +184,33 @@ namespace crypto_util {
 				c = c ^ static_cast<std::byte>(m_distribution(rng));
 		}
 
+		uint32_t aead_encrypt(std::span<std::byte> content)
+		{
+			const char* p = reinterpret_cast<const char*>(content.data());
+			uint32_t hash = XXH32(p, content.size_bytes(), 0);
+
+			CSPRNG rng(m_mt19937);
+			for (auto& c : content)
+				c = c ^ static_cast<std::byte>(m_distribution(rng));
+
+			return hash;
+		}
+
+		bool aead_decrypt(std::span<std::byte> content, uint32_t hash)
+		{
+			CSPRNG rng(m_mt19937);
+			for (auto& c : content)
+				c = c ^ static_cast<std::byte>(m_distribution(rng));
+
+			const char* p = reinterpret_cast<const char*>(content.data());
+			uint32_t h = XXH32(p, content.size_bytes(), 0);
+
+			if (hash != h)
+				return false;
+
+			return true;
+		}
+
 	private:
 		std::seed_seq m_seed;
 		std::mt19937 m_mt19937;
