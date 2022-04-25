@@ -47,7 +47,7 @@ namespace crypto_util {
 			CSPRNG& operator=(const CSPRNG&) = delete;
 
 		public:
-			using result_type = uint64_t;
+			using result_type = uint32_t;
 
 			CSPRNG(std::mt19937& mt);
 			~CSPRNG() = default;
