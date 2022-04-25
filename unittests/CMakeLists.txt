@@ -10,6 +10,7 @@ add_subdirectory(fec_cache)
 add_subdirectory(reedsolomon)
 add_subdirectory(mimalloc)
 add_subdirectory(acl)
+add_subdirectory(crypto)
 
 if (MSVC)
 	if (ENABLE_USE_WINTUN)
