@@ -26,7 +26,7 @@ namespace crypto_util {
 class dh_keyexchange
 {
 public:
-    dh_keyexchange()
+	dh_keyexchange(std::string_view static_private_key = {}, std::string_view static_public_key = {})
 		: p_("0xB10B8F96A080E01DDE92DE5EAE5D54EC52C99FBCFB06A3C6"
 			"9A6A9DCA52D23B616073E28675A23D189838EF1E2EE652C0"
 			"13ECB4AEA906112324975C3CD49B83BFACCBDD7D90C4BD70"
@@ -40,23 +40,46 @@ public:
 			"D662A4D18E73AFA32D779D5918D08BC8858F4DCEF97C2A24"
 			"855E6EEB22B3B2E5")
 		, q_("0xF518AA8781A8DF278ABA4E7D64B7CB9D49462353")
+        , dh2_(dh_)
 	{
 		CryptoPP::AutoSeededRandomPool prng;
 
 		dh_.AccessGroupParameters().Initialize(p_, q_, g_);
-		dh_.AccessGroupParameters().ValidateGroup(prng, 3);
+		dh_.GetGroupParameters().ValidateGroup(prng, 3);
 
-		privateKey_.resize(dh_.PrivateKeyLength());
-		publicKey_.resize(dh_.PublicKeyLength());
+        CryptoPP::DH2& dh2 = dh2_;
 
-		dh_.GenerateKeyPair(prng, privateKey_, publicKey_);
+		if (static_private_key.empty() || static_public_key.empty())
+		{
+			staticPrivateKey_.resize(dh2.StaticPrivateKeyLength());
+			staticPublicKey_.resize(dh2.StaticPublicKeyLength());
+
+			dh2.GenerateStaticKeyPair(prng, staticPrivateKey_, staticPublicKey_);
+		}
+		else
+		{
+			staticPrivateKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
+				static_private_key.data()), static_private_key.size());
+			staticPublicKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
+				static_public_key.data()), static_public_key.size());
+		}
+
+		ephemeralPrivateKey_.resize(dh2.EphemeralPrivateKeyLength());
+		ephemeralPublicKey_.resize(dh2.EphemeralPublicKeyLength());
+
+		dh2.GenerateEphemeralKeyPair(prng, ephemeralPrivateKey_, ephemeralPublicKey_);
 	}
     ~dh_keyexchange() = default;
 
 public:
-	std::string_view PublicKey()
+	std::string_view StaticPublicKey()
 	{
-		return { (char*)publicKey_.data(), publicKey_.size() };
+		return { (char*)staticPublicKey_.data(), staticPublicKey_.size() };
+	}
+
+	std::string_view EphemeralPublicKey()
+	{
+		return { (char*)ephemeralPublicKey_.data(), ephemeralPublicKey_.size() };
 	}
 
 	std::string_view GenerateSharedKey(std::string_view otherPubKey)
@@ -65,7 +88,22 @@ public:
 			reinterpret_cast<const CryptoPP::byte*>(otherPubKey.data()), otherPubKey.size());
 
 		shared_.resize(dh_.AgreedValueLength());
-		if (!dh_.Agree(shared_, privateKey_, pubKey))
+		if (!dh_.Agree(shared_, ephemeralPrivateKey_, pubKey))
+			return {};
+
+		return { (char*)shared_.data(), shared_.size() };
+	}
+
+	std::string_view GenerateSharedKey(std::string_view otherStaticPubKey, std::string_view otherEphemeralPubKey)
+	{
+		shared_.resize(dh2_.AgreedValueLength());
+
+		CryptoPP::SecByteBlock spubKey(
+			reinterpret_cast<const CryptoPP::byte*>(otherStaticPubKey.data()), otherStaticPubKey.size());
+		CryptoPP::SecByteBlock epubKey(
+			reinterpret_cast<const CryptoPP::byte*>(otherEphemeralPubKey.data()), otherEphemeralPubKey.size());
+
+		if (!dh2_.Agree(shared_, staticPrivateKey_, ephemeralPrivateKey_, spubKey, epubKey))
 			return {};
 
 		return { (char*)shared_.data(), shared_.size() };
@@ -75,10 +113,17 @@ private:
 	CryptoPP::Integer p_;
 	CryptoPP::Integer g_;
 	CryptoPP::Integer q_;
-	CryptoPP::DH dh_;
-	CryptoPP::SecByteBlock privateKey_;
-	CryptoPP::SecByteBlock publicKey_;
+
+	CryptoPP::SecByteBlock staticPrivateKey_;
+	CryptoPP::SecByteBlock staticPublicKey_;
+
+    CryptoPP::SecByteBlock ephemeralPublicKey_;
+    CryptoPP::SecByteBlock ephemeralPrivateKey_;
+
 	CryptoPP::SecByteBlock shared_;
+
+	CryptoPP::DH dh_;
+	CryptoPP::DH2 dh2_;
 };
 
 class stream_crypto

@@ -25,6 +25,13 @@ using timer = basic_waitable_timer<time_clock::steady_clock>;
 
 template<class ... T> inline constexpr bool always_false = false;
 
+// 将一个string_view转成16进制的字符串.
+std::string to_hex(std::string_view data);
+std::string to_hex_prefixed(std::string_view data);
+
+// 将1个16进制字符串转成vector<uint8_t>
+bool from_hexstring(std::string_view src, std::vector<uint8_t>& result);
+
 // 转换成字符串类型.
 std::string to_string(const boost::posix_time::ptime& t);
 std::string to_string(float v, int width, int precision = 3);

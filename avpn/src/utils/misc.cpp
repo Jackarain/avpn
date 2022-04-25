@@ -97,6 +97,39 @@ namespace fs = std::filesystem;
 
 //////////////////////////////////////////////////////////////////////////
 
+template <class Iterator>
+std::string to_hex(Iterator it, Iterator end, std::string const& prefix)
+{
+	using traits = std::iterator_traits<Iterator>;
+	static_assert(sizeof(typename traits::value_type) == 1, "to_hex needs byte-sized element type");
+
+	static char const* hexdigits = "0123456789abcdef";
+	size_t off = prefix.size();
+	std::string hex(std::distance(it, end) * 2 + off, '0');
+	hex.replace(0, off, prefix);
+	for (; it != end; it++)
+	{
+		hex[off++] = hexdigits[(*it >> 4) & 0x0f];
+		hex[off++] = hexdigits[*it & 0x0f];
+	}
+	return hex;
+}
+
+// template <class T> std::string to_hex(T const& data)
+// {
+// 	return to_hex(data.begin(), data.end(), "");
+// }
+
+std::string to_hex(std::string_view data)
+{
+	return to_hex(data.begin(), data.end(), "");
+}
+
+std::string to_hex_prefixed(std::string_view data)
+{
+	return to_hex(data.begin(), data.end(), "0x");
+}
+
 char from_hex_char(char c) noexcept
 {
 	if (c >= '0' && c <= '9')
@@ -108,7 +141,7 @@ char from_hex_char(char c) noexcept
 	return -1;
 }
 
-bool from_hexstring(std::string const& src, std::vector<uint8_t>& result)
+bool from_hexstring(std::string_view src, std::vector<uint8_t>& result)
 {
 	unsigned s = (src.size() >= 2 && src[0] == '0' && src[1] == 'x') ? 2 : 0;
 	result.reserve((src.size() - s + 1) / 2);
