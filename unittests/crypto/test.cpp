@@ -26,7 +26,7 @@
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
 
-BOOST_AUTO_TEST_CASE(acl_test)
+BOOST_AUTO_TEST_CASE(dh_keyexchange_test)
 {
 	std::vector<uint8_t> privateKey1;
 	from_hexstring("0x6046c7a0f56f6beea5779f8c9c908ecd83a7ab3b", privateKey1);
@@ -95,5 +95,19 @@ BOOST_AUTO_TEST_CASE(acl_test)
 		LOG_DBG << "authed: " << s1;
 		LOG_DBG << "authed: " << s2;
 	}
+}
 
+BOOST_AUTO_TEST_CASE(stream_crypto_test)
+{
+	crypto_util::stream_crypto encrypto("aa1122!@#0a");
+
+	std::string origin = "The quick brown fox jumps over the lazy dog";
+	std::string content = origin;
+
+	encrypto.perform(std::as_writable_bytes(std::span{ content }));
+
+	crypto_util::stream_crypto decrypto("aa1122!@#0a");
+	decrypto.perform(std::as_writable_bytes(std::span{ content }));
+
+	BOOST_TEST(origin == content);
 }
