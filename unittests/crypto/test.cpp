@@ -105,9 +105,13 @@ BOOST_AUTO_TEST_CASE(stream_crypto_test)
 	std::string content = origin;
 
 	encrypto.perform(std::as_writable_bytes(std::span{ content }));
+	std::string encotent = content;
 
 	crypto_util::stream_crypto decrypto("aa1122!@#0a");
 	decrypto.perform(std::as_writable_bytes(std::span{ content }));
 
-	BOOST_TEST(origin == content);
+	crypto_util::stream_crypto decrypto2("aa1122*@#0a");
+	decrypto2.perform(std::as_writable_bytes(std::span{ encotent }));
+
+	BOOST_TEST(origin != encotent);
 }
