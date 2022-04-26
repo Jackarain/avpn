@@ -18,22 +18,25 @@
 
 namespace crypto_util {
 
-	struct dh_keyexchange_member;
-	class dh_keyexchange
+	struct keyexchange_member;
+	class keyexchange
 	{
 	public:
-		dh_keyexchange(std::string_view static_private_key = {}, std::string_view static_public_key = {});
-		~dh_keyexchange() = default;
+		keyexchange(std::string_view static_private_key = {},
+			std::string_view static_public_key = {}, bool use_curve25519 = true);
+		~keyexchange() = default;
 
 	public:
+		// DH或ECDH相关.
 		std::string_view StaticPublicKey();
-		std::string_view EphemeralPublicKey();
-
 		std::string_view GenerateSharedKey(std::string_view otherPubKey);
+
+		// DH2相关.
+		std::string_view EphemeralPublicKey();
 		std::string_view GenerateSharedKey(std::string_view otherStaticPubKey, std::string_view otherEphemeralPubKey);
 
 	private:
-		std::shared_ptr<dh_keyexchange_member> m_member;
+		std::shared_ptr<keyexchange_member> m_member;
 	};
 
 	class stream_crypto

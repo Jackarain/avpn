@@ -26,7 +26,28 @@
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
 
-BOOST_AUTO_TEST_CASE(dh_keyexchange_test)
+BOOST_AUTO_TEST_CASE(ecdh_keyexchange_test)
+{
+	std::string privateKey1 = "ICBmoiZBqo7pyHZVK+vM2I3LF9PePa18DVjkcbLl/XM=";
+	std::string publicKey1;
+
+	std::string privateKey2;
+	std::string publicKey2;
+
+	crypto_util::keyexchange ecdh1(privateKey1);
+	publicKey1 = ecdh1.StaticPublicKey();
+	LOG_DBG << "Public key: " << base64_encode(publicKey1);
+
+	crypto_util::keyexchange ecdh2;
+	publicKey2 = ecdh2.StaticPublicKey();
+
+	auto shared1 = ecdh1.GenerateSharedKey(publicKey2);
+	auto shared2 = ecdh2.GenerateSharedKey(publicKey1);
+
+	BOOST_TEST(shared2 == shared1);
+}
+
+BOOST_AUTO_TEST_CASE(dh2_keyexchange_test)
 {
 	std::vector<uint8_t> privateKey1;
 	from_hexstring("0x6046c7a0f56f6beea5779f8c9c908ecd83a7ab3b", privateKey1);
@@ -39,10 +60,11 @@ BOOST_AUTO_TEST_CASE(dh_keyexchange_test)
 		"18d15791ab20df1ce70d8c37acbcbce92bd11887"
 		"0ceaab5ec8e717ea", publicKey1);
 
-	crypto_util::dh_keyexchange dh1
+	crypto_util::keyexchange dh1
 	(
 		{ (char*)privateKey1.data(), privateKey1.size() },
-		{ (char*)publicKey1.data(), publicKey1.size() }
+		{ (char*)publicKey1.data(), publicKey1.size() },
+		false
 	)
 		;
 
@@ -57,10 +79,11 @@ BOOST_AUTO_TEST_CASE(dh_keyexchange_test)
 		"d3dd49d990d4c86040bb042eda1e3ca0a3cbaa78"
 		"c76b5adaacd8af6c", publicKey2);
 
-	crypto_util::dh_keyexchange dh2
+	crypto_util::keyexchange dh2
 	(
 		{ (char*)privateKey2.data(), privateKey2.size() },
-		{ (char*)publicKey2.data(), publicKey2.size() }
+		{ (char*)publicKey2.data(), publicKey2.size() },
+		false
 	)
 		;
 

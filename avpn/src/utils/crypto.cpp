@@ -16,13 +16,17 @@
 #include <cryptopp/dh.h>
 #include <cryptopp/dh2.h>
 #include <cryptopp/osrng.h>
+#include <cryptopp/xed25519.h>
+#include <cryptopp/hex.h>
+#include <cryptopp/files.h>
+#include <cryptopp/base64.h>
 
 
 namespace crypto_util {
 
-	struct dh_keyexchange_member
+	struct keyexchange_member
 	{
-		dh_keyexchange_member()
+		keyexchange_member()
 			: p_("0xB10B8F96A080E01DDE92DE5EAE5D54EC52C99FBCFB06A3C6"
 				"9A6A9DCA52D23B616073E28675A23D189838EF1E2EE652C0"
 				"13ECB4AEA906112324975C3CD49B83BFACCBDD7D90C4BD70"
@@ -54,69 +58,139 @@ namespace crypto_util {
 		CryptoPP::SecByteBlock ephemeralPrivateKey_;
 
 		CryptoPP::SecByteBlock shared_;
+
+		std::unique_ptr<CryptoPP::x25519> x25519_;
 	};
 
-	dh_keyexchange::dh_keyexchange(std::string_view static_private_key /*= {}*/, std::string_view static_public_key /*= {}*/)
-		: m_member(new dh_keyexchange_member)
+	keyexchange::keyexchange(std::string_view static_private_key /*= {}*/,
+		std::string_view static_public_key /*= {}*/, bool use_curve25519/* = true*/)
+		: m_member(new keyexchange_member)
 	{
 		CryptoPP::AutoSeededRandomPool prng;
 		auto& member = *m_member;
 
-		member.dh_.AccessGroupParameters().Initialize(member.p_, member.q_, member.g_);
-		member.dh_.GetGroupParameters().ValidateGroup(prng, 3);
-
-		CryptoPP::DH2& dh2 = member.dh2_;
-
-		if (static_private_key.empty() || static_public_key.empty())
+		if (use_curve25519)
 		{
-			member.staticPrivateKey_.resize(dh2.StaticPrivateKeyLength());
-			member.staticPublicKey_.resize(dh2.StaticPublicKeyLength());
+			if (!static_private_key.empty())
+			{
+				CryptoPP::Base64Decoder decoder;
+				decoder.Put((CryptoPP::byte*)static_private_key.data(), static_private_key.size());
+				decoder.MessageEnd();
 
-			dh2.GenerateStaticKeyPair(prng, member.staticPrivateKey_, member.staticPublicKey_);
+				auto size = decoder.MaxRetrievable();
+				if (size && size <= SIZE_MAX)
+				{
+					member.staticPrivateKey_.resize(size);
+					decoder.Get(member.staticPrivateKey_, size);
+				}
+			}
+			else
+			{
+				member.staticPrivateKey_.resize(CryptoPP::x25519::SECRET_KEYLENGTH);
+
+				CryptoPP::x25519 ecdh;
+				ecdh.GeneratePrivateKey(prng, member.staticPrivateKey_);
+			}
+
+			member.x25519_ = std::make_unique<CryptoPP::x25519>(member.staticPrivateKey_);
+			member.staticPublicKey_.resize(member.x25519_->PublicKeyLength());
+			member.x25519_->GeneratePublicKey(prng, member.staticPrivateKey_, member.staticPublicKey_);
 		}
 		else
 		{
-			member.staticPrivateKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
-				static_private_key.data()), static_private_key.size());
-			member.staticPublicKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
-				static_public_key.data()), static_public_key.size());
+			member.dh_.AccessGroupParameters().Initialize(member.p_, member.q_, member.g_);
+			member.dh_.GetGroupParameters().ValidateGroup(prng, 3);
+
+			CryptoPP::DH2& dh2 = member.dh2_;
+
+			if (static_private_key.empty() || static_public_key.empty())
+			{
+				member.staticPrivateKey_.resize(dh2.StaticPrivateKeyLength());
+				member.staticPublicKey_.resize(dh2.StaticPublicKeyLength());
+
+				dh2.GenerateStaticKeyPair(prng, member.staticPrivateKey_, member.staticPublicKey_);
+			}
+			else
+			{
+				member.staticPrivateKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
+					static_private_key.data()), static_private_key.size());
+				member.staticPublicKey_ = CryptoPP::SecByteBlock(reinterpret_cast<const CryptoPP::byte*>(
+					static_public_key.data()), static_public_key.size());
+			}
+
+			member.ephemeralPrivateKey_.resize(dh2.EphemeralPrivateKeyLength());
+			member.ephemeralPublicKey_.resize(dh2.EphemeralPublicKeyLength());
+
+			dh2.GenerateEphemeralKeyPair(prng, member.ephemeralPrivateKey_, member.ephemeralPublicKey_);
 		}
-
-		member.ephemeralPrivateKey_.resize(dh2.EphemeralPrivateKeyLength());
-		member.ephemeralPublicKey_.resize(dh2.EphemeralPublicKeyLength());
-
-		dh2.GenerateEphemeralKeyPair(prng, member.ephemeralPrivateKey_, member.ephemeralPublicKey_);
 	}
 
-	std::string_view dh_keyexchange::StaticPublicKey()
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	std::string base64_encode(std::string_view input)
+	{
+		std::string result;
+
+		CryptoPP::Base64Encoder encoder;
+		encoder.Put((CryptoPP::byte*)input.data(), input.size());
+		encoder.MessageEnd();
+
+		auto size = encoder.MaxRetrievable();
+		if (size && size <= SIZE_MAX)
+		{
+			result.resize(size);
+			encoder.Get((CryptoPP::byte*)&result[0], result.size());
+		}
+
+		return result;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+
+	std::string_view keyexchange::StaticPublicKey()
 	{
 		auto& member = *m_member;
 		return { (char*)member.staticPublicKey_.data(), member.staticPublicKey_.size() };
 	}
 
-	std::string_view dh_keyexchange::EphemeralPublicKey()
+	std::string_view keyexchange::EphemeralPublicKey()
 	{
 		auto& member = *m_member;
+		if (member.x25519_)
+			return {};
 		return { (char*)member.ephemeralPublicKey_.data(), member.ephemeralPublicKey_.size() };
 	}
 
-	std::string_view dh_keyexchange::GenerateSharedKey(std::string_view otherPubKey)
+	std::string_view keyexchange::GenerateSharedKey(std::string_view otherPubKey)
 	{
-		auto& member = *m_member;
-
 		CryptoPP::SecByteBlock pubKey(
 			reinterpret_cast<const CryptoPP::byte*>(otherPubKey.data()), otherPubKey.size());
 
-		member.shared_.resize(member.dh_.AgreedValueLength());
-		if (!member.dh_.Agree(member.shared_, member.ephemeralPrivateKey_, pubKey))
-			return {};
+		auto& member = *m_member;
+		if (member.x25519_)
+		{
+			member.shared_.resize(member.x25519_->AgreedValueLength());
+			if (!member.x25519_->Agree(member.shared_, member.staticPrivateKey_, pubKey))
+				return {};
+		}
+		else
+		{
+			member.shared_.resize(member.dh_.AgreedValueLength());
+			if (!member.dh_.Agree(member.shared_, member.ephemeralPrivateKey_, pubKey))
+				return {};
+		}
 
 		return { (char*)member.shared_.data(), member.shared_.size() };
 	}
 
-	std::string_view dh_keyexchange::GenerateSharedKey(std::string_view otherStaticPubKey, std::string_view otherEphemeralPubKey)
+	std::string_view keyexchange::GenerateSharedKey(std::string_view otherStaticPubKey, std::string_view otherEphemeralPubKey)
 	{
 		auto& member = *m_member;
+
+		if (member.x25519_)
+			return {};
 
 		member.shared_.resize(member.dh2_.AgreedValueLength());
 
@@ -130,6 +204,12 @@ namespace crypto_util {
 
 		return { (char*)member.shared_.data(), member.shared_.size() };
 	}
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////////
 
 	stream_crypto::CSPRNG::CSPRNG(std::mt19937& mt)
 		: mt_(mt)
