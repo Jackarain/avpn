@@ -324,24 +324,6 @@ std::string base64_encode(std::string_view input)
 {
 	std::string result;
 
-	CryptoPP::Base64Decoder decoder;
-	decoder.Put((CryptoPP::byte*)input.data(), input.size());
-	decoder.MessageEnd();
-
-	auto size = decoder.MaxRetrievable();
-	if (size && size <= SIZE_MAX)
-	{
-		result.resize(size);
-		decoder.Get((CryptoPP::byte*)&result[0], result.size());
-	}
-
-	return result;
-}
-
-std::string base64_decode(std::string_view input)
-{
-	std::string result;
-
 	CryptoPP::Base64Encoder encoder;
 	encoder.Put((CryptoPP::byte*)input.data(), input.size());
 	encoder.MessageEnd();
@@ -356,6 +338,23 @@ std::string base64_decode(std::string_view input)
 	return result;
 }
 
+std::string base64_decode(std::string_view input)
+{
+	std::string result;
+
+	CryptoPP::Base64Decoder decoder;
+	decoder.Put((CryptoPP::byte*)input.data(), input.size());
+	decoder.MessageEnd();
+
+	auto size = decoder.MaxRetrievable();
+	if (size && size <= SIZE_MAX)
+	{
+		result.resize(size);
+		decoder.Get((CryptoPP::byte*)&result[0], result.size());
+	}
+
+	return result;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
