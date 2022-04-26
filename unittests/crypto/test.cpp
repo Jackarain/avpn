@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(dh2_keyexchange_test)
 	}
 }
 
-BOOST_AUTO_TEST_CASE(stream_crypto_test)
+BOOST_AUTO_TEST_CASE(stream_crypto_test1)
 {
 	std::string origin = "The quick brown fox jumps over the lazy dog";
 	std::string content = origin;
@@ -150,4 +150,22 @@ BOOST_AUTO_TEST_CASE(stream_crypto_test)
 	crypto_util::stream_crypto dec4("11111111111");
 	auto r2 = dec3.aead_decrypt(std::as_writable_bytes(std::span{ encoded }), h);
 	BOOST_TEST(r2 == false);
+}
+
+BOOST_AUTO_TEST_CASE(stream_crypto_test2)
+{
+	std::string origin = "The quick brown fox jumps over the lazy dog";
+	std::string content = origin;
+
+	crypto_util::stream_crypto enc1("aa1122!@#0a");
+	enc1.perform(std::as_writable_bytes(std::span{ content }));
+	auto b64enc = base64_encode(content);
+	BOOST_TEST(b64enc == "jW1ivz7biGw31qOU7uhbb/hN58xvSGLuFZhv/lfUMLmfwiyWFzLM7IkCPw==");
+
+	content = origin;
+	crypto_util::stream_crypto enc2("11111111111");
+	enc2.perform(std::as_writable_bytes(std::span{ content }));
+	b64enc = base64_encode(content);
+	BOOST_TEST(b64enc == "nzkh1NDCO/g3kbiG0ck2Jr7x8mEDJ32adGChSy6/aL6mGql45opKMOoF0g==");
+
 }
