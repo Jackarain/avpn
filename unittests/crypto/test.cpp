@@ -36,7 +36,8 @@ BOOST_AUTO_TEST_CASE(ecdh_keyexchange_test)
 
 	crypto_util::keyexchange ecdh1(privateKey1);
 	publicKey1 = ecdh1.StaticPublicKey();
-	LOG_DBG << "Public key: " << base64_encode(publicKey1);
+	auto pubkey = base64_encode(publicKey1);
+	BOOST_TEST("lLgKbd/K9p5EIwrAFxXC5EJN6RQXIX4WQO34o1N7N30=" == pubkey);
 
 	crypto_util::keyexchange ecdh2;
 	publicKey2 = ecdh2.StaticPublicKey();
