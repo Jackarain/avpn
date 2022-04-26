@@ -219,7 +219,7 @@ namespace crypto_util {
 	{
 		auto result = mt_();
 		const char* p = reinterpret_cast<const char*>(&result);
-		return (result_type)XXH32(p, sizeof(result), 0);
+		return (result_type)XXH32(p, 4, 0) % 256;
 	}
 
 	constexpr stream_crypto::CSPRNG::result_type stream_crypto::CSPRNG::min()
@@ -232,17 +232,17 @@ namespace crypto_util {
 		return std::numeric_limits<result_type>::max();
 	}
 
+
 	stream_crypto::stream_crypto(std::string_view passwd)
 		: m_seed(passwd.begin(), passwd.end())
 		, m_mt19937(m_seed)
-		, m_distribution(0, 255)
 	{}
 
 	void stream_crypto::perform(std::span<std::byte> content)
 	{
 		CSPRNG rng(m_mt19937);
 		for (auto& c : content)
-			c = c ^ static_cast<std::byte>(m_distribution(rng));
+			c = c ^ static_cast<std::byte>(rng());
 	}
 
 	uint32_t stream_crypto::aead_encrypt(std::span<std::byte> content)
@@ -252,7 +252,7 @@ namespace crypto_util {
 
 		CSPRNG rng(m_mt19937);
 		for (auto& c : content)
-			c = c ^ static_cast<std::byte>(m_distribution(rng));
+			c = c ^ static_cast<std::byte>(rng());
 
 		return hash;
 	}
@@ -261,7 +261,7 @@ namespace crypto_util {
 	{
 		CSPRNG rng(m_mt19937);
 		for (auto& c : content)
-			c = c ^ static_cast<std::byte>(m_distribution(rng));
+			c = c ^ static_cast<std::byte>(rng());
 
 		const char* p = reinterpret_cast<const char*>(content.data());
 		uint32_t h = XXH32(p, content.size_bytes(), 0);
@@ -270,6 +270,11 @@ namespace crypto_util {
 			return false;
 
 		return true;
+	}
+
+	std::mt19937& stream_crypto::mt19937()
+	{
+		return m_mt19937;
 	}
 
 }

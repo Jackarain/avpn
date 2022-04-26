@@ -73,10 +73,11 @@ namespace crypto_util {
 		uint32_t aead_encrypt(std::span<std::byte> content);
 		bool aead_decrypt(std::span<std::byte> content, uint32_t hash);
 
+		std::mt19937& mt19937();
+
 	private:
 		std::seed_seq m_seed;
 		std::mt19937 m_mt19937;
-		std::uniform_int_distribution<int> m_distribution;
 	};
 
 }
