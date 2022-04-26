@@ -272,9 +272,4 @@ namespace crypto_util {
 		return true;
 	}
 
-	std::mt19937& stream_crypto::mt19937()
-	{
-		return m_mt19937;
-	}
-
 }

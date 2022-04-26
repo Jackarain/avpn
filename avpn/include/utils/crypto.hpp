@@ -21,6 +21,9 @@ namespace crypto_util {
 	struct keyexchange_member;
 	class keyexchange
 	{
+		keyexchange(const keyexchange&) = delete;
+		keyexchange& operator=(const keyexchange&) = delete;
+
 	public:
 		keyexchange(std::string_view static_private_key = {},
 			std::string_view static_public_key = {}, bool use_curve25519 = true);
@@ -72,8 +75,6 @@ namespace crypto_util {
 
 		uint32_t aead_encrypt(std::span<std::byte> content);
 		bool aead_decrypt(std::span<std::byte> content, uint32_t hash);
-
-		std::mt19937& mt19937();
 
 	private:
 		std::seed_seq m_seed;
