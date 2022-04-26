@@ -324,7 +324,7 @@ std::string base64_encode(std::string_view input)
 {
 	std::string result;
 
-	CryptoPP::Base64Encoder encoder;
+	CryptoPP::Base64Encoder encoder(nullptr, false);
 	encoder.Put((CryptoPP::byte*)input.data(), input.size());
 	encoder.MessageEnd();
 
