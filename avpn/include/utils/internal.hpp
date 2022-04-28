@@ -26,6 +26,7 @@
 #include <iterator>
 #include <algorithm>
 #include <functional>
+#include <filesystem>
 #include <tuple>
 #include <utility>
 #include <array>

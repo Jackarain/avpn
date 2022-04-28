@@ -1740,17 +1740,26 @@ bool set_default_route(const std::string&, const std::string&,
 
 #endif
 
-void create_pid(std::string suffix)
+void create_pid(std::string suffix, std::optional<std::filesystem::path> target_pidfile)
 {
+	std::error_code ignore_ec;
+	std::ostringstream oss;
+	oss << get_process_id();
+
+	if (target_pidfile)
+	{
+		fs::remove(target_pidfile.value(), ignore_ec);
+
+		// 创建avpn.pid文件.
+		fileop::write(target_pidfile.value(), oss.str());
+		return;
+
+	}
 	auto tmppath = fs::temp_directory_path();
 	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", base64_encode(suffix));
 
 	// 创建临时avpn文件夹.
-	std::error_code ignore_ec;
 	fs::create_directories(avpn_tmppath, ignore_ec);
-
-	std::ostringstream oss;
-	oss << get_process_id();
 
 	// 先删除存在的pid文件.
 	auto pid = avpn_tmppath / "avpn.pid";

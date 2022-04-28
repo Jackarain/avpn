@@ -206,6 +206,8 @@ int main(int argc, char** argv)
 	bool c2c = true;
 	bool noroute = false;
 	bool disable_logs = false;
+	std::string writepid_file;
+	std::string ignored_param;
 
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
@@ -214,47 +216,59 @@ int main(int argc, char** argv)
 		("help,h", "Help message.")
 		("version", "Current version.")
 
-		("config", po::value<std::string>(&config), "Load config options from file.")
+		("config", po::value<std::string>(&config)->value_name("config.conf"), "Load config options from file.")
 
-		("identity", po::value<std::string>(&identity)->default_value("client"), "Identity of self, server/client.")
+		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
-		("tun", po::value<std::string>(&ifdev)->default_value(""), "Tun device.")
+		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device.")
 
-		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken(), "Upstream servers.")
+		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 
-		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken(), "For socks4/5 server listen.")
+		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
-		("socks_interface", po::value<std::string>(&socks_interface)->default_value(""), "Bind interface for socks4/5 connection.")
-		("socks_userid", po::value<std::string>(&socks_userid)->default_value(""), "Socks4/5 auth user id.")
-		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value(""), "Socks4/5 auth password.")
+		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
+		("socks_userid", po::value<std::string>(&socks_userid)->default_value("")->value_name("userid"), "Socks4/5 auth user id.")
+		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("")->value_name("passwd"), "Socks4/5 auth password.")
 
-		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken(), "For websocket tcp server listen.")
-		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken(), "For websocket udp server listen.")
+		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
+		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
 
-		("data_shards,d", po::value<int>(&data_shards)->default_value(8), "Reedsolomon params of data shards.")
-		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4), "Reedsolomon params of parity shards.")
+		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
+		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
 
-		("fec_delay", po::value<int>(&fec_delay)->default_value(20), "Delay(milliseconds) for fec.")
+		("fec_delay", po::value<int>(&fec_delay)->default_value(20)->value_name("N"), "Delay(milliseconds) for fec.")
 
-		("autofec", po::value<bool>(&auto_fec)->default_value(false), "Automatic parameterization for fec.")
-		("mode", po::value<int>(&mode)->default_value(0), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
-		("compress", po::value<bool>(&compress)->default_value(false), "Enable a compression algorithm.")
+		("autofec", po::value<bool>(&auto_fec)->value_name(" "), "Automatic parameterization for fec.")
+		("mode", po::value<int>(&mode)->default_value(0)->value_name("mode"), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
+		("compress", po::value<bool>(&compress)->value_name(" "), "Enable a compression algorithm.")
 
-		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
+		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Keep alive(milliseconds) for tcp and udp.")
 
-		("noroute", po::value<bool>(&noroute)->default_value(false), "ingore server pushed routes")
-		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken(), "Push routes to client.")
-		("pushdns", po::value<std::string>(&pushdns)->default_value(""), "Push nameserver to client.")
-		("passbyvpn", po::value<bool>(&passbyvpn)->default_value(false), "All IP network traffic originating on client machines to pass through the server.")
-		("snat", po::value<bool>(&snat)->default_value(false), "Source network address translation.")
+		("noroute", po::value<bool>(&noroute)->value_name(" "), "ingore server pushed routes")
+		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push routes to client.")
+		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push nameserver to client.")
+		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(" "), "All IP network traffic originating on client machines to pass through the server.")
+		("snat", po::value<bool>(&snat)->value_name(" "), "Source network address translation.")
 
-		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16"), "VPN subnet.")
-		("c2c", po::value<bool>(&c2c)->default_value(true), "Allow different clients to be able to see each other.")
+		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "VPN subnet.")
+		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow different clients to be able to see each other.")
 
-		("controller", po::value<int>(&controller_port)->default_value(-1), "Controller, local controller server port.")
+		("controller", po::value<int>(&controller_port)->default_value(-1)->value_name("port"), "Controller, local controller server port.")
 
-		("disable_logs", po::value<bool>(&disable_logs)->default_value(false), "Disable logs.")
+		("disable_logs", po::value<bool>(&disable_logs)->value_name(" "), "Disable logs.")
+		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "write pit to file")
 	;
+
+	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置
+	if (std::filesystem::path(argv[0]).filename() == "openvpn")
+	{
+		desc.add_options()
+			("daemon", "daemon")
+			("status", po::value<std::string>(&ignored_param)->value_name("file"), "output status to file")
+			("verb", po::value<std::string>(&ignored_param)->value_name("N"), "verbose log")
+			("dev-type", po::value<std::string>(&ignored_param)->value_name("tun/tap"), "device type, must be tun")
+		;
+	}
 
 	try
 	{
@@ -307,6 +321,11 @@ int main(int argc, char** argv)
 			auto net = boost::asio::ip::make_network_v4(subnet);
 			net.address().to_string();
 		}
+
+		#ifdef BOOST_POSIX_API
+			if (vm.count("daemon"))
+				daemon(0, 0);
+		#endif
 	}
 	catch (const std::exception& e)
 	{
@@ -390,7 +409,10 @@ int main(int argc, char** argv)
 #endif
 
 	// 创建pid文件.
-	create_pid(ifdev);
+	if (writepid_file.empty())
+		create_pid(ifdev);
+	else
+	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
 	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
 
