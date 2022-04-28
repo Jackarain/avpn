@@ -819,6 +819,15 @@ struct auto_init_async_logger
 
 class logger___
 {
+	template <typename, typename = void>
+	struct has_address : std::false_type
+	{};
+
+	template <typename T>
+	struct has_address<T, std::void_t<decltype(std::declval<T>().address())>>
+		: std::is_same<boost::asio::ip::address, std::decay_t<decltype(std::declval<T>().address())>>
+	{};
+
 	// c++11 noncopyable.
 	logger___(const logger___&) = delete;
 	logger___& operator=(const logger___&) = delete;
@@ -923,7 +932,7 @@ public:
 	{
 		return strcat_impl(v);
 	}
-
+/*
 	template<typename StringView>
 	#ifdef __cpp_lib_concepts
 		requires requires (StringView t)
@@ -936,6 +945,7 @@ public:
 	{
 		return strcat_impl(std::string_view(v.data(), v.length()));
 	}
+*/
 	inline logger___& operator<<(const char* v)
 	{
 		return strcat_impl(v);
@@ -993,13 +1003,17 @@ public:
 		std::format_to(std::back_inserter(out_), "{}h", v.count());
 		return *this;
 	}
-	template<typename EndpointType>
+
 #ifdef __cpp_lib_concepts
+	template<typename EndpointType>
 	requires requires (EndpointType t)
 	{
 		{ t.address() } -> std::convertible_to<boost::asio::ip::address>;
 		{ t.port() } -> std::convertible_to<boost::uint_least16_t>;
 	}
+#else
+	template<typename EndpointType,
+	typename std::enable_if<has_address<EndpointType>::value, EndpointType>::type* = nullptr>
 #endif
 	inline logger___& operator<<(const EndpointType& v)
 	{
