@@ -42,9 +42,11 @@
 #endif // _WIN32
 
 #ifdef USE_SYSTEMD_LOGGING
-#ifdef __linux__
+#if __has_include(<systemd/sd-journal.h>)
 #	include <systemd/sd-journal.h>
-#endif // __linux__
+#else
+#error "systemd/sd-journal.h not found"
+#endif
 #endif
 
 //////////////////////////////////////////////////////////////////////////
