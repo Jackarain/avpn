@@ -1336,10 +1336,6 @@ namespace avpn
 
 	boost::asio::awaitable<void> vpn_tunnel::start_udp_read_loop(size_t index)
 	{
-		auto usocket_ptr = m_udp_sockets[index];
-		auto& udp_sock = *usocket_ptr;
-		auto& sock = udp_sock.sock_;
-
 		LOG_FMT("start_udp_read_loop, udp socket size: {}, index: {}",
 			m_udp_sockets.size(), index);
 
@@ -1349,6 +1345,10 @@ namespace avpn
 
 		while (!m_abort)
 		{
+			auto usocket_ptr = m_udp_sockets[index];
+			auto& udp_sock	 = *usocket_ptr;
+			auto& sock		 = udp_sock.sock_;
+
 			auto bytes = co_await sock.async_receive_from(
 				boost::asio::buffer(buffer), remote_endp, uawaitable[ec]);
 			if (ec)
