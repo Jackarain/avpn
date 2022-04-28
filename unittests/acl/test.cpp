@@ -28,6 +28,18 @@
 #include "CN-ip-cidr.txt.hpp"
 #include "chnroute.txt.hpp"
 
+namespace boost
+{
+    template <>
+    inline std::string_view
+    copy_range<std::string_view, iterator_range<char const*>>
+      ( iterator_range<char const*> const& r )
+    {
+        return std::string_view( begin(r),  end(r) - begin(r) );
+    }
+}
+
+
 std::vector<boost::asio::ip::network_v4> load_cn_ip()
 {
 	std::vector<boost::asio::ip::network_v4> result;
