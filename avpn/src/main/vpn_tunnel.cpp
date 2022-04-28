@@ -1373,7 +1373,8 @@ namespace avpn
 			co_await process_udp_packet((uint8_t)type, reader, sock, remote_endp);
 		}
 
-		LOG_WARN << "start_udp_read_loop, endpoint: " << remote_endp << ", quit...";
+		LOG_WARN << "start_udp_read_loop, endpoint: "
+			<< remote_endp << ", index: " << index << ", quit...";
 	}
 
 	void vpn_tunnel::keepalive()
