@@ -83,6 +83,7 @@ option(ENABLE_MIMALLOC_STATIC "Build with Mimalloc support" OFF)
 
 option(ENABLE_GIT_VERSION "Enable git version" ON)
 option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
+option(DISABLE_WRITE_LOGGING "Build with log file writer disabled" OFF)
 
 option(ENABLE_BUILD_WITH_LIBCXX "Build with libc++" OFF)
 
@@ -90,6 +91,7 @@ option(ENABLE_MOLD "build using mold" OFF)
 option(ENABLE_LLD "build using lld" OFF)
 
 option(ENABLE_BUILD_TESTS "build avpn's unit tests" OFF)
+option(LINKE_TO_LIBATOMIC "link to libatomic.so - some platform requires it" OFF)
 
 find_program(MOLD_LINKER mold)
 find_program(LLD_LINKER lld)
@@ -176,39 +178,42 @@ CHECK_CXX_COMPILER_FLAG(-fcoroutines-ts COMPILER_HAS_FCOROUTINES_TS)
 CHECK_CXX_COMPILER_FLAG(-std=c++20 COMPILER_HAS_STD_CXX20)
 
 if (${COMPILER_HAS_VISIBILITY_INLINE_HIDDEN})
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility-inlines-hidden")
+	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 endif()
 
 if (${COMPILER_HAS_VISIBILITY_HIDDEN})
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
+	add_compile_options(-fvisibility=hidden)
 endif()
 
 if (${COMPILER_HAS_COLOR})
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
+	add_compile_options(-fdiagnostics-color=always)
 endif()
 
 if (COMPILER_HAS_FCOROUTINES)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines")
-endif()
-
-if (COMPILER_HAS_FCOROUTINES_TS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fcoroutines-ts")
+	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fcoroutines>)
+elseif(COMPILER_HAS_FCOROUTINES_TS)
+	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fcoroutines-ts>)
 endif()
 
 if (ENABLE_SYSTEMD_LOGGING )
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_SYSTEMD_LOGGING")
+	add_compile_definitions(USE_SYSTEMD_LOGGING)
+endif()
+if (DISABLE_WRITE_LOGGING)
+	add_compile_definitions(DISABLE_WRITE_LOGGING)
 endif()
 
 if (NOT MSVC)
 	if(NOT APPLE)
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			if (ENABLE_BUILD_WITH_LIBCXX)
-				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
+				add_link_options(-stdlib=libc++)
+
 				CHECK_LINKER_FLAG(CXX "-rtlib=compiler-rt" IS_COMPILER_RT_SUPPORTED)
 
 				if (IS_COMPILER_RT_SUPPORTED)
 					message(STATUS "clang supports compiler-rt, use it")
-					add_link_options(-rtlib=compiler-rt -unwindlib=libunwind)
+					add_link_options(-rtlib=compiler-rt)
 				endif()
 			else()
 				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc")
@@ -259,15 +264,18 @@ if (ENABLE_BUILD_TESTS)
 	set(USE_BOOST_TEST ON)
 endif()
 
-set(BUILD_ASIO_BEAST ON)
-
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 
-set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost EXCLUDE_FROM_ALL)
-
+#独立编译asio时, 必须要在使用者项目定义, 否则会将
+#定义BOOST_ASIO_HEADER_ONLY, 使用者将会导致符号冲突.
 add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
 add_definitions(-DBOOST_BEAST_SEPARATE_COMPILATION)
+
+#此BOOST_ASIO_DYN_LINK只有在编译asio为动态链接的时候
+#才能启用, 它在msvc下将BOOST_ASIO_DECL分别自动作为
+#dllimport、dllexport添加.
+#add_definitions(-DBOOST_ASIO_DYN_LINK)
 
 add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
@@ -287,6 +295,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
+set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
 find_package(Threads)
@@ -373,8 +382,6 @@ endif()
 
 
 link_libraries(
-		Boost::coroutine
-		Boost::context
 		Boost::thread
 		Boost::date_time
 		Boost::program_options
@@ -405,6 +412,10 @@ elseif(UNIX AND NOT APPLE)
 		${std_fs_workaround}
 		${IPROUTE2_LIBRARIES}
 	)
+endif()
+
+if (LINKE_TO_LIBATOMIC)
+	link_libraries(atomic)
 endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
