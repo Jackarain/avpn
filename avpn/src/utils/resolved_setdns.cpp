@@ -1,4 +1,4 @@
-
+﻿
 #if __has_include(<systemd/sd-bus.h>)
 
 #include <arpa/inet.h>
@@ -53,7 +53,7 @@ bool SetLinkDNSv4(int if_index, std::vector<boost::asio::ip::address_v4> dns_add
 
 	r = sd_bus_message_append(m, "i", if_index);
 	r = sd_bus_message_open_container(m, 'a', "(iay)");
-	for (int i = 0; i < dns_addrs.size(); i++)
+	for (size_t i = 0; i < dns_addrs.size(); i++)
 	{
 		r = sd_bus_message_open_container(m, 'r', "iay");
 		r = sd_bus_message_append(m, "i", AF_INET);
