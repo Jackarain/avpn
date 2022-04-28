@@ -28,8 +28,10 @@
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/ip/basic_endpoint.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/nowide/convert.hpp>
+#include <boost/utility/string_view.hpp>
 
 //////////////////////////////////////////////////////////////////////////
 #if defined(_WIN32) || defined(WIN32)
@@ -828,6 +830,15 @@ class logger___
 		: std::is_same<boost::asio::ip::address, std::decay_t<decltype(std::declval<T>().address())>>
 	{};
 
+	template <typename, typename = void>
+	struct has_port : std::false_type
+	{};
+
+	template <typename T>
+	struct has_port<T, std::void_t<decltype(std::declval<T>().port())>>
+		: std::is_same<typename boost::asio::ip::port_type, std::decay_t<decltype(std::declval<T>().port())>>
+	{};
+
 	// c++11 noncopyable.
 	logger___(const logger___&) = delete;
 	logger___& operator=(const logger___&) = delete;
@@ -932,20 +943,10 @@ public:
 	{
 		return strcat_impl(v);
 	}
-/*
-	template<typename StringView>
-	#ifdef __cpp_lib_concepts
-		requires requires (StringView t)
-		{
-			{ t.data() } -> std::convertible_to<const char*> ;
-			{ t.length() } -> std::convertible_to<std::size_t> ;
-		}
-	#endif
-	inline logger___& operator<<(const StringView& v)
+	inline logger___& operator<<(const boost::string_view& v)
 	{
-		return strcat_impl(std::string_view(v.data(), v.length()));
+		return strcat_impl(std::string_view{v.data(), v.length()});
 	}
-*/
 	inline logger___& operator<<(const char* v)
 	{
 		return strcat_impl(v);
@@ -1013,7 +1014,9 @@ public:
 	}
 #else
 	template<typename EndpointType,
-	typename std::enable_if<has_address<EndpointType>::value, EndpointType>::type* = nullptr>
+	typename std::enable_if<
+		has_address<EndpointType>::value
+			&& has_port<EndpointType>::value, EndpointType>::type* = nullptr>
 #endif
 	inline logger___& operator<<(const EndpointType& v)
 	{
