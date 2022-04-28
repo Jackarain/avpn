@@ -8,7 +8,7 @@ add_executable(dbus_tests
 )
 
 if (ENABLE_dbus_STATIC)
-	target_link_libraries(dbus_tests dbus-static)
+	target_link_libraries(dbus_tests Boost::asio dbus-static)
 endif()
 
 target_link_libraries(dbus_tests systemd)
