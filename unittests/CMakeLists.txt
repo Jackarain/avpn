@@ -12,6 +12,11 @@ add_subdirectory(mimalloc)
 add_subdirectory(acl)
 add_subdirectory(crypto)
 
+find_library(SYSTEMD_LIB systemd)
+if (SYSTEMD_LIB)
+add_subdirectory(dbustest)
+endif()
+
 if (MSVC)
 	if (ENABLE_USE_WINTUN)
 		add_subdirectory(wintun)
