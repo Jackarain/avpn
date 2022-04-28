@@ -204,6 +204,7 @@ int main(int argc, char** argv)
 	bool passbyvpn = false;
 	bool snat = false;
 	bool c2c = true;
+	bool noroute = false;
 	bool disable_logs = false;
 
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
@@ -241,6 +242,7 @@ int main(int argc, char** argv)
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000), "Keep alive(milliseconds) for tcp and udp.")
 
+		("noroute", po::value<bool>(&noroute)->default_value(false), "ingore server pushed routes")
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken(), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->default_value(""), "Push nameserver to client.")
 		("passbyvpn", po::value<bool>(&passbyvpn)->default_value(false), "All IP network traffic originating on client machines to pass through the server.")
@@ -335,6 +337,7 @@ int main(int argc, char** argv)
 	cfg.ifdev_ = ifdev;
 	cfg.snat_ = snat;
 	cfg.controller_ = controller_port;
+	cfg.ignore_route = noroute;
 
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;

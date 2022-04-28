@@ -314,13 +314,16 @@ namespace avpn {
 				LOG_INFO << "Default gateway: " << defgw_string << ", change faild!";
 		}
 
-		for (auto& route : m_tunnel_status.routes_)
+		if (!m_config.ignore_route)
 		{
-			auto [ret, ok] = add_route(route);
-			if (ok)
-				LOG_DBG << "Add route: " << route << " route added successfully!";
-			else
-				LOG_ERR << "Add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
+			for (auto& route : m_tunnel_status.routes_)
+			{
+				auto [ret, ok] = add_route(route);
+				if (ok)
+					LOG_DBG << "Add route: " << route << " route added successfully!";
+				else
+					LOG_ERR << "Add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
+			}
 		}
 
 		if (m_config.snat_)

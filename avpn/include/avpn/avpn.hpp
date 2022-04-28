@@ -30,6 +30,8 @@ namespace avpn {
 		int controller_{ -1 };
 		avpn::Identity identity_;
 		avpn::tunnel_params tunnel_params_;
+
+		bool ignore_route =  {false};
 	};
 
 	using namespace util;
