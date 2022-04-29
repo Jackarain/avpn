@@ -8,6 +8,8 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#include "avpn/fec_cache.hpp"
+
 #include "avpn/reedsolomon.hpp"
 
 namespace fec {
@@ -1240,7 +1242,7 @@ namespace fec {
 			m_codingloop->encode(m_parity_rows, shards, m_data_shards, outputs);
 		}
 
-		void reedsolomon::decode(std::vector<std::vector<uint8_t>>& shards)
+		void reedsolomon::decode(std::vector<vpn_packet>& shards)
 		{
 			check_shards(shards, true);
 
@@ -1257,11 +1259,8 @@ namespace fec {
 				}
 			}
 
-			if (number_present == m_shards || data_present == m_data_shards) {
-				// Cool.  All of the shards data data.  We don't
-				// need to do anything.
+			if (number_present == m_shards || data_present == m_data_shards)
 				return;
-			}
 
 			if (number_present < m_data_shards) {
 				throw std::runtime_error("not enough shards present");
@@ -1270,71 +1269,53 @@ namespace fec {
 			std::vector<std::string_view> sub_shards;
 			sub_shards.resize(m_data_shards);
 
-			std::vector<int> validIndices;
-			validIndices.resize(m_data_shards);
+			std::vector<int> valid_indices;
+			valid_indices.resize(m_data_shards);
 
-			std::vector<int> invalidIndices;
-			int subMatrixRow = 0;
+			for (int matrix_row = 0, sub_matrix_row = 0;
+				matrix_row < m_shards &&
+				sub_matrix_row < m_data_shards;
+				matrix_row++)
+			{
+				if (shards[matrix_row].size() == 0)
+					continue;
 
-			for (int matrixRow = 0; matrixRow < m_shards && subMatrixRow < m_data_shards; matrixRow++) {
-				if (shards[matrixRow].size() != 0) {
-					auto data = shards[matrixRow].data();
-					auto size = shards[matrixRow].size();
-					sub_shards[subMatrixRow] = std::string_view((char*)data, size);
-					validIndices[subMatrixRow] = matrixRow;
-					subMatrixRow++;
-				}
-				else {
-					invalidIndices.push_back(matrixRow);
-				}
+				auto data = shards[matrix_row].data();
+				auto size = shards[matrix_row].size();
+				sub_shards[sub_matrix_row] = std::string_view((char*)data, size);
+				valid_indices[sub_matrix_row] = matrix_row;
+				sub_matrix_row++;
 			}
 
 			matrix submatrix{ (size_t)m_data_shards, (size_t)m_data_shards };
-			for (size_t i = 0; i < validIndices.size(); i++) {
-				auto& validIndex = validIndices[i];
+			for (size_t i = 0; i < valid_indices.size(); i++) {
+				auto& valid_index = valid_indices[i];
 				for (size_t c = 0; c < (size_t)m_data_shards; c++) {
-					submatrix[i][c] = m_matrix[validIndex][c];
+					submatrix[i][c] = m_matrix[valid_index][c];
 				}
 			}
 
-			auto dataDecodeMatrix = submatrix.invert();
+			auto data_decode_matrix = submatrix.invert();
 
 			std::vector<std::span<uint8_t>> outputs;
 			outputs.resize(m_parity_shards);
 
-			std::vector<std::vector<uint8_t>> matrixRows;
-			matrixRows.resize(m_parity_shards);
+			std::vector<std::vector<uint8_t>> matrix_rows;
+			matrix_rows.resize(m_parity_shards);
 
-			auto outputCount = 0;
-			for (size_t iShard = 0; iShard < (size_t)m_data_shards; iShard++) {
-				if (shards[iShard].size() == 0) {
-					shards[iShard].resize(shard_size);
-					outputs[outputCount] = shards[iShard];
-					matrixRows[outputCount] = dataDecodeMatrix[iShard];
-					outputCount++;
+			auto output_count = 0;
+			for (size_t ishard = 0; ishard < (size_t)m_data_shards; ishard++) {
+				if (shards[ishard].size() == 0) {
+					shards[ishard].resize(shard_size);
+					outputs[output_count] = std::span(shards[ishard].data(),
+						shards[ishard].data() + shards[ishard].size());
+					matrix_rows[output_count] = data_decode_matrix[ishard];
+					output_count++;
 				}
 			}
 
-			outputs.resize(outputCount);
-			m_codingloop->encode(matrixRows, sub_shards, m_data_shards, outputs);
-
-#if 0		// 到此, 我们不再需要重建parity部分数据, 以加速解码.
-			outputCount = 0;
-			outputs.resize(m_parity_shards);
-
-			for (size_t iShard = static_cast<size_t>(m_data_shards); iShard < (size_t)m_shards; iShard++) {
-				if (shards[iShard].size() == 0) {
-					shards[iShard].resize(shard_size);
-					outputs[outputCount] = shards[iShard];
-					matrixRows[outputCount] = m_parity_rows[iShard - m_data_shards];
-					outputCount++;
-				}
-			}
-
-			outputs.resize(outputCount);
-			sub_shards.resize(m_data_shards);
-			m_codingloop->encode(matrixRows, sub_shards, m_data_shards, outputs);
-#endif
+			outputs.resize(output_count);
+			m_codingloop->encode(matrix_rows, sub_shards, m_data_shards, outputs);
 		}
 
 		fec::matrix reedsolomon::build_matrix(int shards, int data_shards)

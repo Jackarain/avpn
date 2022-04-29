@@ -5,34 +5,178 @@
 // Email:  jack.wgm at gmail dot com
 //
 
+#include "utils/scoped_exit.hpp"
+
 #include "avpn/fec_cache.hpp"
 
 namespace fec
 {
-	std::map<uint64_t, fec::matrix> fec_group::matrix_cache_;
+	std::map<uint64_t, fec::matrix> fec_decode_group::matrix_cache_;
 
-	fec_group::fec_group(int data_shards, int parity_shards, int size)
+	packet_allocator::packet_allocator(
+		std::size_t max_size /*= std::numeric_limits<std::size_t>::max()*/)
+		: garbage_pool_(0)
+		, max_size_(max_size)
+	{}
+
+	packet_allocator::~packet_allocator()
 	{
-		BOOST_ASSERT(data_shards + parity_shards < 256
-			&& "dataShards + parityShards >= 255");
-
-		time_ = timer::clock_type::now();
-
-		ds_ = data_shards;
-		ps_ = parity_shards;
-		gsize_ = (size_t)size;
-
-		auto total = ds_ + ps_;
-		bs_.resize(total, false);
-		pkts_.resize(total);
+		while (!garbage_pool_.empty())
+		{
+			uint8_t* ptr = nullptr;
+			while (garbage_pool_.pop(ptr))
+			{
+				if (ptr)
+					delete ptr;
+			}
+		}
 	}
 
-	fec_group::fec_group(fec_group&& pg) noexcept
+	uint8_t* packet_allocator::alloc_packet()
+	{
+		uint8_t* p = nullptr;
+
+		if (garbage_size_ > 0)
+		{
+			// 成功则返回被回收的内存, 在返回前
+			// 将内存块清0.
+			if (garbage_pool_.pop(p))
+			{
+				garbage_size_--;
+				std::memset(p, 0, 1450);
+				return p;
+			}
+		}
+
+		p = (uint8_t*)std::calloc(1, 1450);
+		memory_size_ += 1450;
+		return p;
+	}
+
+	void packet_allocator::free_packet(uint8_t* p)
+	{
+		// 如果垃圾大小超出最大设定大小, 则直接释放.
+		if ((size_t)memory_size_ >= max_size_)
+		{
+			std::free((void*)p);
+			memory_size_ -= 1450;
+			return;
+		}
+
+		// 放入垃圾站, 用以重复利用.
+		while (!garbage_pool_.push(p))
+			;
+		garbage_size_++;
+	}
+
+	std::size_t packet_allocator::total_size() const
+	{
+		return memory_size_;
+	}
+
+	void packet_allocator::set_max_size(size_t max_size)
+	{
+		max_size_ = max_size;
+	}
+
+	static packet_allocator global_allocator;
+
+	void set_global_allocator_size(size_t max_size)
+	{
+		global_allocator.set_max_size(max_size);
+	}
+
+	void packet_free::operator()(void* p)
+	{
+		global_allocator.free_packet((uint8_t*)p);
+	}
+
+	vpn_packet::vpn_packet()
+		: data_(global_allocator.alloc_packet())
+		, size_(0)
+	{}
+
+	vpn_packet::vpn_packet(vpn_packet&& p)
+		: data_(std::move(p.data_))
+		, size_(p.size_)
+	{
+		p.size_ = 0;
+	}
+
+	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
+	{
+		data_ = std::move(p.data_);
+		size_ = p.size_;
+		p.size_ = 0;
+		return *this;
+	}
+
+	uint8_t* vpn_packet::data()
+	{
+		BOOST_ASSERT(data_);
+		return data_.get();
+	}
+
+	uint16_t vpn_packet::size()
+	{
+		return size_;
+	}
+
+	void vpn_packet::resize(size_t count)
+	{
+		size_ = count;
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	fec_encode_group::fec_encode_group(int data_shards, int parity_shards)
+		: ds_(data_shards)
+		, ps_(parity_shards)
+		, pkts_(data_shards + parity_shards)
+	{
+		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
+			"fec_encode_group, dataShards + parityShards >= 255");
+	}
+
+	void fec_encode_group::update(uint32_t gid, uint16_t pid, vpn_packet&& pkt)
+	{
+		BOOST_ASSERT(gid == gid_ || gid == 0);
+
+		pkts_[pid] = std::move(pkt);
+		gid_ = gid;
+
+		total_++;
+	}
+
+	bool fec_encode_group::available() const
+	{
+		if (total_ == ds_)
+			return true;
+		return false;
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	fec_decode_group::fec_decode_group(int data_shards, int parity_shards)
+		: ds_(data_shards)
+		, ps_(parity_shards)
+		, pkts_(data_shards + parity_shards)
+		, bs_(data_shards + parity_shards)
+		, time_(timer::clock_type::now())
+	{
+		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
+			"fec_decode_group, dataShards + parityShards >= 255");
+	}
+
+	fec_decode_group::fec_decode_group(fec_decode_group&& pg) noexcept
 		: pkts_(std::move(pg.pkts_))
 		, gid_(pg.gid_)
 		, bs_(std::move(pg.bs_))
 		, ps_(pg.ps_)
-		, gsize_(pg.gsize_)
 		, ds_(pg.ds_)
 		, total_(pg.total_)
 		, time_(pg.time_)
@@ -41,301 +185,167 @@ namespace fec
 		pg.pkts_.clear();
 		pg.ds_ = -1;
 		pg.ps_ = -1;
-		pg.gsize_ = 0;
 		pg.total_ = 0;
 	}
 
-	void fec_group::update(uint32_t gid, uint16_t pid, uint8_t* data, size_t size)
+	void fec_decode_group::update(uint32_t gid, uint16_t pid, vpn_packet&& pkt)
 	{
+		BOOST_ASSERT(gid == gid_ || gid == 0);
 		gid_ = gid;
 
-		// COPY数据到容器.
-		auto& pkt = pkts_[pid];
-		pkt = std::vector<uint8_t>(data, data + size);
+		pkts_[pid] = std::move(pkt);
 		bs_.set_bit(pid);
 
-		// 这个group中接收到的所有字节总计.
-		total_ += (int64_t)size;
+		pkt.resize(1450);
+		total_ += 1450;
 	}
 
-	bool fec_group::full() noexcept
+	bool fec_decode_group::full() noexcept
 	{
 		return bs_.count() == (ds_ + ps_);
 	}
 
-	bool fec_group::accord() const
+	bool fec_decode_group::available() const
 	{
 		return bs_.count() >= ds_;
 	}
 
-	size_t fec_group::count() const
+	std::vector<int> fec_decode_group::lost() const
 	{
-		return bs_.count();
+		std::vector<int> result;
+
+		for (auto i = 0; i < ds_; i++)
+		{
+			if (!bs_[i])
+				result.push_back(i);
+		}
+
+		return result;
 	}
 
-	bool fec_group::parse_impl(std::string& ip, uint8_t* data_ptr,
-		int data_size, int& left, int& whole, int& ip_size,
-		fec_ip_state& state, std::vector<std::string>& result)
+	void fec_decode_group::set_used()
 	{
-		while (true)
+		used_ = true;
+		pkts_.clear();
+	}
+
+	bool fec_decode_group::used() const
+	{
+		return used_;
+	}
+
+	bool fec_decode_group::decode()
+	{
+		BOOST_ASSERT(available());
+
+		fec::matrix* matrix_ptr = nullptr;
+		// 找解码缓冲.
+		int64_t idx = (ds_ << 16) | ps_;
+
+		auto it = matrix_cache_.find(idx);
+		if (it == matrix_cache_.end())
 		{
-			uint8_t* bufptr = (uint8_t*)data_ptr + left;
-			int bufsize = data_size - left;
+			matrix_cache_[idx] = fec::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
+			matrix_ptr = &matrix_cache_[idx];
+		}
+		else
+		{
+			matrix_ptr = &it->second;
+		}
 
-			// 没有数据了, 跳向下一个.
-			if (bufsize <= 0)
-			{
-				left = 0;
-				break;
-			}
+		fec::reedsolomon fec_dec(ds_, ps_, *matrix_ptr);
 
-			if (whole == 0)
-				return true;
-
-			BOOST_ASSERT(whole > 0);
-
-			switch (state)
-			{
-			case fec_ip_state::ip_start:
-			{
-				if (ip.size() < 4)
-				{
-					int n = 4 - (int)ip.size();
-					n = std::min<int>((int)bufsize, n);
-
-					ip.append((char*)bufptr, n);
-					left += n;
-
-					if (ip.size() < 4)
-						continue;
-
-					bufptr += n;
-					bufsize -= n;
-				}
-
-				BOOST_ASSERT(ip.size() == 4);
-				// 必然等于4, 如果不是, 则表示此段解析代码有问题.
-				if (ip.size() != 4)
-					return false;
-
-				// 获取ip包大小.
-				ip_size = ntohs(*(uint16_t*)(ip.data() + 2));
-
-				// ip包至少20大小, 如果不是, 则表示数据损坏.
-				if (ip_size < 20)
-					return false;
-
-				// 跳过已经拷贝的4字节head.
-				ip_size -= 4;
-				auto num = std::min<int>(ip_size, bufsize);
-
-				// 如果ip包大小小于已有数据大小, 则直接拷入ip字符串.
-				if (num == ip_size)
-				{
-					ip.append((char*)bufptr, num);
-					whole -= (int)ip.size();
-					result.emplace_back(std::move(ip));
-					left += num;
-				}
-				else
-				{
-					// 否则拷入已有的部分ip数据到ip字符串, 然后接着拷.
-					ip.append((char*)bufptr, num);
-					left += num;
-					ip_size -= num;
-					state = fec_ip_state::ip_parsing;
-				}
-			}
-			break;
-			case fec_ip_state::ip_parsing:
-			{
-				auto num = std::min<int>(ip_size, bufsize);
-				if (num == ip_size)
-				{
-					ip.append((char*)bufptr, num);
-					whole -= (int)ip.size();
-					result.emplace_back(std::move(ip));
-					left += num;
-					state = fec_ip_state::ip_start;
-				}
-				else
-				{
-					// 否则拷入已有的部分ip数据到ip字符串, 然后接着拷.
-					ip.append((char*)bufptr, num);
-					left += num;
-					ip_size -= num;
-					state = fec_ip_state::ip_parsing;
-				}
-			}
-			break;
-			}
+		// fec解码.
+		try {
+			fec_dec.decode(pkts_);
+		}
+		catch (const std::exception& e) {
+			LOG_WARN << "fec decode exception: " << e.what();
+			return false;
 		}
 
 		return true;
 	}
 
-	std::vector<std::string> fec_group::decode()
-	{
-		if (!accord())
-			return {};
-
-		int64_t idx = (ds_ << 16) | ps_;
-		auto it = matrix_cache_.find(idx);
-		if (it == matrix_cache_.end())
-		{
-			matrix_cache_[idx] = fec::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
-			it = matrix_cache_.find(idx);
-		}
-
-		fec::reedsolomon fec_dec(ds_, ps_, it->second);
-
-		// fec解码.
-#if !defined(_DEBUG) && !defined(DEBUG)
-		try {
-#endif
-			fec_dec.decode(pkts_);
-#if !defined(_DEBUG) && !defined(DEBUG)
-		}
-		catch (const std::exception& e) {
-			LOG_WARN << "fec decode exception: " << e.what();
-			return {};
-		}
-#endif
-
-		std::vector<std::string> result;
-
-		auto ptr_func = [](std::vector<uint8_t>& buf) -> const uint8_t* {
-			return buf.data();
-		};
-
-		auto size_func = [](std::vector<uint8_t>& buf) -> size_t {
-			return buf.size();
-		};
-
-		group_parse(pkts_, result, ptr_func, size_func);
-
-		return result;
-	}
-
-	std::vector<std::string> fec_group::decode(const fec::matrix& m)
-	{
-		if (!accord())
-			return {};
-
-		fec::reedsolomon fec_dec(ds_, ps_, m);
-
-		// fec解码.
-#if !defined(_DEBUG) && !defined(DEBUG)
-		try {
-#endif
-			fec_dec.decode(pkts_);
-#if !defined(_DEBUG) && !defined(DEBUG)
-		}
-		catch (const std::exception& e) {
-			LOG_WARN << "fec decode exception: " << e.what();
-			return {};
-		}
-#endif
-
-		std::vector<std::string> result;
-
-		auto ptr_func = [](std::vector<uint8_t>& buf) -> const uint8_t* {
-			return buf.data();
-		};
-
-		auto size_func = [](std::vector<uint8_t>& buf) -> size_t {
-			return buf.size();
-		};
-
-		group_parse(pkts_, result, ptr_func, size_func);
-
-		return result;
-	}
-
-
 	//////////////////////////////////////////////////////////////////////////
 
-	fec_cache::fec_cache(int64_t max_cache_size /*= 64 * 1024 * 1024*/)
-		: cache_size_limit_(max_cache_size)
-	{}
-
-	void fec_cache::reset()
+	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
+		: cache_size_limit_(max_size)
 	{
-		groups_.clear();
-		expired_.clear();
-		result_.clear();
-
-		total_cache_size_ = 0;
+		set_global_allocator_size(max_size);
 	}
 
-	void fec_cache::update(uint32_t gid, uint16_t pid,
-		int data_shards, int parity_shards,
-		int gsize, uint8_t* data, size_t data_size)
+	void fec_recover::reset()
+	{
+		groups_.clear();
+		results_.clear();
+	}
+
+	void fec_recover::update(uint32_t gid, uint16_t pid,
+		int ds, int ps, vpn_packet&& pkt)
 	{
 		auto it = groups_.find(gid);
 		if (it == groups_.end())
 		{
-			if (expired_.contains(gid))
-				return;
+			fec_decode_group gop(ds, ps);
+			gop.update(gid, pid, std::move(pkt));
 
-			fec_group pkt(data_shards, parity_shards, gsize);
-			pkt.update(gid, pid, data, data_size);
-			groups_.emplace(gid, std::move(pkt));
+			groups_.emplace(gid, std::move(gop));
 		}
 		else
 		{
-			auto& pkt = it->second;
-			pkt.update(gid, pid, data, data_size);
+			auto& gop = it->second;
+			if (gop.used())
+				return;
 
-			// 保存已经可用的pkt.
-			if (pkt.accord())
-			{
-				expired_.insert(gid);
-				result_.emplace_back(std::move(pkt));
-				groups_.erase(it);
-			}
+			gop.update(gid, pid, std::move(pkt));
+			if (!gop.available())
+				return;
+
+			scoped_exit se([&gop]() mutable { gop.set_used(); });
+
+			auto lost_pkts = gop.lost();
+			if (lost_pkts.empty())
+				return;
+
+			if (!gop.decode())
+				return;
+
+			for (auto& index : lost_pkts)
+				results_.emplace_back(std::move(gop.pkts_[index]));
 		}
-
-		total_cache_size_ += data_size;
 	}
 
-	int fec_cache::garbage_clean()
+	int64_t fec_recover::garbage_clean()
 	{
-		if (expired_.size() > 2048)
+		auto memory_used = [this]()
 		{
-			int num = 0;
-			for (auto it = expired_.begin();
-				it != expired_.end() && num <= 1024; num++)
-			{
-				expired_.erase(it++);
-			}
-		}
+			return (int64_t)(global_allocator.total_size()
+				+ groups_.size() * sizeof(fec_decode_group));
+		};
 
-		if (total_cache_size_ <= cache_size_limit_)
+		int64_t total = memory_used();
+
+		if (total <= cache_size_limit_ && groups_.size() < 40000)
 			return 0;
 
-		int bytes_num = 0;
+		int64_t bytes = 0;
 		for (auto it = groups_.begin(); it != groups_.end();)
 		{
 			auto& [gid, gop] = *it;
 
-			total_cache_size_ -= gop.total_;
-			bytes_num += (int)gop.total_;
 			groups_.erase(it++);
+			bytes = memory_used();
 
-			if (total_cache_size_ <= cache_size_limit_)
+			if (bytes <= cache_size_limit_ && groups_.size() < 40000)
 				break;
 		}
 
-		return bytes_num;
+		return total - bytes;
 	}
 
-	std::vector<fec::fec_group> fec_cache::acquire()
+	std::vector<vpn_packet>& fec_recover::acquire()
 	{
-		for (const auto& gop : result_)
-			total_cache_size_ -= gop.total_;
-
-		return std::move(result_);
+		return results_;
 	}
-
 }

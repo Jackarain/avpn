@@ -17,6 +17,8 @@
 
 #include "avpn/reedsolomon.hpp"
 
+#include <boost/lockfree/queue.hpp>
+
 #include <boost/assert.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/beast/core/multi_buffer.hpp>
@@ -28,145 +30,171 @@
 #include <limits>
 #include <set>
 #include <map>
+#include <cstdlib>
+#include <memory>
+#include <atomic>
 
 
 namespace fec {
 
 	using namespace util;
 
-	struct fec_group
+	// 一个带垃圾回收的全局分配器.
+	class packet_allocator
 	{
-	private:
-		fec_group(const fec_group&) = delete;
-		fec_group& operator=(const fec_group&) = delete;
+		packet_allocator(const packet_allocator&) = delete;
+		packet_allocator& operator=(const packet_allocator&) = delete;
 
 	public:
-		const static size_t max_ptk_size = 512 * 1024;
+		explicit packet_allocator(std::size_t max_size
+			= std::numeric_limits<std::size_t>::max());
+		~packet_allocator();
 
-		enum class fec_ip_state {
-			ip_start = 0,
-			ip_parsing = 1,
-		};
+	public:
+		uint8_t* alloc_packet();
+		void free_packet(uint8_t* p);
+		std::size_t total_size() const;
+		void set_max_size(size_t max_size);
 
-		fec_group() = delete;
-		fec_group(int data_shards, int parity_shards, int size);
+	private:
+		boost::lockfree::queue<uint8_t*> garbage_pool_;
+		std::atomic_int64_t garbage_size_{ 0 };
+		std::size_t max_size_;
+		std::atomic_int64_t memory_size_{ 0 };
+	};
 
-		fec_group(fec_group&& pg) noexcept;
+	// 设置分配器大小.
+	void set_global_allocator_size(size_t max_size);
+
+	struct packet_free
+	{
+		void operator()(void* p);
+	};
+
+	// vpn数据包定义.
+	struct vpn_packet
+	{
+	private:
+		vpn_packet(const vpn_packet&) = delete;
+		vpn_packet& operator=(const vpn_packet&) = delete;
+
+	public:
+		vpn_packet();
+		vpn_packet(vpn_packet&&);
+		vpn_packet& operator=(vpn_packet&&);
+
+		uint8_t* data();
+		uint16_t size();
+		void resize(size_t count);
+
+	public:
+		std::unique_ptr<uint8_t, packet_free> data_;
+		uint16_t size_;
+	};
+
+
+	struct fec_encode_group
+	{
+	private:
+		fec_encode_group(const fec_encode_group&) = delete;
+		fec_encode_group& operator=(const fec_encode_group&) = delete;
+		fec_encode_group() = delete;
+
+	public:
+		fec_encode_group(int data_shards, int parity_shards);
+		fec_encode_group(fec_encode_group&& pg) noexcept;
+
+	public:
+		// 更新这个gop的数据.
+		// gid 表示 group id;
+		// pid 表示 packet id, 即在这个group中的index;
+		// pkt 实际数据, 作为右值移动到fec_group中存储
+		//     以备将来使用;
+		void update(uint32_t gid, uint16_t pid, vpn_packet&& pkt);
+
+		// 数据已达到可编码.
+		bool available() const;
+
+	public:
+		std::vector<vpn_packet> pkts_;
+		uint32_t gid_{ 0 };
+		int ps_{ 0 };
+		int ds_{ 0 };
+		int64_t total_{ 0 };
+	};
+
+
+
+	struct fec_decode_group
+	{
+	private:
+		fec_decode_group(const fec_decode_group&) = delete;
+		fec_decode_group& operator=(const fec_decode_group&) = delete;
+		fec_decode_group() = delete;
+
+	public:
+		fec_decode_group(int data_shards, int parity_shards);
+		fec_decode_group(fec_decode_group&& pg) noexcept;
 
 		// 更新这个gop的数据.
-		void update(uint32_t gid, uint16_t pid, uint8_t* data, size_t size);
+		// gid 表示 group id;
+		// pid 表示 packet id, 即在这个group中的index;
+		// pkt 实际数据, 作为右值移动到fec_group中存储
+		//     以备将来使用;
+		void update(uint32_t gid, uint16_t pid, vpn_packet&& pkt);
 
 		// 完整接收.
 		bool full() noexcept;
 
-		// 接收数据已达到可解码.
-		bool accord() const;
+		// 可用, 只要能完整解码此gop, 则表示可用.
+		bool available() const;
+		// 丢失的索引, 如果未发生丢失, 则返回空.
+		std::vector<int> lost() const;
 
-		// 总数据量.
-		size_t count() const;
+		// 设置为已经被用过的.
+		void set_used();
+		// 返回是否被用过.
+		bool used() const;
 
-		bool parse_impl(std::string& ip,
-			uint8_t* data_ptr, int data_size,
-			int& left, int& whole, int& ip_size,
-			fec_ip_state& state, std::vector<std::string>& result);
-
-		template<class Buf, class DataPtr, class DataSize>
-		void group_parse(Buf& buffer, std::vector<std::string>& result,
-			DataPtr data_ptr_func, DataSize data_size_func)
-		{
-			std::string ip;
-			int left = 0;
-			int ip_size = 0;
-			int whole = (int)gsize_;
-			fec_ip_state state = fec_ip_state::ip_start;
-			bool corrupted = false;
-
-			for (auto i = 0; i < ds_; i++)
-			{
-				auto& d = buffer[i];
-				if (d.size() == 0)
-					continue;
-
-				auto data_ptr = (uint8_t*)data_ptr_func(d);
-				auto data_size = (int)data_size_func(d);
-
-				bool ret = parse_impl(ip, data_ptr, data_size,
-					left, whole, ip_size, state, result);
-				if (whole == 0)
-					return;
-
-				if (!ret)
-				{
-					corrupted = true;
-					break;
-				}
-			}
-
-			if (corrupted)
-			{
-				auto all_size = buffer.size();
-
-				LOG_WARN << "fec corrupted: gsize: " << gsize_ << ", gid: "
-					<< gid_ << ", total: " << total_ << ", ds: " << ds_
-					<< ", ps: " << ps_ << ", all: " << all_size;
-
-				// dump corrupted data.
-				auto params = std::format("gid={},gsize={},total={},ds={},ps={}",
-					gid_, gsize_, total_, ds_, ps_);
-				fileop::write(std::format("ds{}.param", gid_), params);
-
-				for (size_t i = 0; i < all_size; i++)
-				{
-					auto& d = buffer[i];
-					fileop::write(std::format("ds{}-{}.dat", gid_, i), d);
-				}
-			}
-		}
-
-		// rs解码数据, 返回的vector中每个元素将是一个完整的ip包.
-		std::vector<std::string> decode();
-		std::vector<std::string> decode(const fec::matrix& m);
+		// fec解码数据.
+		bool decode();
 
 	public:
-		std::vector<std::vector<uint8_t>> pkts_;
+		std::vector<vpn_packet> pkts_;
 		uint32_t gid_{ 0 };
 		bitfield bs_;
 		int ps_{ 0 };
-		size_t gsize_;
 		int ds_{ 0 };
 		int64_t total_{ 0 };
 		timer::time_point time_;
+		std::atomic_bool used_{ false };
 		static std::map<uint64_t, fec::matrix> matrix_cache_;
 	};
 
 
 	//////////////////////////////////////////////////////////////////////////
-
-	class fec_cache
+	// fec 恢复器.
+	class fec_recover
 	{
 	private:
-		fec_cache(const fec_cache&) = delete;
-		fec_cache& operator=(const fec_cache&) = delete;
+		fec_recover(const fec_recover&) = delete;
+		fec_recover& operator=(const fec_recover&) = delete;
 
 	public:
-		explicit fec_cache(int64_t max_cache_size = 64 * 1024 * 1024);
-		~fec_cache() = default;
+		explicit fec_recover(int64_t max_size = 64 * 1024 * 1024);
+		~fec_recover() = default;
 
 		void reset();
 
 		void update(uint32_t gid, uint16_t pid,
-			int data_shards, int parity_shards, int gsize,
-			uint8_t* data, size_t data_size);
+			int ds, int ps, vpn_packet&& pkt);
 
-		int garbage_clean();
-		std::vector<fec_group> acquire();
+		int64_t garbage_clean();
+		std::vector<vpn_packet>& acquire();
 
 	public:
 		int64_t cache_size_limit_;
-		std::map<uint32_t, fec_group> groups_;
-		std::set<uint32_t> expired_;
-		std::vector<fec_group> result_;
-		int64_t total_cache_size_ = 0;
+		std::map<uint32_t, fec_decode_group> groups_;
+		std::vector<vpn_packet> results_;
 	};
-
 }

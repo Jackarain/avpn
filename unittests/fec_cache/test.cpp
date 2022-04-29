@@ -22,13 +22,46 @@
 #include "avpn/fec_cache.hpp"
 #include "avpn/reedsolomon.hpp"
 
+
+BOOST_AUTO_TEST_CASE(fec_cache2_test1)
+{
+	fec::vpn_packet pkt1;
+	pkt1.size_ = 100;
+
+	fec::vpn_packet pkt2 = std::move(pkt1);
+
+	BOOST_TEST(pkt1.size_ == 0);
+	BOOST_TEST(pkt2.size_ == 100);
+
+	for (int i = 0; i < 100; i++)
+	{
+		fec::vpn_packet p;
+		p.size_ = 100;
+	}
+
+	fec::vpn_packet pkt3;
+	fec::vpn_packet pkt4;
+}
+
+BOOST_AUTO_TEST_CASE(fec_cache2_test2)
+{
+	fec::fec_decode_group gop(8, 4);
+	fec::vpn_packet pkt;
+
+	gop.update(0, 0, std::move(pkt));
+	BOOST_TEST(pkt.size() == 0);
+	BOOST_TEST(gop.total_ == 0);
+}
+
+#if 0
+
 BOOST_AUTO_TEST_CASE(fec_cache_test)
 {
 	fec::fec_cache fc;
 
-	int data_shards = 8;
+	int data_shards	  = 8;
 	int parity_shards = 2;
-	int total_shards = data_shards + parity_shards;
+	int total_shards  = data_shards + parity_shards;
 
 	// 构造编8/2码器.
 	fec::reedsolomon rs_enc(data_shards, parity_shards);
@@ -52,11 +85,11 @@ BOOST_AUTO_TEST_CASE(fec_cache_test)
 
 	std::srand((unsigned int)std::time(0));
 
-	int drop_cnt_total = 0;
-	int broker_pkt = 0;
-	int broker_gop_size = 0;
-	int got_pkt_total = 0;
-	int got_gop_total = 0;
+	int drop_cnt_total		= 0;
+	int broker_pkt			= 0;
+	int broker_gop_size		= 0;
+	int got_pkt_total		= 0;
+	int got_gop_total		= 0;
 	int clean_garbage_total = 0;
 
 	const int max_test_number = 1000000;
@@ -65,7 +98,7 @@ BOOST_AUTO_TEST_CASE(fec_cache_test)
 	for (int gid = 0; gid < max_test_number; gid++)
 	{
 		// 每一组随机丢1到3个数据包.
-		int drop = std::rand() % 3 + 1;
+		int drop	 = std::rand() % 3 + 1;
 		int drop_cnt = 0;
 
 		for (int pid = 0; pid < total_shards; pid++)
@@ -128,3 +161,5 @@ BOOST_AUTO_TEST_CASE(fec_cache_test)
 
 	BOOST_TEST((int64_t)remainder == fc.total_cache_size_);
 }
+
+#endif

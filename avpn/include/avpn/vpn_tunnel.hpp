@@ -138,7 +138,7 @@ namespace avpn {
 
 		Identity identity_{ Identity::avpn_server };	// server / client.
 
-		fec::fec_cache fec_dec_;			// fec 解码缓冲器.
+		fec::fec_recover fec_dec_;			// fec 解码缓冲器.
 		uint32_t gid_{ 0 };					// fec 编码group id.
 		fec::matrix* dec_matrix_;			// 用于rs解码的矩阵.
 

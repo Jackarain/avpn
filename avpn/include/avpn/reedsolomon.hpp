@@ -78,6 +78,8 @@ namespace fec {
 			std::vector<std::span<uint8_t>>&/* target */);
 	};
 
+	struct vpn_packet;
+
 	// 基本的(无优化)codingloop实现.
 	class io_table_codingloop : public codingloop
 	{
@@ -109,7 +111,7 @@ namespace fec {
 		size_t estimate_pershard_size(int total_size, int data_shards = -1);
 
 		void encode(const std::vector<std::string_view>& shards);
-		void decode(std::vector<std::vector<uint8_t>>& shards);
+		void decode(std::vector<vpn_packet>& shards);
 
 		static matrix build_matrix(int shards, int data_shards);
 
@@ -136,6 +138,7 @@ namespace fec {
 			if (shard_length == 0)
 				throw std::runtime_error("wrong shard no data");
 
+#if defined(DEBUG) || defined(_DEBUG)
 			for (size_t i = 1; i < shards.size(); i++) {
 				if (shards[i].size() != shard_length) {
 					if (shards[i].size() != 0 || !nilok) {
@@ -143,6 +146,7 @@ namespace fec {
 					}
 				}
 			}
+#endif
 		}
 
 	private:
