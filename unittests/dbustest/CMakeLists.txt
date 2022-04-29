@@ -4,14 +4,14 @@ file(GLOB tests_SRCS
 )
 
 add_executable(dbus_tests
-	${tests_SRCS} ../../avpn/src/utils/resolved_setdns.cpp
+	${tests_SRCS}
 )
 
 if (ENABLE_dbus_STATIC)
-	target_link_libraries(dbus_tests Boost::asio dbus-static)
+	target_link_libraries(dbus_tests dbus-static)
 endif()
 
-target_link_libraries(dbus_tests systemd)
+target_link_libraries(dbus_tests libavpn Boost::asio Boost::beast systemd)
 
 if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
 	set_property(TARGET dbus_tests PROPERTY CXX_STANDARD 23)
