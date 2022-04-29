@@ -15,6 +15,5 @@ COPY --from=builder /avpn/build/bin/avpn /usr/local/bin/
 EXPOSE 30000-31000/tcp
 EXPOSE 30000-31000/udp
 
-ADD /run /home/run
-CMD ["/home/run/run.sh"]
-
+WORKDIR /root
+ENTRYPOINT ["avpn"]
