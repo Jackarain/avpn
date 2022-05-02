@@ -347,8 +347,6 @@ namespace fec
 		int64_t bytes = 0;
 		for (auto it = groups_.begin(); it != groups_.end();)
 		{
-			auto& [gid, gop] = *it;
-
 			groups_.erase(it++);
 			bytes = memory_used();
 
