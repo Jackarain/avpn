@@ -133,11 +133,11 @@ namespace fec {
 		bool available() const;
 
 	public:
-		std::vector<vpn_packet> pkts_;
-		uint32_t gid_{ 0 };
-		int ps_{ 0 };
 		int ds_{ 0 };
+		int ps_{ 0 };
+		uint32_t gid_{ 0 };
 		int64_t total_{ 0 };
+		std::vector<vpn_packet> pkts_;
 	};
 
 
@@ -181,8 +181,8 @@ namespace fec {
 		std::vector<vpn_packet> pkts_;
 		uint32_t gid_{ 0 };
 		bitfield bs_;
-		int ps_{ 0 };
 		int ds_{ 0 };
+		int ps_{ 0 };
 		int64_t total_{ 0 };
 		timer::time_point time_;
 		std::atomic_bool used_{ false };

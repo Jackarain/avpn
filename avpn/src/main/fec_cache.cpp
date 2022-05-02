@@ -176,10 +176,10 @@ namespace fec
 	//////////////////////////////////////////////////////////////////////////
 
 	fec_decode_group::fec_decode_group(int data_shards, int parity_shards)
-		: ds_(data_shards)
-		, ps_(parity_shards)
-		, pkts_(data_shards + parity_shards)
+		: pkts_(data_shards + parity_shards)
 		, bs_(data_shards + parity_shards)
+		, ds_(data_shards)
+		, ps_(parity_shards)
 		, time_(timer::clock_type::now())
 	{
 		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
@@ -190,8 +190,8 @@ namespace fec
 		: pkts_(std::move(pg.pkts_))
 		, gid_(pg.gid_)
 		, bs_(std::move(pg.bs_))
-		, ps_(pg.ps_)
 		, ds_(pg.ds_)
+		, ps_(pg.ps_)
 		, total_(pg.total_)
 		, time_(pg.time_)
 	{
