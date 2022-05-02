@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "vpncore/tuntap_config.hpp"
+#include "vpncore/tundev_config.hpp"
 
 #include <string>
 #include <vector>
@@ -19,20 +19,20 @@
 namespace avpn {
 
 	template <typename Service>
-	class basic_tuntap
+	class basic_tun_service
 	{
 		// c++11 noncopyable.
-		basic_tuntap(const basic_tuntap&) = delete;
-		basic_tuntap& operator=(const basic_tuntap&) = delete;
+		basic_tun_service(const basic_tun_service&) = delete;
+		basic_tun_service& operator=(const basic_tun_service&) = delete;
 
 	public:
 		using service_type = Service;
 
-		explicit basic_tuntap(boost::asio::io_context& io_context)
+		explicit basic_tun_service(boost::asio::io_context& io_context)
 			: service_(io_context)
 		{}
 
-		~basic_tuntap()
+		~basic_tun_service()
 		{
 			close();
 		}
@@ -76,7 +76,7 @@ namespace avpn {
 
 		// 获取所有tuntap设备列表, 一般在打开tuntap devicep之前
 		// 先获取到tuntap, 根据这个列表选择打开指定device.
-		std::vector<device_tuntap> take_device_list()
+		std::vector<tun_device_info> take_device_list()
 		{
 			return service_.take_device_list();
 		}

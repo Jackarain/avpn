@@ -466,9 +466,9 @@ int gen_random_int(int start, int end)
 	return dis(gen);
 }
 
-std::string gen_unique_string(const unsigned int max_str_len)
+std::string gen_unique_string(const unsigned int len)
 {
-	static const char szAcsiiTable[] = {
+	static const char acsii_table[] = {
 		'a', 'b', 'c', 'd', 'e',
 		'f', 'g', 'h', 'i', 'j',
 		'k', 'l', 'm', 'n', 'o',
@@ -478,13 +478,13 @@ std::string gen_unique_string(const unsigned int max_str_len)
 		'5', '6', '7', '8', '9',
 		'0'
 	};
-	static const int table_len = sizeof(szAcsiiTable) / sizeof(char);
+	static const int table_len = sizeof(acsii_table) / sizeof(char);
 
 	std::string str;
-	for (unsigned int i = 0; i < max_str_len; i++) {
+	for (unsigned int i = 0; i < len; i++) {
 
 		int index = gen_random_int(0, table_len - 1);
-		str.append(1, szAcsiiTable[index]);
+		str.append(1, acsii_table[index]);
 	}
 
 	return str;

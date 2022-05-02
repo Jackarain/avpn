@@ -34,16 +34,16 @@ BOOST_AUTO_TEST_CASE(ecdh_keyexchange_test)
 	std::string privateKey2;
 	std::string publicKey2;
 
-	crypto_util::keyexchange ecdh1(privateKey1);
-	publicKey1 = ecdh1.StaticPublicKey();
+	crypto_util::keyexchange server(privateKey1);
+	publicKey1 = server.StaticPublicKey();
 	auto pubkey = base64_encode(publicKey1);
 	BOOST_TEST("lLgKbd/K9p5EIwrAFxXC5EJN6RQXIX4WQO34o1N7N30=" == pubkey);
 
-	crypto_util::keyexchange ecdh2;
-	publicKey2 = ecdh2.StaticPublicKey();
+	crypto_util::keyexchange client;
+	publicKey2 = client.StaticPublicKey();
 
-	auto shared1 = ecdh1.GenerateSharedKey(publicKey2);
-	auto shared2 = ecdh2.GenerateSharedKey(publicKey1);
+	auto shared1 = server.GenerateSharedKey(publicKey2);
+	auto shared2 = client.GenerateSharedKey(publicKey1);
 
 	BOOST_TEST(shared2 == shared1);
 }

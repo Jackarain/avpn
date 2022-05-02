@@ -12,11 +12,9 @@
 
 #include "avpn/version.hpp"
 #include "avpn/avpn.hpp"
-#include "avpn/reedsolomon.hpp"
-#include "avpn/controller.hpp"
+#include "avpn/vpn_controller.hpp"
 
 #include "utils/io_context_pool.hpp"
-#include "utils/fileop.hpp"
 #include "utils/misc.hpp"
 #include "socks/socks_server.hpp"
 #include "socks/socks_client.hpp"
@@ -189,25 +187,23 @@ int main(int argc, char** argv)
 	int data_shards;
 	int parity_shards;
 	int mode;
-	bool compress;
-	int fec_delay;
-	bool auto_fec;
+	std::string compress;
 	int keepalive;
 	std::string subnet;
 	std::string ifdev;
 	std::string identity;
 	std::string config;
-	int controller_port;
+	std::string controller;
 
 	std::vector<std::string> routes;
 	std::string pushdns;
 	bool passbyvpn = false;
-	bool snat = false;
 	bool c2c = true;
 	bool noroute = false;
 	bool disable_logs = false;
 	std::string writepid_file;
 	std::string ignored_param;
+	std::string passphrase;
 
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
@@ -223,6 +219,7 @@ int main(int argc, char** argv)
 		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device.")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
+		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
 
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
@@ -236,27 +233,23 @@ int main(int argc, char** argv)
 		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
 		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
 
-		("fec_delay", po::value<int>(&fec_delay)->default_value(20)->value_name("N"), "Delay(milliseconds) for fec.")
-
-		("autofec", po::value<bool>(&auto_fec)->value_name(" "), "Automatic parameterization for fec.")
 		("mode", po::value<int>(&mode)->default_value(0)->value_name("mode"), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
-		("compress", po::value<bool>(&compress)->value_name(" "), "Enable a compression algorithm.")
+		("compress", po::value<std::string>(&compress)->value_name("deflate/lz4/zstd"), "Enable a compression algorithm.")
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Keep alive(milliseconds) for tcp and udp.")
 
-		("noroute", po::value<bool>(&noroute)->value_name(" "), "ingore server pushed routes")
+		("noroute", po::value<bool>(&noroute)->value_name(" "), "Ignore server pushed routes")
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push nameserver to client.")
 		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(" "), "All IP network traffic originating on client machines to pass through the server.")
-		("snat", po::value<bool>(&snat)->value_name(" "), "Source network address translation.")
 
 		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "VPN subnet.")
 		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow different clients to be able to see each other.")
 
-		("controller", po::value<int>(&controller_port)->default_value(-1)->value_name("port"), "Controller, local controller server port.")
+		("controller", po::value<std::string>(&controller)->default_value("")->value_name("ip:port"), "Controller, local controller server port.")
 
 		("disable_logs", po::value<bool>(&disable_logs)->value_name(" "), "Disable logs.")
-		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "write pit to file")
+		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
 	;
 
 	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置
@@ -346,7 +339,7 @@ int main(int argc, char** argv)
 	terminator_signal.add(SIGQUIT);
 #endif // defined(SIGQUIT)
 
-	avpn::server_config cfg;
+	avpn::service_config cfg;
 
 	cfg.upstreams_ = upstreams;
 
@@ -354,25 +347,24 @@ int main(int argc, char** argv)
 	cfg.udp_listens_ = udp_listens;
 
 	cfg.ifdev_ = ifdev;
-	cfg.snat_ = snat;
-	cfg.controller_ = controller_port;
-	cfg.ignore_route = noroute;
+	cfg.controller_ = controller;
 
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
 	params.mode_ = mode;
 	params.compress_ = compress;
-	params.fec_delay_ = fec_delay;
-	params.auto_fec_ = auto_fec;
 	params.keepalive_ = keepalive;
+	params.pushdns_ = pushdns;
+	params.pushroutes_ = routes;
 	params.passbyvpn_ = passbyvpn;
+	params.ignore_pushroute = noroute;
 	params.c2c_ = c2c;
 	params.subnet_ = subnet;
 
 	if (data_shards + parity_shards > 256)
 	{
-		LOG_ERR << "sum of data and parity shards cannot exceed 256";
+		LOG_ERR << "Sum of data and parity shards cannot exceed 256";
 		return EXIT_FAILURE;
 	}
 	if (identity == "server")
@@ -381,13 +373,9 @@ int main(int argc, char** argv)
 		cfg.identity_ = avpn::Identity::avpn_client;
 	else
 	{
-		LOG_DBG << "identity not set, default is client.";
+		LOG_DBG << "Identity not set, default is client.";
 		cfg.identity_ = avpn::Identity::avpn_client;
 	}
-
-	params.routes_ = routes;
-	params.pushdns_ = pushdns;
-	params.passbyvpn_ = passbyvpn;
 
 	if (cfg.identity_ == avpn::Identity::avpn_client && cfg.upstreams_.empty())
 	{
@@ -414,8 +402,10 @@ int main(int argc, char** argv)
 	else
 	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
+	// 如果开启了socks服务, 则listen一个socks服务.
+	// 这个socks server目前和avpn无关, 是额外的功
+	// 能, 用于将来实现tun2socks备用.
 	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
-
 	for (auto& socks : socks_listens)
 	{
 		boost::system::error_code ec;
@@ -423,7 +413,7 @@ int main(int argc, char** argv)
 		make_listen_endpoint(socks, endp, ec);
 		if (ec)
 		{
-			LOG_WARN << "socks server param: "
+			LOG_WARN << "Socks server param: "
 				<< socks << " listen: " << ec.message();
 			continue;
 		}
@@ -440,7 +430,7 @@ int main(int argc, char** argv)
 		socks_servers.emplace_back(std::move(server));
 	}
 
-	if (controller_port == -1)
+	if (controller.empty())
 	{
 		avpn::avpn_service srv{ ios, cfg };
 		srv.start();
@@ -466,8 +456,8 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		// 构造controller对象, 在内部发起对controller的连接.
-		avpn::controller control{ ios, cfg };
+		// 构造vpn_controller对象, 在内部发起对controller的连接.
+		avpn::vpn_controller control{ ios, cfg };
 		control.start();
 
 		ios.run();

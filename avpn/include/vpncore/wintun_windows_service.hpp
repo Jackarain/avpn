@@ -10,7 +10,7 @@
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
-#include "vpncore/tuntap_config.hpp"
+#include "vpncore/tundev_config.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
@@ -831,13 +831,12 @@ namespace avpn {
 					initiate_async_write_some(this), handler, buffers);
 		}
 
-		std::vector<device_tuntap> take_device_list()
+		std::vector<tun_device_info> take_device_list()
 		{
-			return m_device_list;
+			return {};
 		}
 
 	private:
-		std::vector<device_tuntap> m_device_list;
 		dev_config m_config;
 
 		HANDLE m_send_ring_handle{ INVALID_HANDLE_VALUE };

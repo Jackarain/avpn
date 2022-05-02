@@ -65,7 +65,7 @@
 #include <span>
 #include <condition_variable>
 
-#include "vpncore/tuntap_config.hpp"
+#include "vpncore/tundev_config.hpp"
 #include "vpncore/endpoint_pair.hpp"
 
 #include "utils/scoped_exit.hpp"

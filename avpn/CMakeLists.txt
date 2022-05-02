@@ -16,10 +16,10 @@ file(GLOB avpn_WINDOWS_SRCS
 	include/vpncore/wintun_windows_service.hpp
 )
 file(GLOB avpn_APPLE_SRCS
-	include/vpncore/tuntap_macos_service.hpp
+	include/vpncore/tundev_macos_service.hpp
 )
 file(GLOB avpn_LINUX_SRCS
-	include/vpncore/tuntap_linux_service.hpp
+	include/vpncore/tundev_linux_service.hpp
 )
 
 file(GLOB avpn_SRCS
@@ -28,13 +28,13 @@ file(GLOB avpn_SRCS
 	include/avpn/avpn.hpp
 	include/avpn/vpn_tunnel.hpp
 	include/avpn/reedsolomon.hpp
-	include/avpn/controller.hpp
+	include/avpn/vpn_controller.hpp
 	include/avpn/fec_cache.hpp
 
 	include/vpncore/basic_tuntap.hpp
 	include/vpncore/endpoint_pair.hpp
-	include/vpncore/tuntap.hpp
-	include/vpncore/tuntap_config.hpp
+	include/vpncore/tundev.hpp
+	include/vpncore/tundev_config.hpp
 	include/vpncore/fec_cache.hpp
 
 	include/utils/*.hpp
@@ -46,7 +46,7 @@ file(GLOB avpn_SRCS
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
 	src/main/reedsolomon.cpp
-	src/main/controller.cpp
+	src/main/vpn_controller.cpp
 	src/main/fec_cache.cpp
 )
 

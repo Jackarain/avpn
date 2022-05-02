@@ -10,7 +10,7 @@
 
 namespace avpn {
 
-	struct device_tuntap
+	struct tun_device_info
 	{
 		std::string name_;			// utf8 encode.
 		std::string guid_;

@@ -79,6 +79,7 @@ namespace crypto_util {
 	private:
 		std::seed_seq m_seed;
 		std::mt19937 m_mt19937;
+		std::string m_passwd;
 	};
 
 }

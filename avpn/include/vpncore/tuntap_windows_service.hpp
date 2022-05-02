@@ -8,7 +8,7 @@
 #pragma once
 
 #include "utils/logging.hpp"
-#include "vpncore/tuntap_config.hpp"
+#include "vpncore/tundev_config.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>
@@ -456,7 +456,7 @@ namespace avpn {
 
 			for (auto& item : dev_map)
 			{
-				m_device_list.push_back(device_tuntap{ item.second, item.first });
+				m_device_list.push_back(tun_device_info{ item.second, item.first });
 			}
 		}
 
@@ -653,7 +653,7 @@ namespace avpn {
 			return m_io_handle.async_write_some(buffers, std::forward<WriteHandler>(handler));
 		}
 
-		std::vector<device_tuntap> take_device_list()
+		std::vector<tun_device_info> take_device_list()
 		{
 			return m_device_list;
 		}
@@ -677,7 +677,7 @@ namespace avpn {
 			return m_if_index;
 		}
 	private:
-		std::vector<device_tuntap> m_device_list;
+		std::vector<tun_device_info> m_device_list;
 		dev_config m_config;
 		HANDLE m_handle;
 		int m_frame_mtu{ -1 };

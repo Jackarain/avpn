@@ -236,6 +236,7 @@ namespace crypto_util {
 	stream_crypto::stream_crypto(std::string_view passwd)
 		: m_seed(passwd.begin(), passwd.end())
 		, m_mt19937(m_seed)
+		, m_passwd(passwd)
 	{}
 
 	void stream_crypto::perform(std::span<std::byte> content)
@@ -247,8 +248,19 @@ namespace crypto_util {
 
 	uint32_t stream_crypto::aead_encrypt(std::span<std::byte> content)
 	{
-		const char* p = reinterpret_cast<const char*>(content.data());
-		uint32_t hash = XXH32(p, content.size_bytes(), 0);
+		const char* data = reinterpret_cast<const char*>(content.data());
+		uint32_t hash = XXH32(data, content.size_bytes(), 0);
+
+		uint8_t* p = (uint8_t*)&hash;
+		auto dyn_pwd = m_passwd;
+
+		dyn_pwd.push_back(p[0]);
+		dyn_pwd.push_back(p[1]);
+		dyn_pwd.push_back(p[2]);
+		dyn_pwd.push_back(p[3]);
+
+		std::seed_seq seed(dyn_pwd.begin(), dyn_pwd.end());
+		m_mt19937.seed(seed);
 
 		CSPRNG rng(m_mt19937);
 		for (auto& c : content)
@@ -259,12 +271,23 @@ namespace crypto_util {
 
 	bool stream_crypto::aead_decrypt(std::span<std::byte> content, uint32_t hash)
 	{
+		uint8_t* p = (uint8_t*)&hash;
+		auto dyn_pwd = m_passwd;
+
+		dyn_pwd.push_back(p[0]);
+		dyn_pwd.push_back(p[1]);
+		dyn_pwd.push_back(p[2]);
+		dyn_pwd.push_back(p[3]);
+
+		std::seed_seq seed(dyn_pwd.begin(), dyn_pwd.end());
+		m_mt19937.seed(seed);
+
 		CSPRNG rng(m_mt19937);
 		for (auto& c : content)
 			c = c ^ static_cast<std::byte>(rng());
 
-		const char* p = reinterpret_cast<const char*>(content.data());
-		uint32_t h = XXH32(p, content.size_bytes(), 0);
+		const char* data = reinterpret_cast<const char*>(content.data());
+		uint32_t h = XXH32(data, content.size_bytes(), 0);
 
 		if (hash != h)
 			return false;

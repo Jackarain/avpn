@@ -13,6 +13,8 @@ namespace fec
 {
 	std::map<uint64_t, fec::matrix> fec_decode_group::matrix_cache_;
 
+
+	//////////////////////////////////////////////////////////////////////////
 	packet_allocator::packet_allocator(
 		std::size_t max_size /*= std::numeric_limits<std::size_t>::max()*/)
 		: garbage_pool_(0)
@@ -91,6 +93,9 @@ namespace fec
 		global_allocator.free_packet((uint8_t*)p);
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////
+
 	vpn_packet::vpn_packet()
 		: data_(global_allocator.alloc_packet())
 		, size_(0)
@@ -99,6 +104,7 @@ namespace fec
 	vpn_packet::vpn_packet(vpn_packet&& p)
 		: data_(std::move(p.data_))
 		, size_(p.size_)
+		, type_(p.type_)
 	{
 		p.size_ = 0;
 	}
@@ -107,6 +113,7 @@ namespace fec
 	{
 		data_ = std::move(p.data_);
 		size_ = p.size_;
+		type_ = p.type_;
 		p.size_ = 0;
 		return *this;
 	}
@@ -124,10 +131,18 @@ namespace fec
 
 	void vpn_packet::resize(size_t count)
 	{
-		size_ = count;
+		size_ = (uint16_t)count;
 	}
 
+	vpn_packet_type vpn_packet::type() const
+	{
+		return type_;
+	}
 
+	void vpn_packet::type(vpn_packet_type t)
+	{
+		type_ = t;
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -156,7 +171,6 @@ namespace fec
 			return true;
 		return false;
 	}
-
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -267,6 +281,7 @@ namespace fec
 		return true;
 	}
 
+
 	//////////////////////////////////////////////////////////////////////////
 
 	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
@@ -344,8 +359,8 @@ namespace fec
 		return total - bytes;
 	}
 
-	std::vector<vpn_packet>& fec_recover::acquire()
+	std::vector<vpn_packet> fec_recover::acquire()
 	{
-		return results_;
+		return std::move(results_);
 	}
 }

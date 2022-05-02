@@ -1231,8 +1231,6 @@ namespace fec {
 
 		void reedsolomon::encode(const std::vector<std::string_view>& shards)
 		{
-			check_shards(shards);
-
 			std::vector<std::span<uint8_t>> outputs;
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
 				outputs.push_back(std::span<uint8_t>((uint8_t*)shards[i].data(), shards[i].size()));
@@ -1244,8 +1242,6 @@ namespace fec {
 
 		void reedsolomon::decode(std::vector<vpn_packet>& shards)
 		{
-			check_shards(shards, true);
-
 			auto shard_size = get_shard_size(shards);
 			auto number_present = 0;
 			auto data_present = 0;

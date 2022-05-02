@@ -40,7 +40,7 @@
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/misc.hpp"
-#include "vpncore/tuntap_config.hpp"
+#include "vpncore/tundev_config.hpp"
 
 namespace avpn
 {
@@ -74,20 +74,20 @@ namespace avpn
 		return {};
 	}
 
-	class tuntap_macos_service
-		: public boost::asio::detail::service_base<tuntap_macos_service>
+	class tundev_macos_service
+		: public boost::asio::detail::service_base<tundev_macos_service>
 	{
 		// c++11 noncopyable.
-		tuntap_macos_service(const tuntap_macos_service &) = delete;
-		tuntap_macos_service &operator=(const tuntap_macos_service &) = delete;
+		tundev_macos_service(const tundev_macos_service &) = delete;
+		tundev_macos_service &operator=(const tundev_macos_service &) = delete;
 
 	public:
-		explicit tuntap_macos_service(boost::asio::io_context &io_context)
-			: boost::asio::detail::service_base<tuntap_macos_service>(io_context)
+		explicit tundev_macos_service(boost::asio::io_context &io_context)
+			: boost::asio::detail::service_base<tundev_macos_service>(io_context)
 			, m_stream_descriptor(io_context)
 		{}
 
-		~tuntap_macos_service()
+		~tundev_macos_service()
 		{
 		}
 
@@ -324,9 +324,9 @@ namespace avpn
 				}, handler, buffers);
 		}
 
-		std::vector<device_tuntap> take_device_list()
+		std::vector<tun_device_info> take_device_list()
 		{
-			return m_device_list;
+			return {};
 		}
 
 		bool take_mac(char mac[6])
@@ -350,7 +350,6 @@ namespace avpn
 
 	private:
 		boost::asio::posix::stream_descriptor m_stream_descriptor;
-		std::vector<device_tuntap> m_device_list;
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;

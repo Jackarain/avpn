@@ -5,7 +5,7 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#include "avpn/controller.hpp"
+#include "avpn/vpn_controller.hpp"
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
@@ -29,9 +29,9 @@ namespace avpn {
 	using namespace boost::asio;
 	namespace beast = boost::beast;
 
-	controller::controller(io_context_pool& ioc_pool, const server_config& cfg)
+	vpn_controller::vpn_controller(io_context_pool& ioc_pool, const service_config& cfg)
 		: m_ioc_pool(ioc_pool)
-		, m_io_context(ioc_pool.server_io_context())
+		, m_io_context(ioc_pool.main_io_context())
 		, m_signal(m_io_context)
 		, m_config(cfg)
 		, m_service(m_ioc_pool, m_config)
@@ -40,7 +40,7 @@ namespace avpn {
 	{
 	}
 
-	void controller::start()
+	void vpn_controller::start()
 	{
 		m_signal.add(SIGINT);
 		m_signal.add(SIGTERM);
@@ -63,7 +63,7 @@ namespace avpn {
 			}, boost::asio::detached);
 	}
 
-	void controller::stop()
+	void vpn_controller::stop()
 	{
 		if (m_abort)
 			return;
@@ -80,19 +80,13 @@ namespace avpn {
 		m_ioc_pool.stop();
 	}
 
-	boost::asio::awaitable<void> controller::start_connect()
+	boost::asio::awaitable<void> vpn_controller::start_connect()
 	{
 		boost::system::error_code ec;
 
-		// 构造本地服务器的endpoint.
-		auto addr = ip::address_v4::from_string(controller_server_host, ec);
-		if (ec)
-		{
-			LOG_ERR << "controller::start_connect, from_string: " << ec.message();
-			co_return;
-		}
-
-		tcp::endpoint endp{ addr, (ip::port_type)m_config.controller_ };
+		// 构造控制服务器的endpoint.
+		tcp::endpoint endp;
+		make_listen_endpoint(m_config.controller_, endp, ec);
 		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
 
 		// 连接到服务器.
@@ -153,7 +147,7 @@ namespace avpn {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> controller::start_client_read()
+	boost::asio::awaitable<void> vpn_controller::start_client_read()
 	{
 		boost::system::error_code ec;
 		std::vector<char> data;
@@ -247,7 +241,7 @@ namespace avpn {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> controller::keepalive()
+	boost::asio::awaitable<void> vpn_controller::keepalive()
 	{
 		boost::system::error_code ec;
 

@@ -7,11 +7,11 @@
 
 #include "avpn/avpn.hpp"
 #include "avpn/version.hpp"
+#include "avpn/fec_cache.hpp"
 
 #include "utils/async_connect.hpp"
 #include "utils/url_parser.hpp"
 #include "utils/scoped_exit.hpp"
-#include "utils/fileop.hpp"
 #include "utils/uawaitable.hpp"
 #include "utils/misc.hpp"
 
@@ -21,38 +21,30 @@
 #include <iomanip>
 
 #include <boost/date_time.hpp>
-#include <boost/regex.hpp>
 
 
 namespace avpn {
 	using namespace std::chrono_literals;
 
-	avpn_service::avpn_service(io_context_pool& ios, const server_config& config)
+	avpn_service::avpn_service(io_context_pool& ios, const service_config& config)
 		: m_io_context_pool(ios)
-		, m_io_context(m_io_context_pool.server_io_context())
+		, m_main_context(m_io_context_pool.main_io_context())
 		, m_config(config)
-		, m_tuntap(m_io_context)
-		, m_tick_timer(m_io_context)
-		, m_vpn_tunnel(m_io_context, m_io_context_pool,
-			config.tunnel_params_, static_cast<avpn_service&>(*this))
-	{
-	}
+		, m_client_id(gen_unique_string(32))
+		, m_tundev(m_main_context)
+		, m_tick_timer(m_main_context)
+	{}
 
 	avpn_service::~avpn_service()
 	{
-		// 退出时删除所有添加的路由.
-		if (!m_tunnel_status.server_ip_.empty())
-		{
-			del_route("0.0.0.0/0 " + m_tunnel_status.vgateway_);
-			del_route(m_tunnel_status.server_ip_ + "/32");
-		}
+ 		// TODO: 退出时删除所有添加的路由.
 
 		// 删除所有avpn临时文件.
 		auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
 		std::error_code ignore_ec;
 		std::filesystem::remove_all(avpn_tmp_dir, ignore_ec);
 
-		LOG_DBG << "~avpn_service()";
+		LOG_DBG << "avpn_service::~avpn_service()";
 	}
 
 	void avpn_service::start()
@@ -77,31 +69,13 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		// 退出时删除路由.
-		for (auto& route : m_tunnel_status.routes_)
-		{
-			auto [ret, ok] = del_route(route);
-			if (ok)
-				LOG_DBG << "del route: " << route << " route remove successfully!";
-			else
-				LOG_DBG << "del route: " << route << " fail, reason: " << ret;
-		}
-
-		LOG_DBG << "avpn_service close tunnel.";
-		m_vpn_tunnel.close();
-
+		// TODO: 退出时删除路由.
 		LOG_DBG << "avpn_service stop tuntap.";
-		m_tuntap.close();
+		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
-		auto server_ip = m_tunnel_status.server_ip_;
-		auto vgateway = m_tunnel_status.vgateway_;
-		m_tunnel_status = {};
-		m_tunnel_status.server_ip_ = server_ip;
-		m_tunnel_status.vgateway_ = vgateway;
 		m_vnet = {};
 		m_upload_stat = {};
 		m_down_stat = {};
-		m_start_tuntap = false;
 
 		LOG_DBG << "avpn_service.stop()";
 	}
@@ -109,15 +83,14 @@ namespace avpn {
 	boost::asio::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
-		avpn::vpn_message msg;
+		fec::vpn_packet msg;
 
 		while (!m_abort)
 		{
-			auto& content = msg.content_;
-			content.resize(4 * 1024);
+			auto content = msg.data();
 
-			auto bytes = co_await m_tuntap.async_read_some(
-				boost::asio::buffer(content), uawaitable[ec]);
+			auto bytes = co_await m_tundev.async_read_some(
+				boost::asio::buffer(content, 1450), uawaitable[ec]);
 			if (ec)
 			{
 				LOG_ERR << "start_tun_read_loop, async_read_some: " << ec.message();
@@ -125,46 +98,34 @@ namespace avpn {
 			}
 
 			// resize content.
-			content.resize(bytes);
+			msg.resize(bytes);
 
 			// 解析ip相关的信息.
-			auto endp = avpn::lookup_endpoint_pair((const uint8_t*)content.data(), bytes);
+			auto endp = avpn::lookup_endpoint_pair(content, bytes);
 
 			// 解析不出来的ip包, 直接跳过...
 			if (endp.empty())
 				continue;
 
 			// 保存数据包类型.
-			if (endp.type_ == avpn::ip_type::ip_tcp)
-				msg.type = vpt_tcp;
-			else if (endp.type_ == avpn::ip_type::ip_udp)
-				msg.type = vpt_udp;
-			else if (endp.type_ == avpn::ip_type::ip_icmp)
-				msg.type = vpt_icmp;
+			msg.type((fec::vpn_packet_type)endp.type_);
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == Identity::avpn_server)
 			{
-				// 作为server时, 要根据ip寻找到对应的通信通道.
-				if (m_tunnel_status.status_ != avpn::connection_status::st_listen)
-					continue;
-
+				// TODO: 作为server时, 要根据目标虚拟ip寻找到对应的通信通道.
 				// 透传到tunnel.
-				m_vpn_tunnel.server_forward_tun(std::move(msg), std::move(endp));
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-				// 未连接状态, 丢弃所有packet.
-				if (m_tunnel_status.status_ != avpn::connection_status::st_connected)
-					continue;
+				// TODO: 作为client时, 未连接状态, 丢弃所有packet.
 
 				// 统计上传数据量用于计算上传速率.
-				m_upload_stat.bytes_ += (int64_t)msg.content_.size();
+				m_upload_stat.bytes_ += (int64_t)bytes;
 				auto index = m_down_stat.speeder_count_ % speed_entries;
 				m_upload_stat.speeder_[index] = m_upload_stat.bytes_;
 
 				// 透传到tunnel.
-				m_vpn_tunnel.client_forward_tun(std::move(msg), std::move(endp));
 			}
 		}
 
@@ -172,14 +133,32 @@ namespace avpn {
 		co_return;
 	}
 
+	void avpn_service::do_tuntap_write(std::string&& message)
+	{
+		boost::asio::co_spawn(m_main_context.get_executor(),
+			[this, message = std::move(message)]() mutable->boost::asio::awaitable<void>
+		{
+			boost::system::error_code ec;
+			co_await m_tundev.async_write_some(
+				boost::asio::buffer(message), uawaitable[ec]);
+
+			// 统计发送数据量用于计算发送速率.
+			m_down_stat.bytes_ += (int64_t)message.size();
+			auto index = m_down_stat.speeder_count_ % speed_entries;
+			m_down_stat.speeder_[index] = m_down_stat.bytes_;
+		}, boost::asio::detached);
+	}
+
 	void avpn_service::run_as_client()
 	{
-		m_vpn_tunnel.start_client_connect(m_config.upstreams_);
+// 		m_vpn_tunnel.start_client_connect(
+// 			m_config.upstreams_, m_config.passphrase_);
 	}
 
 	void avpn_service::run_as_server()
 	{
-		m_vpn_tunnel.start_server_listen(m_config.tcp_listens_, m_config.udp_listens_);
+// 		m_vpn_tunnel.start_server_listen(m_config.tcp_listens_,
+// 			m_config.udp_listens_, m_config.passphrase_);
 	}
 
 	boost::asio::awaitable<void> avpn_service::tick()
@@ -232,26 +211,10 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_tuntap_write(std::string&& message)
-	{
-		boost::asio::co_spawn(m_io_context.get_executor(),
-			[this, message = std::move(message)]() mutable -> boost::asio::awaitable<void>
-			{
-				boost::system::error_code ec;
-				co_await m_tuntap.async_write_some(
-					boost::asio::buffer(message), uawaitable[ec]);
-
-				// 统计发送数据量用于计算发送速率.
-				m_down_stat.bytes_ += (int64_t)message.size();
-				auto index = m_down_stat.speeder_count_ % speed_entries;
-				m_down_stat.speeder_[index] = m_down_stat.bytes_;
-			}, boost::asio::detached);
-	}
-
 	void avpn_service::setup_tun(const boost::asio::ip::network_v4& net)
 	{
 		// 先关闭设备.
-		m_tuntap.close();
+		m_tundev.close();
 
 		auto mask = net.netmask();
 		auto addr = net.address();
@@ -269,7 +232,7 @@ namespace avpn {
 		avpn::dev_config dc = { ipaddr, mask.to_string(),
 			gateway.to_string(), "", "", "", 0 };
 		dc.dev_name_ = m_config.ifdev_;
-		auto dev_list = m_tuntap.take_device_list();
+		auto dev_list = m_tundev.take_device_list();
 		std::string guid;
 		for (auto& i : dev_list)
 		{
@@ -292,117 +255,13 @@ namespace avpn {
 		auto defgw = get_default_gateway();
 		auto defgw_string = defgw->address().to_string();
 
-		if (!m_tuntap.open(dc))
+		if (!m_tundev.open(dc))
 		{
 			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
 
-		if (m_tunnel_status.passbyvpn_ && m_config.identity_ == Identity::avpn_client)
-		{
-			auto vgateway = gateway.to_string();
-
-			m_tunnel_status.vaddr_ = ipaddr;
-			m_tunnel_status.vgateway_ = vgateway;
-
-			del_route("0.0.0.0/0 " + vgateway);
-			del_route(m_tunnel_status.server_ip_ + "/32 " + vgateway);
-
-			if (set_default_route(ipaddr, vgateway, defgw_string, m_tunnel_status.server_ip_))
-				LOG_DBG << "Default gateway: " << defgw_string << " change successfully!";
-			else
-				LOG_INFO << "Default gateway: " << defgw_string << ", change faild!";
-		}
-
-		if (!m_config.ignore_route)
-		{
-			for (auto& route : m_tunnel_status.routes_)
-			{
-				auto [ret, ok] = add_route(route);
-				if (ok)
-					LOG_DBG << "Add route: " << route << " route added successfully!";
-				else
-					LOG_ERR << "Add route: " << route << " route added fail, reason: " << boost::trim_copy(ret);
-			}
-		}
-
-		if (m_config.snat_)
-		{
-			// TODO: do snat...
-		}
-
-		if (!m_tunnel_status.dns_.empty() && m_config.identity_ == Identity::avpn_client)
-		{
-			if (set_dns(m_tunnel_status.dns_, ipaddr))
-				LOG_DBG << "Set dns: " << m_tunnel_status.dns_ << " successfully";
-		}
-
 		m_vnet = net;
-	}
-
-	void avpn_service::on_status(avpn::tunnel_status cs)
-	{
-		if (m_config.identity_ == Identity::avpn_client)
-		{
-			m_tunnel_status = cs;
-			auto status = cs.status_;
-
-			// 连接成功, 如果没有启动tun, 则启动tun设备.
-			if (status == avpn::connection_status::st_connected)
-			{
-				LOG_DBG << "vpn connected";
-
-				if (m_start_tuntap)
-					return;
-				m_start_tuntap = true;
-
-				auto ipaddr = m_vpn_tunnel.vnet_ipaddr();
-				setup_tun(ipaddr);
-
-				LOG_DBG << "vpn device start...";
-
-				boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-					start_tun_read_loop(), boost::asio::detached);
-			}
-
-			// 断开状态.
-			if (status == avpn::connection_status::st_disconnect)
-			{
-				m_start_tuntap = false;
-				m_tuntap.close();
-
-				if (m_abort)
-					return;
-
-				LOG_INFO << "vpn disconnect...";
-			}
-
-			return;
-		}
-
-		if (m_config.identity_ == Identity::avpn_server)
-		{
-			auto st = cs.status_;
-			if (st == avpn::connection_status::st_listen)
-			{
-				if (m_start_tuntap)
-					return;
-
-				m_start_tuntap = true;
-				m_tunnel_status = cs;
-
-				setup_tun(m_vpn_tunnel.vsubnet());
-
-				LOG_DBG << "vpn device start...";
-
-				boost::asio::co_spawn(m_io_context_pool.get_io_context().get_executor(),
-					start_tun_read_loop(), boost::asio::detached);
-			}
-
-			return;
-		}
-
-		BOOST_ASSERT(false && "invalid identity");
 	}
 
 	int64_t avpn_service::upload_rate() const

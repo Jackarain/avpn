@@ -26,17 +26,17 @@
 
 namespace avpn {
 
-	class controller
+	class vpn_controller
 	{
 		// c++11 noncopyable.
-		controller(const controller&) = delete;
-		controller& operator=(const controller&) = delete;
+		vpn_controller(const vpn_controller&) = delete;
+		vpn_controller& operator=(const vpn_controller&) = delete;
 
 		using ws_stream = websocket::stream<boost::beast::tcp_stream>;
 
 	public:
-		controller(io_context_pool& ioc_pool, const server_config& cfg);
-		~controller() = default;
+		vpn_controller(io_context_pool& ioc_pool, const service_config& cfg);
+		~vpn_controller() = default;
 
 	public:
 		void start();
@@ -51,7 +51,7 @@ namespace avpn {
 		io_context_pool& m_ioc_pool;
 		boost::asio::io_context& m_io_context;
 		boost::asio::signal_set m_signal;
-		server_config m_config;
+		service_config m_config;
 		avpn_service m_service;
 		ws_stream m_ws_stream;
 		timer m_timer;

@@ -66,7 +66,7 @@ boost::asio::io_context& io_context_pool::get_io_context()
 	return io_context;
 }
 
-boost::asio::io_context& io_context_pool::server_io_context()
+boost::asio::io_context& io_context_pool::main_io_context()
 {
 	return main_io_context_;
 }

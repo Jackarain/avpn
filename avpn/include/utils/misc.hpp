@@ -78,7 +78,7 @@ uint64_t check_pid(std::string suffix);
 
 // 随机字符串相关.
 int gen_random_int(int start, int end);
-std::string gen_unique_string(const unsigned int max_str_len);
+std::string gen_unique_string(const unsigned int len);
 uint32_t gen_unique_number();
 std::string gen_uuid();
 

@@ -33,7 +33,7 @@ public:
 	boost::asio::io_context& get_io_context();
 
 	/// Get main_io_context_ to use.
-	boost::asio::io_context& server_io_context();
+	boost::asio::io_context& main_io_context();
 
 	/// Get pool size.
 	std::size_t pool_size() const;

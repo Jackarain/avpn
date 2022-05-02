@@ -39,7 +39,8 @@ namespace fec {
 
 	using namespace util;
 
-	// 一个带垃圾回收的全局分配器.
+	//////////////////////////////////////////////////////////////////////////
+	// 一个带垃圾回收的无锁vpn_packet全局分配器.
 	class packet_allocator
 	{
 		packet_allocator(const packet_allocator&) = delete;
@@ -71,7 +72,15 @@ namespace fec {
 		void operator()(void* p);
 	};
 
+
+	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
+	enum vpn_packet_type
+	{
+		pkt_tcp = 0x06,
+		pkt_udp = 0x11,
+		pkt_icmp = 0x01,
+	};
 	struct vpn_packet
 	{
 	private:
@@ -82,17 +91,25 @@ namespace fec {
 		vpn_packet();
 		vpn_packet(vpn_packet&&);
 		vpn_packet& operator=(vpn_packet&&);
+		~vpn_packet() = default;
 
 		uint8_t* data();
+
 		uint16_t size();
 		void resize(size_t count);
+
+		vpn_packet_type type() const;
+		void type(vpn_packet_type t);
 
 	public:
 		std::unique_ptr<uint8_t, packet_free> data_;
 		uint16_t size_;
+		vpn_packet_type type_;
 	};
 
 
+	//////////////////////////////////////////////////////////////////////////
+	// fec编码分组.
 	struct fec_encode_group
 	{
 	private:
@@ -124,7 +141,8 @@ namespace fec {
 	};
 
 
-
+	//////////////////////////////////////////////////////////////////////////
+	// fec解码分组
 	struct fec_decode_group
 	{
 	private:
@@ -190,7 +208,7 @@ namespace fec {
 			int ds, int ps, vpn_packet&& pkt);
 
 		int64_t garbage_clean();
-		std::vector<vpn_packet>& acquire();
+		std::vector<vpn_packet> acquire();
 
 	public:
 		int64_t cache_size_limit_;
