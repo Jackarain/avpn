@@ -122,7 +122,11 @@ namespace time_clock {
 		int64_t time;
 #if defined(BOOST_WINDOWS)
 		static const boost::uint64_t epoch = 116444736000000000L;
-		auto tmp = timeGetTime();
+
+		auto now = std::chrono::high_resolution_clock::now() -
+			std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
+		auto tmp = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+
 		static const int64_t system_start_time = [&tmp]() {
 			boost::uint64_t ft_scalar;
 			GetSystemTimeAsFileTime((FILETIME*)&ft_scalar);
@@ -130,7 +134,7 @@ namespace time_clock {
 			return tim - tmp;
 		}();
 		thread_local int64_t system_current_time = 0;
-		thread_local uint32_t last_time = 0;
+		thread_local int64_t last_time = 0;
 		system_current_time += (tmp - last_time);
 		last_time = tmp;
 		time = system_start_time + system_current_time;

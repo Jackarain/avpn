@@ -191,9 +191,11 @@ namespace logger_aux__ {
 #if defined(WIN32) || defined(_WIN32)
 		thread_local int64_t system_start_time = 0;
 		thread_local int64_t system_current_time = 0;
-		thread_local uint32_t last_time = 0;
+		thread_local int64_t last_time = 0;
 
-		auto tmp = timeGetTime();
+		auto now = std::chrono::high_resolution_clock::now() -
+			std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
+		auto tmp = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 
 		if (system_start_time == 0) {
 			LOGGING_FT nt_time;

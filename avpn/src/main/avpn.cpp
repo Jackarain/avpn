@@ -20,8 +20,6 @@
 #include <chrono>
 #include <iomanip>
 
-#include <boost/date_time.hpp>
-
 
 namespace avpn {
 	using namespace std::chrono_literals;
