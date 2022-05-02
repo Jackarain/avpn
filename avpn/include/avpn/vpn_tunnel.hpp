@@ -12,7 +12,6 @@
 #include "utils/bitfield.hpp"
 #include "utils/url_parser.hpp"
 #include "utils/async_connect.hpp"
-#include "utils/time_clock.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"

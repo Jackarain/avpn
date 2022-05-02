@@ -180,10 +180,11 @@ namespace avpn {
 				if (amount < 0)
 					amount = 0;
 
-				if (deltams.count() <= 0)
-					deltams = std::chrono::milliseconds(1);
+				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(deltams);
+				if (ms.count() <= 0)
+					ms = std::chrono::milliseconds(1);
 
-				stat.rate_ = int64_t((double)amount / ((double)deltams.count() / 1000.0f));
+				stat.rate_ = int64_t((double)amount / ((double)ms.count() / 1000.0f));
 			}
 
 			stat.speeder_count_ = speeder_count;
@@ -199,7 +200,7 @@ namespace avpn {
 				break;
 			}
 
-			auto now = time_clock::steady_clock::now();
+			auto now = std::chrono::steady_clock::now();
 
 			calc_speed(m_down_stat, now);
 			calc_speed(m_upload_stat, now);

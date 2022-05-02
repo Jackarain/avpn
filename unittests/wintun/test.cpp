@@ -616,7 +616,7 @@ bool open_tun()
 		int64_t total = 0;
 		int64_t last_total = 0;
 
-		auto last_time = time_clock::steady_clock::now();
+		auto last_time = std::chrono::steady_clock::now();
 
 		for (;;)
 		{
@@ -634,7 +634,7 @@ bool open_tun()
 			auto size = total - last_total;
 			if (size > 512 * 1024 * 1024)
 			{
-				auto now = time_clock::steady_clock::now();
+				auto now = std::chrono::steady_clock::now();
 				auto dur = now - last_time;
 				last_time = now;
 				last_total = total;
@@ -653,7 +653,7 @@ bool open_tun()
 		int64_t total = 0;
 		int64_t last_total = 0;
 
-		auto last_time = time_clock::steady_clock::now();
+		auto last_time = std::chrono::steady_clock::now();
 
 		LARGE_INTEGER Frequency;
 		QueryPerformanceFrequency(&Frequency);
@@ -701,7 +701,7 @@ bool open_tun()
 			auto size = total - last_total;
 			if (size > 512 * 1024 * 1024)
 			{
-				auto now = time_clock::steady_clock::now();
+				auto now = std::chrono::steady_clock::now();
 				auto dur = now - last_time;
 				last_time = now;
 				last_total = total;

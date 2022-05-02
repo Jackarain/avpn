@@ -11,7 +11,6 @@
 #include "avpn/vpn_tunnel.hpp"
 
 #include "utils/internal.hpp"
-#include "utils/time_clock.hpp"
 
 #include "vpncore/tun_device.hpp"
 
@@ -103,7 +102,7 @@ namespace avpn {
 
 
 	using namespace util;
-	using time_clock::steady_clock;
+	using std::chrono::steady_clock;
 
 	class avpn_service
 	{

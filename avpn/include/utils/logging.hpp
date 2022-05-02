@@ -175,43 +175,11 @@ namespace log_compress__ {
 
 namespace logger_aux__ {
 
-	static const uint64_t epoch = 116444736000000000L; /* Jan 1, 1601 */
-	typedef union {
-		uint64_t ft_scalar;
-#if defined(WIN32) || defined(_WIN32)
-
-		FILETIME ft_struct;
-#else
-		timeval ft_struct;
-#endif
-	} LOGGING_FT;
-
 	inline int64_t gettime()
 	{
-#if defined(WIN32) || defined(_WIN32)
-		thread_local int64_t system_start_time = 0;
-		thread_local int64_t system_current_time = 0;
-		thread_local int64_t last_time = 0;
-
-		auto now = std::chrono::high_resolution_clock::now() -
-			std::chrono::high_resolution_clock::time_point(std::chrono::nanoseconds(0));
-		auto tmp = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
-
-		if (system_start_time == 0) {
-			LOGGING_FT nt_time;
-			GetSystemTimeAsFileTime(&(nt_time.ft_struct));
-			int64_t tim = (__int64)((nt_time.ft_scalar - logger_aux__::epoch) / (__int64)10000);
-			system_start_time = tim - tmp;
-		}
-
-		system_current_time += (tmp - last_time);
-		last_time = tmp;
-		return system_start_time + system_current_time;
-#elif defined(__linux__) || defined(__APPLE__)
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
-		return ((int64_t)tv.tv_sec * 1000000 + tv.tv_usec) / 1000;
-#endif
+		auto now = std::chrono::system_clock::now() -
+			std::chrono::system_clock::time_point(std::chrono::milliseconds(0));
+		return std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 	}
 
 	namespace internal {
