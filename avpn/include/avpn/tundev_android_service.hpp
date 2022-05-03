@@ -55,7 +55,7 @@ static const char drv_name[] = "tun";
 #include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "utils/logging.hpp"
-#include "vpncore/tundev_config.hpp"
+#include "avpn/tundev_config.hpp"
 
 namespace avpn
 {

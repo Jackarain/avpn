@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "vpncore/tundev_config.hpp"
+#include "avpn/tundev_config.hpp"
 
 #include <string>
 #include <vector>

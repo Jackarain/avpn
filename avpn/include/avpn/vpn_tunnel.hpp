@@ -18,7 +18,7 @@
 #include "utils/crypto.hpp"
 #include "utils/uawaitable.hpp"
 
-#include "vpncore/endpoint_pair.hpp"
+#include "avpn/endpoint_pair.hpp"
 
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"

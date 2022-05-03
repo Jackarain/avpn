@@ -70,7 +70,7 @@ static const char drv_name[] = "tun";
 
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
-#include "vpncore/tundev_config.hpp"
+#include "avpn/tundev_config.hpp"
 
 
 namespace avpn

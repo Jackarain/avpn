@@ -8,7 +8,7 @@
 #pragma once
 
 #include "utils/logging.hpp"
-#include "vpncore/tundev_config.hpp"
+#include "avpn/tundev_config.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>

@@ -15,7 +15,7 @@
 #include "utils/uawaitable.hpp"
 #include "utils/misc.hpp"
 
-#include "vpncore/endpoint_pair.hpp"
+#include "avpn/endpoint_pair.hpp"
 
 #include <chrono>
 #include <iomanip>

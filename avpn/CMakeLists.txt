@@ -12,14 +12,14 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_L
 set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
 
 file(GLOB avpn_WINDOWS_SRCS
-	include/vpncore/tuntap_windows_service.hpp
-	include/vpncore/wintun_windows_service.hpp
+	include/avpn/tuntap_windows_service.hpp
+	include/avpn/wintun_windows_service.hpp
 )
 file(GLOB avpn_APPLE_SRCS
-	include/vpncore/tundev_macos_service.hpp
+	include/avpn/tundev_macos_service.hpp
 )
 file(GLOB avpn_LINUX_SRCS
-	include/vpncore/tundev_linux_service.hpp
+	include/avpn/tundev_linux_service.hpp
 )
 
 file(GLOB avpn_SRCS
@@ -31,11 +31,11 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_controller.hpp
 	include/avpn/fec_cache.hpp
 
-	include/vpncore/basic_tuntap.hpp
-	include/vpncore/endpoint_pair.hpp
-	include/vpncore/tundev.hpp
-	include/vpncore/tundev_config.hpp
-	include/vpncore/fec_cache.hpp
+	include/avpn/basic_tuntap.hpp
+	include/avpn/endpoint_pair.hpp
+	include/avpn/tundev.hpp
+	include/avpn/tundev_config.hpp
+	include/avpn/fec_cache.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp

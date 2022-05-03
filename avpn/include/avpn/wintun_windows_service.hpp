@@ -10,8 +10,8 @@
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
-#include "vpncore/tundev_config.hpp"
-#include "vpncore/endpoint_pair.hpp"
+#include "avpn/tundev_config.hpp"
+#include "avpn/endpoint_pair.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>

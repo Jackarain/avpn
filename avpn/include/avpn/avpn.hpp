@@ -12,7 +12,7 @@
 
 #include "utils/internal.hpp"
 
-#include "vpncore/tun_device.hpp"
+#include "avpn/tun_device.hpp"
 
 namespace avpn {
 
