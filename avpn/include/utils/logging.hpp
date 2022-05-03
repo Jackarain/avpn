@@ -177,8 +177,10 @@ namespace logger_aux__ {
 
 	inline int64_t gettime()
 	{
-		auto now = std::chrono::system_clock::now() -
-			std::chrono::system_clock::time_point(std::chrono::milliseconds(0));
+		using std::chrono::system_clock;
+
+		auto now = system_clock::now() -
+			system_clock::time_point(std::chrono::milliseconds(0));
 		return std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 	}
 
