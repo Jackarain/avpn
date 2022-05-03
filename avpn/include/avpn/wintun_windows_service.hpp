@@ -792,7 +792,7 @@ namespace avpn {
 
 						while (bytes_transferred == 0)
 						{
-							timer wait_timer(self_->get_executor());
+							asio_timer wait_timer(self_->get_executor());
 
 							wait_timer.expires_from_now(std::chrono::milliseconds(1));
 							co_await wait_timer.async_wait(uawaitable[ec]);

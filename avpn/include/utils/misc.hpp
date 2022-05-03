@@ -20,7 +20,7 @@ using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 using ws = websocket::stream<tcp::socket>;
 using boost::asio::basic_waitable_timer;
-using timer = basic_waitable_timer<std::chrono::steady_clock>;
+using asio_timer = basic_waitable_timer<std::chrono::steady_clock>;
 
 template<class ... T> inline constexpr bool always_false = false;
 

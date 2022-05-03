@@ -183,7 +183,7 @@ namespace fec {
 		int ds_{ 0 };
 		int ps_{ 0 };
 		int64_t total_{ 0 };
-		timer::time_point time_;
+		asio_timer::time_point time_;
 		std::atomic_bool used_{ false };
 		static std::map<uint64_t, fec::matrix> matrix_cache_;
 	};

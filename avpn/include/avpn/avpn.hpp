@@ -162,7 +162,7 @@ namespace avpn {
 		avpn::tun_device m_tundev;
 
 		// 定时器, 用于处理一系列定时任务.
-		timer m_tick_timer;
+		asio_timer m_tick_timer;
 
 		// 虚拟网络.
 		boost::asio::ip::network_v4 m_vnet;

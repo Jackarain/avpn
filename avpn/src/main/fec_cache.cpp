@@ -180,7 +180,7 @@ namespace fec
 		, bs_(data_shards + parity_shards)
 		, ds_(data_shards)
 		, ps_(parity_shards)
-		, time_(timer::clock_type::now())
+		, time_(asio_timer::clock_type::now())
 	{
 		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
 			"fec_decode_group, dataShards + parityShards >= 255");

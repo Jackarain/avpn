@@ -48,15 +48,41 @@ namespace avpn {
 		boost::asio::awaitable<void> keepalive();
 
 	private:
+		// io pool, 通过控制io pool以响应
+		// 停止消息.
 		io_context_pool& m_ioc_pool;
-		boost::asio::io_context& m_io_context;
+
+		// 用于本vpn_controller相关操作.
+		boost::asio::io_context& m_main_context;
+
+		// 用以响应用户ctrl+c操作.
 		boost::asio::signal_set m_signal;
+
+		// vpn服务相关配置, 启用vpn服务时
+		// 用此配置启动vpn服务.
 		service_config m_config;
+
+		// vpn服务对象.
 		avpn_service m_service;
+
+		// websocket连到控制端的客户端对象.
+		// 控制端通过发送消息控制vpn服务的
+		// 开启关闭, vpn服务通过它汇报vpn
+		// 当前上下行实时速率等信息.
 		ws_stream m_ws_stream;
-		timer m_timer;
+
+		// 汇报定时器, 定时汇报上下行实时速率
+		// 等信息.
+		asio_timer m_timer;
+
+		// keepalive计数, 计数超过指定值则表示
+		// 控制端已无响应, vpn服务应退出.
 		int m_keepalive_cnt{ 0 };
+
+		// vpn服务是否启动标志.
 		bool m_start{ false };
+
+		// 退出标志.
 		bool m_abort{ false };
 	};
 }

@@ -31,14 +31,13 @@ namespace avpn {
 
 	vpn_controller::vpn_controller(io_context_pool& ioc_pool, const service_config& cfg)
 		: m_ioc_pool(ioc_pool)
-		, m_io_context(ioc_pool.main_io_context())
-		, m_signal(m_io_context)
+		, m_main_context(ioc_pool.main_io_context())
+		, m_signal(m_main_context)
 		, m_config(cfg)
 		, m_service(m_ioc_pool, m_config)
-		, m_ws_stream(m_io_context)
-		, m_timer(m_io_context)
-	{
-	}
+		, m_ws_stream(m_main_context)
+		, m_timer(m_main_context)
+	{}
 
 	void vpn_controller::start()
 	{
@@ -54,7 +53,7 @@ namespace avpn {
 				stop();
 			});
 
-		boost::asio::co_spawn(m_io_context.get_executor(),
+		boost::asio::co_spawn(m_main_context.get_executor(),
 			[this]() mutable -> boost::asio::awaitable<void>
 			{
 				co_await start_connect();
@@ -137,11 +136,11 @@ namespace avpn {
 		});
 
 		// 开启keepalive协程.
-		boost::asio::co_spawn(m_io_context.get_executor(),
+		boost::asio::co_spawn(m_main_context.get_executor(),
 			keepalive(), boost::asio::detached);
 
 		// 发起消息读取协程.
-		boost::asio::co_spawn(m_io_context.get_executor(),
+		boost::asio::co_spawn(m_main_context.get_executor(),
 			start_client_read(), boost::asio::detached);
 
 		co_return;
