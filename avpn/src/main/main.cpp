@@ -432,7 +432,9 @@ int main(int argc, char** argv)
 
 	if (controller.empty())
 	{
-		avpn::avpn_service srv{ ios, cfg };
+		auto avpn_srv = make_avpn_service(ios, cfg);
+		auto& srv = *avpn_srv;
+
 		srv.start();
 
 		// 处理中止信号.

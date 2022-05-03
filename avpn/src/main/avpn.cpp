@@ -273,5 +273,10 @@ namespace avpn {
 		return m_down_stat.rate_;
 	}
 
+	avpn_service_ptr make_avpn_service(util::io_context_pool& ioc_pool, service_config cfg)
+	{
+		return std::make_shared<avpn_service>(ioc_pool, cfg);
+	}
+
 }
 

@@ -9,10 +9,10 @@
 
 
 #include "avpn/vpn_tunnel.hpp"
+#include "avpn/tun_device.hpp"
 
 #include "utils/internal.hpp"
 
-#include "avpn/tun_device.hpp"
 
 namespace avpn {
 
@@ -103,14 +103,15 @@ namespace avpn {
 
 	using namespace util;
 	using std::chrono::steady_clock;
+	using time_point = std::chrono::time_point<steady_clock>;
 
-	class avpn_service
+	class avpn_service : std::enable_shared_from_this<avpn_service>
 	{
 		const static int speed_entries = 3;
 		struct speed_stat
 		{
 			int64_t speeder_[speed_entries]{ 0 };
-			steady_clock::time_point speeder_time_[speed_entries]{ steady_clock::now() };
+			time_point speeder_time_[speed_entries]{ steady_clock::now() };
 			int64_t speeder_count_{ 0 };
 
 			int64_t bytes_{ 0 };
@@ -171,7 +172,35 @@ namespace avpn {
 		speed_stat m_down_stat;
 		speed_stat m_upload_stat;
 
+		// 作为server时, 用于tcp的服务器acceptor.
+		std::vector<tcp::acceptor> m_tcp_acceptors;
+
+		// udp socket集合.
+		// 作为server时, m_udp_sockets初始化为几个用于
+		// 监听client的udp消息的udp socket.
+		// 作为client时, 可以随时创建新的udp_socket用于
+		// 和server通信.
+		// last_see_ 用作client时, 标识最后和server
+		// 通信时间, 如果超时则可创建新的udp_socket替代
+		// 超时的udp_socket.
+		struct udp_socket
+		{
+			udp_socket(time_point now, udp::socket&& sock)
+				: last_see_(now)
+				, sock_(std::move(sock))
+			{}
+
+			time_point last_see_;
+			udp::socket sock_;
+		};
+		using udp_socket_ptr = std::shared_ptr<udp_socket>;
+		std::vector<udp_socket_ptr> m_udp_sockets;
+
 		// 服务停止标志.
 		bool m_abort{ false };
 	};
+
+	// 创建avpn_service对象指针.
+	using avpn_service_ptr = std::shared_ptr<avpn_service>;
+	avpn_service_ptr make_avpn_service(util::io_context_pool&, avpn::service_config);
 }

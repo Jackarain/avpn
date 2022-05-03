@@ -34,7 +34,8 @@ namespace avpn {
 		, m_main_context(ioc_pool.main_io_context())
 		, m_signal(m_main_context)
 		, m_config(cfg)
-		, m_service(m_ioc_pool, m_config)
+		, m_avpn_service(make_avpn_service(ioc_pool, cfg))
+		, m_service(*m_avpn_service)
 		, m_ws_stream(m_main_context)
 		, m_timer(m_main_context)
 	{}

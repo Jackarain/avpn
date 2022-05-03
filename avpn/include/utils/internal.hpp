@@ -87,7 +87,6 @@ namespace net = boost::asio;
 #	pragma clang diagnostic pop
 #endif // __clang__
 
-
 #ifdef __GNUC__
 #	pragma GCC diagnostic push
 #	pragma GCC diagnostic ignored "-Warray-bounds"
@@ -119,16 +118,3 @@ namespace net = boost::asio;
 
 #include <boost/smart_ptr/local_shared_ptr.hpp>
 #include <boost/smart_ptr/make_local_shared.hpp>
-
-#include <boost/signals2.hpp>
-
-#ifdef __clang__
-#	pragma clang diagnostic push
-#	pragma clang diagnostic ignored "-Wunused-parameter"
-#endif
-
-#include <boost/circular_buffer.hpp>
-
-#ifdef __clang__
-#	pragma clang diagnostic pop
-#endif

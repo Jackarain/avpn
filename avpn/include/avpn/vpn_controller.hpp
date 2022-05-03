@@ -63,7 +63,8 @@ namespace avpn {
 		service_config m_config;
 
 		// vpn服务对象.
-		avpn_service m_service;
+		avpn_service_ptr m_avpn_service;
+		avpn_service& m_service;
 
 		// websocket连到控制端的客户端对象.
 		// 控制端通过发送消息控制vpn服务的
