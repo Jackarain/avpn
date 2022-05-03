@@ -31,6 +31,9 @@ namespace avpn {
 		, m_client_id(gen_unique_string(32))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
+		, m_subnet(boost::asio::ip::make_network_v4(config.tunnel_params_.subnet_))
+		, m_ip_assigner(m_subnet.hosts())
+		, m_ip_iterator(++m_ip_assigner.begin())
 	{}
 
 	std::shared_ptr<avpn_service>
@@ -82,6 +85,16 @@ namespace avpn {
 		m_down_stat = {};
 
 		LOG_DBG << "avpn_service.stop()";
+	}
+
+	int64_t avpn_service::upload_rate() const
+	{
+		return m_upload_stat.rate_;
+	}
+
+	int64_t avpn_service::download_rate() const
+	{
+		return m_down_stat.rate_;
 	}
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
@@ -269,14 +282,35 @@ namespace avpn {
 		m_vnet = net;
 	}
 
-	int64_t avpn_service::upload_rate() const
+	std::tuple<std::string, boost::asio::uint32_t> avpn_service::ip_assigner()
 	{
-		return m_upload_stat.rate_;
-	}
+		std::string ip_string;
+		uint32_t ipaddr;
 
-	int64_t avpn_service::download_rate() const
-	{
-		return m_down_stat.rate_;
+		const auto prefix = m_subnet.prefix_length();
+
+		do {
+			if (m_ip_iterator == m_ip_assigner.begin())
+				m_ip_iterator++;
+			if (m_ip_iterator == m_ip_assigner.end())
+				m_ip_iterator = m_ip_assigner.begin();
+
+			auto ip = *m_ip_iterator++;
+			ipaddr = ip.to_uint();
+
+			uint32_t tail = (ipaddr & ((1 << prefix) - 1)) % 256;
+			if (tail == 255 || tail == 0)
+			{
+				continue;
+			}
+			else
+			{
+				ip_string = ip.to_string();
+				break;
+			}
+		} while (true);
+
+		return { ip_string, ipaddr };
 	}
 
 }

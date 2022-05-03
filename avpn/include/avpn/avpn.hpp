@@ -158,6 +158,9 @@ namespace avpn {
 
 		void setup_tun(const net::ip::network_v4& net);
 
+		// 分配一个虚拟ip给client.
+		std::tuple<std::string, uint32_t> ip_assigner();
+
 	private:
 		// io context pool
 		// 用于使用不同的io_context为不同的client服务.
