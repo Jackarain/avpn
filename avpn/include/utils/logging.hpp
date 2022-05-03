@@ -120,7 +120,7 @@ namespace util {
 
 #ifdef LOGGING_COMPRESS_LOGS
 
-namespace log_compress__ {
+namespace logging_compress__ {
 
 	const static std::string GZ_SUFFIX = ".gz";
 	const static size_t BUFLEN = 65536;
@@ -517,11 +517,11 @@ public:
 			std::thread th([fn]()
 				{
 					std::error_code ignore_ec;
-					std::mutex& m = log_compress__::compress_lock();
+					std::mutex& m = logging_compress__::compress_lock();
 					std::lock_guard lock(m);
-					if (!log_compress__::do_compress_gz(fn))
+					if (!logging_compress__::do_compress_gz(fn))
 					{
-						auto file = fn + log_compress__::GZ_SUFFIX;
+						auto file = fn + logging_compress__::GZ_SUFFIX;
 						std::filesystem::remove(file, ignore_ec);
 						if (ignore_ec)
 							std::cout << "delete log failed: " << file
@@ -1139,6 +1139,7 @@ public:
 		}
 		else
 		{
+			BOOST_ASSERT("Not a date time" && false);
 			out_ += "NOT A DATE TIME";
 		}
 
