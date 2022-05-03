@@ -15,14 +15,16 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/redirect_error.hpp>
 
+namespace net = boost::asio;
+
 namespace asio_util
 {
 	struct uawaitable_t
 	{
-		inline boost::asio::redirect_error_t<typename boost::decay<decltype(boost::asio::use_awaitable)>::type>
+		inline net::redirect_error_t<typename boost::decay<decltype(net::use_awaitable)>::type>
 			operator[](boost::system::error_code& ec) noexcept
 		{
-			return boost::asio::redirect_error(boost::asio::use_awaitable, ec);
+			return net::redirect_error(net::use_awaitable, ec);
 		}
 	};
 }

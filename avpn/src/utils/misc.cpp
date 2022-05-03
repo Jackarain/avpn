@@ -1793,7 +1793,7 @@ std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = fa
 	if (result.size() < 2)
 		return { "", false };
 
-	boost::asio::ip::network_v4 net;
+	net::ip::network_v4 net;
 	boost::system::error_code ec;
 
 	// 解析 destination and mask.
@@ -1802,7 +1802,7 @@ std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = fa
 	bool is_cidr = dest.find('/') != std::string::npos;
 	if (is_cidr)
 	{
-		net = boost::asio::ip::make_network_v4(dest, ec);
+		net = net::ip::make_network_v4(dest, ec);
 		if (ec)
 			return { "", false };
 	}
@@ -1811,18 +1811,18 @@ std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = fa
 		if (result.size() < 3)
 			return { "", false };
 
-		auto addr = boost::asio::ip::make_address_v4(dest, ec);
+		auto addr = net::ip::make_address_v4(dest, ec);
 		auto& str = *it++;
-		auto mask = boost::asio::ip::make_address_v4(str, ec);
+		auto mask = net::ip::make_address_v4(str, ec);
 		if (ec)
 			return { "", false };
 
-		net = boost::asio::ip::make_network_v4(addr, mask);
+		net = net::ip::make_network_v4(addr, mask);
 	}
 
 	// 解析 gateway.
 	auto& gw = *it++;
-	auto gateway = boost::asio::ip::make_address_v4(gw, ec);
+	auto gateway = net::ip::make_address_v4(gw, ec);
 	if (ec)
 		return { "", false };
 
@@ -2077,7 +2077,7 @@ bool make_listen_endpoint(const std::string& address, tcp::endpoint& endp, boost
 		return ipv6only;
 	}
 
-	endp.address(boost::asio::ip::address::from_string(host, ec));
+	endp.address(net::ip::address::from_string(host, ec));
 	endp.port(static_cast<unsigned short>(std::atoi(port.data())));
 
 	return ipv6only;
@@ -2099,16 +2099,16 @@ bool make_listen_endpoint(const std::string& address, udp::endpoint& endp, boost
 		return ipv6only;
 	}
 
-	endp.address(boost::asio::ip::address::from_string(host, ec));
+	endp.address(net::ip::address::from_string(host, ec));
 	endp.port(static_cast<unsigned short>(std::atoi(port.data())));
 
 	return ipv6only;
 }
 
-bool same_ipv4_network(const boost::asio::ip::network_v4& net, uint32_t u32_addr)
+bool same_ipv4_network(const net::ip::network_v4& net, uint32_t u32_addr)
 {
-	boost::asio::ip::address_v4 addr(u32_addr);
-	boost::asio::ip::network_v4 other(addr, net.netmask());
+	net::ip::address_v4 addr(u32_addr);
+	net::ip::network_v4 other(addr, net.netmask());
 
 	if (net.network() == other.network())
 		return true;

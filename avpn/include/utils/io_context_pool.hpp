@@ -30,20 +30,20 @@ public:
 	void stop();
 
 	/// Get an io_context to use for a client.
-	boost::asio::io_context& get_io_context();
+	net::io_context& get_io_context();
 
 	/// Get main_io_context_ to use.
-	boost::asio::io_context& main_io_context();
+	net::io_context& main_io_context();
 
 	/// Get pool size.
 	std::size_t pool_size() const;
 
 private:
-	using io_context_ptr = std::shared_ptr<boost::asio::io_context>;
-	using work_ptr = std::shared_ptr<boost::asio::io_context::work>;
+	using io_context_ptr = std::shared_ptr<net::io_context>;
+	using work_ptr = std::shared_ptr<net::io_context::work>;
 
 	// main io_context that used to run the main logic
-	boost::asio::io_context main_io_context_;
+	net::io_context main_io_context_;
 
 	/// The pool of io_contexts for client sockets
 	std::vector<io_context_ptr> io_contexts_;

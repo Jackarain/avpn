@@ -16,9 +16,9 @@
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/ip/network_v6.hpp>
 
-namespace acl_util {
+namespace net = boost::asio;
 
-	namespace net = boost::asio;
+namespace acl_util {
 
 	struct lpm;
 	using lpm_tag = void*;

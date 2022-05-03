@@ -234,16 +234,16 @@ namespace details {
 		return spi;
 	}
 
-	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	inline std::optional<net::ip::network_v4> get_default_gateway()
 	{
 		auto routes = details::get_windows_routing_table();
 		auto row = details::get_default_gateway_row(&*routes);
 
 		if (row)
 		{
-			boost::asio::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
-			boost::asio::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
-			boost::asio::ip::network_v4 net(gw, mask);
+			net::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
+			net::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
+			net::ip::network_v4 net(gw, mask);
 
 			LOG_DBG << "Default gateway: " << gw.to_string()
 				<< ", lowest metric: " << row->dwForwardMetric1;
@@ -527,9 +527,9 @@ bool open_tun()
 	const std::string local = "10.0.0.8";
 	const std::string mask = "255.255.0.0";
 
-	auto tun_addr = boost::asio::ip::address_v4::from_string(local);
-	auto tun_mask = boost::asio::ip::address_v4::from_string(mask);
-	auto tun_network = boost::asio::ip::network_v4(tun_addr, tun_mask);
+	auto tun_addr = net::ip::address_v4::from_string(local);
+	auto tun_mask = net::ip::address_v4::from_string(mask);
+	auto tun_network = net::ip::network_v4(tun_addr, tun_mask);
 
 	AddressRow.Address.Ipv4.sin_family = AF_INET;
 	AddressRow.Address.Ipv4.sin_addr.S_un.S_addr = htonl(tun_addr.to_ulong());

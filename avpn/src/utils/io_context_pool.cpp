@@ -21,8 +21,8 @@ io_context_pool::io_context_pool(std::size_t pool_size)
 	// exit until they are explicitly stopped.
 	for (std::size_t i = 0; i < pool_size; ++i)
 	{
-		io_context_ptr io_context(new boost::asio::io_context(BOOST_ASIO_CONCURRENCY_HINT_UNSAFE_IO));
-		work_ptr work(new boost::asio::io_context::work(*io_context));
+		io_context_ptr io_context(new net::io_context(BOOST_ASIO_CONCURRENCY_HINT_UNSAFE_IO));
+		work_ptr work(new net::io_context::work(*io_context));
 		io_contexts_.push_back(io_context);
 		work_.push_back(work);
 	}
@@ -58,15 +58,15 @@ void io_context_pool::stop()
 		io.reset();
 }
 
-boost::asio::io_context& io_context_pool::get_io_context()
+net::io_context& io_context_pool::get_io_context()
 {
 	// Use a round-robin scheme to choose the next io_context to use.
-	boost::asio::io_context& io_context = *io_contexts_[next_io_context_];
+	net::io_context& io_context = *io_contexts_[next_io_context_];
 	next_io_context_ = (next_io_context_ + 1) % io_contexts_.size();
 	return io_context;
 }
 
-boost::asio::io_context& io_context_pool::main_io_context()
+net::io_context& io_context_pool::main_io_context()
 {
 	return main_io_context_;
 }

@@ -64,8 +64,8 @@ namespace avpn {
 	// 定义一个源地址和目标地址的结构.
 	struct endpoint_pair
 	{
-		boost::asio::ip::tcp::endpoint src_;
-		boost::asio::ip::tcp::endpoint dst_;
+		net::ip::tcp::endpoint src_;
+		net::ip::tcp::endpoint dst_;
 
 		int type_;
 
@@ -78,15 +78,15 @@ namespace avpn {
 			uint32_t dst_ip, uint16_t dst_port)
 			: type_(-1)
 		{
-			src_.address(boost::asio::ip::address_v4(ntohl(src_ip)));
+			src_.address(net::ip::address_v4(ntohl(src_ip)));
 			src_.port(ntohs(src_port));
-			dst_.address(boost::asio::ip::address_v4(ntohl(dst_ip)));
+			dst_.address(net::ip::address_v4(ntohl(dst_ip)));
 			dst_.port(ntohs(dst_port));
 		}
 
 		// ipv4地址传入构造endpoint pair.
-		endpoint_pair(boost::asio::ip::address_v6 src_ip, uint16_t src_port,
-			boost::asio::ip::address_v6 dst_ip, uint16_t dst_port)
+		endpoint_pair(net::ip::address_v6 src_ip, uint16_t src_port,
+			net::ip::address_v6 dst_ip, uint16_t dst_port)
 			: type_(-1)
 		{
 			src_.address(src_ip);
@@ -236,9 +236,9 @@ namespace avpn {
 
 namespace std
 {
-	template<> struct hash<boost::asio::ip::tcp::endpoint>
+	template<> struct hash<net::ip::tcp::endpoint>
 	{
-		typedef boost::asio::ip::tcp::endpoint argument_type;
+		typedef net::ip::tcp::endpoint argument_type;
 		typedef std::size_t result_type;
 		inline result_type operator()(argument_type const& s) const
 		{
@@ -256,8 +256,8 @@ namespace std
 		typedef std::size_t result_type;
 		inline result_type operator()(argument_type const& s) const
 		{
-			result_type const h1(std::hash<boost::asio::ip::tcp::endpoint>{}(s.src_));
-			result_type const h2(std::hash<boost::asio::ip::tcp::endpoint>{}(s.dst_));
+			result_type const h1(std::hash<net::ip::tcp::endpoint>{}(s.src_));
+			result_type const h2(std::hash<net::ip::tcp::endpoint>{}(s.dst_));
 			std::size_t seed = 0;
 			boost::hash_combine(seed, h1);
 			boost::hash_combine(seed, h2);

@@ -311,7 +311,7 @@ int main(int argc, char** argv)
 
 		// test subnet address.
 		{
-			auto net = boost::asio::ip::make_network_v4(subnet);
+			auto net = net::ip::make_network_v4(subnet);
 			net.address().to_string();
 		}
 
@@ -329,7 +329,7 @@ int main(int argc, char** argv)
 	auto concurrency = std::thread::hardware_concurrency() + 2;
 	util::io_context_pool ios{concurrency};
 
-	boost::asio::signal_set terminator_signal(ios.get_io_context());
+	net::signal_set terminator_signal(ios.get_io_context());
 	terminator_signal.add(SIGINT);
 	terminator_signal.add(SIGTERM);
 #ifdef __linux__
@@ -409,7 +409,7 @@ int main(int argc, char** argv)
 	for (auto& socks : socks_listens)
 	{
 		boost::system::error_code ec;
-		boost::asio::ip::tcp::endpoint endp;
+		net::ip::tcp::endpoint endp;
 		make_listen_endpoint(socks, endp, ec);
 		if (ec)
 		{

@@ -227,16 +227,16 @@ namespace avpn {
 			return spi;
 		}
 
-		inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+		inline std::optional<net::ip::network_v4> get_default_gateway()
 		{
 			auto routes = details::get_windows_routing_table();
 			auto row = details::get_default_gateway_row(&*routes);
 
 			if (row)
 			{
-				boost::asio::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
-				boost::asio::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
-				boost::asio::ip::network_v4 net(gw, mask);
+				net::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
+				net::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
+				net::ip::network_v4 net(gw, mask);
 
 				LOG_DBG << "Default gateway: " << gw.to_string()
 					<< ", lowest metric: " << row->dwForwardMetric1;
@@ -294,15 +294,15 @@ namespace avpn {
 	using details::get_default_gateway;
 
 	class tuntap_windows_service
-		: public boost::asio::detail::service_base<tuntap_windows_service>
+		: public net::detail::service_base<tuntap_windows_service>
 	{
 		// c++11 noncopyable.
 		tuntap_windows_service(const tuntap_windows_service&) = delete;
 		tuntap_windows_service& operator=(const tuntap_windows_service&) = delete;
 
 	public:
-		explicit tuntap_windows_service(boost::asio::io_context& io_context)
-			: boost::asio::detail::service_base<tuntap_windows_service>(io_context)
+		explicit tuntap_windows_service(net::io_context& io_context)
+			: net::detail::service_base<tuntap_windows_service>(io_context)
 			, m_io_handle(io_context)
 			, m_handle(INVALID_HANDLE_VALUE)
 		{
@@ -536,9 +536,9 @@ namespace avpn {
 
 				// if (cfg.ifconfig_setup_)
 				{
-					auto ep1 = boost::asio::ip::address_v4(ntohl(tun_addrs[1]));
-					auto ep0 = boost::asio::ip::address_v4(ntohl(tun_addrs[0]));
-					auto ep2 = boost::asio::ip::address_v4(ntohl(tun_addrs[2]));
+					auto ep1 = net::ip::address_v4(ntohl(tun_addrs[1]));
+					auto ep0 = net::ip::address_v4(ntohl(tun_addrs[0]));
+					auto ep2 = net::ip::address_v4(ntohl(tun_addrs[2]));
 					LOG_DBG << "Set TAP-Windows TUN subnet mode network/local/netmask = " <<
 						ep1.to_string() << "/" << ep0.to_string() << "/" << ep2.to_string();
 				}
@@ -682,7 +682,7 @@ namespace avpn {
 		HANDLE m_handle;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;
-		boost::asio::stream_file m_io_handle;
+		net::stream_file m_io_handle;
 		int m_if_index{ -1 };
 	};
 }

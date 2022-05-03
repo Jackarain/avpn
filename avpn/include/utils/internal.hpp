@@ -81,6 +81,8 @@
 #include <boost/asio/strand.hpp>
 #include <boost/asio/buffer.hpp>
 
+namespace net = boost::asio;
+
 #ifdef __clang__
 #	pragma clang diagnostic pop
 #endif // __clang__

@@ -225,16 +225,16 @@ namespace avpn {
 			return spi;
 		}
 
-		inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+		inline std::optional<net::ip::network_v4> get_default_gateway()
 		{
 			auto routes = details::get_windows_routing_table();
 			auto row = details::get_default_gateway_row(&*routes);
 
 			if (row)
 			{
-				boost::asio::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
-				boost::asio::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
-				boost::asio::ip::network_v4 net(gw, mask);
+				net::ip::address_v4 gw{ ntohl(row->dwForwardNextHop) };
+				net::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
+				net::ip::network_v4 net(gw, mask);
 
 				LOG_DBG << "Default gateway: " << gw.to_string()
 					<< ", lowest metric: " << row->dwForwardMetric1;
@@ -312,7 +312,7 @@ namespace avpn {
 	using details::get_default_gateway;
 
 	class wintun_windows_service
-		: public boost::asio::detail::service_base<wintun_windows_service>
+		: public net::detail::service_base<wintun_windows_service>
 	{
 		// c++11 noncopyable.
 		wintun_windows_service(const wintun_windows_service&) = delete;
@@ -429,10 +429,10 @@ namespace avpn {
 		}
 
 	public:
-		using executor_type = boost::asio::any_io_executor;
+		using executor_type = net::any_io_executor;
 
-		explicit wintun_windows_service(boost::asio::io_context& io_context)
-			: boost::asio::detail::service_base<wintun_windows_service>(io_context)
+		explicit wintun_windows_service(net::io_context& io_context)
+			: net::detail::service_base<wintun_windows_service>(io_context)
 			, m_receive_object_moved(io_context)
 			, m_strand(io_context.get_executor())
 		{
@@ -478,9 +478,9 @@ namespace avpn {
 			InitializeUnicastIpAddressEntry(&AddressRow);
 			WintunGetAdapterLUID(m_wintun_handle, &AddressRow.InterfaceLuid);
 
-			auto tun_addr = boost::asio::ip::address_v4::from_string(cfg.local_);
-			auto tun_mask = boost::asio::ip::address_v4::from_string(cfg.mask_);
-			auto tun_network = boost::asio::ip::network_v4(tun_addr, tun_mask);
+			auto tun_addr = net::ip::address_v4::from_string(cfg.local_);
+			auto tun_mask = net::ip::address_v4::from_string(cfg.mask_);
+			auto tun_network = net::ip::network_v4(tun_addr, tun_mask);
 
 			AddressRow.Address.Ipv4.sin_family = AF_INET;
 			AddressRow.Address.Ipv4.sin_addr.S_un.S_addr = htonl(tun_addr.to_ulong());
@@ -631,8 +631,8 @@ namespace avpn {
 			template <typename Handler, typename MutableBufferSequence>
 			void operator()(Handler&& handler, const MutableBufferSequence& buffers)
 			{
-				auto bufsize = boost::asio::buffer_size(buffers);
-				auto bufptr = boost::asio::buffer_cast<uint8_t*>(buffers);
+				auto bufsize = net::buffer_size(buffers);
+				auto bufptr = net::buffer_cast<uint8_t*>(buffers);
 				std::string_view bufs((const char*)bufptr, bufsize);
 
 				auto bytes_transferred = self_->read_wintun(bufs);
@@ -669,9 +669,9 @@ namespace avpn {
 				// 经过spin后, 还是没有接收到数据, 则丢入等待协程.
 				if (bytes_transferred == 0)
 				{
-					boost::asio::co_spawn(this->get_executor(),
+					net::co_spawn(this->get_executor(),
 						[self_ = self_, handler = std::move(handler), bufs = std::move(bufs)]
-					() mutable->boost::asio::awaitable<void>
+					() mutable->net::awaitable<void>
 					{
 						boost::system::error_code ec;
 						int bytes_transferred = 0;
@@ -683,7 +683,7 @@ namespace avpn {
 
 						if (self_->m_abort)
 						{
-							ec = boost::asio::error::operation_aborted;
+							ec = net::error::operation_aborted;
 							co_return;
 						}
 
@@ -701,7 +701,7 @@ namespace avpn {
 								break;
 							if (bytes_transferred < 0)
 							{
-								ec = boost::asio::error::operation_aborted;
+								ec = net::error::operation_aborted;
 								co_return;
 							}
 						}
@@ -712,13 +712,13 @@ namespace avpn {
 						handler(ec, bytes_transferred);
 
 						co_return;
-					}, boost::asio::detached);
+					}, net::detached);
 
 					return;
 				}
 				else if (bytes_transferred < 0)
 				{
-					ec = boost::asio::error::operation_aborted;
+					ec = net::error::operation_aborted;
 				}
 
 				// 回调用户.
@@ -754,8 +754,8 @@ namespace avpn {
 			template <typename Handler, typename ConstBufferSequence>
 			void operator()(Handler&& handler, const ConstBufferSequence& buffers)
 			{
-				auto bufptr = boost::asio::buffer_cast<uint8_t*>(buffers);
-				auto bufsize = boost::asio::buffer_size(buffers);
+				auto bufptr = net::buffer_cast<uint8_t*>(buffers);
+				auto bufsize = net::buffer_size(buffers);
 				std::string_view bufs((const char*)bufptr, bufsize);
 				boost::system::error_code ec;
 
@@ -771,9 +771,9 @@ namespace avpn {
 					self_->m_instrand++;
 
 					// ring buffer已满, 写不进了, 开启协程写入.
-					boost::asio::co_spawn(self_->m_strand,
+					net::co_spawn(self_->m_strand,
 						[self_ = self_, handler = std::move(handler), bufs = std::move(bufs)]
-					() mutable->boost::asio::awaitable<void>
+					() mutable->net::awaitable<void>
 					{
 						auto bytes_transferred = self_->write_wintun(bufs);
 						boost::system::error_code ec;
@@ -786,7 +786,7 @@ namespace avpn {
 
 						if (bytes_transferred < 0 || self_->m_abort)
 						{
-							ec = boost::asio::error::operation_aborted;
+							ec = net::error::operation_aborted;
 							co_return;
 						}
 
@@ -800,7 +800,7 @@ namespace avpn {
 							bytes_transferred = self_->write_wintun(bufs);
 							if (bytes_transferred < 0)
 							{
-								ec = boost::asio::error::operation_aborted;
+								ec = net::error::operation_aborted;
 								co_return;
 							}
 						}
@@ -812,7 +812,7 @@ namespace avpn {
 						handler(ec, bytes_transferred);
 
 						co_return;
-					}, boost::asio::detached);
+					}, net::detached);
 				}
 
 				handler(ec, bytes_transferred);
@@ -844,14 +844,14 @@ namespace avpn {
 
 		HANDLE m_send_event_moved{ INVALID_HANDLE_VALUE };
 		HANDLE m_receive_event_moved{ INVALID_HANDLE_VALUE };
-		boost::asio::windows::object_handle m_receive_object_moved;
+		net::windows::object_handle m_receive_object_moved;
 		HANDLE m_wintun_file{ INVALID_HANDLE_VALUE };
 
 		struct tun_ring* m_send_ring{ nullptr };
 		struct tun_ring* m_receive_ring{ nullptr };
 
 		volatile int m_instrand{ 0 };
-		boost::asio::strand<boost::asio::any_io_executor> m_strand;
+		net::strand<net::any_io_executor> m_strand;
 
 		WINTUN_ADAPTER_HANDLE m_wintun_handle{ 0 };
 		MIB_UNICASTIPADDRESS_ROW m_address_row{ 0 };

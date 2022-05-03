@@ -133,15 +133,15 @@ namespace avpn {
 		int64_t download_rate() const;
 
 	private:
-		boost::asio::awaitable<void> start_tun_read_loop();
+		net::awaitable<void> start_tun_read_loop();
 		void do_tuntap_write(std::string&& message);
 
 		void run_as_client();
 		void run_as_server();
 
-		boost::asio::awaitable<void> tick();
+		net::awaitable<void> tick();
 
-		void setup_tun(const boost::asio::ip::network_v4& net);
+		void setup_tun(const net::ip::network_v4& net);
 
 	private:
 		// io context pool
@@ -149,7 +149,7 @@ namespace avpn {
 		io_context_pool& m_io_context_pool;
 
 		// 主线程io_context, 用于统一调度之类.
-		boost::asio::io_context& m_main_context;
+		net::io_context& m_main_context;
 
 		// avpn服务配置.
 		service_config m_config;
@@ -165,7 +165,7 @@ namespace avpn {
 		asio_timer m_tick_timer;
 
 		// 虚拟网络.
-		boost::asio::ip::network_v4 m_vnet;
+		net::ip::network_v4 m_vnet;
 
 		// 上下行速率统计.
 		speed_stat m_down_stat;

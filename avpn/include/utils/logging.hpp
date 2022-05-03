@@ -29,6 +29,9 @@
 #include <boost/asio/post.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/basic_endpoint.hpp>
+
+namespace net = boost::asio;
+
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/nowide/convert.hpp>
 #include <boost/utility/string_view.hpp>
@@ -719,7 +722,7 @@ namespace logger_aux__ {
 		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
-			boost::asio::post(m_io_thread,
+			net::post(m_io_thread,
 				[time = logger_aux__::gettime(), level, message = std::move(message), disable_cout]()
 				{
 					logger_writer__(time, level, message, disable_cout);
@@ -727,7 +730,7 @@ namespace logger_aux__ {
 		}
 
 	private:
-		boost::asio::thread_pool m_io_thread{ 1 };
+		net::thread_pool m_io_thread{ 1 };
 	};
 }
 
@@ -799,7 +802,7 @@ class logger___
 
 	template <typename T>
 	struct has_address<T, std::void_t<decltype(std::declval<T>().address())>>
-		: std::is_same<boost::asio::ip::address, std::decay_t<decltype(std::declval<T>().address())>>
+		: std::is_same<net::ip::address, std::decay_t<decltype(std::declval<T>().address())>>
 	{};
 
 	template <typename, typename = void>
@@ -808,7 +811,7 @@ class logger___
 
 	template <typename T>
 	struct has_port<T, std::void_t<decltype(std::declval<T>().port())>>
-		: std::is_same<typename boost::asio::ip::port_type, std::decay_t<decltype(std::declval<T>().port())>>
+		: std::is_same<typename net::ip::port_type, std::decay_t<decltype(std::declval<T>().port())>>
 	{};
 
 	// c++11 noncopyable.
@@ -981,7 +984,7 @@ public:
 	template<typename EndpointType>
 	requires requires (EndpointType t)
 	{
-		{ t.address() } -> std::convertible_to<boost::asio::ip::address>;
+		{ t.address() } -> std::convertible_to<net::ip::address>;
 		{ t.port() } -> std::convertible_to<boost::uint_least16_t>;
 	}
 #else

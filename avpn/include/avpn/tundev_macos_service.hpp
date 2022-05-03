@@ -44,7 +44,7 @@
 
 namespace avpn
 {
-	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	inline std::optional<net::ip::network_v4> get_default_gateway()
 	{
 		auto [result, ret] = run_command("netstat -rn -f inet");
 		if (!ret)
@@ -61,13 +61,13 @@ namespace avpn
 			{
 				std::string gateway = std::string(what[2]);
 				boost::system::error_code ec;
-				auto gw = boost::asio::ip::address_v4::from_string(gateway, ec);
+				auto gw = net::ip::address_v4::from_string(gateway, ec);
 				if (ec)
 					continue;
-				boost::asio::ip::address_v4 mask{ 0 };
+				net::ip::address_v4 mask{ 0 };
 
 				LOG_DBG << "Default gateway: " << gw.to_string();
-				return boost::asio::ip::network_v4(gw, mask);
+				return net::ip::network_v4(gw, mask);
 			}
 		}
 
@@ -75,15 +75,15 @@ namespace avpn
 	}
 
 	class tundev_macos_service
-		: public boost::asio::detail::service_base<tundev_macos_service>
+		: public net::detail::service_base<tundev_macos_service>
 	{
 		// c++11 noncopyable.
 		tundev_macos_service(const tundev_macos_service &) = delete;
 		tundev_macos_service &operator=(const tundev_macos_service &) = delete;
 
 	public:
-		explicit tundev_macos_service(boost::asio::io_context &io_context)
-			: boost::asio::detail::service_base<tundev_macos_service>(io_context)
+		explicit tundev_macos_service(net::io_context &io_context)
+			: net::detail::service_base<tundev_macos_service>(io_context)
 			, m_stream_descriptor(io_context)
 		{}
 
@@ -231,9 +231,9 @@ namespace avpn
 					auto [ret, _] = run_command(route);
 					LOG_DBG << ret;
 				}
-				boost::asio::ip::network_v4 net(
-					boost::asio::ip::address::from_string(cfg.gateway_).to_v4(),
-					boost::asio::ip::address::from_string(cfg.mask_).to_v4()
+				net::ip::network_v4 net(
+					net::ip::address::from_string(cfg.gateway_).to_v4(),
+					net::ip::address::from_string(cfg.mask_).to_v4()
 				);
 				route = "route -v add -net "
 					+ cfg.gateway_ + "/"
@@ -278,18 +278,18 @@ namespace avpn
 			void(boost::system::error_code, std::size_t))
 		async_read_some(const MutableBufferSequence &buffers, ReadHandler&& handler)
 		{
-			return boost::asio::async_initiate<ReadHandler, void(boost::system::error_code, std::size_t)>
+			return net::async_initiate<ReadHandler, void(boost::system::error_code, std::size_t)>
 				([this](auto&& handler, auto buffers) mutable
 				{
 					m_stream_descriptor.async_read_some(buffers, [this, buffers, handler = std::move(handler)]
 					(boost::system::error_code error, std::size_t bytes_transferred) mutable
 					{
 						boost::system::error_code ec;
-						if (error == boost::asio::error::eof)
+						if (error == net::error::eof)
 							ec = error;
 						if (bytes_transferred > 4)
 						{
-							auto ptr = boost::asio::buffer_cast<char*>(buffers);
+							auto ptr = net::buffer_cast<char*>(buffers);
 							bytes_transferred -= 4;
 							std::memmove(ptr, ptr + 4, bytes_transferred);
 						}
@@ -303,7 +303,7 @@ namespace avpn
 			void(boost::system::error_code, std::size_t))
 		async_write_some(const ConstBufferSequence &buffers, WriteHandler&& handler)
 		{
-			return boost::asio::async_initiate<WriteHandler, void(boost::system::error_code, std::size_t)>
+			return net::async_initiate<WriteHandler, void(boost::system::error_code, std::size_t)>
 				([this](auto&& handler, auto buffers) mutable
 				{
 					// The first byte of data will always be the address family (eg, AF_INET) of
@@ -313,7 +313,7 @@ namespace avpn
 					static uint32_t prefix = htonl(AF_INET);
 
 					std::vector<ConstBufferSequence> bufs;
-					bufs.push_back(boost::asio::buffer((char*)&prefix, sizeof(prefix)));
+					bufs.push_back(net::buffer((char*)&prefix, sizeof(prefix)));
 					bufs.push_back(buffers);
 
 					m_stream_descriptor.async_write_some(bufs, [this, handler = std::move(handler)]
@@ -349,7 +349,7 @@ namespace avpn
 		}
 
 	private:
-		boost::asio::posix::stream_descriptor m_stream_descriptor;
+		net::posix::stream_descriptor m_stream_descriptor;
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;

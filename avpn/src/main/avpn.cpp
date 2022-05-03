@@ -50,8 +50,8 @@ namespace avpn {
 		m_abort = false;
 
 		// 开启定时器.
-		boost::asio::co_spawn(m_tick_timer.get_executor(),
-			tick(), boost::asio::detached);
+		net::co_spawn(m_tick_timer.get_executor(),
+			tick(), net::detached);
 
 		// 客户端启动客户端通信通道.
 		if (m_config.identity_ == Identity::avpn_client)
@@ -78,7 +78,7 @@ namespace avpn {
 		LOG_DBG << "avpn_service.stop()";
 	}
 
-	boost::asio::awaitable<void> avpn_service::start_tun_read_loop()
+	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
 		fec::vpn_packet msg;
@@ -88,7 +88,7 @@ namespace avpn {
 			auto content = msg.data();
 
 			auto bytes = co_await m_tundev.async_read_some(
-				boost::asio::buffer(content, 1450), uawaitable[ec]);
+				net::buffer(content, 1450), uawaitable[ec]);
 			if (ec)
 			{
 				LOG_ERR << "start_tun_read_loop, async_read_some: " << ec.message();
@@ -133,18 +133,18 @@ namespace avpn {
 
 	void avpn_service::do_tuntap_write(std::string&& message)
 	{
-		boost::asio::co_spawn(m_main_context.get_executor(),
-			[this, message = std::move(message)]() mutable->boost::asio::awaitable<void>
+		net::co_spawn(m_main_context.get_executor(),
+			[this, message = std::move(message)]() mutable->net::awaitable<void>
 		{
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
-				boost::asio::buffer(message), uawaitable[ec]);
+				net::buffer(message), uawaitable[ec]);
 
 			// 统计发送数据量用于计算发送速率.
 			m_down_stat.bytes_ += (int64_t)message.size();
 			auto index = m_down_stat.speeder_count_ % speed_entries;
 			m_down_stat.speeder_[index] = m_down_stat.bytes_;
-		}, boost::asio::detached);
+		}, net::detached);
 	}
 
 	void avpn_service::run_as_client()
@@ -159,7 +159,7 @@ namespace avpn {
 // 			m_config.udp_listens_, m_config.passphrase_);
 	}
 
-	boost::asio::awaitable<void> avpn_service::tick()
+	net::awaitable<void> avpn_service::tick()
 	{
 		boost::system::error_code ec;
 
@@ -210,7 +210,7 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::setup_tun(const boost::asio::ip::network_v4& net)
+	void avpn_service::setup_tun(const net::ip::network_v4& net)
 	{
 		// 先关闭设备.
 		m_tundev.close();
@@ -220,7 +220,7 @@ namespace avpn {
 		auto ipaddr = addr.to_string();
 
 		uint32_t gw = (addr.to_uint() & mask.to_uint()) + 1;
-		auto gateway = boost::asio::ip::make_address_v4(gw);
+		auto gateway = net::ip::make_address_v4(gw);
 
 		LOG_DBG << "setup_tun ip: " << ipaddr
 			<< ", mask: " << mask.to_string()

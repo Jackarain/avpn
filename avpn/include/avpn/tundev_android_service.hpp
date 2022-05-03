@@ -61,7 +61,7 @@ namespace avpn
 {
 	inline namespace details
 	{
-		inline std::tuple<boost::asio::ip::network_v4, std::string> default_gateway()
+		inline std::tuple<net::ip::network_v4, std::string> default_gateway()
 		{
 			long Destination, Gateway, Flags, RefCnt, Use, Metric, Mask, MTU, Window, IRTT;
 			FILE* file;
@@ -73,7 +73,7 @@ namespace avpn
 
 			scoped_exit scoped([&file]() mutable { fclose(file); });
 			long lowest_metric = std::numeric_limits<long>::max();
-			boost::asio::ip::network_v4 net;
+			net::ip::network_v4 net;
 
 			char buf[1024] = { 0 };
 			memset(buf, 0, sizeof(buf));
@@ -88,10 +88,10 @@ namespace avpn
 					{
 						lowest_metric = Metric;
 
-						boost::asio::ip::address_v4 gw{ ntohl(Gateway) };
-						boost::asio::ip::address_v4 mask{ ntohl(Mask) };
+						net::ip::address_v4 gw{ ntohl(Gateway) };
+						net::ip::address_v4 mask{ ntohl(Mask) };
 
-						net = boost::asio::ip::network_v4(gw, mask);
+						net = net::ip::network_v4(gw, mask);
 						iface = tmp;
 					}
 				}
@@ -111,12 +111,12 @@ namespace avpn
 			boost::system::error_code& ec)
 		{
 			ec = boost::system::error_code(errno,
-				boost::asio::error::get_system_category());
+				net::error::get_system_category());
 			return return_value;
 		}
 	}
 
-	inline std::optional<boost::asio::ip::network_v4> get_default_gateway()
+	inline std::optional<net::ip::network_v4> get_default_gateway()
 	{
 		[[maybe_unused]] auto [net, iface] = default_gateway();
 		return { net };
@@ -129,15 +129,15 @@ namespace avpn
 	}
 
 	class tundev_android_service
-		: public boost::asio::detail::service_base<tundev_android_service>
+		: public net::detail::service_base<tundev_android_service>
 	{
 		// c++11 noncopyable.
 		tundev_android_service(const tundev_android_service &) = delete;
 		tundev_android_service &operator=(const tundev_android_service &) = delete;
 
 	public:
-		explicit tundev_android_service(boost::asio::io_context &io_context)
-			: boost::asio::detail::service_base<tundev_android_service>(io_context)
+		explicit tundev_android_service(net::io_context &io_context)
+			: net::detail::service_base<tundev_android_service>(io_context)
 			, m_stream_descriptor(io_context)
 		{}
 
@@ -209,8 +209,8 @@ namespace avpn
 			}
 
 			{
-				auto addr = boost::asio::ip::address_v4::from_string(cfg.local_);
-				boost::asio::ip::udp::endpoint endp;
+				auto addr = net::ip::address_v4::from_string(cfg.local_);
+				net::ip::udp::endpoint endp;
 				endp.address(addr);
 				memcpy(&ifr.ifr_addr, endp.data(), sizeof(struct sockaddr));
 				if (ioctl(sock, SIOCSIFADDR, (void *)&ifr) < 0)
@@ -222,8 +222,8 @@ namespace avpn
 			}
 
 			{
-				auto addr = boost::asio::ip::address_v4::from_string(cfg.mask_);
-				boost::asio::ip::udp::endpoint endp;
+				auto addr = net::ip::address_v4::from_string(cfg.mask_);
+				net::ip::udp::endpoint endp;
 				endp.address(addr);
 				memcpy(&ifr.ifr_netmask, endp.data(), sizeof(struct sockaddr));
 				if (ioctl(sock, SIOCSIFNETMASK, (void *)&ifr) < 0)
@@ -307,7 +307,7 @@ namespace avpn
 		}
 
 	private:
-		boost::asio::posix::stream_descriptor m_stream_descriptor;
+		net::posix::stream_descriptor m_stream_descriptor;
 		std::vector<tun_device> m_device_list;
 		dev_config m_config;
 		int m_frame_mtu{ -1 };

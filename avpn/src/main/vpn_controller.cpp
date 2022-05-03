@@ -53,13 +53,13 @@ namespace avpn {
 				stop();
 			});
 
-		boost::asio::co_spawn(m_main_context.get_executor(),
-			[this]() mutable -> boost::asio::awaitable<void>
+		net::co_spawn(m_main_context.get_executor(),
+			[this]() mutable -> net::awaitable<void>
 			{
 				co_await start_connect();
 				LOG_DBG << "controller quit...";
 				co_return;
-			}, boost::asio::detached);
+			}, net::detached);
 	}
 
 	void vpn_controller::stop()
@@ -79,7 +79,7 @@ namespace avpn {
 		m_ioc_pool.stop();
 	}
 
-	boost::asio::awaitable<void> vpn_controller::start_connect()
+	net::awaitable<void> vpn_controller::start_connect()
 	{
 		boost::system::error_code ec;
 
@@ -136,21 +136,21 @@ namespace avpn {
 		});
 
 		// 开启keepalive协程.
-		boost::asio::co_spawn(m_main_context.get_executor(),
-			keepalive(), boost::asio::detached);
+		net::co_spawn(m_main_context.get_executor(),
+			keepalive(), net::detached);
 
 		// 发起消息读取协程.
-		boost::asio::co_spawn(m_main_context.get_executor(),
-			start_client_read(), boost::asio::detached);
+		net::co_spawn(m_main_context.get_executor(),
+			start_client_read(), net::detached);
 
 		co_return;
 	}
 
-	boost::asio::awaitable<void> vpn_controller::start_client_read()
+	net::awaitable<void> vpn_controller::start_client_read()
 	{
 		boost::system::error_code ec;
 		std::vector<char> data;
-		boost::asio::dynamic_vector_buffer buffer{ data };
+		net::dynamic_vector_buffer buffer{ data };
 		bool exit = false;
 
 		while (!m_abort || exit)
@@ -170,7 +170,7 @@ namespace avpn {
 
 			buffer.commit(bytes);
 			scoped_exit se([&buffer]() mutable { buffer.consume(buffer.size()); });
-			const char* bufptr = boost::asio::buffer_cast<const char*>(buffer.data());
+			const char* bufptr = net::buffer_cast<const char*>(buffer.data());
 
 			// 简单的控制协议, 前面由一个数字表示命令id, 空白字符隔开, 后面为内容.
 			// 正则表达式如：(\d+)\ +(.*)$
@@ -218,7 +218,7 @@ namespace avpn {
 						+ " "
 						+ std::to_string(m_service.download_rate());
 
-					co_await m_ws_stream.async_write(boost::asio::buffer(str), uawaitable[ec]);
+					co_await m_ws_stream.async_write(net::buffer(str), uawaitable[ec]);
 					if (ec)
 					{
 						LOG_ERR << "start_client_read, ct_speed async_write error: " << ec.message();
@@ -240,7 +240,7 @@ namespace avpn {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> vpn_controller::keepalive()
+	net::awaitable<void> vpn_controller::keepalive()
 	{
 		boost::system::error_code ec;
 

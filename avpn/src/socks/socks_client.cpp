@@ -14,9 +14,8 @@
 
 #include <cstdlib>
 
-namespace socks {
 
-	namespace net = boost::asio;
+namespace socks {
 
 	namespace detail {
 
@@ -38,7 +37,7 @@ namespace socks {
 
 	} // detail
 
-	boost::asio::awaitable<void> do_socks5(
+	net::awaitable<void> do_socks5(
 		tcp::socket& socket, socks_client_option opt, boost::system::error_code& ec)
 	{
 		using detail::write;
@@ -170,7 +169,7 @@ namespace socks {
 			auto endp = net::ip::make_address(hostname, ec);
 			if (ec)
 			{
-				auto executor = co_await boost::asio::this_coro::executor;
+				auto executor = co_await net::this_coro::executor;
 				tcp::resolver resolver{ executor };
 				auto error = ec;
 
@@ -321,7 +320,7 @@ namespace socks {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> do_socks4(
+	net::awaitable<void> do_socks4(
 		tcp::socket& socket, socks_client_option opt, boost::system::error_code& ec)
 	{
 		using detail::write;
@@ -343,7 +342,7 @@ namespace socks {
 		auto address = net::ip::make_address_v4(hostname, ec);
 		if (ec)
 		{
-			auto executor = co_await boost::asio::this_coro::executor;
+			auto executor = co_await net::this_coro::executor;
 			tcp::resolver resolver{ executor };
 			auto error = ec;
 
@@ -406,7 +405,7 @@ namespace socks {
 
 	namespace detail
 	{
-		boost::asio::awaitable<boost::system::error_code>
+		net::awaitable<boost::system::error_code>
 			do_socks_handshake(tcp::socket& socket, socks_client_option opt /*= {}*/)
 		{
 			boost::system::error_code ec;

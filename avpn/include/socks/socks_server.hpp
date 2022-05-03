@@ -8,8 +8,6 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#include "utils/logging.hpp"
-
 #include <memory>
 #include <string>
 #include <array>
@@ -20,10 +18,12 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 
+namespace net = boost::asio;
+
 namespace socks {
 
-	using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
-	using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
+	using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
+	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
 
 	class socks_server;
 	class socks_session
@@ -41,11 +41,11 @@ namespace socks {
 		void close();
 
 	private:
-		boost::asio::awaitable<void> start_socks_proxy();
-		boost::asio::awaitable<void> socks_connect_v5();
-		boost::asio::awaitable<void> socks_connect_v4();
-		boost::asio::awaitable<bool> socks_auth();
-		boost::asio::awaitable<void> transfer(tcp::socket& from, tcp::socket& to);
+		net::awaitable<void> start_socks_proxy();
+		net::awaitable<void> socks_connect_v5();
+		net::awaitable<void> socks_connect_v4();
+		net::awaitable<bool> socks_auth();
+		net::awaitable<void> transfer(tcp::socket& from, tcp::socket& to);
 
 	private:
 		tcp::socket m_local_socket;
@@ -80,7 +80,7 @@ namespace socks {
 		friend class socks_session;
 
 	public:
-		socks_server(boost::asio::io_context& ioc,
+		socks_server(net::io_context& ioc,
 			const tcp::endpoint& endp, socks_server_option opt = {});
 		~socks_server() = default;
 
@@ -95,10 +95,10 @@ namespace socks {
 		bool auth_require();
 
 	private:
-		boost::asio::awaitable<void> start_socks_listen(tcp::acceptor& a);
+		net::awaitable<void> start_socks_listen(tcp::acceptor& a);
 
 	private:
-		boost::asio::io_context& m_io_context;
+		net::io_context& m_io_context;
 		tcp::acceptor m_acceptor;
 		socks_server_option m_option;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_clients;

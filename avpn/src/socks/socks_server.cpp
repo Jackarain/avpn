@@ -14,6 +14,7 @@
 #include "utils/uawaitable.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/async_connect.hpp"
+#include "utils/logging.hpp"
 
 #include <boost/asio/detached.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
@@ -40,7 +41,7 @@ namespace socks {
 
 	} // detail
 
-	using namespace boost::asio::experimental::awaitable_operators;
+	using namespace net::experimental::awaitable_operators;
 	using namespace util;
 	using namespace boost::asio;
 
@@ -68,8 +69,8 @@ namespace socks {
 	{
 		m_bind_addr = bind_addr;
 
-		boost::asio::co_spawn(m_local_socket.get_executor(),
-			start_socks_proxy(), boost::asio::detached);
+		net::co_spawn(m_local_socket.get_executor(),
+			start_socks_proxy(), net::detached);
 	}
 
 	void socks_session::close()
@@ -81,7 +82,7 @@ namespace socks {
 		m_remote_socket.close(ignore_ec);
 	}
 
-	boost::asio::awaitable<void> socks_session::start_socks_proxy()
+	net::awaitable<void> socks_session::start_socks_proxy()
 	{
 		// 保持整个生命周期在协程栈上.
 		auto self = shared_from_this();
@@ -103,9 +104,9 @@ namespace socks {
 
 		boost::system::error_code ec;
 
-		[[maybe_unused]] auto bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer),
-				boost::asio::transfer_exactly(2),
+		[[maybe_unused]] auto bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer),
+				net::transfer_exactly(2),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -130,7 +131,7 @@ namespace socks {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> socks_session::socks_connect_v5()
+	net::awaitable<void> socks_session::socks_connect_v5()
 	{
 		char* p = m_local_buffer.data();
 
@@ -151,9 +152,9 @@ namespace socks {
 		//                  [          ]
 
 		boost::system::error_code ec;
-		auto bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, nmethods),
-				boost::asio::transfer_exactly(nmethods),
+		auto bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, nmethods),
+				net::transfer_exactly(nmethods),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -218,9 +219,9 @@ namespace socks {
 		//  | 1  |   1    |
 		//  +----+--------+
 		//  [             ]
-		bytes = co_await boost::asio::async_write(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 2),
-				boost::asio::transfer_exactly(2),
+		bytes = co_await net::async_write(m_local_socket,
+			net::buffer(m_local_buffer, 2),
+				net::transfer_exactly(2),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -248,9 +249,9 @@ namespace socks {
 		//  | 1  |  1  | X'00' |  1   | Variable |    2     |
 		//  +----+-----+-------+------+----------+----------+
 		//  [                          ]
-		bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 5),
-				boost::asio::transfer_exactly(5),
+		bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, 5),
+				net::transfer_exactly(5),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -292,9 +293,9 @@ namespace socks {
 		else if (atyp == SOCKS5_ATYP_IPV6)
 			length = 17; // 18 - 1
 
-		bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer.data() + prefix, length),
-				boost::asio::transfer_exactly(length),
+		bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer.data() + prefix, length),
+				net::transfer_exactly(length),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -330,13 +331,13 @@ namespace socks {
 		std::string domain;
 		uint16_t port = 0;
 
-		auto executor = co_await boost::asio::this_coro::executor;
+		auto executor = co_await net::this_coro::executor;
 		tcp::socket& remote_socket = m_remote_socket;
 
 		p = m_local_buffer.data();
 		if (atyp == SOCKS5_ATYP_IPV4)
 		{
-			dst_endpoint.address(boost::asio::ip::address_v4(read<uint32_t>(p)));
+			dst_endpoint.address(net::ip::address_v4(read<uint32_t>(p)));
 			dst_endpoint.port(read<uint16_t>(p));
 
 			LOG_DBG << "id: " << m_connection_id << ", " << m_local_socket.remote_endpoint() << " use ipv4: "
@@ -391,14 +392,14 @@ namespace socks {
 		}
 		else if (atyp == SOCKS5_ATYP_IPV6)
 		{
-			boost::asio::ip::address_v6::bytes_type addr;
-			for (boost::asio::ip::address_v6::bytes_type::iterator i = addr.begin();
+			net::ip::address_v6::bytes_type addr;
+			for (net::ip::address_v6::bytes_type::iterator i = addr.begin();
 				i != addr.end(); ++i)
 			{
 				*i = read<int8_t>(p);
 			}
 
-			dst_endpoint.address(boost::asio::ip::address_v6(addr));
+			dst_endpoint.address(net::ip::address_v6(addr));
 			dst_endpoint.port(read<uint16_t>(p));
 			LOG_DBG << "id: " << m_connection_id << ", "
 				<< m_local_socket.remote_endpoint() << " use ipv6: " << dst_endpoint;
@@ -419,9 +420,9 @@ namespace socks {
 		{
 			int8_t error_code = SOCKS5_SUCCEEDED;
 
-			if (ec == boost::asio::error::connection_refused)
+			if (ec == net::error::connection_refused)
 				error_code = SOCKS5_CONNECTION_REFUSED;
-			else if (ec == boost::asio::error::network_unreachable)
+			else if (ec == net::error::network_unreachable)
 				error_code = SOCKS5_NETWORK_UNREACHABLE;
 			else if (ec)
 				error_code = SOCKS5_GENERAL_SOCKS_SERVER_FAILURE;
@@ -467,9 +468,9 @@ namespace socks {
 				write<uint16_t>(0, p);
 			}
 
-			bytes = co_await boost::asio::async_write(m_local_socket,
-				boost::asio::buffer(m_local_buffer, 10),
-					boost::asio::transfer_exactly(10),
+			bytes = co_await net::async_write(m_local_socket,
+				net::buffer(m_local_buffer, 10),
+					net::transfer_exactly(10),
 						uawaitable[ec]);
 			if (ec)
 			{
@@ -502,7 +503,7 @@ namespace socks {
 		co_return;
 	}
 
-	boost::asio::awaitable<void> socks_session::socks_connect_v4()
+	net::awaitable<void> socks_session::socks_connect_v4()
 	{
 		char* p = m_local_buffer.data();
 
@@ -518,9 +519,9 @@ namespace socks {
 		//            [                             ]
 
 		boost::system::error_code ec;
-		auto bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 6),
-				boost::asio::transfer_exactly(6),
+		auto bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, 6),
+				net::transfer_exactly(6),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -533,7 +534,7 @@ namespace socks {
 
 		auto port = read<uint16_t>(p);
 		dst_endpoint.port(port);
-		dst_endpoint.address(boost::asio::ip::address_v4(read<uint32_t>(p)));
+		dst_endpoint.address(net::ip::address_v4(read<uint32_t>(p)));
 
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
 		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
@@ -541,8 +542,8 @@ namespace socks {
 		//  | 1  | 1  |    2    |         4         | variable     | 1  |
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
 		//                                          [                   ]
-		boost::asio::streambuf sbuf;
-		bytes = co_await boost::asio::async_read_until(m_local_socket,
+		net::streambuf sbuf;
+		bytes = co_await net::async_read_until(m_local_socket,
 			sbuf, '\0', uawaitable[ec]);
 		if (ec)
 		{
@@ -584,9 +585,9 @@ namespace socks {
 			write<uint16_t>(dst_endpoint.port(), p);
 			write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
 
-			bytes = co_await boost::asio::async_write(m_local_socket,
-				boost::asio::buffer(m_local_buffer, 8),
-					boost::asio::transfer_exactly(8),
+			bytes = co_await net::async_write(m_local_socket,
+				net::buffer(m_local_buffer, 8),
+					net::transfer_exactly(8),
 						uawaitable[ec]);
 			if (ec)
 			{
@@ -631,9 +632,9 @@ namespace socks {
 		write<uint16_t>(dst_endpoint.port(), p);
 		write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
 
-		bytes = co_await boost::asio::async_write(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 8),
-				boost::asio::transfer_exactly(8),
+		bytes = co_await net::async_write(m_local_socket,
+			net::buffer(m_local_buffer, 8),
+				net::transfer_exactly(8),
 					uawaitable[ec]);
 		if (ec)
 		{
@@ -654,7 +655,7 @@ namespace socks {
 		co_return;
 	}
 
-	boost::asio::awaitable<bool> socks_session::socks_auth()
+	net::awaitable<bool> socks_session::socks_auth()
 	{
 		//  +----+------+----------+------+----------+
 		//  |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
@@ -665,9 +666,9 @@ namespace socks {
 
 		boost::system::error_code ec;
 
-		auto bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 2),
-			boost::asio::transfer_exactly(2),
+		auto bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, 2),
+			net::transfer_exactly(2),
 			uawaitable[ec]);
 		if (ec)
 		{
@@ -698,9 +699,9 @@ namespace socks {
 		//  +----+------+----------+------+----------+
 		//              [                 ]
 
-		bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, name_length),
-			boost::asio::transfer_exactly(name_length),
+		bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, name_length),
+			net::transfer_exactly(name_length),
 			uawaitable[ec]);
 		if (ec)
 		{
@@ -728,9 +729,9 @@ namespace socks {
 		//  +----+------+----------+------+----------+
 		//                                [          ]
 
-		bytes = co_await boost::asio::async_read(m_local_socket,
-			boost::asio::buffer(m_local_buffer, passwd_len),
-			boost::asio::transfer_exactly(passwd_len),
+		bytes = co_await net::async_read(m_local_socket,
+			net::buffer(m_local_buffer, passwd_len),
+			net::transfer_exactly(passwd_len),
 			uawaitable[ec]);
 		if (ec)
 		{
@@ -776,9 +777,9 @@ namespace socks {
 		//  +----+--------+
 		//  | 1  |   1    |
 		//  +----+--------+
-		co_await boost::asio::async_write(m_local_socket,
-			boost::asio::buffer(m_local_buffer, 2),
-			boost::asio::transfer_exactly(2),
+		co_await net::async_write(m_local_socket,
+			net::buffer(m_local_buffer, 2),
+			net::transfer_exactly(2),
 			uawaitable[ec]);
 		if (ec)
 		{
@@ -789,7 +790,7 @@ namespace socks {
 		co_return true;
 	}
 
-	boost::asio::awaitable<void> socks_session::transfer(tcp::socket& from, tcp::socket& to)
+	net::awaitable<void> socks_session::transfer(tcp::socket& from, tcp::socket& to)
 	{
 		std::vector<char> data(65536, 0);
 		boost::system::error_code ec;
@@ -797,18 +798,18 @@ namespace socks {
 		for (; !m_abort;)
 		{
 			auto bytes = co_await from.async_read_some(
-				boost::asio::buffer(data), uawaitable[ec]);
+				net::buffer(data), uawaitable[ec]);
 			if (ec || m_abort)
 			{
-				to.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+				to.shutdown(net::ip::tcp::socket::shutdown_send, ec);
 				co_return;
 			}
 
-			co_await boost::asio::async_write(to,
-				boost::asio::buffer(data, bytes), uawaitable[ec]);
+			co_await net::async_write(to,
+				net::buffer(data, bytes), uawaitable[ec]);
 			if (ec || m_abort)
 			{
-				from.shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ec);
+				from.shutdown(net::ip::tcp::socket::shutdown_receive, ec);
 				co_return;
 			}
 		}
@@ -816,14 +817,14 @@ namespace socks {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	socks_server::socks_server(boost::asio::io_context& ioc,
+	socks_server::socks_server(net::io_context& ioc,
 		const tcp::endpoint& endp, socks_server_option opt)
 		: m_io_context(ioc)
 		, m_acceptor(ioc, endp)
 		, m_option(std::move(opt))
 	{
 		boost::system::error_code ec;
-		m_acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
+		m_acceptor.listen(net::socket_base::max_listen_connections, ec);
 	}
 
 	void socks_server::open()
@@ -831,8 +832,8 @@ namespace socks {
 		// 同时启动32个连接协程, 开始为socks client提供服务.
 		for (int i = 0; i < 32; i++)
 		{
-			boost::asio::co_spawn(m_io_context,
-				start_socks_listen(m_acceptor), boost::asio::detached);
+			net::co_spawn(m_io_context,
+				start_socks_listen(m_acceptor), net::detached);
 		}
 	}
 
@@ -878,7 +879,7 @@ namespace socks {
 		return false;
 	}
 
-	boost::asio::awaitable<void> socks_server::start_socks_listen(tcp::acceptor& a)
+	net::awaitable<void> socks_server::start_socks_listen(tcp::acceptor& a)
 	{
 		auto self = shared_from_this();
 		boost::system::error_code error;
@@ -891,8 +892,8 @@ namespace socks {
 			{
 				LOG_ERR << "start_socks_listen, async_accept: " << error.message();
 
-				if (error == boost::asio::error::operation_aborted ||
-					error == boost::asio::error::bad_descriptor)
+				if (error == net::error::operation_aborted ||
+					error == net::error::bad_descriptor)
 				{
 					co_return;
 				}
@@ -904,12 +905,12 @@ namespace socks {
 			}
 
 			{
-				boost::asio::socket_base::keep_alive option(true);
+				net::socket_base::keep_alive option(true);
 				socket.set_option(option, error);
 			}
 
 			{
-				boost::asio::ip::tcp::no_delay option(true);
+				net::ip::tcp::no_delay option(true);
 				socket.set_option(option);
 			}
 

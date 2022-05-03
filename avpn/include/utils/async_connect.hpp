@@ -55,8 +55,8 @@ namespace asio_util {
 			typename Iterator, typename ResultType = void>
 		void callback(Handler&& handler, Iterator& begin, const boost::system::error_code& error)
 		{
-			auto executor = boost::asio::get_associated_executor(handler);
-			boost::asio::post(executor, [error, h = std::move(handler), begin]() mutable
+			auto executor = net::get_associated_executor(handler);
+			net::post(executor, [error, h = std::move(handler), begin]() mutable
 			{
 				if constexpr (std::is_same_v<ResultType, typename Stream::endpoint_type>)
 					do_result(h, error, *begin);
@@ -96,11 +96,11 @@ namespace asio_util {
 			{
 				auto context = boost::make_local_shared<connect_context<Stream, Handler>>(std::move(handler));
 
-				auto cs = boost::asio::get_associated_cancellation_slot(context->handler_);
+				auto cs = net::get_associated_cancellation_slot(context->handler_);
 				if (cs.is_connected())
 				{
 					boost::weak_ptr<connect_context<Stream, Handler>> weak_ptr = context;
-					cs.assign([weak_ptr](boost::asio::cancellation_type_t) mutable
+					cs.assign([weak_ptr](net::cancellation_type_t) mutable
 					{
 						auto context = weak_ptr.lock();
 						if (!context)
@@ -122,7 +122,7 @@ namespace asio_util {
 				context->num_ = std::distance(begin, end);
 				if (context->num_ == 0)
 				{
-					auto error = boost::system::error_code(boost::asio::error::no_data);
+					auto error = boost::system::error_code(net::error::no_data);
 					callback<Stream, Handler, Iterator, ResultType>(std::move(context->handler_), begin, error);
 					return;
 				}
@@ -135,8 +135,8 @@ namespace asio_util {
 					{
 						const auto& addr = begin_->endpoint().address();
 
-						has_aaaa |= boost::asio::ip::address(addr).is_v6();
-						has_a |= boost::asio::ip::address(addr).is_v4();
+						has_aaaa |= net::ip::address(addr).is_v6();
+						has_a |= net::ip::address(addr).is_v4();
 					}
 
 					if (has_aaaa && has_a)
@@ -156,7 +156,7 @@ namespace asio_util {
 						{
 							if (reject == context->num_)
 							{
-								auto error = boost::system::error_code(boost::asio::error::not_found);
+								auto error = boost::system::error_code(net::error::not_found);
 								callback<Stream, Handler, Iterator, ResultType>(std::forward<Handler>(*h), begin, error);
 							}
 
@@ -206,7 +206,7 @@ namespace asio_util {
 					if (use_happy_eyeball && v4)
 					{
 						using namespace std::chrono_literals;
-						using boost::asio::steady_timer;
+						using net::steady_timer;
 
 						// ipv4 delay 200ms.
 						auto delay_timer = boost::make_local_shared<steady_timer>(stream.get_executor());
@@ -258,10 +258,10 @@ namespace asio_util {
 		void(boost::system::error_code, Iterator))
 	async_connect(Stream& s, Iterator begin,
 		BOOST_ASIO_MOVE_ARG(ConnectHandler) handler,
-		typename boost::asio::enable_if<
-			!boost::asio::is_endpoint_sequence<Iterator>::value>::type* = 0)
+		typename net::enable_if<
+			!net::is_endpoint_sequence<Iterator>::value>::type* = 0)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, Iterator)>
 			(detail::initiate_do_connect{}, handler, &s,
 				begin, Iterator(),
@@ -275,7 +275,7 @@ namespace asio_util {
 		async_connect(Stream& s, Iterator begin, Iterator end,
 			BOOST_ASIO_MOVE_ARG(ConnectHandler) handler)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, Iterator)>
 			(detail::initiate_do_connect{}, handler, &s,
 				begin, end,
@@ -288,10 +288,10 @@ namespace asio_util {
 			void(boost::system::error_code, typename Stream::endpoint_type))
 		async_connect(Stream& s, const EndpointSequence& endpoints,
 			BOOST_ASIO_MOVE_ARG(ConnectHandler) handler,
-			typename boost::asio::enable_if<
-				boost::asio::is_endpoint_sequence<EndpointSequence>::value>::type* = 0)
+			typename net::enable_if<
+				net::is_endpoint_sequence<EndpointSequence>::value>::type* = 0)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, typename Stream::endpoint_type)>
 			(detail::initiate_do_connect{}, handler, &s, endpoints,
 				detail::default_connect_condition{});
@@ -303,10 +303,10 @@ namespace asio_util {
 		void(boost::system::error_code, Iterator))
 	async_connect(Stream& s, Iterator begin, ConnectCondition connect_condition,
 		BOOST_ASIO_MOVE_ARG(ConnectHandler) handler,
-		typename boost::asio::enable_if<
-			!boost::asio::is_endpoint_sequence<Iterator>::value>::type* = 0)
+		typename net::enable_if<
+			!net::is_endpoint_sequence<Iterator>::value>::type* = 0)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, Iterator)>
 			(detail::initiate_do_connect{}, handler, &s,
 				begin, Iterator(),
@@ -320,7 +320,7 @@ namespace asio_util {
 		async_connect(Stream& s, Iterator begin, Iterator end, ConnectCondition connect_condition,
 			BOOST_ASIO_MOVE_ARG(ConnectHandler) handler)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, Iterator)>
 			(detail::initiate_do_connect{}, handler, &s,
 				begin, end,
@@ -333,10 +333,10 @@ namespace asio_util {
 			void(boost::system::error_code, typename Stream::endpoint_type))
 		async_connect(Stream& s, const EndpointSequence& endpoints, ConnectCondition connect_condition,
 			BOOST_ASIO_MOVE_ARG(ConnectHandler) handler,
-			typename boost::asio::enable_if<
-				boost::asio::is_endpoint_sequence<EndpointSequence>::value>::type* = 0)
+			typename net::enable_if<
+				net::is_endpoint_sequence<EndpointSequence>::value>::type* = 0)
 	{
-		return boost::asio::async_initiate<ConnectHandler,
+		return net::async_initiate<ConnectHandler,
 			void(boost::system::error_code, typename Stream::endpoint_type)>
 			(detail::initiate_do_connect{}, handler, &s, endpoints, connect_condition);
 	}

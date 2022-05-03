@@ -15,11 +15,11 @@
 #define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
 
-using tcp = boost::asio::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
-using udp = boost::asio::ip::udp;               // from <boost/asio/ip/udp.hpp>
+using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
+using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
 namespace websocket = boost::beast::websocket;  // from <boost/beast/websocket.hpp>
 using ws = websocket::stream<tcp::socket>;
-using boost::asio::basic_waitable_timer;
+using net::basic_waitable_timer;
 using asio_timer = basic_waitable_timer<std::chrono::steady_clock>;
 
 template<class ... T> inline constexpr bool always_false = false;
@@ -97,7 +97,7 @@ bool make_listen_endpoint(const std::string& address,
 bool make_listen_endpoint(const std::string& address,
 	udp::endpoint& endp, boost::system::error_code& ec);
 
-bool same_ipv4_network(const boost::asio::ip::network_v4& net, uint32_t u32_addr);
+bool same_ipv4_network(const net::ip::network_v4& net, uint32_t u32_addr);
 
 // 设置local_ip所指定的设备的dns, 若local_ip为空, 则设定全局dns.
 bool set_dns(const std::string& dns, std::string local_ip = "");

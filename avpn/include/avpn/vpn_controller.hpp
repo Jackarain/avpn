@@ -43,9 +43,9 @@ namespace avpn {
 		void stop();
 
 	private:
-		boost::asio::awaitable<void> start_connect();
-		boost::asio::awaitable<void> start_client_read();
-		boost::asio::awaitable<void> keepalive();
+		net::awaitable<void> start_connect();
+		net::awaitable<void> start_client_read();
+		net::awaitable<void> keepalive();
 
 	private:
 		// io pool, 通过控制io pool以响应
@@ -53,10 +53,10 @@ namespace avpn {
 		io_context_pool& m_ioc_pool;
 
 		// 用于本vpn_controller相关操作.
-		boost::asio::io_context& m_main_context;
+		net::io_context& m_main_context;
 
 		// 用以响应用户ctrl+c操作.
-		boost::asio::signal_set m_signal;
+		net::signal_set m_signal;
 
 		// vpn服务相关配置, 启用vpn服务时
 		// 用此配置启动vpn服务.
