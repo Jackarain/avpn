@@ -26,7 +26,7 @@
 
 namespace avpn {
 
-	class vpn_tunnel : std::enable_shared_from_this<vpn_tunnel>
+	class vpn_tunnel : public std::enable_shared_from_this<vpn_tunnel>
 	{
 	public:
 		vpn_tunnel();
@@ -34,4 +34,6 @@ namespace avpn {
 	private:
 	};
 
+	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
+	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 }

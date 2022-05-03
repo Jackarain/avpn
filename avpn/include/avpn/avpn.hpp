@@ -16,10 +16,15 @@
 
 namespace avpn {
 
+	//////////////////////////////////////////////////////////////////////////
+
 	enum class Identity {
 		avpn_server = 0,
 		avpn_client = 1
 	};
+
+
+	//////////////////////////////////////////////////////////////////////////
 
 	struct tunnel_params
 	{
@@ -69,6 +74,9 @@ namespace avpn {
 		std::string subnet_;
 	};
 
+
+	//////////////////////////////////////////////////////////////////////////
+
 	struct service_config
 	{
 		// 作为client时, 目标vpn服务器信息.
@@ -100,6 +108,7 @@ namespace avpn {
 	};
 
 
+	//////////////////////////////////////////////////////////////////////////
 
 	using namespace util;
 	using std::chrono::steady_clock;
@@ -121,8 +130,9 @@ namespace avpn {
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
 		avpn_service& operator=(const avpn_service&) = delete;
-		avpn_service() = delete;
 
+		// avoid direct call construct object...
+		avpn_service() = delete;
 		avpn_service(io_context_pool& ios, const service_config& config);
 
 	public:
@@ -159,7 +169,7 @@ namespace avpn {
 		// avpn服务配置.
 		service_config m_config;
 
-		// 随机id, 用于client连接前标识身份.避免server
+		// 随机id, 用于client连接前标识身份. 避免server
 		// 重复在同一个client分配资源.
 		std::string m_client_id;
 
@@ -200,9 +210,23 @@ namespace avpn {
 		using udp_socket_ptr = std::shared_ptr<udp_socket>;
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
-		// vpn隧道列表, 作为server时, 完成认证的client列表.
-		// std::unordered_map<int64_t, vpn_connection_weak_ptr>
-		// vpn连接请求列表.
+		// 作为server时, vpn隧道列表, 完成认证的client列表.
+		// key 为server为client分配的虚拟ip.
+		std::unordered_map<uint32_t, vpn_tunnel_weak_ptr> m_tunnels;
+
+		// 作为server时, vpn处理连接请求列表.
+		// key 为client发过来的client随机id.
+		// value 为临时用于处理认证创建的vpn隧道对象.
+		// 当完成认证后, 将移动到m_tunnels 容器中管理.
+		std::unordered_map<std::string, vpn_tunnel_weak_ptr> m_incomings;
+
+		// 子网信息, 作为server时由配置参数确定.
+		// 作为client时, 由认证完成时确定.
+		boost::asio::ip::network_v4 m_subnet;
+
+		// 作为server时, 虚拟 IP 分配器.
+		boost::asio::ip::address_v4_range m_ip_assigner;
+		boost::asio::ip::address_v4_range::iterator m_ip_iterator;
 
 		// 服务停止标志.
 		bool m_abort{ false };
