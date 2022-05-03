@@ -29,7 +29,8 @@ namespace avpn {
 	using namespace boost::asio;
 	namespace beast = boost::beast;
 
-	vpn_controller::vpn_controller(io_context_pool& ioc_pool, const service_config& cfg)
+	vpn_controller::vpn_controller(
+		io_context_pool& ioc_pool, const service_config& cfg)
 		: m_ioc_pool(ioc_pool)
 		, m_main_context(ioc_pool.main_io_context())
 		, m_signal(m_main_context)
@@ -48,7 +49,8 @@ namespace avpn {
 		m_signal.add(SIGQUIT);
 #endif // defined(SIGQUIT)
 
-		m_signal.async_wait([this](const boost::system::error_code&, int) mutable
+		m_signal.async_wait(
+			[this](const boost::system::error_code&, int) mutable
 			{
 				LOG_DBG << "terminator is called!";
 				stop();
@@ -93,7 +95,7 @@ namespace avpn {
 		co_await sock.async_connect(endp, uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect, async_connect: " << ec.message();
+			LOG_ERR << "controller::start_connect, connect: " << ec.message();
 
 			// 全部退出.
 			m_ioc_pool.stop();
@@ -103,15 +105,18 @@ namespace avpn {
 		LOG_DBG << "controller::start_connect, connect successfully!";
 
 		std::string origin = "all";
+
+		using beast::websocket::stream_base;
 		auto decorator = [origin](beast::websocket::request_type& m) {
 			m.insert(beast::http::field::origin, origin);
 		};
 
-		m_ws_stream.set_option(beast::websocket::stream_base::decorator(decorator));
-		co_await m_ws_stream.async_handshake(controller_server_host, "/", uawaitable[ec]);
+		m_ws_stream.set_option(stream_base::decorator(decorator));
+		co_await m_ws_stream.async_handshake(
+			controller_server_host, "/", uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect, async_handshake: " << ec.message();
+			LOG_ERR << "controller::start_connect, handshake: " << ec.message();
 
 			// 全部退出.
 			m_ioc_pool.stop();
@@ -153,10 +158,11 @@ namespace avpn {
 		std::vector<char> data;
 		net::dynamic_vector_buffer buffer{ data };
 		bool exit = false;
+		auto& stream = m_ws_stream;
 
 		while (!m_abort || exit)
 		{
-			auto bytes = co_await m_ws_stream.async_read(buffer, uawaitable[ec]);
+			auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
 			if (ec == beast::websocket::error::closed)
 			{
 				LOG_DBG << "controller::start_client_read, vpn was closed";
@@ -165,12 +171,14 @@ namespace avpn {
 
 			if (ec)
 			{
-				LOG_ERR << "start_client_read, async_read error: " << ec.message();
+				LOG_ERR << "start_client_read, read error: " << ec.message();
 				break;
 			}
 
 			buffer.commit(bytes);
-			scoped_exit se([&buffer]() mutable { buffer.consume(buffer.size()); });
+			scoped_exit se([&buffer]() mutable {
+					buffer.consume(buffer.size());
+				});
 			const char* bufptr = net::buffer_cast<const char*>(buffer.data());
 
 			// 简单的控制协议, 前面由一个数字表示命令id, 空白字符隔开, 后面为内容.
@@ -180,7 +188,8 @@ namespace avpn {
 
 			if (!std::regex_match(bufptr, match, ctrl_regex))
 			{
-				LOG_WARN << "start_client_read, regex match faild: " << std::string_view(bufptr, bytes);
+				LOG_WARN << "start_client_read, regex match faild: "
+					<< std::string_view(bufptr, bytes);
 				continue;
 			}
 
@@ -211,18 +220,21 @@ namespace avpn {
 			case controller_type::ct_speed:
 				if (!m_start)
 					break;
-				LOG_DBG << "start_client_read, do vpn speed: "
-					<< m_service.upload_rate() << ", " << m_service.download_rate();
+				LOG_DBG << "start_client_read, "
+					<< "do vpn speed: " << m_service.upload_rate()
+					<< ", " << m_service.download_rate();
 				{
 					auto str = std::to_string((int)type) + " "
 						+ std::to_string(m_service.upload_rate())
 						+ " "
 						+ std::to_string(m_service.download_rate());
 
-					co_await m_ws_stream.async_write(net::buffer(str), uawaitable[ec]);
+					co_await stream.async_write(
+						net::buffer(str), uawaitable[ec]);
 					if (ec)
 					{
-						LOG_ERR << "start_client_read, ct_speed async_write error: " << ec.message();
+						LOG_ERR << "start_client_read, "
+							<< "ct_speed async_write error: " << ec.message();
 						exit = true;
 					}
 				}

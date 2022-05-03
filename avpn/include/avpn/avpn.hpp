@@ -116,6 +116,7 @@ namespace avpn {
 
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
+		// 速率统计相关数据结构.
 		const static int speed_entries = 3;
 		struct speed_stat
 		{
@@ -133,44 +134,68 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		avpn_service() = delete;
-		avpn_service(io_context_pool& ios, const service_config& config);
+		avpn_service(io_context_pool&, const service_config&);
 
 	public:
+		// 创建apvn service对象, 因为avpn_service必须是一个shared_ptr对象
+		// 所以为了避免直接调用构造avpn_service对象, 将avpn_service的构造
+		// 函数设置为private, 只能通过make_avpn_service创建shared_ptr对象
+		// 以避免误用.
 		static std::shared_ptr<avpn_service>
 			make_avpn_service(io_context_pool&, avpn::service_config);
 		~avpn_service();
 
 	public:
+		// 启动和停止vpn服务.
 		void start();
 		void stop();
 
+		// 返回当前上下行实时速率.
 		int64_t upload_rate() const;
 		int64_t download_rate() const;
 
 	private:
+		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
-		void do_tuntap_write(std::string&& message);
+		void do_tun_write(std::string&&);
+
+		// udp相关的读取与发送.
+		net::awaitable<void> start_udp_read_loop(int index);
+		void do_udp_write(std::string&&, udp::endpoint&&);
 
 		void run_as_client();
 		void run_as_server();
 
 		net::awaitable<void> tick();
 
-		void setup_tun(const net::ip::network_v4& net);
+		// 配置tun设备.
+		// 打开tun设备, 然后设置tun设备的子网, ip, 以及网关信息.
+		// client在每次认证完成后根据server分配的ip信息配置 tun
+		// 设备.
+		// server在启动时根据配置参数信息配置tun设备.
+		void setup_tun(const net::ip::network_v4&);
 
 		// 分配一个虚拟ip给client.
 		std::tuple<std::string, uint32_t> ip_assigner();
 
+		// 作为server时, 初始化tcp连接监听.
+		bool init_tcp_acceptors();
+		// 作为server时, 监听client的tcp连接.
+		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
+
 	private:
 		// io context pool
 		// 用于使用不同的io_context为不同的client服务.
-		io_context_pool& m_io_context_pool;
+		io_context_pool& m_ioc_pool;
 
 		// 主线程io_context, 用于统一调度之类.
 		net::io_context& m_main_context;
 
 		// avpn服务配置.
 		service_config m_config;
+
+		// 运行的身份.
+		Identity m_identity{ Identity::avpn_server };
 
 		// 随机id, 用于client连接前标识身份. 避免server
 		// 重复在同一个client分配资源.
@@ -220,16 +245,16 @@ namespace avpn {
 		// 作为server时, vpn处理连接请求列表.
 		// key 为client发过来的client随机id.
 		// value 为临时用于处理认证创建的vpn隧道对象.
-		// 当完成认证后, 将移动到m_tunnels 容器中管理.
+		// 当完成认证后, 将移动到m_tunnels容器中管理.
 		std::unordered_map<std::string, vpn_tunnel_weak_ptr> m_incomings;
 
 		// 子网信息, 作为server时由配置参数确定.
 		// 作为client时, 由认证完成时确定.
-		boost::asio::ip::network_v4 m_subnet;
+		net::ip::network_v4 m_subnet;
 
 		// 作为server时, 虚拟 IP 分配器.
-		boost::asio::ip::address_v4_range m_ip_assigner;
-		boost::asio::ip::address_v4_range::iterator m_ip_iterator;
+		net::ip::address_v4_range m_ip_assigner;
+		net::ip::address_v4_range::iterator m_ip_iterator;
 
 		// 服务停止标志.
 		bool m_abort{ false };

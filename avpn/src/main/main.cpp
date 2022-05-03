@@ -270,7 +270,8 @@ int main(int argc, char** argv)
 		po::store(
 			po::command_line_parser(argc, argv)
 			.options(desc)
-			.style(po::command_line_style::unix_style | po::command_line_style::allow_long_disguise)
+			.style(po::command_line_style::unix_style
+				| po::command_line_style::allow_long_disguise)
 			.run()
 			, vm);
 		po::notify(vm);

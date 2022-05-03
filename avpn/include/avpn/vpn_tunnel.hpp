@@ -28,10 +28,25 @@ namespace avpn {
 
 	class vpn_tunnel : public std::enable_shared_from_this<vpn_tunnel>
 	{
+		// c++11 noncopyable.
+		vpn_tunnel(const vpn_tunnel&) = delete;
+		vpn_tunnel& operator=(const vpn_tunnel&) = delete;
+
+		// avoid direct call construct object...
+		vpn_tunnel() = delete;
+		vpn_tunnel(net::io_context&, const service_config&);
+
 	public:
-		vpn_tunnel();
-		~vpn_tunnel();
+		~vpn_tunnel() = default;
+
+	public:
+		tcp::socket& tcp_socket();
+
 	private:
+
+		tcp::socket m_remote_tcp;
+		//
+		udp::endpoint m_remote_udp;
 	};
 
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;

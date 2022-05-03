@@ -35,7 +35,7 @@ namespace avpn {
 		using ws_stream = websocket::stream<boost::beast::tcp_stream>;
 
 	public:
-		vpn_controller(io_context_pool& ioc_pool, const service_config& cfg);
+		vpn_controller(io_context_pool&, const service_config&);
 		~vpn_controller() = default;
 
 	public:
