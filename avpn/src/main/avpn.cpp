@@ -33,6 +33,12 @@ namespace avpn {
 		, m_tick_timer(m_main_context)
 	{}
 
+	std::shared_ptr<avpn_service>
+	avpn_service::make_avpn_service(io_context_pool& ioc_pool, avpn::service_config cfg)
+	{
+		return std::shared_ptr<avpn_service>(new avpn_service(ioc_pool, cfg));
+	}
+
 	avpn_service::~avpn_service()
 	{
  		// TODO: 退出时删除所有添加的路由.
@@ -271,11 +277,6 @@ namespace avpn {
 	int64_t avpn_service::download_rate() const
 	{
 		return m_down_stat.rate_;
-	}
-
-	avpn_service_ptr make_avpn_service(util::io_context_pool& ioc_pool, service_config cfg)
-	{
-		return std::make_shared<avpn_service>(ioc_pool, cfg);
 	}
 
 }

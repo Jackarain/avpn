@@ -432,7 +432,8 @@ int main(int argc, char** argv)
 
 	if (controller.empty())
 	{
-		auto avpn_srv = make_avpn_service(ios, cfg);
+		using  avpn::avpn_service;
+		auto avpn_srv = avpn_service::make_avpn_service(ios, cfg);
 		auto& srv = *avpn_srv;
 
 		srv.start();

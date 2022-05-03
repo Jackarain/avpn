@@ -26,5 +26,12 @@
 
 namespace avpn {
 
+	class vpn_tunnel : std::enable_shared_from_this<vpn_tunnel>
+	{
+	public:
+		vpn_tunnel();
+		~vpn_tunnel();
+	private:
+	};
 
 }

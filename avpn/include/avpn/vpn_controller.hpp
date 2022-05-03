@@ -63,7 +63,7 @@ namespace avpn {
 		service_config m_config;
 
 		// vpn服务对象.
-		avpn_service_ptr m_avpn_service;
+		std::shared_ptr<avpn_service> m_avpn_service;
 		avpn_service& m_service;
 
 		// websocket连到控制端的客户端对象.

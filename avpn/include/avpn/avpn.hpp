@@ -105,7 +105,7 @@ namespace avpn {
 	using std::chrono::steady_clock;
 	using time_point = std::chrono::time_point<steady_clock>;
 
-	class avpn_service : std::enable_shared_from_this<avpn_service>
+	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
 		const static int speed_entries = 3;
 		struct speed_stat
@@ -121,9 +121,13 @@ namespace avpn {
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
 		avpn_service& operator=(const avpn_service&) = delete;
+		avpn_service() = delete;
+
+		avpn_service(io_context_pool& ios, const service_config& config);
 
 	public:
-		avpn_service(io_context_pool& ios, const service_config& config);
+		static std::shared_ptr<avpn_service>
+			make_avpn_service(io_context_pool&, avpn::service_config);
 		~avpn_service();
 
 	public:
@@ -196,11 +200,11 @@ namespace avpn {
 		using udp_socket_ptr = std::shared_ptr<udp_socket>;
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
+		// vpn隧道列表, 作为server时, 完成认证的client列表.
+		// std::unordered_map<int64_t, vpn_connection_weak_ptr>
+		// vpn连接请求列表.
+
 		// 服务停止标志.
 		bool m_abort{ false };
 	};
-
-	// 创建avpn_service对象指针.
-	using avpn_service_ptr = std::shared_ptr<avpn_service>;
-	avpn_service_ptr make_avpn_service(util::io_context_pool&, avpn::service_config);
 }
