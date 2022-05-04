@@ -28,6 +28,9 @@ namespace avpn {
 	vpn_packet make_common_header(
 		bool enc, bool has_src, uint8_t type, uint32_t src);
 
+	int unwrap_common_header(vpn_packet& pkt,
+		bool& enc, bool& has_src, uint8_t& type, uint32_t& src);
+
 	// 构造认证消息.
 	// 协议格式
 	// id_len(16)
@@ -36,4 +39,7 @@ namespace avpn {
 	// pubkey(len)
 	vpn_packet make_auth_request(
 		uint32_t src, std::string_view id, std::string_view pubkey);
+
+	int unwrap_auth_request(vpn_packet& pkt,
+		uint32_t& src, std::string& id, std::string& pubkey);
 }

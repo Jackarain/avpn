@@ -30,6 +30,28 @@ namespace avpn {
 		return pkt;
 	}
 
+	int unwrap_common_header(vpn_packet& pkt,
+		bool& enc, bool& has_src, uint8_t& type, uint32_t& src)
+	{
+		bitstream reader(pkt.data(), pkt.size());
+		uint32_t t = 0;
+		reader.ReadBits(&t, 1);
+		enc = !!t;
+		reader.ReadBits(&t, 1);
+		has_src = !!t;
+		reader.ReadBits(&t, 6);
+		type = (uint8_t)t;
+		src = 0;
+
+		if (has_src)
+		{
+			reader.ReadUInt32(&t);
+			src = t;
+		}
+
+		return (int)reader.ByteOffset();
+	}
+
 	vpn_packet make_auth_request(
 		uint32_t src, std::string_view id, std::string_view pubkey)
 	{
@@ -46,6 +68,33 @@ namespace avpn {
 		pkt.resize(pkt.size() + bytes);
 
 		return pkt;
+	}
+
+	int unwrap_auth_request(vpn_packet& pkt,
+		uint32_t& src, std::string& id, std::string& pubkey)
+	{
+		bool enc;
+		bool has_src;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
+
+		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
+		uint16_t length = 0;
+
+		reader.ReadUInt16(&length);
+		id.resize(length);
+		BOOST_ASSERT(length <= 32);
+		reader.ReadString((char*)id.data(), length);
+
+		reader.ReadUInt16(&length);
+		BOOST_ASSERT(length == 32);
+		pubkey.resize(length);
+		reader.ReadString((char*)pubkey.data(), length);
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
 	}
 
 }

@@ -18,12 +18,34 @@
 #include <cstdlib>
 #include <ctime>
 
+#include "utils/misc.hpp"
+#include "utils/crypto.hpp"
 #include "avpn/protocol.hpp"
 
 
 BOOST_AUTO_TEST_CASE(test_make_auth_request)
 {
-	std::string id = "lljj";
-	std::string pubkey = "ljljjjdsldf";
-	auto pkt = avpn::make_auth_request(167772225, id, pubkey);
+	const std::string privateKey = "ICBmoiZBqo7pyHZVK+vM2I3LF9PePa18DVjkcbLl/XM=";
+	crypto_util::keyexchange ke(privateKey);
+
+	const std::string const_id = gen_unique_string(32);
+	const std::string const_pubkey = std::string(ke.StaticPublicKey());
+
+	std::string id = const_id;
+	std::string pubkey = const_pubkey;
+	uint32_t src = 167772225;
+	auto pkt = avpn::make_auth_request(src, id, pubkey);
+
+	src = 0;
+	id.resize(0);
+	pubkey.resize(0);
+	[[maybe_unused]] auto bytes = avpn::unwrap_auth_request(pkt, src, id, pubkey);
+
+	BOOST_TEST(src == (uint32_t)167772225);
+	BOOST_TEST(id == const_id);
+	BOOST_TEST(pubkey == const_pubkey);
+
+	int len = pubkey.size() + 2 + id.size() + 2;
+	len += (1 + 4);
+	BOOST_TEST(len == bytes);
 }
