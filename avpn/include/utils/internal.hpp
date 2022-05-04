@@ -86,6 +86,9 @@ namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 using udp = boost::asio::ip::udp;	// from <boost/asio/ip/udp.hpp>
 
+using net::basic_waitable_timer;
+using asio_timer = basic_waitable_timer<std::chrono::steady_clock>;
+
 #ifdef __clang__
 #	pragma clang diagnostic pop
 #endif // __clang__
@@ -103,6 +106,9 @@ using udp = boost::asio::ip::udp;	// from <boost/asio/ip/udp.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
+
+namespace websocket = boost::beast::websocket;
+using ws_stream = websocket::stream<tcp::socket>;
 
 #ifdef __GNUC__
 #	pragma GCC diagnostic pop
