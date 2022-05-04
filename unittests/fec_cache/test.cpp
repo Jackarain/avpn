@@ -25,28 +25,28 @@
 
 BOOST_AUTO_TEST_CASE(fec_cache2_test1)
 {
-	fec::vpn_packet pkt1;
+	avpn::vpn_packet pkt1;
 	pkt1.size_ = 100;
 
-	fec::vpn_packet pkt2 = std::move(pkt1);
+	avpn::vpn_packet pkt2 = std::move(pkt1);
 
 	BOOST_TEST(pkt1.size_ == 0);
 	BOOST_TEST(pkt2.size_ == 100);
 
 	for (int i = 0; i < 100; i++)
 	{
-		fec::vpn_packet p;
+		avpn::vpn_packet p;
 		p.size_ = 100;
 	}
 
-	fec::vpn_packet pkt3;
-	fec::vpn_packet pkt4;
+	avpn::vpn_packet pkt3;
+	avpn::vpn_packet pkt4;
 }
 
 BOOST_AUTO_TEST_CASE(fec_cache2_test2)
 {
-	fec::fec_decode_group gop(8, 4);
-	fec::vpn_packet pkt;
+	avpn::fec_decode_group gop(8, 4);
+	avpn::vpn_packet pkt;
 
 	gop.update(0, 0, std::move(pkt));
 	BOOST_TEST(pkt.size() == 0);

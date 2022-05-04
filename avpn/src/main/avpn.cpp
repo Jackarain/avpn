@@ -103,7 +103,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
-		fec::vpn_packet msg;
+		avpn::vpn_packet msg;
 
 		while (!m_abort)
 		{
@@ -128,7 +128,7 @@ namespace avpn {
 				continue;
 
 			// 保存数据包类型.
-			msg.type((fec::vpn_packet_type)endp.type_);
+			msg.type((avpn::vpn_packet_type)endp.type_);
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == Identity::avpn_server)
@@ -179,7 +179,7 @@ namespace avpn {
 			auto ptr = m_udp_sockets[index];
 			auto& usock = ptr->sock_;
 
-			fec::vpn_packet pkt;
+			avpn::vpn_packet pkt;
 
 			auto bytes = co_await usock.async_receive_from(
 				net::buffer(pkt.data(), 1450), remote, uawaitable[ec]);

@@ -18,7 +18,7 @@
 
 #include <boost/algorithm/string/join.hpp>
 
-namespace fec {
+namespace avpn {
 
 	// rs专用的matrix.
 	class matrix

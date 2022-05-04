@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(mimalloc_test)
 	memset(p, 0, 1024);
 	free(p);
 
-	fec::reedsolomon* rs = new fec::reedsolomon(8, 2);
+	avpn::reedsolomon* rs = new avpn::reedsolomon(8, 2);
 	delete rs;
 
 	std::string test = gen_unique_string(1450);

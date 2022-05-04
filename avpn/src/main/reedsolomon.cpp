@@ -12,7 +12,7 @@
 
 #include "avpn/reedsolomon.hpp"
 
-namespace fec {
+namespace avpn {
 	static const int fieldSize = 256;
 	[[maybe_unused]] static const int generatingPolynomial = 29;
 
@@ -859,7 +859,7 @@ namespace fec {
 			return *this;
 		}
 
-		fec::matrix matrix::vandermonde(size_t rows, size_t cols)
+		avpn::matrix matrix::vandermonde(size_t rows, size_t cols)
 		{
 			matrix result(rows, cols);
 			for (size_t r = 0; r < result.size(); r++) {
@@ -887,7 +887,7 @@ namespace fec {
 			return m_matrix.size();
 		}
 
-		fec::matrix matrix::operator*(const matrix& m) const
+		avpn::matrix matrix::operator*(const matrix& m) const
 		{
 			if (m_matrix[0].size() != m.size()) {
 				throw std::runtime_error("columns on left is different than rows on right");
@@ -908,7 +908,7 @@ namespace fec {
 			return result;
 		}
 
-		fec::matrix matrix::operator+(const matrix& m) const
+		avpn::matrix matrix::operator+(const matrix& m) const
 		{
 			if (m_matrix.size() != m.size()) {
 				throw std::runtime_error("matrices don't have the same number of rows");
@@ -930,7 +930,7 @@ namespace fec {
 			return result;
 		}
 
-		fec::matrix matrix::sub_matrix(size_t rmin, size_t cmin, size_t rmax, size_t cmax) const
+		avpn::matrix matrix::sub_matrix(size_t rmin, size_t cmin, size_t rmax, size_t cmax) const
 		{
 			auto rows = rmax - rmin;
 			auto cols = cmax - cmin;
@@ -962,7 +962,7 @@ namespace fec {
 			return m_matrix.size() == m_matrix[0].size();
 		}
 
-		fec::matrix matrix::invert() const
+		avpn::matrix matrix::invert() const
 		{
 			if (!is_square())
 				throw std::runtime_error("only square matrices can be inverted");
@@ -1314,7 +1314,7 @@ namespace fec {
 			m_codingloop->encode(matrix_rows, sub_shards, m_data_shards, outputs);
 		}
 
-		fec::matrix reedsolomon::build_matrix(int shards, int data_shards)
+		avpn::matrix reedsolomon::build_matrix(int shards, int data_shards)
 		{
 			if (data_shards <= 0 || shards <= 0) {
 				throw std::runtime_error("data shards must > 0");

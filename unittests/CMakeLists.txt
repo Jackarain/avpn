@@ -11,6 +11,7 @@ add_subdirectory(reedsolomon)
 add_subdirectory(mimalloc)
 add_subdirectory(acl)
 add_subdirectory(crypto)
+add_subdirectory(protocol)
 
 find_library(SYSTEMD_LIB systemd)
 if (SYSTEMD_LIB)

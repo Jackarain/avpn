@@ -65,6 +65,7 @@ bool g_avpn_windows_lean_mean = false;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
+#include "avpn/protocol.hpp"
 
 int platform_init()
 {

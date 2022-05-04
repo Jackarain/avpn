@@ -36,6 +36,7 @@ file(GLOB avpn_SRCS
 	include/avpn/tundev.hpp
 	include/avpn/tundev_config.hpp
 	include/avpn/fec_cache.hpp
+	include/avpn/protocol.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp
@@ -48,6 +49,7 @@ file(GLOB avpn_SRCS
 	src/main/reedsolomon.cpp
 	src/main/vpn_controller.cpp
 	src/main/fec_cache.cpp
+	src/main/protocol.cpp
 )
 
 if (WIN32)

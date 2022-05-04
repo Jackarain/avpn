@@ -34,7 +34,7 @@
 #include <atomic>
 
 
-namespace fec {
+namespace avpn {
 
 	using namespace util;
 
@@ -185,7 +185,7 @@ namespace fec {
 		int64_t total_{ 0 };
 		asio_timer::time_point time_;
 		std::atomic_bool used_{ false };
-		static std::map<uint64_t, fec::matrix> matrix_cache_;
+		static std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
 
 

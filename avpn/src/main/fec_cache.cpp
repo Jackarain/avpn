@@ -9,9 +9,9 @@
 
 #include "avpn/fec_cache.hpp"
 
-namespace fec
+namespace avpn
 {
-	std::map<uint64_t, fec::matrix> fec_decode_group::matrix_cache_;
+	std::map<uint64_t, avpn::matrix> fec_decode_group::matrix_cache_;
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -265,7 +265,7 @@ namespace fec
 	{
 		BOOST_ASSERT(available());
 
-		fec::matrix* matrix_ptr = nullptr;
+		avpn::matrix* matrix_ptr = nullptr;
 		// 找解码缓冲.
 		int64_t idx = (ds_ << 16) | ps_;
 
@@ -273,7 +273,7 @@ namespace fec
 		if (it == matrix_cache_.end())
 		{
 			matrix_cache_[idx] =
-				fec::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
+				avpn::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
 			matrix_ptr = &matrix_cache_[idx];
 		}
 		else
@@ -281,7 +281,7 @@ namespace fec
 			matrix_ptr = &it->second;
 		}
 
-		fec::reedsolomon fec_dec(ds_, ps_, *matrix_ptr);
+		avpn::reedsolomon fec_dec(ds_, ps_, *matrix_ptr);
 
 		// fec解码.
 		try {
