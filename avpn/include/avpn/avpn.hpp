@@ -9,6 +9,7 @@
 
 #include "avpn/tun_device.hpp"
 #include "utils/internal.hpp"
+#include "utils/io_context_pool.hpp"
 
 
 namespace avpn {

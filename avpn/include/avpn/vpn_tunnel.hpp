@@ -35,11 +35,11 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		vpn_tunnel() = delete;
-		vpn_tunnel(net::io_context&, service_config);
+		vpn_tunnel(net::io_context&, const service_config&);
 
 	public:
 		static std::shared_ptr<vpn_tunnel> make_tunnel(
-			net::io_context&, service_config);
+			net::io_context&, const service_config&);
 		~vpn_tunnel() = default;
 
 	public:
