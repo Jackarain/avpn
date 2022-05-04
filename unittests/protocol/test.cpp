@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(test_auth_request)
 	BOOST_TEST(id == const_id);
 	BOOST_TEST(pubkey == const_pubkey);
 
-	int len = pubkey.size() + 2 + id.size() + 2;
+	int len = (int)pubkey.size() + 2 + (int)id.size() + 2;
 	len += (1 + 4);
 	BOOST_TEST(len == bytes);
 }
