@@ -8,7 +8,7 @@
 #pragma once
 
 #include "avpn/tun_device.hpp"
-#include "utils/internal.hpp"
+#include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
 
 
