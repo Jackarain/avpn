@@ -7,10 +7,7 @@
 
 #pragma once
 
-
-#include "avpn/vpn_tunnel.hpp"
 #include "avpn/tun_device.hpp"
-
 #include "utils/internal.hpp"
 
 
@@ -113,6 +110,11 @@ namespace avpn {
 	using namespace util;
 	using std::chrono::steady_clock;
 	using time_point = std::chrono::time_point<steady_clock>;
+
+	class vpn_tunnel;
+
+	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
+	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{

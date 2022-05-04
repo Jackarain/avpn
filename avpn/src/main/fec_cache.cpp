@@ -155,6 +155,19 @@ namespace fec
 			"fec_encode_group, dataShards + parityShards >= 255");
 	}
 
+	fec_encode_group::fec_encode_group(fec_encode_group&& pg) noexcept
+		: ds_(pg.ds_)
+		, ps_(pg.ps_)
+		, gid_(pg.gid_)
+		, total_(pg.total_)
+		, pkts_(std::move(pg.pkts_))
+	{
+		pg.ds_ = 0;
+		pg.ps_ = 0;
+		pg.gid_ = 0;
+		pg.total_ = 0;
+	}
+
 	void fec_encode_group::update(uint32_t gid, uint16_t pid, vpn_packet&& pkt)
 	{
 		BOOST_ASSERT(gid == gid_ || gid == 0);
@@ -259,7 +272,8 @@ namespace fec
 		auto it = matrix_cache_.find(idx);
 		if (it == matrix_cache_.end())
 		{
-			matrix_cache_[idx] = fec::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
+			matrix_cache_[idx] =
+				fec::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
 			matrix_ptr = &matrix_cache_[idx];
 		}
 		else

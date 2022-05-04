@@ -22,6 +22,7 @@
 
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"
+#include "avpn/avpn.hpp"
 
 
 namespace avpn {
@@ -34,21 +35,24 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		vpn_tunnel() = delete;
-		vpn_tunnel(net::io_context&, const service_config&);
+		vpn_tunnel(net::io_context&, service_config);
 
 	public:
+		static std::shared_ptr<vpn_tunnel> make_tunnel(
+			net::io_context&, service_config);
 		~vpn_tunnel() = default;
 
 	public:
 		tcp::socket& tcp_socket();
 
 	private:
+		// 用于当前tunnel业务调度.
+		net::io_context& m_io_context;
 
+		// vpn相关配置.
+		service_config m_config;
+
+		// 与remote通信的tcp socket.
 		tcp::socket m_remote_tcp;
-		//
-		udp::endpoint m_remote_udp;
 	};
-
-	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
-	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 }

@@ -9,10 +9,14 @@
 
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
+#include "utils/misc.hpp"
+#include "utils/uawaitable.hpp"
 
 #include "avpn/tundev_config.hpp"
 #include "avpn/endpoint_pair.hpp"
 
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/strand.hpp>
