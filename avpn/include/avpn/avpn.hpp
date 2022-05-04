@@ -109,8 +109,6 @@ namespace avpn {
 	//////////////////////////////////////////////////////////////////////////
 
 	using namespace util;
-	using std::chrono::steady_clock;
-	using time_point = std::chrono::time_point<steady_clock>;
 
 	class vpn_tunnel;
 

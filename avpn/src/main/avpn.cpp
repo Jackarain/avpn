@@ -252,9 +252,6 @@ namespace avpn {
 	{
 		m_identity = Identity::avpn_client;
 		m_abort = false;
-
-		// 		m_vpn_tunnel.start_client_connect(
-		// 			m_config.upstreams_, m_config.passphrase_);
 	}
 
 	void avpn_service::run_as_server()
@@ -282,10 +279,6 @@ namespace avpn {
 				}
 				co_return;
 			}, net::detached);
-
-
-		// 		m_vpn_tunnel.start_server_listen(m_config.tcp_listens_,
-		// 			m_config.udp_listens_, m_config.passphrase_);
 	}
 
 	net::awaitable<void> avpn_service::tick()
