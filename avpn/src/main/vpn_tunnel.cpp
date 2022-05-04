@@ -10,16 +10,19 @@
 
 namespace avpn {
 
-	vpn_tunnel::vpn_tunnel(net::io_context& ioc, const service_config& cfg)
+	vpn_tunnel::vpn_tunnel(net::io_context& ioc,
+		std::shared_ptr<avpn_service>& vpn, const service_config& cfg)
 		: m_io_context(ioc)
+		, m_vpn_serivce(vpn)
 		, m_config(cfg)
 		, m_remote_tcp(ioc)
 	{}
 
 	std::shared_ptr<vpn_tunnel>
-	vpn_tunnel::make_tunnel(net::io_context& ioc, const service_config& cfg)
+	vpn_tunnel::make_tunnel(net::io_context& ioc,
+		std::shared_ptr<avpn_service>& vpn, const service_config& cfg)
 	{
-		return std::shared_ptr<vpn_tunnel>(new vpn_tunnel(ioc, cfg));
+		return std::shared_ptr<vpn_tunnel>(new vpn_tunnel(ioc, vpn, cfg));
 	}
 
 	tcp::socket& vpn_tunnel::tcp_socket()

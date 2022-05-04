@@ -35,11 +35,13 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		vpn_tunnel() = delete;
-		vpn_tunnel(net::io_context&, const service_config&);
+		vpn_tunnel(net::io_context&,
+			std::shared_ptr<avpn_service>&, const service_config&);
 
 	public:
 		static std::shared_ptr<vpn_tunnel> make_tunnel(
-			net::io_context&, const service_config&);
+			net::io_context&, std::shared_ptr<avpn_service>&,
+				const service_config&);
 		~vpn_tunnel() = default;
 
 	public:
@@ -48,6 +50,9 @@ namespace avpn {
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;
+
+		// service 对象引用.
+		std::weak_ptr<avpn_service> m_vpn_serivce;
 
 		// vpn相关配置.
 		service_config m_config;
