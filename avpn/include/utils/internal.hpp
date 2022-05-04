@@ -30,6 +30,7 @@
 #include <tuple>
 #include <utility>
 #include <array>
+#include <vector>
 #include <streambuf>
 #include <fstream>
 #include <type_traits>
