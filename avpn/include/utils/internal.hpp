@@ -83,6 +83,8 @@
 #include <boost/asio/buffer.hpp>
 
 namespace net = boost::asio;
+using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
+using udp = boost::asio::ip::udp;	// from <boost/asio/ip/udp.hpp>
 
 #ifdef __clang__
 #	pragma clang diagnostic pop
