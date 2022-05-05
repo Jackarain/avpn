@@ -39,7 +39,8 @@ BOOST_AUTO_TEST_CASE(test_auth_request)
 	src = 0;
 	id.resize(0);
 	pubkey.resize(0);
-	auto bytes = avpn::unwrap_auth_request(pkt, src, id, pubkey);
+	std::string additional;
+	auto bytes = avpn::unwrap_auth_request(pkt, src, id, pubkey, additional);
 
 	BOOST_TEST(src == (uint32_t)167772225);
 	BOOST_TEST(id == const_id);
@@ -47,5 +48,6 @@ BOOST_AUTO_TEST_CASE(test_auth_request)
 
 	int len = (int)pubkey.size() + 2 + (int)id.size() + 2;
 	len += (1 + 4);
+	len += 2 + (int)additional.size();
 	BOOST_TEST(len == bytes);
 }
