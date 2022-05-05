@@ -247,7 +247,12 @@ namespace avpn {
 		// key 为client发过来的client随机id.
 		// value 为临时用于处理认证创建的vpn隧道对象.
 		// 当完成认证后, 将移动到m_tunnels容器中管理.
-		std::unordered_map<std::string, vpn_tunnel_weak_ptr> m_incomings;
+		struct client_incoming
+		{
+			time_point last_see_;
+			vpn_tunnel_weak_ptr client_;
+		};
+		std::unordered_map<std::string, client_incoming> m_incomings;
 
 		// 子网信息, 作为server时由配置参数确定.
 		// 作为client时, 由认证完成时确定.

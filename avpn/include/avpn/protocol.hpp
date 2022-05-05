@@ -16,7 +16,7 @@ namespace avpn {
 	// encrypt(1)	0表示未加密, 1表示加密.
 	// has_src(1)	0表示未附带源地址, 1表示附带源地址.
 	// type(6)		消息类型.
-	// [src](32)	源地址, 由has_src指示是否存在.
+	// [src](32)	源地址, 可选项, 由has_src指示是否存在.
 	// body(N)		N个字节的消息体, 如果encrypt为01, 则
 	//				这个body为加密体.
 
@@ -34,12 +34,16 @@ namespace avpn {
 	// 构造认证消息.
 	// 协议格式
 	// id_len(16)
-	// id(len)
+	// id(id_len)
 	// pubkey_len(16)
-	// pubkey(len)
-	vpn_packet make_auth_request(
-		uint32_t src, std::string_view id, std::string_view pubkey);
+	// pubkey(pubkey_len)
+	// additional_len(16)
+	// additional(additional_len)
+	vpn_packet make_auth_request(uint32_t src,
+		std::string_view id, std::string_view pubkey,
+		std::string_view additional = {});
 
 	int unwrap_auth_request(vpn_packet& pkt,
-		uint32_t& src, std::string& id, std::string& pubkey);
+		uint32_t& src, std::string& id, std::string& pubkey,
+		std::string& additional);
 }

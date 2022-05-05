@@ -35,25 +35,32 @@ namespace avpn {
 	{
 		bitstream reader(pkt.data(), pkt.size());
 		uint32_t t = 0;
-		reader.ReadBits(&t, 1);
+
+		bool ret = reader.ReadBits(&t, 1);
+		if (!ret) return -1;
 		enc = !!t;
-		reader.ReadBits(&t, 1);
+		ret = reader.ReadBits(&t, 1);
+		if (!ret) return -1;
 		has_src = !!t;
-		reader.ReadBits(&t, 6);
+		ret = reader.ReadBits(&t, 6);
+		if (!ret) return -1;
 		type = (uint8_t)t;
 		src = 0;
 
 		if (has_src)
 		{
-			reader.ReadUInt32(&t);
+			ret = reader.ReadUInt32(&t);
+			if (!ret) return -1;
+
 			src = t;
 		}
 
 		return (int)reader.ByteOffset();
 	}
 
-	vpn_packet make_auth_request(
-		uint32_t src, std::string_view id, std::string_view pubkey)
+	vpn_packet make_auth_request(uint32_t src,
+		std::string_view id, std::string_view pubkey,
+		std::string_view additional/* = {}*/)
 	{
 		auto has_src = src == 0 ? false : true;
 		auto pkt = make_common_header(false, has_src, vpt_auth_request, src);
@@ -63,6 +70,9 @@ namespace avpn {
 		writer.WriteString(id.data(), id.size());
 		writer.WriteUInt16((uint16_t)pubkey.size());
 		writer.WriteString(pubkey.data(), pubkey.size());
+		writer.WriteUInt16((uint16_t)additional.size());
+		if (additional.size() > 0)
+			writer.WriteString(additional.data(), additional.size());
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
@@ -71,7 +81,8 @@ namespace avpn {
 	}
 
 	int unwrap_auth_request(vpn_packet& pkt,
-		uint32_t& src, std::string& id, std::string& pubkey)
+		uint32_t& src, std::string& id, std::string& pubkey,
+		std::string& additional)
 	{
 		bool enc;
 		bool has_src;
@@ -82,15 +93,27 @@ namespace avpn {
 		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
 		uint16_t length = 0;
 
-		reader.ReadUInt16(&length);
+		bool ret = reader.ReadUInt16(&length);
+		if (!ret) return -1;
 		id.resize(length);
 		BOOST_ASSERT(length <= 32);
-		reader.ReadString((char*)id.data(), length);
+		ret = reader.ReadString((char*)id.data(), length);
+		if (!ret) return -1;
 
-		reader.ReadUInt16(&length);
+		ret = reader.ReadUInt16(&length);
+		if (!ret) return -1;
 		BOOST_ASSERT(length == 32);
 		pubkey.resize(length);
-		reader.ReadString((char*)pubkey.data(), length);
+		ret = reader.ReadString((char*)pubkey.data(), length);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt16(&length);
+		if (!ret) return -1;
+		if (length > 0)
+		{
+			additional.resize(length);
+			reader.ReadString(additional.data(), length);
+		}
 
 		bytes += (int)reader.ByteOffset();
 
