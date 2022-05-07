@@ -166,6 +166,7 @@ namespace avpn {
 		net::awaitable<void> start_udp_read_loop(int index);
 		void do_udp_write(std::string&&, udp::endpoint&&);
 
+		// 启动avpn服务.
 		void run_as_client();
 		void run_as_server();
 

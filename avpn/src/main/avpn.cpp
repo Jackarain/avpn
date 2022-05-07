@@ -18,7 +18,6 @@
 #include "avpn/avpn.hpp"
 #include "avpn/protocol.hpp"
 
-
 #include <chrono>
 #include <iomanip>
 
@@ -289,7 +288,6 @@ namespace avpn {
 			[this]() mutable->net::awaitable<void>
 			{
 				co_await start_udp_server();
-				LOG_WARN << "run_as_server, server quit...";
 				co_return;
 			}, net::detached);
 	}
