@@ -50,9 +50,11 @@ namespace avpn {
 		// TODO: 退出时删除所有添加的路由.
 
 		// 删除所有avpn临时文件.
-		auto avpn_tmp_dir = std::filesystem::temp_directory_path() / "avpn";
+		using namespace std::filesystem;
+		auto tmpdir = temp_directory_path() / "avpn";
+
 		std::error_code ignore_ec;
-		std::filesystem::remove_all(avpn_tmp_dir, ignore_ec);
+		remove_all(tmpdir, ignore_ec);
 
 		LOG_DBG << "avpn_service::~avpn_service()";
 	}
@@ -206,6 +208,22 @@ namespace avpn {
 				// 果没有, 则创建新的vpn tunnel, 并加入到
 				// vpn tunnel连接池中, 直到认证完成, 则能
 				// 将其从连接池中移动到已经完成的连接列表.
+				bool enc = false;
+				bool has_src = false;
+				uint8_t type = 0;
+				uint32_t src = 0;
+
+				int ret = unwrap_common_header(pkt,
+					enc, has_src, type, src);
+				if (!ret)
+					continue;
+
+				// client认证请求.
+				if (type == vpt_auth_request)
+				{
+					co_await start_udp_auth(remote, pkt, src);
+					continue;
+				}
 
 				continue;
 			}
@@ -222,30 +240,25 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_udp_write(std::string&& msg, udp::endpoint&& remote)
+	net::awaitable<void>
+	avpn_service::do_udp_write(vpn_packet pkt, udp::endpoint remote)
 	{
-		static uint32_t index = 0;
-
 		auto usize = m_udp_sockets.size();
+		static uint32_t index = 0;
 		auto ptr = m_udp_sockets[index++ % usize];
+		boost::system::error_code ec;
 
-		net::co_spawn(m_ioc_pool.get_io_context(),
-			[&, ptr = ptr, msg = std::move(msg), remote = std::move(remote)]
-			() mutable -> net::awaitable<void>
-			{
-				boost::system::error_code ec;
-				auto& usock = ptr->sock_;
+		auto& usock = ptr->sock_;
 
-				co_await usock.async_send_to(
-					net::buffer(msg), remote, uawaitable[ec]);
-				if (ec)
-					LOG_WARN << "do_udp_write"
-					<< ", send_to " << remote
-					<< ", error: " << ec.message();
+		co_await usock.async_send_to(
+			net::buffer(pkt.data(), pkt.size()),
+			remote, uawaitable[ec]);
+		if (ec)
+			LOG_WARN << "do_udp_write"
+			<< ", send_to " << remote
+			<< ", error: " << ec.message();
 
-				co_return;
-
-			}, net::detached);
+		co_return;
 	}
 
 	void avpn_service::run_as_client()
@@ -655,8 +668,8 @@ namespace avpn {
 		std::string pubkey;
 		std::string additional;
 
-		ret = unwrap_auth_request(pkt, src,
-			client_id, pubkey, additional);
+		ret = unwrap_auth_request(pkt,
+			src, client_id, pubkey, additional);
 		if (ret == -1)
 			co_return;
 
@@ -670,7 +683,8 @@ namespace avpn {
 			if (!vp)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
-				auto response = make_auth_response(0, client_id, additional);
+				auto response = make_auth_response(
+					0, client_id, additional);
 				co_await tcp_write_packet(stream, response, id);
 				co_return;
 			}
@@ -678,7 +692,8 @@ namespace avpn {
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的tcp socket替换, 启
 			// 再动vpn的tcp读取循环.
-			auto response = make_auth_response(src, client_id, additional);
+			auto response = make_auth_response(
+				src, client_id, additional);
 			co_await tcp_write_packet(stream, response, id);
 
 			vp->tcp_socket() = std::move(stream);
@@ -713,6 +728,74 @@ namespace avpn {
 		co_await tcp_write_packet(stream, response, id);
 
 		// TODO: 开始vp的tcp读取消息循环.
+	}
+
+	net::awaitable<void>
+	avpn_service::start_udp_auth(
+		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
+	{
+		std::string pubkey;
+		std::string client_id;
+		std::string additional;
+
+		// 解析client的认证消息.
+		int ret = unwrap_auth_request(pkt,
+			src, client_id, pubkey, additional);
+		if (ret == -1)
+			co_return;
+
+		vpn_tunnel_ptr vp;
+
+		if (src != 0)
+		{
+			// 使用main线程查询, 以避免加锁.
+			vp = co_await net::co_spawn(m_main_context,
+				lookup_tunnel(src), net::use_awaitable);
+			if (!vp)
+			{
+				// 找不到连接, 说明src已经过期, 回复认证失败.
+				auto response = make_auth_response(
+					0, client_id, additional);
+				co_await do_udp_write(std::move(response), remote);
+				co_return;
+			}
+
+			// 找到连接, 回复成功消息带回已分配的地址.
+			// 然后将原来tunnel中的udp remote替换.
+			auto response = make_auth_response(
+				src, client_id, additional);
+			co_await do_udp_write(std::move(response), remote);
+			co_return;
+		}
+
+		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
+		// 请求, 并回复认证信息.
+		auto incoming = co_await net::co_spawn(m_main_context,
+			lookup_incoming(client_id), net::use_awaitable);
+		vp = incoming.client_.lock();
+		if (!vp)
+		{
+			vp = co_await net::co_spawn(m_main_context,
+				make_incoming(client_id, pubkey), net::use_awaitable);
+		}
+
+		// 分配一个虚拟ip.
+		auto [ip_string, vaddr] = co_await co_spawn(
+			m_main_context, ip_assigner(), net::use_awaitable);
+
+		auto ipaddr = net::ip::address_v4(vaddr);
+		auto vnetaddr = net::ip::make_network_v4(
+			ipaddr, m_subnet.prefix_length());
+
+		// 配置到vp对象中.
+		vp->vnet_addr(vnetaddr);
+
+		// 回复认证消息.
+		auto response = make_auth_response(vaddr, client_id);
+		co_await do_udp_write(std::move(response), remote);
+
+		// TODO: 更新vp的remote endpoint.
+		co_return;
 	}
 
 	net::awaitable<int> avpn_service::tcp_read_packet(

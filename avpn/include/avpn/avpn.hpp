@@ -164,7 +164,7 @@ namespace avpn {
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int index);
-		void do_udp_write(std::string&&, udp::endpoint&&);
+		net::awaitable<void> do_udp_write(vpn_packet, udp::endpoint);
 
 		// 启动avpn服务.
 		void run_as_client();
@@ -192,6 +192,9 @@ namespace avpn {
 
 		// 开始tcp连接认证.
 		net::awaitable<void> start_tcp_auth(tcp::socket, size_t);
+		// 开始udp连接认证.
+		net::awaitable<void> start_udp_auth(
+			udp::endpoint, vpn_packet&, uint32_t);
 
 		// 在tcp连接上读取一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(tcp::socket&,
