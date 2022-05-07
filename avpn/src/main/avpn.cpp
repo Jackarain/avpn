@@ -307,7 +307,6 @@ namespace avpn {
 			speeder_time[nowindex] = now;
 
 			auto speeder_count = stat.speeder_count_ + 1;
-
 			if (speeder_count > 0)
 			{
 				int checkindex = speeder_count >= speed_entries
@@ -525,7 +524,8 @@ namespace avpn {
 			co_await a.async_accept(socket, uawaitable[error]);
 			if (error)
 			{
-				LOG_ERR << "TCP server, async_accept: " << error.message();
+				LOG_ERR << "start_tcp_listen"
+					<< ", async_accept: " << error.message();
 
 				if (error == net::error::operation_aborted ||
 					error == net::error::bad_descriptor)
