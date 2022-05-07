@@ -310,8 +310,8 @@ namespace logger_aux__ {
 				return false; // U+d800 to U+dfff
 			else if ((c & 0xF0) == 0xE0) n = 2; // 1110bbbb
 			else if ((c & 0xF8) == 0xF0) n = 3; // 11110bbb
-												//else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
-												//else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
+			//else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
+			//else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
 			else return false;
 			for (j = 0; j < n && i < ix; j++)	// n bytes matching 10bbbbbb follow ?
 			{

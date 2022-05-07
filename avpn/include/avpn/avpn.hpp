@@ -8,6 +8,8 @@
 #pragma once
 
 #include "avpn/tun_device.hpp"
+#include "avpn/fec_cache.hpp"
+
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
 
@@ -177,12 +179,32 @@ namespace avpn {
 		void setup_tun(const net::ip::network_v4&);
 
 		// 分配一个虚拟ip给client.
-		std::tuple<std::string, uint32_t> ip_assigner();
+		using ip_assign_type = std::tuple<std::string, uint32_t>;
+		net::awaitable<ip_assign_type> ip_assigner();
 
 		// 作为server时, 初始化tcp连接监听.
 		bool init_tcp_acceptors();
 		// 作为server时, 监听client的tcp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
+
+		// 开始tcp连接认证.
+		net::awaitable<void> start_tcp_auth(tcp::socket, size_t);
+
+		// 在tcp连接上读取一个vpn_packet消息.
+		net::awaitable<int> tcp_read_packet(tcp::socket&,
+			vpn_packet&, size_t);
+		// 在tcp连接上发送一个vpn_packet消息.
+		net::awaitable<void> tcp_write_packet(tcp::socket&,
+			vpn_packet&, size_t);
+
+		// 根据虚拟ip查询对应的tunnel信息.
+		net::awaitable<vpn_tunnel_ptr> lookup_tunnel(uint32_t);
+		// 根据虚拟ip查询对应的tunnel信息.
+		struct client_incoming;
+		net::awaitable<client_incoming> lookup_incoming(std::string);
+		// 创建incoming.
+		net::awaitable<vpn_tunnel_ptr>
+			make_incoming(std::string, std::string);
 
 	private:
 		// io context pool
@@ -247,6 +269,11 @@ namespace avpn {
 		// key 为client发过来的client随机id.
 		// value 为临时用于处理认证创建的vpn隧道对象.
 		// 当完成认证后, 将移动到m_tunnels容器中管理.
+		// client在发起认证连接时, server将根据认证
+		// 消息中的src和id分别从m_tunnels和m_incomings
+		// 查找, 如果server未在m_tunnels中找到src
+		// 消息(或client未发送src消息), 则说明该认证
+		// 请求是新连接请求.
 		struct client_incoming
 		{
 			time_point last_see_;

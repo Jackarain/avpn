@@ -22,7 +22,6 @@
 #include "utils/crypto.hpp"
 #include "avpn/protocol.hpp"
 
-
 BOOST_AUTO_TEST_CASE(test_auth_request)
 {
 	const std::string privateKey = "ICBmoiZBqo7pyHZVK+vM2I3LF9PePa18DVjkcbLl/XM=";

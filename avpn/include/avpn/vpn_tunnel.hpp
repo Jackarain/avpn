@@ -35,17 +35,25 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		vpn_tunnel() = delete;
-		vpn_tunnel(net::io_context&,
-			std::shared_ptr<avpn_service>&, const service_config&);
+		vpn_tunnel(net::io_context&, std::shared_ptr<avpn_service>&,
+			const service_config&, std::string, std::string);
 
 	public:
 		static std::shared_ptr<vpn_tunnel> make_tunnel(
 			net::io_context&, std::shared_ptr<avpn_service>&,
-				const service_config&);
+				const service_config&, std::string, std::string);
 		~vpn_tunnel() = default;
 
 	public:
 		tcp::socket& tcp_socket();
+
+		// 返回协商的密钥.
+		std::string shared_key() const;
+
+		// 返回server分配的vnet addr.
+		net::ip::network_v4 vnet_addr() const;
+		// 设置vnet addr.
+		void vnet_addr(const net::ip::network_v4& vaddr);
 
 	private:
 		// 用于当前tunnel业务调度.
@@ -57,7 +65,19 @@ namespace avpn {
 		// vpn相关配置.
 		service_config m_config;
 
+		// 对方的pubkey.
+		std::string m_pubkey;
+
 		// 与remote通信的tcp socket.
 		tcp::socket m_remote_tcp;
+
+		// 用于密钥交换.
+		crypto_util::keyexchange m_keyexchange;
+
+		// 密钥.
+		std::string m_shared_key;
+
+		// 分配的vaddr.
+		boost::asio::ip::network_v4 m_vaddr;
 	};
 }

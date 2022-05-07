@@ -11,6 +11,10 @@
 
 namespace avpn {
 
+	const static int normal_mtu = 1500;
+	const static int static_mtu = 1450;
+	const static uint16_t avpn_protocol_version = 1;
+
 	// 整体协议格式
 
 	// encrypt(1)	0表示未加密, 1表示加密.
@@ -21,8 +25,8 @@ namespace avpn {
 	//				这个body为加密体.
 
 	enum {
-		vpt_auth_request = 0,
-		vpt_auth_response = 1,
+		vpt_auth_request = 1,
+		vpt_auth_response = 2,
 	};
 
 	vpn_packet make_common_header(
@@ -46,4 +50,15 @@ namespace avpn {
 	int unwrap_auth_request(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
 		std::string& additional);
+
+	// 构造认证回复消息.
+	// 协议格式
+	// id_len(16)
+	// id(id_len)
+	// additional_len(16)
+	// additional(additional_len)
+	vpn_packet make_auth_response(uint32_t addr,
+		std::string_view id, std::string_view additional = {});
+
+	int unwrap_auth_response();
 }

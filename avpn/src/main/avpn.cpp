@@ -16,6 +16,7 @@
 #include "avpn/fec_cache.hpp"
 #include "avpn/vpn_tunnel.hpp"
 #include "avpn/avpn.hpp"
+#include "avpn/protocol.hpp"
 
 
 #include <chrono>
@@ -394,7 +395,8 @@ namespace avpn {
 		m_vnet = net;
 	}
 
-	std::tuple<std::string, uint32_t> avpn_service::ip_assigner()
+	net::awaitable<avpn_service::ip_assign_type>
+	avpn_service::ip_assigner()
 	{
 		std::string ip_string;
 		uint32_t ipaddr;
@@ -422,7 +424,9 @@ namespace avpn {
 			}
 		} while (true);
 
-		return { ip_string, ipaddr };
+		ip_assign_type ret{ ip_string, ipaddr };
+
+		co_return ret;
 	}
 
 	bool avpn_service::init_tcp_acceptors()
@@ -548,12 +552,201 @@ namespace avpn {
 			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
 			// 协商通信key).
 
-			// net::co_spawn(executor,
-			//	start_tcp_connection(connection_id, std::move(socket)), net::detached);
+			net::co_spawn(executor,
+				start_tcp_auth(std::move(socket), connection_id),
+					net::detached);
 		}
 
 		LOG_WARN << "start_tcp_listen exit ...";
 		co_return;
+	}
+
+	net::awaitable<void> avpn_service::start_tcp_auth(
+		tcp::socket stream, size_t id)
+	{
+		vpn_packet pkt;
+
+		int ret = co_await tcp_read_packet(stream, pkt, id);
+		if (ret == -1)
+			co_return;
+
+		uint32_t src = 0;
+		std::string client_id;
+		std::string pubkey;
+		std::string additional;
+
+		ret = unwrap_auth_request(pkt, src,
+			client_id, pubkey, additional);
+		if (ret == -1)
+			co_return;
+
+		vpn_tunnel_ptr vp;
+
+		if (src != 0)
+		{
+			// 使用main线程查询, 以避免加锁.
+			vp = co_await net::co_spawn(m_main_context,
+				lookup_tunnel(src), net::use_awaitable);
+			if (!vp)
+			{
+				// 找不到连接, 说明src已经过期, 回复认证失败.
+				auto response = make_auth_response(0, client_id, additional);
+				co_await tcp_write_packet(stream, response, id);
+				co_return;
+			}
+
+			// 找到连接, 回复成功消息带回已分配的地址.
+			// 然后将原来tunnel中的tcp socket替换, 启
+			// 再动vpn的tcp读取循环.
+			auto response = make_auth_response(src, client_id, additional);
+			co_await tcp_write_packet(stream, response, id);
+
+			vp->tcp_socket() = std::move(stream);
+			// TODO: 启动tunnel的tcp读取循环.
+			co_return;
+		}
+
+		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
+		// 请求, 并回复认证信息.
+		auto incoming = co_await net::co_spawn(m_main_context,
+			lookup_incoming(client_id), net::use_awaitable);
+		vp = incoming.client_.lock();
+		if (!vp)
+		{
+			vp = co_await net::co_spawn(m_main_context,
+				make_incoming(client_id, pubkey), net::use_awaitable);
+		}
+
+		// 分配一个虚拟ip.
+		auto [ip_string, vaddr] = co_await co_spawn(
+			m_main_context, ip_assigner(), net::use_awaitable);
+
+		auto ipaddr = net::ip::address_v4(vaddr);
+		m_config.tunnel_params_.subnet_;
+		auto vnetaddr = net::ip::make_network_v4(
+			ipaddr, m_subnet.prefix_length());
+
+		// 配置到vp对象中.
+		vp->vnet_addr(vnetaddr);
+
+		// 回复认证消息.
+		auto response = make_auth_response(vaddr, client_id);
+		co_await tcp_write_packet(stream, response, id);
+
+		// TODO: 开始vp的tcp读取消息循环.
+	}
+
+	net::awaitable<int> avpn_service::tcp_read_packet(
+		tcp::socket& stream, vpn_packet& pkt, size_t id)
+	{
+		boost::system::error_code ec;
+		int start_len_tag = -1;
+
+		// 先读取4个字节的头.
+		co_await net::async_read(stream,
+			net::buffer((void*)&start_len_tag, 4),
+				net::transfer_exactly(4), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_read_packet, id: "
+				<< id << ", read tag error: " << ec.message();
+			co_return -1;
+		}
+
+		{
+			start_len_tag = ntohl(start_len_tag);
+			if ((uint32_t)start_len_tag > (uint32_t)static_mtu)
+			{
+				LOG_ERR << "tcp_read_packet, id: "
+					<< id << ", verify size fail: " << start_len_tag;
+				co_return -1;
+			}
+		}
+
+		// 读取body本身.
+		co_await net::async_read(stream,
+			net::buffer(pkt.data(), start_len_tag),
+				net::transfer_exactly(start_len_tag), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_read_packet, id: "
+				<< id << ", read body error: " << ec.message();
+			co_return -1;
+		}
+
+		pkt.resize(start_len_tag);
+
+		co_return start_len_tag;
+	}
+
+	net::awaitable<void>
+	avpn_service::tcp_write_packet(tcp::socket& stream,
+		vpn_packet& pkt, size_t id)
+	{
+		boost::system::error_code ec;
+		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
+
+		co_await net::async_write(stream,
+			net::buffer(&start_len_tag, 4), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_write_packet, id: " << id
+				<< " async_write tag error: " << ec.message();
+			co_return;
+		}
+
+		co_await net::async_write(stream,
+			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_write_packet, id: " << id
+				<< " async_write body error: " << ec.message();
+			co_return;
+		}
+
+		co_return;
+	}
+
+	net::awaitable<vpn_tunnel_ptr>
+	avpn_service::lookup_tunnel(uint32_t vaddr)
+	{
+		vpn_tunnel_ptr vp;
+
+		auto it = m_tunnels.find(vaddr);
+		if (it == m_tunnels.end())
+			co_return vp;
+
+		co_return it->second;
+	}
+
+	net::awaitable<avpn_service::client_incoming>
+	avpn_service::lookup_incoming(std::string id)
+	{
+		client_incoming ci;
+
+		auto it = m_incomings.find(id);
+		if (it == m_incomings.end())
+			co_return ci;
+
+		co_return it->second;
+	}
+
+	net::awaitable<vpn_tunnel_ptr>
+	avpn_service::make_incoming(std::string id, std::string pubkey)
+	{
+		client_incoming incoming;
+		auto self = shared_from_this();
+		auto& ioc = m_ioc_pool.get_io_context();
+
+		vpn_tunnel_ptr vp = vpn_tunnel::make_tunnel(
+			ioc, self, m_config, pubkey, m_config.passphrase_);
+
+		incoming.last_see_ = steady_clock::now();
+		incoming.client_ = vp;
+
+		m_incomings[id] = incoming;
+
+		co_return vp;
 	}
 
 }

@@ -120,4 +120,30 @@ namespace avpn {
 		return bytes;
 	}
 
+	vpn_packet make_auth_response(uint32_t addr,
+		std::string_view id, std::string_view additional /*= {}*/)
+	{
+		auto has_src = addr == 0 ? false : true;
+		auto pkt = make_common_header(
+			false, has_src, vpt_auth_request, addr);
+
+		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
+
+		writer.WriteUInt16((uint16_t)id.size());
+		writer.WriteString(id.data(), id.size());
+		writer.WriteUInt16((uint16_t)additional.size());
+		if (additional.size() > 0)
+			writer.WriteString(additional.data(), additional.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_auth_response()
+	{
+		return -1;
+	}
+
 }
