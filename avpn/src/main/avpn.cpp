@@ -197,6 +197,7 @@ namespace avpn {
 			// 重置为实际接收的数据大小.
 			pkt.resize(bytes);
 
+			vpn_tunnel_ptr vp;
 			if (m_identity == Identity::avpn_server)
 			{
 				// 根据协议中的虚拟ip信息, 找到相应vpn连接
@@ -224,6 +225,14 @@ namespace avpn {
 					co_await start_udp_auth(remote, pkt, src);
 					continue;
 				}
+
+				// 根据src寻找对应的client.
+				vp = co_await net::co_spawn(m_main_context,
+					lookup_tunnel(src), net::use_awaitable);
+				if (!vp)
+					continue;
+
+				// TODO: 将UDP消息转发到vp连接中处理.
 
 				continue;
 			}
