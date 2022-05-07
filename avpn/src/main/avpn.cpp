@@ -261,7 +261,9 @@ namespace avpn {
 		m_abort = false;
 
 		LOG_DBG << "Start run_as_server...";
+		setup_tun(m_subnet);
 
+		// 初始化tcp连接.
 		bool ret = init_tcp_acceptors();
 		if (!ret)
 			return;
