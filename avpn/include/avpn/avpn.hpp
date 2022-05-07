@@ -186,6 +186,8 @@ namespace avpn {
 		bool init_tcp_acceptors();
 		// 作为server时, 监听client的tcp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
+		// 作为server时, 监听client的udp消息.
+		net::awaitable<void> start_udp_server();
 
 		// 开始tcp连接认证.
 		net::awaitable<void> start_tcp_auth(tcp::socket, size_t);

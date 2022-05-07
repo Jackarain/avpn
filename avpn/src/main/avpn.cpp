@@ -268,6 +268,7 @@ namespace avpn {
 		if (!ret)
 			return;
 
+		// 开始侦听tcp客户端连接消息.
 		net::co_spawn(m_main_context.get_executor(),
 			[this]() mutable -> net::awaitable<void>
 			{
@@ -280,6 +281,15 @@ namespace avpn {
 							start_tcp_listen(a), net::detached);
 					}
 				}
+				co_return;
+			}, net::detached);
+
+		// 开始侦听udp客户端消息.
+		net::co_spawn(m_main_context.get_executor(),
+			[this]() mutable->net::awaitable<void>
+			{
+				co_await start_udp_server();
+				LOG_WARN << "run_as_server, server quit...";
 				co_return;
 			}, net::detached);
 	}
@@ -560,6 +570,76 @@ namespace avpn {
 		}
 
 		LOG_WARN << "start_tcp_listen exit ...";
+		co_return;
+	}
+
+	net::awaitable<void> avpn_service::start_udp_server()
+	{
+		BOOST_ASSERT(m_identity == Identity::avpn_server);
+
+		boost::system::error_code ec;
+
+		auto& listens = m_config.udp_listens_;
+		for (auto& listen : listens)
+		{
+			LOG_DBG << "start_udp_server, udp listen: " << listen;
+
+			udp::endpoint endp;
+			bool ipv6only = make_listen_endpoint(listen, endp, ec);
+			if (ec)
+			{
+				LOG_ERR << "start_udp_server"
+					<< ", make udp: " << listen
+					<< ", ec: " << ec.message();
+				continue;
+			}
+
+			udp::socket sock(m_main_context, endp.protocol());
+			if (ipv6only)
+			{
+				sock.set_option(net::ip::v6_only(true), ec);
+				if (ec)
+				{
+					LOG_ERR << "start_udp_server"
+						<< ", make udp: " << listen
+						<< ", setsockopt v6only: " << ec.message();
+					continue;
+				}
+			}
+
+			sock.bind(endp, ec);
+			if (ec)
+			{
+				LOG_ERR << "start_udp_server"
+					<< ", make udp: " << listen
+					<< ", bind error: " << ec.message();
+				continue;
+			}
+
+			auto sockptr = std::make_shared<udp_socket>(
+				udp_socket{ steady_clock::now(), std::move(sock) });
+			m_udp_sockets.emplace_back(std::move(sockptr));
+		}
+
+		auto tmp_sockets = m_udp_sockets;
+		for (int fast = 0; fast < 8; fast++)
+		{
+			for (int n = 0; n < (int)tmp_sockets.size(); n++)
+			{
+				auto usock_ptr = tmp_sockets[n];
+				auto local_endp = usock_ptr->sock_.local_endpoint();
+
+				LOG_DBG << "start_udp_server"
+					<< ", listen endpoint: ["
+					<< local_endp.address().to_string()
+					<< "]:"
+					<< local_endp.port();
+
+				net::co_spawn(m_ioc_pool.get_io_context(),
+					start_udp_read_loop(n), boost::asio::detached);
+			}
+		}
+
 		co_return;
 	}
 
