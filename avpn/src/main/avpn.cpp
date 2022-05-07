@@ -622,7 +622,6 @@ namespace avpn {
 			m_main_context, ip_assigner(), net::use_awaitable);
 
 		auto ipaddr = net::ip::address_v4(vaddr);
-		m_config.tunnel_params_.subnet_;
 		auto vnetaddr = net::ip::make_network_v4(
 			ipaddr, m_subnet.prefix_length());
 
