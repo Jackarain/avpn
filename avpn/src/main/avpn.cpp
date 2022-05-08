@@ -630,7 +630,6 @@ namespace avpn {
 			// tcp连接, 解密失败, 则回复认证失败消息, 以快速触发client进行
 			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
 			// 协商通信key).
-
 			net::co_spawn(executor,
 				start_tcp_auth(std::move(socket), connection_id),
 					net::detached);
