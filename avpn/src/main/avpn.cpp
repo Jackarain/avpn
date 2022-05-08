@@ -395,8 +395,25 @@ namespace avpn {
 
 			auto now = std::chrono::steady_clock::now();
 
+			// 计算上下行速率.
 			compute_speed(m_down_stat, now);
 			compute_speed(m_upload_stat, now);
+
+			// 检查超时连接, 清除超时的连接.
+			if (m_identity == Identity::avpn_server)
+			{
+				auto now = steady_clock::now();
+				std::vector<std::string> result;
+				for (auto& [id, incoming] : m_incomings)
+				{
+					auto duration = now - incoming.last_see_;
+					if (duration > std::chrono::minutes(2))
+						result.push_back(id);
+				}
+
+				for (auto& id : result)
+					m_incomings.erase(id);
+			}
 		}
 
 		LOG_WARN << "avpn_service::tick() quit...";
