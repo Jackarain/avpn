@@ -33,6 +33,11 @@ namespace avpn {
 			vpn_tunnel(ioc, vpn, cfg, pubkey, passphrase));
 	}
 
+	void vpn_tunnel::start_tcp_loop()
+	{
+
+	}
+
 	tcp::socket& vpn_tunnel::tcp_socket()
 	{
 		return m_remote_tcp;
@@ -51,6 +56,16 @@ namespace avpn {
 	void vpn_tunnel::vnet_addr(const net::ip::network_v4& vaddr)
 	{
 		m_vaddr = vaddr;
+	}
+
+	udp::endpoint vpn_tunnel::remote_endpoint() const
+	{
+		return m_remote_endpoint;
+	}
+
+	void vpn_tunnel::remote_endpoint(const udp::endpoint& endp)
+	{
+		m_remote_endpoint = endp;
 	}
 
 }

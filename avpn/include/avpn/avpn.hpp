@@ -161,6 +161,8 @@ namespace avpn {
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
 		void do_tun_write(std::string&&);
+		// 处理server上的tun设备pkt.
+		net::awaitable<void> do_server_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int index);
@@ -170,6 +172,7 @@ namespace avpn {
 		void run_as_client();
 		void run_as_server();
 
+		// 定时器, 用于计算像一些定时运算, 如统计速率.
 		net::awaitable<void> tick();
 
 		// 配置tun设备.

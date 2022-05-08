@@ -105,12 +105,12 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
-		vpn_packet msg;
 
 		while (!m_abort)
 		{
-			auto content = msg.data();
+			vpn_packet pkt;
 
+			auto content = pkt.data();
 			auto bytes = co_await m_tundev.async_read_some(
 				net::buffer(content, 1450), uawaitable[ec]);
 			if (ec)
@@ -120,7 +120,7 @@ namespace avpn {
 			}
 
 			// resize content.
-			msg.resize(bytes);
+			pkt.resize(bytes);
 
 			// 解析ip相关的信息.
 			auto endp = avpn::lookup_endpoint_pair(content, bytes);
@@ -130,13 +130,17 @@ namespace avpn {
 				continue;
 
 			// 保存数据包类型.
-			msg.type((vpn_packet_type)endp.type_);
+			pkt.type((vpn_packet_type)endp.type_);
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == Identity::avpn_server)
 			{
-				// TODO: 作为server时, 要根据目标虚拟ip寻找到对应的通信通道.
-				// 透传到tunnel.
+				// 作为server时, 要根据目标虚拟ip寻找到对应的通信
+				// 通道透传到tunnel.
+				co_spawn(m_main_context,
+					do_server_tun_read(std::move(pkt), std::move(endp)),
+						net::detached);
+				continue;
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
@@ -169,6 +173,18 @@ namespace avpn {
 			auto index = m_down_stat.speeder_count_ % speed_entries;
 			m_down_stat.speeder_[index] = m_down_stat.bytes_;
 		}, net::detached);
+	}
+
+	net::awaitable<void>
+	avpn_service::do_server_tun_read(vpn_packet pkt, endpoint_pair endp)
+	{
+		uint32_t dst = endp.dst_.address().to_v4().to_uint();
+		auto vp = co_await lookup_tunnel(dst);
+		if (!vp)
+		{
+			LOG_WARN << "lost connection: " << endp;
+			co_return;
+		}
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
@@ -290,7 +306,7 @@ namespace avpn {
 			return;
 
 		// 开始侦听tcp客户端连接消息.
-		net::co_spawn(m_main_context.get_executor(),
+		net::co_spawn(m_main_context,
 			[this]() mutable -> net::awaitable<void>
 			{
 				int pool_size = static_cast<int>(m_ioc_pool.pool_size());
@@ -306,12 +322,16 @@ namespace avpn {
 			}, net::detached);
 
 		// 开始侦听udp客户端消息.
-		net::co_spawn(m_main_context.get_executor(),
+		net::co_spawn(m_main_context,
 			[this]() mutable->net::awaitable<void>
 			{
 				co_await start_udp_server();
 				co_return;
 			}, net::detached);
+
+		// 开始读取tun上的数据包.
+		boost::asio::co_spawn(m_main_context,
+			start_tun_read_loop(), boost::asio::detached);
 	}
 
 	net::awaitable<void> avpn_service::tick()
@@ -706,7 +726,9 @@ namespace avpn {
 			co_await tcp_write_packet(stream, response, id);
 
 			vp->tcp_socket() = std::move(stream);
-			// TODO: 启动tunnel的tcp读取循环.
+
+			// 启动tunnel的tcp读取循环.
+			vp->start_tcp_loop();
 			co_return;
 		}
 
@@ -736,7 +758,9 @@ namespace avpn {
 		auto response = make_auth_response(vaddr, client_id);
 		co_await tcp_write_packet(stream, response, id);
 
-		// TODO: 开始vp的tcp读取消息循环.
+		// 开始vp的tcp读取消息循环.
+		vp->start_tcp_loop();
+		co_return;
 	}
 
 	net::awaitable<void>
@@ -774,6 +798,9 @@ namespace avpn {
 			auto response = make_auth_response(
 				src, client_id, additional);
 			co_await do_udp_write(std::move(response), remote);
+
+			// 更新远端udp的endpoint.
+			vp->remote_endpoint(remote);
 			co_return;
 		}
 
@@ -803,7 +830,8 @@ namespace avpn {
 		auto response = make_auth_response(vaddr, client_id);
 		co_await do_udp_write(std::move(response), remote);
 
-		// TODO: 更新vp的remote endpoint.
+		// 更新vp的远端udp的endpoint.
+		vp->remote_endpoint(remote);
 		co_return;
 	}
 

@@ -45,6 +45,10 @@ namespace avpn {
 		~vpn_tunnel() = default;
 
 	public:
+		// 开始处理tcp协议.
+		void start_tcp_loop();
+
+		// 返回该tunnel的tcp socket引用.
 		tcp::socket& tcp_socket();
 
 		// 返回协商的密钥.
@@ -54,6 +58,11 @@ namespace avpn {
 		net::ip::network_v4 vnet_addr() const;
 		// 设置vnet addr.
 		void vnet_addr(const net::ip::network_v4& vaddr);
+
+		// 返回远端udp的endpoint.
+		udp::endpoint remote_endpoint() const;
+		// 设置远端udp的endpoint.
+		void remote_endpoint(const udp::endpoint& endp);
 
 	private:
 		// 用于当前tunnel业务调度.
@@ -78,6 +87,9 @@ namespace avpn {
 		std::string m_shared_key;
 
 		// 分配的vaddr.
-		boost::asio::ip::network_v4 m_vaddr;
+		net::ip::network_v4 m_vaddr;
+
+		// 对方udp的endpoint.
+		udp::endpoint m_remote_endpoint;
 	};
 }
