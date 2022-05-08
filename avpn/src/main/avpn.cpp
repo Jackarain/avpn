@@ -468,7 +468,7 @@ namespace avpn {
 
 		if (!m_tundev.open(dc))
 		{
-			LOG_ERR << "open tun device: " << dc.dev_name_ << " fail!";
+			LOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
 
