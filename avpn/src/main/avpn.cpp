@@ -81,6 +81,17 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
+		for (auto& a : m_tcp_acceptors)
+			a.cancel(ignore_ec);
+
+		for (auto& usockptr : m_udp_sockets)
+		{
+			if (!usockptr) continue;
+
+			auto& usock = *usockptr;
+			usock.sock_.close(ignore_ec);
+		}
+
 		// TODO: 退出时删除路由.
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tundev.close();
@@ -182,7 +193,7 @@ namespace avpn {
 		auto vp = co_await lookup_tunnel(dst);
 		if (!vp)
 		{
-			LOG_WARN << "lost connection: " << endp;
+			LOG_WARN << "tun read, t -> c, lost connection: " << endp;
 			co_return;
 		}
 	}
