@@ -403,16 +403,17 @@ namespace avpn {
 			if (m_identity == Identity::avpn_server)
 			{
 				auto now = steady_clock::now();
-				std::vector<std::string> result;
-				for (auto& [id, incoming] : m_incomings)
+
+				for (auto it = m_incomings.begin();
+					it != m_incomings.end(); )
 				{
+					auto& [id, incoming] = *it;
 					auto duration = now - incoming.last_see_;
 					if (duration > std::chrono::minutes(2))
-						result.push_back(id);
+						it = m_incomings.erase(it);
+					else
+						it++;
 				}
-
-				for (auto& id : result)
-					m_incomings.erase(id);
 			}
 		}
 
