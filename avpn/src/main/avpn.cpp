@@ -341,8 +341,8 @@ namespace avpn {
 			}, net::detached);
 
 		// 开始读取tun上的数据包.
-		boost::asio::co_spawn(m_main_context,
-			start_tun_read_loop(), boost::asio::detached);
+		net::co_spawn(m_main_context,
+			start_tun_read_loop(), net::detached);
 	}
 
 	net::awaitable<void> avpn_service::tick()
@@ -703,7 +703,7 @@ namespace avpn {
 					<< local_endp.port();
 
 				net::co_spawn(m_ioc_pool.get_io_context(),
-					start_udp_read_loop(n), boost::asio::detached);
+					start_udp_read_loop(n), net::detached);
 			}
 		}
 
