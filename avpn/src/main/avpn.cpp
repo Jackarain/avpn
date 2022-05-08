@@ -402,8 +402,6 @@ namespace avpn {
 			// 检查超时连接, 清除超时的连接.
 			if (m_identity == Identity::avpn_server)
 			{
-				auto now = steady_clock::now();
-
 				for (auto it = m_incomings.begin();
 					it != m_incomings.end(); )
 				{
