@@ -23,6 +23,10 @@ namespace avpn {
 		, m_keyexchange(passphrase)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(pubkey))
 		, m_tick_timer(ioc)
+		, m_fdg(cfg.tunnel_params_.data_shards_,
+			cfg.tunnel_params_.parity_shards_)
+		, m_feg(cfg.tunnel_params_.data_shards_,
+			cfg.tunnel_params_.parity_shards_)
 	{}
 
 	std::shared_ptr<vpn_tunnel>

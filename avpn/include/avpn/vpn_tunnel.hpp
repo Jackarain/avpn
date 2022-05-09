@@ -135,6 +135,12 @@ namespace avpn {
 		// 如: keepalive等工作.
 		asio_timer m_tick_timer;
 
+		// fec解码器.
+		fec_decode_group m_fdg;
+
+		// fec编码器.
+		fec_encode_group m_feg;
+
 		// 退出标志.
 		boost::tribool m_abort{ boost::indeterminate };
 	};
