@@ -775,6 +775,7 @@ namespace avpn {
 
 			// 启动tunnel的tcp读取循环.
 			vp->start_tcp_loop();
+			vp->start_tunnel();
 			co_return;
 		}
 
@@ -803,6 +804,7 @@ namespace avpn {
 
 		// 开始vp的tcp读取消息循环.
 		vp->start_tcp_loop();
+		vp->start_tunnel();
 		co_return;
 	}
 
@@ -844,6 +846,7 @@ namespace avpn {
 
 			// 更新远端udp的endpoint.
 			vp->remote_endpoint(remote);
+			vp->start_tunnel();
 			co_return;
 		}
 
@@ -872,6 +875,7 @@ namespace avpn {
 
 		// 更新vp的远端udp的endpoint.
 		vp->remote_endpoint(remote);
+		vp->start_tunnel();
 		co_return;
 	}
 

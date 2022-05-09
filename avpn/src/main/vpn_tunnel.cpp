@@ -21,6 +21,7 @@ namespace avpn {
 		, m_remote_tcp(ioc)
 		, m_keyexchange(passphrase)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(pubkey))
+		, m_tick_timer(ioc)
 	{}
 
 	std::shared_ptr<vpn_tunnel>
@@ -31,6 +32,25 @@ namespace avpn {
 	{
 		return std::shared_ptr<vpn_tunnel>(new
 			vpn_tunnel(ioc, vpn, cfg, pubkey, passphrase));
+	}
+
+	void vpn_tunnel::start_tunnel()
+	{
+		if (m_abort != boost::indeterminate)
+			return;
+
+		m_abort = false;
+
+		// 启动tick协程.
+		net::co_spawn(m_io_context, tick(), net::detached);
+	}
+
+	void vpn_tunnel::close_tunnel()
+	{
+		m_abort = true;
+
+		boost::system::error_code ec;
+		m_tick_timer.cancel(ec);
 	}
 
 	void vpn_tunnel::start_tcp_loop()
@@ -86,6 +106,21 @@ namespace avpn {
 	void vpn_tunnel::last_see(const time_point& now)
 	{
 		m_last_see = now;
+	}
+
+	net::awaitable<void> vpn_tunnel::tick()
+	{
+		boost::system::error_code ec;
+
+		while (!m_abort)
+		{
+			m_tick_timer.expires_from_now(std::chrono::seconds(1));
+			m_tick_timer.async_wait(uawaitable[ec]);
+
+
+		}
+
+		co_return;
 	}
 
 }

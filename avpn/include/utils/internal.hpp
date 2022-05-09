@@ -136,3 +136,6 @@ using ws_stream = websocket::stream<tcp::socket>;
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index/hashed_index.hpp>
+
+#include <boost/logic/tribool.hpp>
+#include <boost/logic/tribool_io.hpp>

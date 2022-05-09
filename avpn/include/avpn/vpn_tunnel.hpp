@@ -45,6 +45,12 @@ namespace avpn {
 		~vpn_tunnel() = default;
 
 	public:
+		// 开始tunnel工作.
+		void start_tunnel();
+
+		// 关闭tunnel.
+		void close_tunnel();
+
 		// 开始处理tcp协议.
 		void start_tcp_loop();
 
@@ -73,6 +79,11 @@ namespace avpn {
 		time_point last_see() const;
 		// 更新最后活跃时间.
 		void last_see(const time_point& now);
+
+
+	private:
+		// 定时任务处理, 如keepalive等相关处理.
+		net::awaitable<void> tick();
 
 	private:
 		// 用于当前tunnel业务调度.
@@ -107,5 +118,12 @@ namespace avpn {
 
 		// 最后活跃时间.
 		time_point m_last_see{ steady_clock::now() };
+
+		// timer, 处理本tunnel相关定时工作.
+		// 如: keepalive等工作.
+		asio_timer m_tick_timer;
+
+		// 退出标志.
+		boost::tribool m_abort{ boost::indeterminate };
 	};
 }
