@@ -196,6 +196,8 @@ namespace avpn {
 			LOG_WARN << "tun read, t -> c, lost connection: " << endp;
 			co_return;
 		}
+
+		boost::ignore_unused(pkt);
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)

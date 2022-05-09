@@ -10,6 +10,7 @@
 #include "avpn/tun_device.hpp"
 #include "avpn/fec_cache.hpp"
 #include "avpn/vpn_client_table.hpp"
+#include "avpn/endpoint_pair.hpp"
 
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
