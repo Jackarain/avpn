@@ -33,13 +33,13 @@ BOOST_AUTO_TEST_CASE(test_auth_request)
 	std::string id = const_id;
 	std::string pubkey = const_pubkey;
 	uint32_t src = 167772225;
-	auto pkt = avpn::make_handshake_request(src, id, pubkey);
+	auto pkt = avpn::make_handshake(src, id, pubkey);
 
 	src = 0;
 	id.resize(0);
 	pubkey.resize(0);
 	std::string additional;
-	auto bytes = avpn::unwrap_handshake_request(pkt, src, id, pubkey, additional);
+	auto bytes = avpn::unwrap_handshake(pkt, src, id, pubkey, additional);
 
 	BOOST_TEST(src == (uint32_t)167772225);
 	BOOST_TEST(id == const_id);

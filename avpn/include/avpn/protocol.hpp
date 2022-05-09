@@ -25,10 +25,11 @@ namespace avpn {
 	//				这个body为加密体.
 
 	enum {
-		vpt_handshake_request = 1,
-		vpt_handshake_response = 2,
+		vpt_handshake = 1,
+		vpt_handshake_reply = 2,
 
 		vpt_keepalive = 3,
+		vpt_keepalive_reply = 4,
 	};
 
 	vpn_packet make_common_header(
@@ -45,11 +46,11 @@ namespace avpn {
 	// pubkey(pubkey_len)
 	// additional_len(8)
 	// additional(additional_len)
-	vpn_packet make_handshake_request(uint32_t src,
+	vpn_packet make_handshake(uint32_t src,
 		std::string_view id, std::string_view pubkey,
 		std::string_view additional = {});
 
-	int unwrap_handshake_request(vpn_packet& pkt,
+	int unwrap_handshake(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
 		std::string& additional);
 
@@ -63,12 +64,12 @@ namespace avpn {
 	// pushdns(number)
 	// routes(number)
 	// {size(u8), string[size]}[routes]
-	vpn_packet make_handshake_response(std::string_view id,
+	vpn_packet make_handshake_reply(std::string_view id,
 		uint32_t addr, uint8_t prefix_length,
 		bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes);
 
-	int unwrap_handshake_response(vpn_packet& pkt,
+	int unwrap_handshake_reply(vpn_packet& pkt,
 		std::string& id, uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes);

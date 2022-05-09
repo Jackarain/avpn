@@ -247,8 +247,9 @@ namespace avpn {
 
 		switch (type)
 		{
-		case vpt_handshake_response:
+		case vpt_handshake_reply:
 			break;
+
 		}
 
 		co_return true;

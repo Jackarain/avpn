@@ -58,12 +58,12 @@ namespace avpn {
 		return (int)reader.ByteOffset();
 	}
 
-	vpn_packet make_handshake_request(uint32_t src,
+	vpn_packet make_handshake(uint32_t src,
 		std::string_view id, std::string_view pubkey,
 		std::string_view additional/* = {}*/)
 	{
 		auto has_src = src == 0 ? false : true;
-		auto pkt = make_common_header(false, has_src, vpt_handshake_request, src);
+		auto pkt = make_common_header(false, has_src, vpt_handshake, src);
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
 		writer.WriteUInt8((uint8_t)id.size());
@@ -80,7 +80,7 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_handshake_request(vpn_packet& pkt,
+	int unwrap_handshake(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
 		std::string& additional)
 	{
@@ -120,13 +120,13 @@ namespace avpn {
 		return bytes;
 	}
 
-	avpn::vpn_packet make_handshake_response(std::string_view id, uint32_t addr,
+	avpn::vpn_packet make_handshake_reply(std::string_view id, uint32_t addr,
 		uint8_t prefix_length, bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes)
 	{
 		auto has_src = addr == 0 ? false : true;
 		auto pkt = make_common_header(
-			false, has_src, vpt_handshake_response, addr);
+			false, has_src, vpt_handshake_reply, addr);
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
 
@@ -150,7 +150,7 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_handshake_response(vpn_packet& pkt,
+	int unwrap_handshake_reply(vpn_packet& pkt,
 		std::string& id, uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes)

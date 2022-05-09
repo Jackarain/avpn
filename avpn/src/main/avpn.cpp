@@ -249,7 +249,7 @@ namespace avpn {
 					continue;
 
 				// client握手认证请求.
-				if (type == vpt_handshake_request)
+				if (type == vpt_handshake)
 				{
 					co_await start_udp_handshake(remote, pkt, src);
 					continue;
@@ -741,7 +741,7 @@ namespace avpn {
 		std::string pubkey;
 		std::string additional;
 
-		ret = unwrap_handshake_request(pkt,
+		ret = unwrap_handshake(pkt,
 			src, client_id, pubkey, additional);
 		if (ret == -1)
 			co_return;
@@ -756,7 +756,7 @@ namespace avpn {
 			if (!vp)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
-				auto response = make_handshake_response(
+				auto response = make_handshake_reply(
 					client_id, 0, 0, false, 0, {});
 				co_await tcp_write_packet(stream, response, id);
 				co_return;
@@ -766,7 +766,7 @@ namespace avpn {
 			// 然后将原来tunnel中的tcp socket替换, 启
 			// 再动vpn的tcp读取循环.
 			auto& params = m_config.tunnel_params_;
-			auto response = make_handshake_response(
+			auto response = make_handshake_reply(
 				client_id, src, (uint8_t)m_subnet.prefix_length(),
 				params.passbyvpn_, params.pushdns_,
 				params.pushroutes_);
@@ -803,7 +803,7 @@ namespace avpn {
 
 		// 回复认证消息.
 		auto& params = m_config.tunnel_params_;
-		auto response = make_handshake_response(
+		auto response = make_handshake_reply(
 			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
 			params.passbyvpn_, params.pushdns_,
 			params.pushroutes_);
@@ -824,7 +824,7 @@ namespace avpn {
 		std::string additional;
 
 		// 解析client的认证消息.
-		int ret = unwrap_handshake_request(pkt,
+		int ret = unwrap_handshake(pkt,
 			src, client_id, pubkey, additional);
 		if (ret == -1)
 			co_return;
@@ -839,7 +839,7 @@ namespace avpn {
 			if (!vp)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
-				auto response = make_handshake_response(
+				auto response = make_handshake_reply(
 					client_id, 0, 0, false, 0, {});
 				co_await do_udp_write(std::move(response), remote);
 				co_return;
@@ -848,7 +848,7 @@ namespace avpn {
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的udp remote替换.
 			auto& params = m_config.tunnel_params_;
-			auto response = make_handshake_response(
+			auto response = make_handshake_reply(
 				client_id, src, (uint8_t)m_subnet.prefix_length(),
 				params.passbyvpn_, params.pushdns_,
 				params.pushroutes_);
@@ -881,7 +881,7 @@ namespace avpn {
 
 		// 回复认证消息.
 		auto& params = m_config.tunnel_params_;
-		auto response = make_handshake_response(
+		auto response = make_handshake_reply(
 			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
 			params.passbyvpn_, params.pushdns_,
 			params.pushroutes_);
