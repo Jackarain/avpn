@@ -257,7 +257,7 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_keepalive();
+			co_await on_tcp_keepalive();
 			break;
 		case vpt_keepalive_reply:
 			break;
@@ -266,7 +266,7 @@ namespace avpn {
 		co_return true;
 	}
 
-	net::awaitable<void> vpn_tunnel::on_keepalive()
+	net::awaitable<void> vpn_tunnel::on_tcp_keepalive()
 	{
 		last_see(steady_clock::now());
 		co_return;

@@ -100,7 +100,7 @@ namespace avpn {
 		net::awaitable<bool> process_tcp_packet(vpn_packet pkt);
 
 		// 作为server时, 接收到keepalive消息.
-		net::awaitable<void> on_keepalive();
+		net::awaitable<void> on_tcp_keepalive();
 
 	private:
 		// 用于当前tunnel业务调度.
