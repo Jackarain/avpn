@@ -19,6 +19,9 @@ namespace avpn
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
 	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 
+	// 定义vpn client结构, 用于辅助存储vpn tunnel对象
+	// 这样, 就可以通过client id及vnet addr分别索引到
+	// tunnel.
 	struct vpn_client
 	{
 		std::string id_;
@@ -29,6 +32,9 @@ namespace avpn
 	struct cid {};
 	struct caddr {};
 
+	// 定义client表结构, 可根据vnet addr和 client id分别索引.
+	// 这是一个内存数据库结构, 并且client id和vnet addr均不允
+	// 许重复出现.
 	using client_table = boost::multi_index::multi_index_container<
 		vpn_client,
 		boost::multi_index::indexed_by<

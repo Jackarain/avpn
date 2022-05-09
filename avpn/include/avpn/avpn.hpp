@@ -270,6 +270,9 @@ namespace avpn {
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
 		// 作为server时, 保存client连接的容器.
+		// 所有client连接将保存到这个容器, 这个
+		// 容器不管理client的生命期, 在client
+		// 的生命期后, 需要从该容器手工清除.
 		vpn_client_table m_clients;
 
 		// 子网信息, 作为server时由配置参数确定.

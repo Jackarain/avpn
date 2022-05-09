@@ -788,16 +788,9 @@ namespace avpn {
 			auto [ip_string, vaddr] = co_await co_spawn(
 				m_main_context, ip_assigner(), net::use_awaitable);
 
-			auto ipaddr = net::ip::address_v4(vaddr);
-			auto vnetaddr = net::ip::make_network_v4(
-				ipaddr, m_subnet.prefix_length());
-
 			// 创建tunnel.
 			vp = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
-
-			// 配置到vp对象中.
-			vp->vnet_addr(vnetaddr);
 		}
 
 		// 获取虚拟ip.
@@ -864,16 +857,9 @@ namespace avpn {
 			auto [ip_string, vaddr] = co_await co_spawn(
 				m_main_context, ip_assigner(), net::use_awaitable);
 
-			auto ipaddr = net::ip::address_v4(vaddr);
-			auto vnetaddr = net::ip::make_network_v4(
-				ipaddr, m_subnet.prefix_length());
-
 			// 创建tunnel.
 			vp = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
-
-			// 配置到vp对象中.
-			vp->vnet_addr(vnetaddr);
 		}
 
 		// 获取vp的虚拟ip.
@@ -989,6 +975,12 @@ namespace avpn {
 
 		auto vp = vpn_tunnel::make(ioc, self, m_config,
 			pubkey, m_config.passphrase_);
+
+		auto ipaddr = net::ip::address_v4(vaddr);
+		auto vnetaddr = net::ip::make_network_v4(
+			ipaddr, m_subnet.prefix_length());
+
+		vp->vnet_addr(vnetaddr);
 
 		vc.id_ = id;
 		vc.vnet_addr_ = vaddr;
