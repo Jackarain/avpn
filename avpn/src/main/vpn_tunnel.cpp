@@ -60,7 +60,8 @@ namespace avpn {
 
 	void vpn_tunnel::start_tcp_loop()
 	{
-
+		net::co_spawn(m_io_context,
+			tcp_loop(), net::detached);
 	}
 
 	tcp::socket& vpn_tunnel::tcp_socket()
@@ -70,6 +71,9 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_socket(tcp::socket&& s, size_t id)
 	{
+		boost::system::error_code ec;
+		m_tcp_socket.close(ec);
+
 		m_tcp_socket = std::move(s);
 		m_tcp_socket_id = id;
 	}
@@ -144,9 +148,14 @@ namespace avpn {
 			if (ret == -1)
 				break;
 
-
+			if (!co_await process_tcp_packet(std::move(pkt)))
+			{
+				LOG_ERR << "process_tcp_packet, break tcp loop.";
+				break;
+			}
 		}
 
+		LOG_WARN << "tcp_loop, tcp loop quit...";
 		co_return;
 	}
 
@@ -223,6 +232,26 @@ namespace avpn {
 		}
 
 		co_return;
+	}
+
+	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet pkt)
+	{
+		bool enc = false;
+		bool has_src = false;
+		uint8_t type = 0;
+		uint32_t src;
+
+		int ret = unwrap_common_header(pkt, enc, has_src, type, src);
+		if (ret == -1)
+			co_return false;
+
+		switch (type)
+		{
+		case vpt_handshake_response:
+			break;
+		}
+
+		co_return true;
 	}
 
 }

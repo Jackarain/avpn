@@ -195,10 +195,10 @@ namespace avpn {
 		// 作为server时, 监听client的udp消息.
 		net::awaitable<void> start_udp_server();
 
-		// 开始tcp连接认证.
-		net::awaitable<void> start_tcp_auth(tcp::socket, size_t);
-		// 开始udp连接认证.
-		net::awaitable<void> start_udp_auth(
+		// 开始tcp连接握手认证.
+		net::awaitable<void> start_tcp_handshake(tcp::socket, size_t);
+		// 开始udp连接握手认证.
+		net::awaitable<void> start_udp_handshake(
 			udp::endpoint, vpn_packet&, uint32_t);
 
 		// 在tcp连接上读取一个vpn_packet消息.

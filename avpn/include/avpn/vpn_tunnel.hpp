@@ -96,6 +96,9 @@ namespace avpn {
 		net::awaitable<void> tcp_write_packet(
 			tcp::socket& stream, vpn_packet& pkt);
 
+		// 处理tcp协议.
+		net::awaitable<bool> process_tcp_packet(vpn_packet pkt);
+
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;

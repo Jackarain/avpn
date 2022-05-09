@@ -25,8 +25,10 @@ namespace avpn {
 	//				这个body为加密体.
 
 	enum {
-		vpt_auth_request = 1,
-		vpt_auth_response = 2,
+		vpt_handshake_request = 1,
+		vpt_handshake_response = 2,
+
+		vpt_keepalive = 3,
 	};
 
 	vpn_packet make_common_header(
@@ -35,7 +37,7 @@ namespace avpn {
 	int unwrap_common_header(vpn_packet& pkt,
 		bool& enc, bool& has_src, uint8_t& type, uint32_t& src);
 
-	// 构造认证消息, c -> s.
+	// 构造握手认证消息, c -> s.
 	// 协议格式
 	// id_len(8)
 	// id(id_len)
@@ -43,15 +45,15 @@ namespace avpn {
 	// pubkey(pubkey_len)
 	// additional_len(8)
 	// additional(additional_len)
-	vpn_packet make_auth_request(uint32_t src,
+	vpn_packet make_handshake_request(uint32_t src,
 		std::string_view id, std::string_view pubkey,
 		std::string_view additional = {});
 
-	int unwrap_auth_request(vpn_packet& pkt,
+	int unwrap_handshake_request(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
 		std::string& additional);
 
-	// 构造认证回复消息, s -> c.
+	// 构造握手认证回复消息, s -> c.
 	// 协议格式
 	// id_len(8)
 	// id(id_len)
@@ -61,12 +63,12 @@ namespace avpn {
 	// pushdns(number)
 	// routes(number)
 	// {size(u8), string[size]}[routes]
-	vpn_packet make_auth_response(std::string_view id,
+	vpn_packet make_handshake_response(std::string_view id,
 		uint32_t addr, uint8_t prefix_length,
 		bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes);
 
-	int unwrap_auth_response(vpn_packet& pkt,
+	int unwrap_handshake_response(vpn_packet& pkt,
 		std::string& id, uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes);
