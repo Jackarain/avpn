@@ -109,6 +109,9 @@ namespace avpn {
 		// vpn相关配置.
 		service_config m_config;
 
+		// 当前vpn的身份.
+		Identity m_identity;
+
 		// 对方的pubkey.
 		std::string m_pubkey;
 

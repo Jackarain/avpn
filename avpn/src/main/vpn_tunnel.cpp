@@ -18,6 +18,7 @@ namespace avpn {
 		: m_io_context(ioc)
 		, m_vpn_serivce(vpn)
 		, m_config(cfg)
+		, m_identity(cfg.identity_)
 		, m_pubkey(pubkey)
 		, m_tcp_socket(ioc)
 		, m_keyexchange(passphrase)
@@ -131,6 +132,9 @@ namespace avpn {
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
+
+			if (m_identity == Identity::avpn_server)
+				continue;
 
 
 		}
