@@ -251,12 +251,25 @@ namespace avpn {
 
 		switch (type)
 		{
+		case vpt_handshake:
+			break;
 		case vpt_handshake_reply:
 			break;
 
+		case vpt_keepalive:
+			co_await on_keepalive();
+			break;
+		case vpt_keepalive_reply:
+			break;
 		}
 
 		co_return true;
+	}
+
+	net::awaitable<void> vpn_tunnel::on_keepalive()
+	{
+		last_see(steady_clock::now());
+		co_return;
 	}
 
 }
