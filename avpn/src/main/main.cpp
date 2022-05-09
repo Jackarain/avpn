@@ -357,7 +357,11 @@ int main(int argc, char** argv)
 	params.mode_ = mode;
 	params.compress_ = compress;
 	params.keepalive_ = keepalive;
-	params.pushdns_ = pushdns;
+	if (!pushdns.empty())
+	{
+		auto dns = net::ip::address_v4::from_string(pushdns);
+		params.pushdns_ = dns.to_uint();
+	}
 	params.pushroutes_ = routes;
 	params.passbyvpn_ = passbyvpn;
 	params.ignore_pushroute = noroute;

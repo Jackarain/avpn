@@ -120,20 +120,29 @@ namespace avpn {
 		return bytes;
 	}
 
-	vpn_packet make_auth_response(uint32_t addr,
-		std::string_view id, std::string_view additional /*= {}*/)
+	avpn::vpn_packet make_auth_response(std::string_view id, uint32_t addr,
+		uint8_t prefix_length, bool passbyvpn, uint32_t pushdns,
+		std::vector<std::string> routes)
 	{
 		auto has_src = addr == 0 ? false : true;
 		auto pkt = make_common_header(
-			false, has_src, vpt_auth_request, addr);
+			false, has_src, vpt_auth_response, addr);
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
 
-		writer.WriteUInt16((uint16_t)id.size());
+		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
-		writer.WriteUInt16((uint16_t)additional.size());
-		if (additional.size() > 0)
-			writer.WriteString(additional.data(), additional.size());
+
+		writer.WriteUInt32(addr);
+		writer.WriteUInt8(prefix_length);
+		writer.WriteUInt8((uint8_t)passbyvpn);
+		writer.WriteUInt32(pushdns);
+		writer.WriteUInt8((uint8_t)routes.size());
+		for (auto& r : routes)
+		{
+			writer.WriteUInt8((uint8_t)r.size());
+			writer.WriteString(r.data(), r.size());
+		}
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);

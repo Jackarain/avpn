@@ -757,7 +757,7 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_auth_response(
-					0, client_id, additional);
+					client_id, 0, 0, false, 0, {});
 				co_await tcp_write_packet(stream, response, id);
 				co_return;
 			}
@@ -765,8 +765,11 @@ namespace avpn {
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的tcp socket替换, 启
 			// 再动vpn的tcp读取循环.
+			auto& params = m_config.tunnel_params_;
 			auto response = make_auth_response(
-				src, client_id, additional);
+				client_id, src, (uint8_t)m_subnet.prefix_length(),
+				params.passbyvpn_, params.pushdns_,
+				params.pushroutes_);
 			co_await tcp_write_packet(stream, response, id);
 
 			// 替换为新的tcp socket, 然后用新的tcp socket
@@ -799,7 +802,11 @@ namespace avpn {
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
-		auto response = make_auth_response(vaddr, client_id);
+		auto& params = m_config.tunnel_params_;
+		auto response = make_auth_response(
+			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
+			params.passbyvpn_, params.pushdns_,
+			params.pushroutes_);
 		co_await tcp_write_packet(stream, response, id);
 
 		// 开始vp的tcp读取消息循环.
@@ -833,15 +840,18 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_auth_response(
-					0, client_id, additional);
+					client_id, 0, 0, false, 0, {});
 				co_await do_udp_write(std::move(response), remote);
 				co_return;
 			}
 
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的udp remote替换.
+			auto& params = m_config.tunnel_params_;
 			auto response = make_auth_response(
-				src, client_id, additional);
+				client_id, src, (uint8_t)m_subnet.prefix_length(),
+				params.passbyvpn_, params.pushdns_,
+				params.pushroutes_);
 			co_await do_udp_write(std::move(response), remote);
 
 			// 更新远端udp的endpoint.
@@ -870,7 +880,11 @@ namespace avpn {
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
-		auto response = make_auth_response(vaddr, client_id);
+		auto& params = m_config.tunnel_params_;
+		auto response = make_auth_response(
+			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
+			params.passbyvpn_, params.pushdns_,
+			params.pushroutes_);
 		co_await do_udp_write(std::move(response), remote);
 
 		// 更新vp的远端udp的endpoint.

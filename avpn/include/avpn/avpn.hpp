@@ -60,7 +60,7 @@ namespace avpn {
 		std::vector<std::string> pushroutes_;
 
 		// server推送dns.
-		std::string pushdns_;
+		uint32_t pushdns_;
 
 		// 客户端默认通过vpn server作为全局网络出口此时的
 		// server必须做nat, 否则可能无法通过vpn server上网.
