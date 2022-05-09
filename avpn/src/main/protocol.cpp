@@ -66,11 +66,11 @@ namespace avpn {
 		auto pkt = make_common_header(false, has_src, vpt_auth_request, src);
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
-		writer.WriteUInt16((uint16_t)id.size());
+		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
-		writer.WriteUInt16((uint16_t)pubkey.size());
+		writer.WriteUInt8((uint8_t)pubkey.size());
 		writer.WriteString(pubkey.data(), pubkey.size());
-		writer.WriteUInt16((uint16_t)additional.size());
+		writer.WriteUInt16((uint8_t)additional.size());
 		if (additional.size() > 0)
 			writer.WriteString(additional.data(), additional.size());
 
@@ -91,23 +91,23 @@ namespace avpn {
 		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
 
 		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
-		uint16_t length = 0;
+		uint8_t length = 0;
 
-		bool ret = reader.ReadUInt16(&length);
+		bool ret = reader.ReadUInt8(&length);
 		if (!ret) return -1;
 		id.resize(length);
 		BOOST_ASSERT(length <= 32);
 		ret = reader.ReadString((char*)id.data(), length);
 		if (!ret) return -1;
 
-		ret = reader.ReadUInt16(&length);
+		ret = reader.ReadUInt8(&length);
 		if (!ret) return -1;
 		BOOST_ASSERT(length == 32);
 		pubkey.resize(length);
 		ret = reader.ReadString((char*)pubkey.data(), length);
 		if (!ret) return -1;
 
-		ret = reader.ReadUInt16(&length);
+		ret = reader.ReadUInt8(&length);
 		if (!ret) return -1;
 		if (length > 0)
 		{
@@ -150,9 +150,58 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_auth_response()
+	int unwrap_auth_response(vpn_packet& pkt,
+		std::string& id, uint32_t& addr, uint8_t& prefix_length,
+		bool& passbyvpn, uint32_t& pushdns,
+		std::vector<std::string>& routes)
 	{
-		return -1;
+		bool enc;
+		bool has_src;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, has_src, type, addr);
+
+		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
+		uint8_t v8 = 0;
+
+		bool ret = reader.ReadUInt8(&v8);
+		if (!ret) return -1;
+		id.resize(v8);
+		BOOST_ASSERT(v8 <= 32);
+		ret = reader.ReadString((char*)id.data(), v8);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt32(&addr);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&prefix_length);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&v8);
+		if (!ret) return -1;
+		passbyvpn = !!v8;
+
+		ret = reader.ReadUInt32(&pushdns);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&v8);
+		if (!ret) return -1;
+
+		for (auto i = 0; i < v8; i++)
+		{
+			uint8_t len = 0;
+			ret = reader.ReadUInt8(&len);
+			if (!ret) return -1;
+
+			std::string route(len, 0);
+			reader.ReadString(route.data(), len);
+
+			routes.push_back(route);
+		}
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
 	}
 
 }

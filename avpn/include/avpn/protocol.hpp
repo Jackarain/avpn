@@ -37,11 +37,11 @@ namespace avpn {
 
 	// 构造认证消息, c -> s.
 	// 协议格式
-	// id_len(16)
+	// id_len(8)
 	// id(id_len)
-	// pubkey_len(16)
+	// pubkey_len(8)
 	// pubkey(pubkey_len)
-	// additional_len(16)
+	// additional_len(8)
 	// additional(additional_len)
 	vpn_packet make_auth_request(uint32_t src,
 		std::string_view id, std::string_view pubkey,
@@ -53,7 +53,7 @@ namespace avpn {
 
 	// 构造认证回复消息, s -> c.
 	// 协议格式
-	// id_len(16)
+	// id_len(8)
 	// id(id_len)
 	// vaddr(number)
 	// prefix_length(number)
@@ -66,5 +66,8 @@ namespace avpn {
 		bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes);
 
-	int unwrap_auth_response();
+	int unwrap_auth_response(vpn_packet& pkt,
+		std::string& id, uint32_t& addr, uint8_t& prefix_length,
+		bool& passbyvpn, uint32_t& pushdns,
+		std::vector<std::string>& routes);
 }
