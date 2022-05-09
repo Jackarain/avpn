@@ -115,7 +115,7 @@ namespace avpn {
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
-			m_tick_timer.async_wait(uawaitable[ec]);
+			co_await m_tick_timer.async_wait(uawaitable[ec]);
 
 
 		}
