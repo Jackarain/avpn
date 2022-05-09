@@ -7,6 +7,7 @@
 
 #include "avpn/vpn_tunnel.hpp"
 #include "avpn/avpn.hpp"
+#include "avpn/protocol.hpp"
 
 namespace avpn {
 
@@ -18,7 +19,7 @@ namespace avpn {
 		, m_vpn_serivce(vpn)
 		, m_config(cfg)
 		, m_pubkey(pubkey)
-		, m_remote_tcp(ioc)
+		, m_tcp_socket(ioc)
 		, m_keyexchange(passphrase)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(pubkey))
 		, m_tick_timer(ioc)
@@ -60,7 +61,13 @@ namespace avpn {
 
 	tcp::socket& vpn_tunnel::tcp_socket()
 	{
-		return m_remote_tcp;
+		return m_tcp_socket;
+	}
+
+	void vpn_tunnel::tcp_socket(tcp::socket&& s, size_t id)
+	{
+		m_tcp_socket = std::move(s);
+		m_tcp_socket_id = id;
 	}
 
 	std::string vpn_tunnel::client_id() const
@@ -118,6 +125,97 @@ namespace avpn {
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
 
 
+		}
+
+		co_return;
+	}
+
+	net::awaitable<void> vpn_tunnel::tcp_loop()
+	{
+		while (!m_abort)
+		{
+			vpn_packet pkt;
+
+			auto ret = co_await tcp_read_packet(m_tcp_socket, pkt);
+			if (ret == -1)
+				break;
+
+
+		}
+
+		co_return;
+	}
+
+	net::awaitable<int> vpn_tunnel::tcp_read_packet(
+		tcp::socket& stream, vpn_packet& pkt)
+	{
+		boost::system::error_code ec;
+		int start_len_tag = -1;
+
+		// 先读取4个字节的头.
+		co_await net::async_read(stream,
+			net::buffer((void*)&start_len_tag, 4),
+			net::transfer_exactly(4), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_read_packet"
+				<< ", id: " << m_tcp_socket_id
+				<< ", read tag error: " << ec.message();
+			co_return -1;
+		}
+
+		{
+			start_len_tag = ntohl(start_len_tag);
+			if ((uint32_t)start_len_tag > (uint32_t)static_mtu)
+			{
+				LOG_ERR << "tcp_read_packet"
+					<< ", id: " << m_tcp_socket_id
+					<< ", verify size fail: " << start_len_tag;
+				co_return -1;
+			}
+		}
+
+		// 读取body本身.
+		co_await net::async_read(stream,
+			net::buffer(pkt.data(), start_len_tag),
+			net::transfer_exactly(start_len_tag), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_read_packet"
+				<< ", id: " << m_tcp_socket_id
+				<< ", read body error: " << ec.message();
+			co_return -1;
+		}
+
+		pkt.resize(start_len_tag);
+
+		co_return start_len_tag;
+	}
+
+	net::awaitable<void> vpn_tunnel::tcp_write_packet(
+		tcp::socket& stream, vpn_packet& pkt)
+	{
+		boost::system::error_code ec;
+		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
+
+		co_await net::async_write(stream,
+			net::buffer(&start_len_tag, 4), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_write_packet"
+				<< ", id: " << m_tcp_socket_id
+				<< ", async_write tag error: " << ec.message();
+			co_return;
+		}
+
+		co_await net::async_write(stream,
+			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "tcp_write_packet"
+				<< ", id: " << m_tcp_socket_id
+				<< ", async_write body error: " << ec.message();
+			co_return;
 		}
 
 		co_return;

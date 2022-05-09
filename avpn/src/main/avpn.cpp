@@ -771,7 +771,7 @@ namespace avpn {
 
 			// 替换为新的tcp socket, 然后用新的tcp socket
 			// 用于tcp通信.
-			vp->tcp_socket() = std::move(stream);
+			vp->tcp_socket(std::move(stream), id);
 
 			// 启动tunnel的tcp读取循环.
 			vp->start_tcp_loop();

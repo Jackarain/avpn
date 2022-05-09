@@ -56,6 +56,7 @@ namespace avpn {
 
 		// 返回该tunnel的tcp socket引用.
 		tcp::socket& tcp_socket();
+		void tcp_socket(tcp::socket&& s, size_t id);
 
 		// 返回client的id.
 		std::string client_id() const;
@@ -85,6 +86,16 @@ namespace avpn {
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
 
+		// tcp消息循环.
+		net::awaitable<void> tcp_loop();
+
+		// 在tcp连接上读取一个vpn_packet消息.
+		net::awaitable<int> tcp_read_packet(
+			tcp::socket& stream, vpn_packet& pkt);
+		// 在tcp连接上发送一个vpn_packet消息.
+		net::awaitable<void> tcp_write_packet(
+			tcp::socket& stream, vpn_packet& pkt);
+
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;
@@ -101,8 +112,9 @@ namespace avpn {
 		// 客户端的client id.
 		std::string m_client_id;
 
-		// 与remote通信的tcp socket.
-		tcp::socket m_remote_tcp;
+		// 与remote通信的tcp socket及tcp socket id.
+		tcp::socket m_tcp_socket;
+		size_t m_tcp_socket_id{ 0 };
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;
