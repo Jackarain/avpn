@@ -24,7 +24,7 @@ namespace avpn {
 	{}
 
 	std::shared_ptr<vpn_tunnel>
-	vpn_tunnel::make_tunnel(net::io_context& ioc,
+	vpn_tunnel::make(net::io_context& ioc,
 		std::shared_ptr<avpn_service>& vpn,
 		const service_config& cfg,
 		std::string pubkey, std::string passphrase)
@@ -41,6 +41,16 @@ namespace avpn {
 	tcp::socket& vpn_tunnel::tcp_socket()
 	{
 		return m_remote_tcp;
+	}
+
+	std::string vpn_tunnel::client_id() const
+	{
+		return m_client_id;
+	}
+
+	void vpn_tunnel::client_id(const std::string& id)
+	{
+		m_client_id = id;
 	}
 
 	std::string vpn_tunnel::shared_key() const
@@ -66,6 +76,16 @@ namespace avpn {
 	void vpn_tunnel::remote_endpoint(const udp::endpoint& endp)
 	{
 		m_remote_endpoint = endp;
+	}
+
+	time_point vpn_tunnel::last_see() const
+	{
+		return m_last_see;
+	}
+
+	void vpn_tunnel::last_see(const time_point& now)
+	{
+		m_last_see = now;
 	}
 
 }

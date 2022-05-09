@@ -9,6 +9,7 @@
 
 #include "avpn/tun_device.hpp"
 #include "avpn/fec_cache.hpp"
+#include "avpn/vpn_client_table.hpp"
 
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
@@ -208,12 +209,9 @@ namespace avpn {
 
 		// 根据虚拟ip查询对应的tunnel信息.
 		net::awaitable<vpn_tunnel_ptr> lookup_tunnel(uint32_t);
-		// 根据虚拟ip查询对应的tunnel信息.
-		struct client_incoming;
-		net::awaitable<client_incoming> lookup_incoming(std::string);
-		// 创建incoming.
+		net::awaitable<vpn_tunnel_ptr> lookup_tunnel(std::string);
 		net::awaitable<vpn_tunnel_ptr>
-			make_incoming(std::string, std::string);
+			make_tunnel(uint32_t, std::string, std::string);
 
 	private:
 		// io context pool
@@ -270,25 +268,8 @@ namespace avpn {
 		using udp_socket_ptr = std::shared_ptr<udp_socket>;
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
-		// 作为server时, vpn隧道列表, 完成认证的client列表.
-		// key 为server为client分配的虚拟ip.
-		std::unordered_map<uint32_t, vpn_tunnel_weak_ptr> m_tunnels;
-
-		// 作为server时, vpn处理连接请求列表.
-		// key 为client发过来的client随机id.
-		// value 为临时用于处理认证创建的vpn隧道对象.
-		// 当完成认证后, 将移动到m_tunnels容器中管理.
-		// client在发起认证连接时, server将根据认证
-		// 消息中的src和id分别从m_tunnels和m_incomings
-		// 查找, 如果server未在m_tunnels中找到src
-		// 消息(或client未发送src消息), 则说明该认证
-		// 请求是新连接请求.
-		struct client_incoming
-		{
-			time_point last_see_;
-			vpn_tunnel_weak_ptr client_;
-		};
-		std::unordered_map<std::string, client_incoming> m_incomings;
+		// 作为server时, 保存client连接的容器.
+		vpn_client_table m_clients;
 
 		// 子网信息, 作为server时由配置参数确定.
 		// 作为client时, 由认证完成时确定.

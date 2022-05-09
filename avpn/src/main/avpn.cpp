@@ -349,8 +349,9 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 
+		// 计算上下行速率.
 		auto compute_speed = [&](speed_stat& stat,
-			steady_clock::time_point& now) mutable
+			time_point& now) mutable
 		{
 			auto& speeder_time = stat.speeder_time_;
 
@@ -383,6 +384,32 @@ namespace avpn {
 			stat.speeder_count_ = speeder_count;
 		};
 
+		// 检查tunnel.
+		auto check_tunnel = [&](time_point& now) mutable
+		{
+			auto& clients = m_clients.table();
+			for (auto it = clients.begin();
+				it != clients.end();)
+			{
+				auto& c = *it;
+				auto vp = c.tunnel_.lock();
+				if (!vp)
+				{
+					it = clients.erase(it);
+					continue;
+				}
+
+				auto duration = now - vp->last_see();
+				if (duration >= std::chrono::minutes(2))
+				{
+					it = clients.erase(it);
+					continue;
+				}
+
+				it++;
+			}
+		};
+
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
@@ -401,18 +428,7 @@ namespace avpn {
 
 			// 检查超时连接, 清除超时的连接.
 			if (m_identity == Identity::avpn_server)
-			{
-				for (auto it = m_incomings.begin();
-					it != m_incomings.end(); )
-				{
-					auto& [id, incoming] = *it;
-					auto duration = now - incoming.last_see_;
-					if (duration > std::chrono::minutes(2))
-						it = m_incomings.erase(it);
-					else
-						it++;
-				}
-			}
+				check_tunnel(now);
 		}
 
 		LOG_WARN << "avpn_service::tick() quit...";
@@ -751,6 +767,8 @@ namespace avpn {
 				src, client_id, additional);
 			co_await tcp_write_packet(stream, response, id);
 
+			// 替换为新的tcp socket, 然后用新的tcp socket
+			// 用于tcp通信.
 			vp->tcp_socket() = std::move(stream);
 
 			// 启动tunnel的tcp读取循环.
@@ -760,25 +778,29 @@ namespace avpn {
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		auto incoming = co_await net::co_spawn(m_main_context,
-			lookup_incoming(client_id), net::use_awaitable);
-		vp = incoming.client_.lock();
+		vp = co_await net::co_spawn(m_main_context,
+			lookup_tunnel(client_id), net::use_awaitable);
 		if (!vp)
 		{
+			// 分配一个虚拟ip.
+			auto [ip_string, vaddr] = co_await co_spawn(
+				m_main_context, ip_assigner(), net::use_awaitable);
+
+			auto ipaddr = net::ip::address_v4(vaddr);
+			auto vnetaddr = net::ip::make_network_v4(
+				ipaddr, m_subnet.prefix_length());
+
+			// 创建tunnel.
 			vp = co_await net::co_spawn(m_main_context,
-				make_incoming(client_id, pubkey), net::use_awaitable);
+				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+
+			// 配置到vp对象中.
+			vp->vnet_addr(vnetaddr);
 		}
 
-		// 分配一个虚拟ip.
-		auto [ip_string, vaddr] = co_await co_spawn(
-			m_main_context, ip_assigner(), net::use_awaitable);
-
-		auto ipaddr = net::ip::address_v4(vaddr);
-		auto vnetaddr = net::ip::make_network_v4(
-			ipaddr, m_subnet.prefix_length());
-
-		// 配置到vp对象中.
-		vp->vnet_addr(vnetaddr);
+		// 获取虚拟ip.
+		auto vnetaddr = vp->vnet_addr();
+		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
 		auto response = make_auth_response(vaddr, client_id);
@@ -832,25 +854,29 @@ namespace avpn {
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		auto incoming = co_await net::co_spawn(m_main_context,
-			lookup_incoming(client_id), net::use_awaitable);
-		vp = incoming.client_.lock();
+		vp = co_await net::co_spawn(m_main_context,
+			lookup_tunnel(client_id), net::use_awaitable);
 		if (!vp)
 		{
+			// 分配一个虚拟ip.
+			auto [ip_string, vaddr] = co_await co_spawn(
+				m_main_context, ip_assigner(), net::use_awaitable);
+
+			auto ipaddr = net::ip::address_v4(vaddr);
+			auto vnetaddr = net::ip::make_network_v4(
+				ipaddr, m_subnet.prefix_length());
+
+			// 创建tunnel.
 			vp = co_await net::co_spawn(m_main_context,
-				make_incoming(client_id, pubkey), net::use_awaitable);
+				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+
+			// 配置到vp对象中.
+			vp->vnet_addr(vnetaddr);
 		}
 
-		// 分配一个虚拟ip.
-		auto [ip_string, vaddr] = co_await co_spawn(
-			m_main_context, ip_assigner(), net::use_awaitable);
-
-		auto ipaddr = net::ip::address_v4(vaddr);
-		auto vnetaddr = net::ip::make_network_v4(
-			ipaddr, m_subnet.prefix_length());
-
-		// 配置到vp对象中.
-		vp->vnet_addr(vnetaddr);
+		// 获取vp的虚拟ip.
+		auto vnetaddr = vp->vnet_addr();
+		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
 		auto response = make_auth_response(vaddr, client_id);
@@ -937,42 +963,38 @@ namespace avpn {
 	{
 		vpn_tunnel_ptr vp;
 
-		auto it = m_tunnels.find(vaddr);
-		if (it == m_tunnels.end())
-			co_return vp;
-
-		co_return it->second;
-	}
-
-	net::awaitable<avpn_service::client_incoming>
-	avpn_service::lookup_incoming(std::string id)
-	{
-		client_incoming ci;
-
-		auto it = m_incomings.find(id);
-		if (it == m_incomings.end())
-			co_return ci;
-
-		co_return it->second;
+		auto vc = m_clients.lookup_by_addr(vaddr);
+		co_return vc.tunnel_.lock();
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::make_incoming(std::string id, std::string pubkey)
+	avpn_service::lookup_tunnel(std::string id)
 	{
-		client_incoming incoming;
+		vpn_tunnel_ptr vp;
+
+		auto vc = m_clients.lookup_by_id(id);
+		co_return vc.tunnel_.lock();
+	}
+
+	net::awaitable<vpn_tunnel_ptr>
+	avpn_service::make_tunnel(
+		uint32_t vaddr, std::string id, std::string pubkey)
+	{
+		vpn_client vc;
+
 		auto self = shared_from_this();
 		auto& ioc = m_ioc_pool.get_io_context();
 
-		vpn_tunnel_ptr vp = vpn_tunnel::make_tunnel(
-			ioc, self, m_config, pubkey, m_config.passphrase_);
+		auto vp = vpn_tunnel::make(ioc, self, m_config,
+			pubkey, m_config.passphrase_);
 
-		incoming.last_see_ = steady_clock::now();
-		incoming.client_ = vp;
+		vc.id_ = id;
+		vc.vnet_addr_ = vaddr;
+		vc.tunnel_ = vp;
 
-		m_incomings[id] = incoming;
+		m_clients.make(vc);
 
 		co_return vp;
 	}
-
 }
 

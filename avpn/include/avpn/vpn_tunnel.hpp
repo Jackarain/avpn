@@ -39,7 +39,7 @@ namespace avpn {
 			const service_config&, std::string, std::string);
 
 	public:
-		static std::shared_ptr<vpn_tunnel> make_tunnel(
+		static std::shared_ptr<vpn_tunnel> make(
 			net::io_context&, std::shared_ptr<avpn_service>&,
 				const service_config&, std::string, std::string);
 		~vpn_tunnel() = default;
@@ -50,6 +50,11 @@ namespace avpn {
 
 		// 返回该tunnel的tcp socket引用.
 		tcp::socket& tcp_socket();
+
+		// 返回client的id.
+		std::string client_id() const;
+		// 设置client的id.
+		void client_id(const std::string& id);
 
 		// 返回协商的密钥.
 		std::string shared_key() const;
@@ -64,6 +69,11 @@ namespace avpn {
 		// 设置远端udp的endpoint.
 		void remote_endpoint(const udp::endpoint& endp);
 
+		// 最后活跃时间.
+		time_point last_see() const;
+		// 更新最后活跃时间.
+		void last_see(const time_point& now);
+
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;
@@ -76,6 +86,9 @@ namespace avpn {
 
 		// 对方的pubkey.
 		std::string m_pubkey;
+
+		// 客户端的client id.
+		std::string m_client_id;
 
 		// 与remote通信的tcp socket.
 		tcp::socket m_remote_tcp;
@@ -91,5 +104,8 @@ namespace avpn {
 
 		// 对方udp的endpoint.
 		udp::endpoint m_remote_endpoint;
+
+		// 最后活跃时间.
+		time_point m_last_see{ steady_clock::now() };
 	};
 }
