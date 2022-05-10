@@ -84,6 +84,15 @@ namespace avpn {
 		m_tcp_socket_id = id;
 	}
 
+	net::awaitable<void>
+	vpn_tunnel::tun_forward(vpn_packet pkt, endpoint_pair endp)
+	{
+		boost::ignore_unused(pkt);
+		boost::ignore_unused(endp);
+
+		co_return;
+	}
+
 	std::string vpn_tunnel::client_id() const
 	{
 		return m_client_id;
@@ -127,6 +136,11 @@ namespace avpn {
 	void vpn_tunnel::last_see(const time_point& now)
 	{
 		m_last_see = now;
+	}
+
+	net::any_io_executor vpn_tunnel::get_executor()
+	{
+		return m_io_context.get_executor();
 	}
 
 	net::awaitable<void> vpn_tunnel::tick()

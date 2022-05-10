@@ -58,6 +58,10 @@ namespace avpn {
 		tcp::socket& tcp_socket();
 		void tcp_socket(tcp::socket&& s, size_t id);
 
+		// forward tun packet.
+		net::awaitable<void>
+		tun_forward(vpn_packet pkt, endpoint_pair endp);
+
 		// 返回client的id.
 		std::string client_id() const;
 		// 设置client的id.
@@ -81,6 +85,8 @@ namespace avpn {
 		// 更新最后活跃时间.
 		void last_see(const time_point& now);
 
+		// Obtains the executor associated with the io_context.
+		net::any_io_executor get_executor();
 
 	private:
 		// 定时任务处理, 如keepalive等相关处理.

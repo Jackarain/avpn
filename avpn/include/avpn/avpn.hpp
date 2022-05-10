@@ -166,7 +166,7 @@ namespace avpn {
 		net::awaitable<void> start_tun_read_loop();
 		void do_tun_write(std::string&&);
 		// 处理server上的tun设备pkt.
-		net::awaitable<void> do_server_tun_read(vpn_packet, endpoint_pair);
+		void do_server_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int index);
@@ -211,8 +211,13 @@ namespace avpn {
 			vpn_packet&, size_t);
 
 		// 根据虚拟ip查询对应的tunnel信息.
-		net::awaitable<vpn_tunnel_ptr> lookup_tunnel(uint32_t);
-		net::awaitable<vpn_tunnel_ptr> lookup_tunnel(std::string);
+		vpn_tunnel_ptr lookup_tunnel(uint32_t);
+		vpn_tunnel_ptr lookup_tunnel(std::string);
+
+		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(uint32_t);
+		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(std::string);
+
+		// 创建隧道对象.
 		net::awaitable<vpn_tunnel_ptr>
 			make_tunnel(uint32_t, std::string, std::string);
 

@@ -148,9 +148,7 @@ namespace avpn {
 			{
 				// 作为server时, 要根据目标虚拟ip寻找到对应的通信
 				// 通道透传到tunnel.
-				co_spawn(m_main_context,
-					do_server_tun_read(std::move(pkt), std::move(endp)),
-						net::detached);
+				do_server_tun_read(std::move(pkt), std::move(endp));
 				continue;
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
@@ -186,18 +184,20 @@ namespace avpn {
 		}, net::detached);
 	}
 
-	net::awaitable<void>
-	avpn_service::do_server_tun_read(vpn_packet pkt, endpoint_pair endp)
+	void avpn_service::do_server_tun_read(vpn_packet pkt, endpoint_pair endp)
 	{
 		uint32_t dst = endp.dst_.address().to_v4().to_uint();
-		auto vp = co_await lookup_tunnel(dst);
+		auto vp =  lookup_tunnel(dst);
 		if (!vp)
 		{
 			LOG_WARN << "tun read, t -> c, lost connection: " << endp;
-			co_return;
+			return;
 		}
 
-		boost::ignore_unused(pkt);
+		// 转发到对应的vp对象.
+		co_spawn(vp->get_executor(),
+			vp->tun_forward(std::move(pkt), std::move(endp)),
+				net::detached);
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
@@ -257,7 +257,7 @@ namespace avpn {
 
 				// 根据src寻找对应的client.
 				vp = co_await net::co_spawn(m_main_context,
-					lookup_tunnel(src), net::use_awaitable);
+					async_lookup_tunnel(src), net::use_awaitable);
 				if (!vp)
 					continue;
 
@@ -757,7 +757,7 @@ namespace avpn {
 		{
 			// 使用main线程查询, 以避免加锁.
 			vp = co_await net::co_spawn(m_main_context,
-				lookup_tunnel(src), net::use_awaitable);
+				async_lookup_tunnel(src), net::use_awaitable);
 			if (!vp)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
@@ -793,7 +793,7 @@ namespace avpn {
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
 		vp = co_await net::co_spawn(m_main_context,
-			lookup_tunnel(client_id), net::use_awaitable);
+			async_lookup_tunnel(client_id), net::use_awaitable);
 		if (!vp)
 		{
 			// 分配一个虚拟ip.
@@ -846,7 +846,7 @@ namespace avpn {
 		{
 			// 使用main线程查询, 以避免加锁.
 			vp = co_await net::co_spawn(m_main_context,
-				lookup_tunnel(src), net::use_awaitable);
+				async_lookup_tunnel(src), net::use_awaitable);
 			if (!vp)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
@@ -875,7 +875,7 @@ namespace avpn {
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
 		vp = co_await net::co_spawn(m_main_context,
-			lookup_tunnel(client_id), net::use_awaitable);
+			async_lookup_tunnel(client_id), net::use_awaitable);
 		if (!vp)
 		{
 			// 分配一个虚拟ip.
@@ -977,22 +977,30 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::lookup_tunnel(uint32_t vaddr)
+	vpn_tunnel_ptr avpn_service::lookup_tunnel(uint32_t vaddr)
 	{
 		vpn_tunnel_ptr vp;
 
 		auto vc = m_clients.lookup_by_addr(vaddr);
-		co_return vc.tunnel_.lock();
+		return vc.tunnel_.lock();
+	}
+
+	vpn_tunnel_ptr avpn_service::lookup_tunnel(std::string id)
+	{
+		auto vc = m_clients.lookup_by_id(id);
+		return vc.tunnel_.lock();
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::lookup_tunnel(std::string id)
+	avpn_service::async_lookup_tunnel(uint32_t vaddr)
 	{
-		vpn_tunnel_ptr vp;
+		co_return lookup_tunnel(vaddr);
+	}
 
-		auto vc = m_clients.lookup_by_id(id);
-		co_return vc.tunnel_.lock();
+	net::awaitable<vpn_tunnel_ptr>
+	avpn_service::async_lookup_tunnel(std::string id)
+	{
+		co_return lookup_tunnel(id);
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
