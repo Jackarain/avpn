@@ -97,12 +97,21 @@ namespace avpn {
 		uint16_t size();
 		void resize(size_t count);
 
+		uint8_t* content();
+		void content(size_t offset);
+		uint16_t content_size();
+		void content_size(size_t count);
+
 		vpn_packet_type type() const;
 		void type(vpn_packet_type t);
 
 	public:
 		std::unique_ptr<uint8_t, packet_free> data_;
-		uint16_t size_;
+		uint16_t size_{ 0 };
+
+		size_t content_{ 0 };
+		uint16_t content_size_{ 0 };
+
 		vpn_packet_type type_;
 	};
 

@@ -91,8 +91,7 @@ namespace avpn {
 	// data(data_len)
 	vpn_packet make_transfer(uint32_t src, std::string_view data);
 
-	int unwrap_transfer(vpn_packet& pkt,
-		uint32_t& src, std::string& data);
+	int unwrap_transfer(vpn_packet& pkt, uint32_t& src);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -104,6 +103,6 @@ namespace avpn {
 	vpn_packet make_transfer_compress(uint32_t src, std::string_view data);
 
 	int unwrap_transfer_compress(vpn_packet& pkt,
-		uint32_t& src, std::string& data);
+		uint32_t& src);
 
 }

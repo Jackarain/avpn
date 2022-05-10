@@ -219,7 +219,7 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_transfer(vpn_packet& pkt, uint32_t& src, std::string& data)
+	int unwrap_transfer(vpn_packet& pkt, uint32_t& src)
 	{
 		bool enc;
 		bool has_src;
@@ -233,10 +233,11 @@ namespace avpn {
 		auto ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
-		data.resize(length);
-		reader.ReadString(data.data(), length);
+		auto offset = reader.ByteOffset();
+		pkt.content(offset);
+		pkt.content_size(length);
 
-		bytes += (int)reader.ByteOffset();
+		bytes += (int)reader.ByteOffset() + length;
 
 		return bytes;
 	}
@@ -259,8 +260,7 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_transfer_compress(
-		vpn_packet& pkt, uint32_t& src, std::string& data)
+	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src)
 	{
 		bool enc;
 		bool has_src;
@@ -278,10 +278,11 @@ namespace avpn {
 		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
-		data.resize(length);
-		reader.ReadString(data.data(), length);
+		auto offset = reader.ByteOffset();
+		pkt.content(offset);
+		pkt.content_size(length);
 
-		bytes += (int)reader.ByteOffset();
+		bytes += (int)reader.ByteOffset() + length;
 
 		return bytes;
 	}

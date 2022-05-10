@@ -283,11 +283,13 @@ namespace avpn {
 	vpn_tunnel::on_tcp_transfer(vpn_packet pkt)
 	{
 		uint32_t src = 0;
-		std::string data;
+		std::string_view data;
 
-		int ret = unwrap_transfer(pkt, src, data);
+		int ret = unwrap_transfer(pkt, src);
 		if (ret < 0)
 			co_return;
+
+		// 解析fec数据.
 
 		co_return;
 	}
@@ -296,9 +298,8 @@ namespace avpn {
 	vpn_tunnel::on_tcp_transfer_compress(vpn_packet pkt)
 	{
 		uint32_t src = 0;
-		std::string data;
 
-		int ret = unwrap_transfer_compress(pkt, src, data);
+		int ret = unwrap_transfer_compress(pkt, src);
 		if (ret < 0)
 			co_return;
 
