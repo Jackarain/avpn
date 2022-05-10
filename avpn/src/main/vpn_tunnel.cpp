@@ -90,6 +90,21 @@ namespace avpn {
 		boost::ignore_unused(pkt);
 		boost::ignore_unused(endp);
 
+		auto& params = m_config.tunnel_params_;
+
+		// 只有以下情况, 将使用tcp发送.
+		// 1. tcp only 状态时.
+		// 2. 作为server时, 远端udp不可用时.
+		// 3. TODO: 混合模式, tcp发送为闲时, 使用tcp发送.
+		if (params.mode_ == 2 ||
+			(m_remote_endpoint.port() == 0 &&
+				m_identity == Identity::avpn_server))
+		{
+			// 构造数据包.
+		}
+
+		//
+
 		co_return;
 	}
 
