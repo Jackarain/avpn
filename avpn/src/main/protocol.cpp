@@ -204,4 +204,86 @@ namespace avpn {
 		return bytes;
 	}
 
+	vpn_packet make_transfer(uint32_t src, std::string_view data)
+	{
+		auto has_src = src == 0 ? false : true;
+		auto pkt = make_common_header(false, has_src, vpt_transfer, src);
+
+		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
+		writer.WriteUInt16((uint16_t)data.size());
+		writer.WriteString(data.data(), data.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_transfer(vpn_packet& pkt, uint32_t& src, std::string& data)
+	{
+		bool enc;
+		bool has_src;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
+
+		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
+		uint16_t length = 0;
+
+		auto ret = reader.ReadUInt16(&length);
+		if (!ret) return -1;
+
+		data.resize(length);
+		reader.ReadString(data.data(), length);
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
+	vpn_packet make_transfer_compress(uint32_t src, std::string_view data)
+	{
+		auto has_src = src == 0 ? false : true;
+		auto pkt = make_common_header(
+			false, has_src, vpt_transfer_compress, src);
+
+		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
+
+		writer.WriteUInt8(0);
+		writer.WriteUInt16((uint16_t)data.size());
+		writer.WriteString(data.data(), data.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_transfer_compress(
+		vpn_packet& pkt, uint32_t& src, std::string& data)
+	{
+		bool enc;
+		bool has_src;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
+
+		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
+		uint16_t length = 0;
+
+		uint8_t compress_type = 0;
+		auto ret = reader.ReadUInt8(&compress_type);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt16(&length);
+		if (!ret) return -1;
+
+		data.resize(length);
+		reader.ReadString(data.data(), length);
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
 }

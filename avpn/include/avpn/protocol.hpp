@@ -15,6 +15,8 @@ namespace avpn {
 	const static int static_mtu = 1450;
 	const static uint16_t avpn_protocol_version = 1;
 
+	//////////////////////////////////////////////////////////////////////////
+
 	// 整体协议格式
 
 	// encrypt(1)	0表示未加密, 1表示加密.
@@ -30,7 +32,12 @@ namespace avpn {
 
 		vpt_keepalive = 3,
 		vpt_keepalive_reply = 4,
+
+		vpt_transfer = 5,
+		vpt_transfer_compress = 6,
 	};
+
+	//////////////////////////////////////////////////////////////////////////
 
 	vpn_packet make_common_header(
 		bool enc, bool has_src, uint8_t type, uint32_t src);
@@ -54,6 +61,8 @@ namespace avpn {
 		uint32_t& src, std::string& id, std::string& pubkey,
 		std::string& additional);
 
+	//////////////////////////////////////////////////////////////////////////
+
 	// 构造握手认证回复消息, s -> c.
 	// 协议格式
 	// id_len(8)
@@ -73,4 +82,28 @@ namespace avpn {
 		std::string& id, uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// 传输数据消息, c <-> s.
+	// 协议格式
+	// data_len(16)
+	// data(data_len)
+	vpn_packet make_transfer(uint32_t src, std::string_view data);
+
+	int unwrap_transfer(vpn_packet& pkt,
+		uint32_t& src, std::string& data);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// 传输数据消息, c <-> s.
+	// 协议格式
+	// compress_type(8)
+	// data_len(16)
+	// data(data_len)
+	vpn_packet make_transfer_compress(uint32_t src, std::string_view data);
+
+	int unwrap_transfer_compress(vpn_packet& pkt,
+		uint32_t& src, std::string& data);
+
 }
