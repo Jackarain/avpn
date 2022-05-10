@@ -261,6 +261,13 @@ namespace avpn {
 			break;
 		case vpt_keepalive_reply:
 			break;
+
+		case vpt_transfer:
+			co_await on_tcp_transfer(std::move(pkt));
+			break;
+		case vpt_transfer_compress:
+			co_await on_tcp_transfer_compress(std::move(pkt));
+			break;
 		}
 
 		co_return true;
@@ -269,6 +276,32 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::on_tcp_keepalive()
 	{
 		last_see(steady_clock::now());
+		co_return;
+	}
+
+	net::awaitable<void>
+	vpn_tunnel::on_tcp_transfer(vpn_packet pkt)
+	{
+		uint32_t src = 0;
+		std::string data;
+
+		int ret = unwrap_transfer(pkt, src, data);
+		if (ret < 0)
+			co_return;
+
+		co_return;
+	}
+
+	net::awaitable<void>
+	vpn_tunnel::on_tcp_transfer_compress(vpn_packet pkt)
+	{
+		uint32_t src = 0;
+		std::string data;
+
+		int ret = unwrap_transfer_compress(pkt, src, data);
+		if (ret < 0)
+			co_return;
+
 		co_return;
 	}
 

@@ -102,6 +102,10 @@ namespace avpn {
 		// 作为server时, 接收到keepalive消息.
 		net::awaitable<void> on_tcp_keepalive();
 
+		// 接收到transfer/compress消息.
+		net::awaitable<void> on_tcp_transfer(vpn_packet pkt);
+		net::awaitable<void> on_tcp_transfer_compress(vpn_packet pkt);
+
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;
