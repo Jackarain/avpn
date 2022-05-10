@@ -9,6 +9,8 @@
 #include "avpn/avpn.hpp"
 #include "avpn/protocol.hpp"
 
+#include "utils/scoped_exit.hpp"
+
 namespace avpn {
 
 	vpn_tunnel::vpn_tunnel(net::io_context& ioc,
@@ -138,8 +140,6 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 				continue;
-
-
 		}
 
 		co_return;
@@ -285,6 +285,10 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_tcp_transfer(vpn_packet pkt)
 	{
+		auto service = m_vpn_serivce.lock();
+		if (!service)
+			co_return;
+
 		uint32_t src = 0;
 		std::string_view data;
 
@@ -295,8 +299,40 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
-		// 解析fec数据.
+		// 更新feg解码器.
+		scoped_exit se(
+			[&]() mutable {
+				m_feg.update(gid, pid, std::move(pkt));
+			});
 
+		if (pid < m_data_shards)
+		{
+			auto content = pkt.content();
+			auto content_size = pkt.content_size();
+
+			auto ep = avpn::lookup_endpoint_pair(content, content_size);
+			auto& dst_addr = ep.dst_;
+
+			auto uint_dst = dst_addr.address().to_v4().to_uint();
+			udp::endpoint uendp(dst_addr.address(), 0);
+
+			if (m_identity == Identity::avpn_server
+				&& same_ipv4_network(m_vaddr, uint_dst))
+			{
+				// 不允许内网互通.
+				if (!m_config.tunnel_params_.c2c_)
+					co_return;
+
+				// TODO: 通过avpn service转发内网数据.
+				co_return;
+			}
+
+			// 转发到tun设备.
+			std::string msg((const char*)content, content_size);
+			service->do_tun_write(std::move(msg));
+
+			co_return;
+		}
 
 		co_return;
 	}

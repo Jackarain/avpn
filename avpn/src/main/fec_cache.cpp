@@ -105,6 +105,8 @@ namespace avpn
 		, size_(p.size_)
 		, content_(p.content_)
 		, content_size_(p.content_size_)
+		, gid_(p.gid_)
+		, pid_(p.pid_)
 		, type_(p.type_)
 	{
 		p.size_ = 0;
@@ -117,10 +119,14 @@ namespace avpn
 		size_ = p.size_;
 		content_ = p.content_;
 		content_size_ = p.content_size_;
+		gid_ = p.gid_;
+		pid_ = p.pid_;
 		type_ = p.type_;
 
 		p.size_ = 0;
 		p.content_size_ = 0;
+		p.gid_ = 0;
+		p.pid_ = 0;
 
 		return *this;
 	}

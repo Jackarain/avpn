@@ -141,6 +141,8 @@ namespace avpn {
 		avpn_service() = delete;
 		avpn_service(io_context_pool&, const service_config&);
 
+		friend class vpn_tunnel;
+
 	public:
 		// 创建apvn service对象, 因为avpn_service必须是一个shared_ptr对象
 		// 所以为了避免直接调用构造avpn_service对象, 将avpn_service的构造

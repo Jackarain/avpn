@@ -112,6 +112,9 @@ namespace avpn {
 		size_t content_{ 0 };
 		uint16_t content_size_{ 0 };
 
+		uint32_t gid_{ 0 };
+		uint8_t pid_{ 0 };
+
 		vpn_packet_type type_;
 	};
 

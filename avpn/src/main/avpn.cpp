@@ -782,6 +782,8 @@ namespace avpn {
 			// 用于tcp通信.
 			vp->tcp_socket(std::move(stream), id);
 
+			vp->vnet_addr(m_subnet);
+
 			// 启动tunnel的tcp读取循环.
 			vp->start_tcp_loop();
 			vp->start_tunnel(ds, ps);
@@ -1009,6 +1011,7 @@ namespace avpn {
 		auto vnetaddr = net::ip::make_network_v4(
 			ipaddr, m_subnet.prefix_length());
 
+		// 设置vp的vnet addr.
 		vp->vnet_addr(vnetaddr);
 
 		vc.id_ = id;

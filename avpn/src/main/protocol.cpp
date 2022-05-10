@@ -250,6 +250,9 @@ namespace avpn {
 		ret = reader.ReadUInt8(&pid);
 		if (!ret) return -1;
 
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
+
 		uint16_t length = 0;
 		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
@@ -302,6 +305,9 @@ namespace avpn {
 
 		ret = reader.ReadUInt8(&pid);
 		if (!ret) return -1;
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
 
 		ret = reader.ReadUInt8(&ctype);
 		if (!ret) return -1;
