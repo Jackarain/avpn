@@ -223,6 +223,7 @@ namespace avpn {
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
+		writer.WriteUInt8(0);
 
 		writer.WriteUInt16((uint16_t)data.size());
 		writer.WriteString(data.data(), data.size());
@@ -250,6 +251,10 @@ namespace avpn {
 		ret = reader.ReadUInt8(&pid);
 		if (!ret) return -1;
 
+		uint8_t rsv = 0;
+		ret = reader.ReadUInt8(&rsv);
+		if (!ret) return -1;
+
 		pkt.gid_ = gid;
 		pkt.pid_ = pid;
 
@@ -257,7 +262,7 @@ namespace avpn {
 		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
-		auto offset = reader.ByteOffset();
+		auto offset = reader.ByteOffset() + bytes;
 		pkt.content(offset);
 		pkt.content_size(length);
 
@@ -316,7 +321,7 @@ namespace avpn {
 		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
-		auto offset = reader.ByteOffset();
+		auto offset = reader.ByteOffset() + bytes;
 		pkt.content(offset);
 		pkt.content_size(length);
 

@@ -94,6 +94,7 @@ namespace avpn {
 	// 协议格式
 	// gid(32)
 	// pid(8)
+	// rsv(8)
 	// data_len(16)
 	// data(data_len)
 	vpn_packet make_transfer(uint32_t src,
