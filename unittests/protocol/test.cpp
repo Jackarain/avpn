@@ -70,9 +70,9 @@ BOOST_AUTO_TEST_CASE(test_transfer)
 	(void)bytes;
 
 	BOOST_TEST(bytes == 18);
-	BOOST_TEST(src == 167772225);
-	BOOST_TEST(gid == 12);
-	BOOST_TEST(pid == 23);
+	BOOST_TEST(src == (uint32_t)167772225);
+	BOOST_TEST(gid == (uint32_t)12);
+	BOOST_TEST(pid == (uint8_t)23);
 
 	std::string_view sv((char*)pkt.content(), pkt.content_size());
 	BOOST_TEST(sv == data);
