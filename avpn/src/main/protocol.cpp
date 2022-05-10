@@ -300,7 +300,7 @@ namespace avpn {
 		auto ret = reader.ReadUInt32(&gid);
 		if (!ret) return -1;
 
-		auto ret = reader.ReadUInt8(&pid);
+		ret = reader.ReadUInt8(&pid);
 		if (!ret) return -1;
 
 		ret = reader.ReadUInt8(&ctype);

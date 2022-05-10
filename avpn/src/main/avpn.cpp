@@ -736,13 +736,18 @@ namespace avpn {
 		if (ret == -1)
 			co_return;
 
+		auto& params = m_config.tunnel_params_;
+
 		uint32_t src = 0;
 		std::string client_id;
 		std::string pubkey;
 		std::string additional;
+		uint8_t ds;
+		uint8_t ps;
 
 		ret = unwrap_handshake(pkt,
-			src, client_id, pubkey, additional);
+			src, client_id, pubkey,
+			ds, ps);
 		if (ret == -1)
 			co_return;
 
@@ -757,7 +762,7 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
-					client_id, 0, 0, false, 0, {});
+					client_id, 0, 0, 0, 0, false, 0, {});
 				co_await tcp_write_packet(stream, response, id);
 				co_return;
 			}
@@ -765,9 +770,10 @@ namespace avpn {
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的tcp socket替换, 启
 			// 再动vpn的tcp读取循环.
-			auto& params = m_config.tunnel_params_;
 			auto response = make_handshake_reply(
-				client_id, src, (uint8_t)m_subnet.prefix_length(),
+				client_id,
+				(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
+				src, (uint8_t)m_subnet.prefix_length(),
 				params.passbyvpn_, params.pushdns_,
 				params.pushroutes_);
 			co_await tcp_write_packet(stream, response, id);
@@ -778,7 +784,7 @@ namespace avpn {
 
 			// 启动tunnel的tcp读取循环.
 			vp->start_tcp_loop();
-			vp->start_tunnel();
+			vp->start_tunnel(ds, ps);
 			co_return;
 		}
 
@@ -802,16 +808,17 @@ namespace avpn {
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
-		auto& params = m_config.tunnel_params_;
 		auto response = make_handshake_reply(
-			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
+			client_id,
+			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
+			vaddr, (uint8_t)m_subnet.prefix_length(),
 			params.passbyvpn_, params.pushdns_,
 			params.pushroutes_);
 		co_await tcp_write_packet(stream, response, id);
 
 		// 开始vp的tcp读取消息循环.
 		vp->start_tcp_loop();
-		vp->start_tunnel();
+		vp->start_tunnel(ds, ps);
 		co_return;
 	}
 
@@ -819,13 +826,15 @@ namespace avpn {
 	avpn_service::start_udp_handshake(
 		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
 	{
+		uint8_t ds;
+		uint8_t ps;
 		std::string pubkey;
 		std::string client_id;
-		std::string additional;
+		auto& params = m_config.tunnel_params_;
 
 		// 解析client的认证消息.
 		int ret = unwrap_handshake(pkt,
-			src, client_id, pubkey, additional);
+			src, client_id, pubkey, ds, ps);
 		if (ret == -1)
 			co_return;
 
@@ -840,23 +849,24 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
-					client_id, 0, 0, false, 0, {});
+					client_id, 0, 0, 0, 0, false, 0, {});
 				co_await do_udp_write(std::move(response), remote);
 				co_return;
 			}
 
 			// 找到连接, 回复成功消息带回已分配的地址.
 			// 然后将原来tunnel中的udp remote替换.
-			auto& params = m_config.tunnel_params_;
 			auto response = make_handshake_reply(
-				client_id, src, (uint8_t)m_subnet.prefix_length(),
+				client_id,
+				(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
+				src, (uint8_t)m_subnet.prefix_length(),
 				params.passbyvpn_, params.pushdns_,
 				params.pushroutes_);
 			co_await do_udp_write(std::move(response), remote);
 
 			// 更新远端udp的endpoint.
 			vp->remote_endpoint(remote);
-			vp->start_tunnel();
+			vp->start_tunnel(ds, ps);
 			co_return;
 		}
 
@@ -880,16 +890,17 @@ namespace avpn {
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
-		auto& params = m_config.tunnel_params_;
 		auto response = make_handshake_reply(
-			client_id, vaddr, (uint8_t)m_subnet.prefix_length(),
+			client_id,
+			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
+			vaddr, (uint8_t)m_subnet.prefix_length(),
 			params.passbyvpn_, params.pushdns_,
 			params.pushroutes_);
 		co_await do_udp_write(std::move(response), remote);
 
 		// 更新vp的远端udp的endpoint.
 		vp->remote_endpoint(remote);
-		vp->start_tunnel();
+		vp->start_tunnel(ds, ps);
 		co_return;
 	}
 

@@ -46,7 +46,7 @@ namespace avpn {
 
 	public:
 		// 开始tunnel工作.
-		void start_tunnel();
+		void start_tunnel(uint8_t ds, uint8_t ps);
 
 		// 关闭tunnel.
 		void close_tunnel();
@@ -124,6 +124,10 @@ namespace avpn {
 
 		// 客户端的client id.
 		std::string m_client_id;
+
+		// 对方使用的ds, ps.
+		uint8_t m_data_shards{ 0 };
+		uint8_t m_parity_shards{ 0 };
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;

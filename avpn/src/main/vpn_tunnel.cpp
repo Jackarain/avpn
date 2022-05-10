@@ -40,10 +40,13 @@ namespace avpn {
 			vpn_tunnel(ioc, vpn, cfg, pubkey, passphrase));
 	}
 
-	void vpn_tunnel::start_tunnel()
+	void vpn_tunnel::start_tunnel(uint8_t ds, uint8_t ps)
 	{
 		if (m_abort != boost::indeterminate)
 			return;
+
+		m_data_shards = ds;
+		m_parity_shards = ps;
 
 		m_abort = false;
 
@@ -285,7 +288,10 @@ namespace avpn {
 		uint32_t src = 0;
 		std::string_view data;
 
-		int ret = unwrap_transfer(pkt, src);
+		uint32_t gid;
+		uint8_t pid;
+
+		int ret = unwrap_transfer(pkt, src, gid, pid);
 		if (ret < 0)
 			co_return;
 
@@ -300,7 +306,11 @@ namespace avpn {
 	{
 		uint32_t src = 0;
 
-		int ret = unwrap_transfer_compress(pkt, src);
+		uint32_t gid;
+		uint8_t pid;
+		uint8_t ctype;
+
+		int ret = unwrap_transfer_compress(pkt, src, gid, pid, ctype);
 		if (ret < 0)
 			co_return;
 
