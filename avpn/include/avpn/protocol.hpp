@@ -51,15 +51,15 @@ namespace avpn {
 	// id(id_len)
 	// pubkey_len(8)
 	// pubkey(pubkey_len)
-	// additional_len(8)
-	// additional(additional_len)
+	// ds(8)
+	// ps(8)
 	vpn_packet make_handshake(uint32_t src,
 		std::string_view id, std::string_view pubkey,
-		std::string_view additional = {});
+		uint8_t ds, uint8_t ps);
 
 	int unwrap_handshake(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
-		std::string& additional);
+		uint8_t& ds, uint8_t& ps);
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -67,6 +67,8 @@ namespace avpn {
 	// 协议格式
 	// id_len(8)
 	// id(id_len)
+	// ds(8)
+	// ps(8)
 	// vaddr(number)
 	// prefix_length(number)
 	// passbyvpn(number)
@@ -74,12 +76,15 @@ namespace avpn {
 	// routes(number)
 	// {size(u8), string[size]}[routes]
 	vpn_packet make_handshake_reply(std::string_view id,
+		uint8_t ds, uint8_t ps,
 		uint32_t addr, uint8_t prefix_length,
 		bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes);
 
 	int unwrap_handshake_reply(vpn_packet& pkt,
-		std::string& id, uint32_t& addr, uint8_t& prefix_length,
+		std::string& id,
+		uint8_t& ds, uint8_t& ps,
+		uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes);
 
@@ -87,22 +92,30 @@ namespace avpn {
 
 	// 传输数据消息, c <-> s.
 	// 协议格式
+	// gid(32)
+	// pid(8)
 	// data_len(16)
 	// data(data_len)
-	vpn_packet make_transfer(uint32_t src, std::string_view data);
+	vpn_packet make_transfer(uint32_t src,
+		uint32_t gid, uint8_t pid, std::string_view data);
 
-	int unwrap_transfer(vpn_packet& pkt, uint32_t& src);
+	int unwrap_transfer(vpn_packet& pkt,
+		uint32_t& src, uint32_t& gid, uint8_t& pid);
 
 	//////////////////////////////////////////////////////////////////////////
 
 	// 传输数据消息, c <-> s.
 	// 协议格式
+	// gid(32)
+	// pid(8)
 	// compress_type(8)
 	// data_len(16)
 	// data(data_len)
-	vpn_packet make_transfer_compress(uint32_t src, std::string_view data);
+	vpn_packet make_transfer_compress(uint32_t src,
+		uint32_t gid, uint8_t pid,
+		uint8_t ctype, std::string_view data);
 
-	int unwrap_transfer_compress(vpn_packet& pkt,
-		uint32_t& src);
+	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
+		uint32_t& gid, uint8_t& pid, uint8_t& ctype);
 
 }

@@ -60,7 +60,7 @@ namespace avpn {
 
 	vpn_packet make_handshake(uint32_t src,
 		std::string_view id, std::string_view pubkey,
-		std::string_view additional/* = {}*/)
+		uint8_t ds, uint8_t ps)
 	{
 		auto has_src = src == 0 ? false : true;
 		auto pkt = make_common_header(false, has_src, vpt_handshake, src);
@@ -70,9 +70,8 @@ namespace avpn {
 		writer.WriteString(id.data(), id.size());
 		writer.WriteUInt8((uint8_t)pubkey.size());
 		writer.WriteString(pubkey.data(), pubkey.size());
-		writer.WriteUInt16((uint8_t)additional.size());
-		if (additional.size() > 0)
-			writer.WriteString(additional.data(), additional.size());
+		writer.WriteUInt8(ds);
+		writer.WriteUInt8(ps);
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
@@ -82,7 +81,7 @@ namespace avpn {
 
 	int unwrap_handshake(vpn_packet& pkt,
 		uint32_t& src, std::string& id, std::string& pubkey,
-		std::string& additional)
+		uint8_t& ds, uint8_t& ps)
 	{
 		bool enc;
 		bool has_src;
@@ -107,21 +106,21 @@ namespace avpn {
 		ret = reader.ReadString((char*)pubkey.data(), length);
 		if (!ret) return -1;
 
-		ret = reader.ReadUInt8(&length);
+		ret = reader.ReadUInt8(&ds);
 		if (!ret) return -1;
-		if (length > 0)
-		{
-			additional.resize(length);
-			reader.ReadString(additional.data(), length);
-		}
+
+		ret = reader.ReadUInt8(&ps);
+		if (!ret) return -1;
 
 		bytes += (int)reader.ByteOffset();
 
 		return bytes;
 	}
 
-	avpn::vpn_packet make_handshake_reply(std::string_view id, uint32_t addr,
-		uint8_t prefix_length, bool passbyvpn, uint32_t pushdns,
+	avpn::vpn_packet make_handshake_reply(std::string_view id,
+		uint8_t ds, uint8_t ps,
+		uint32_t addr, uint8_t prefix_length,
+		bool passbyvpn, uint32_t pushdns,
 		std::vector<std::string> routes)
 	{
 		auto has_src = addr == 0 ? false : true;
@@ -132,6 +131,9 @@ namespace avpn {
 
 		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
+
+		writer.WriteUInt8(ds);
+		writer.WriteUInt8(ps);
 
 		writer.WriteUInt32(addr);
 		writer.WriteUInt8(prefix_length);
@@ -151,7 +153,8 @@ namespace avpn {
 	}
 
 	int unwrap_handshake_reply(vpn_packet& pkt,
-		std::string& id, uint32_t& addr, uint8_t& prefix_length,
+		std::string& id, uint8_t& ds, uint8_t& ps,
+		uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes)
 	{
@@ -169,6 +172,12 @@ namespace avpn {
 		id.resize(v8);
 		BOOST_ASSERT(v8 <= 32);
 		ret = reader.ReadString((char*)id.data(), v8);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&ds);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&ps);
 		if (!ret) return -1;
 
 		ret = reader.ReadUInt32(&addr);
@@ -204,12 +213,17 @@ namespace avpn {
 		return bytes;
 	}
 
-	vpn_packet make_transfer(uint32_t src, std::string_view data)
+	vpn_packet make_transfer(uint32_t src,
+		uint32_t gid, uint8_t pid, std::string_view data)
 	{
 		auto has_src = src == 0 ? false : true;
 		auto pkt = make_common_header(false, has_src, vpt_transfer, src);
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
+
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+
 		writer.WriteUInt16((uint16_t)data.size());
 		writer.WriteString(data.data(), data.size());
 
@@ -219,7 +233,8 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_transfer(vpn_packet& pkt, uint32_t& src)
+	int unwrap_transfer(vpn_packet& pkt,
+		uint32_t& src, uint32_t& gid, uint8_t& pid)
 	{
 		bool enc;
 		bool has_src;
@@ -228,9 +243,15 @@ namespace avpn {
 		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
 
 		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
-		uint16_t length = 0;
 
-		auto ret = reader.ReadUInt16(&length);
+		auto ret = reader.ReadUInt32(&gid);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&pid);
+		if (!ret) return -1;
+
+		uint16_t length = 0;
+		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
 		auto offset = reader.ByteOffset();
@@ -242,7 +263,9 @@ namespace avpn {
 		return bytes;
 	}
 
-	vpn_packet make_transfer_compress(uint32_t src, std::string_view data)
+	vpn_packet make_transfer_compress(uint32_t src,
+		uint32_t gid, uint8_t pid,
+		uint8_t ctype, std::string_view data)
 	{
 		auto has_src = src == 0 ? false : true;
 		auto pkt = make_common_header(
@@ -250,7 +273,10 @@ namespace avpn {
 
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
 
-		writer.WriteUInt8(0);
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+
+		writer.WriteUInt8(ctype);
 		writer.WriteUInt16((uint16_t)data.size());
 		writer.WriteString(data.data(), data.size());
 
@@ -260,7 +286,8 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src)
+	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
+		uint32_t& gid, uint8_t& pid, uint8_t& ctype)
 	{
 		bool enc;
 		bool has_src;
@@ -269,12 +296,17 @@ namespace avpn {
 		auto bytes = unwrap_common_header(pkt, enc, has_src, type, src);
 
 		bitstream reader(pkt.data() + bytes, pkt.size() - bytes);
-		uint16_t length = 0;
 
-		uint8_t compress_type = 0;
-		auto ret = reader.ReadUInt8(&compress_type);
+		auto ret = reader.ReadUInt32(&gid);
 		if (!ret) return -1;
 
+		auto ret = reader.ReadUInt8(&pid);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&ctype);
+		if (!ret) return -1;
+
+		uint16_t length = 0;
 		ret = reader.ReadUInt16(&length);
 		if (!ret) return -1;
 
