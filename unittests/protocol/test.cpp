@@ -22,7 +22,7 @@
 #include "utils/crypto.hpp"
 #include "avpn/protocol.hpp"
 
-BOOST_AUTO_TEST_CASE(test_auth_request)
+BOOST_AUTO_TEST_CASE(test_handshake)
 {
 	const std::string privateKey = "ICBmoiZBqo7pyHZVK+vM2I3LF9PePa18DVjkcbLl/XM=";
 	crypto_util::keyexchange ke(privateKey);
@@ -51,4 +51,29 @@ BOOST_AUTO_TEST_CASE(test_auth_request)
 	len += (1 + 4);
 	len += 2;
 	BOOST_TEST(len == bytes);
+}
+
+BOOST_AUTO_TEST_CASE(test_transfer)
+{
+	uint32_t src = 167772225;
+	uint32_t gid = 12;
+	uint8_t pid = 23;
+	std::string data = "hello";
+
+	auto pkt = avpn::make_transfer(src, gid, pid, data);
+
+	src = 0;
+	gid = 0;
+	pid = 0;
+
+	auto bytes = avpn::unwrap_transfer(pkt, src, gid, pid);
+	(void)bytes;
+
+	BOOST_TEST(bytes == 18);
+	BOOST_TEST(src == 167772225);
+	BOOST_TEST(gid == 12);
+	BOOST_TEST(pid == 23);
+
+	std::string_view sv((char*)pkt.content(), pkt.content_size());
+	BOOST_TEST(sv == data);
 }
