@@ -93,6 +93,7 @@ namespace avpn {
 		~vpn_packet() = default;
 
 		uint8_t* data();
+		const uint8_t* data() const;
 
 		uint16_t size();
 		void resize(size_t count);
@@ -134,21 +135,25 @@ namespace avpn {
 
 	public:
 		// 更新这个gop的数据.
-		// gid 表示 group id;
-		// pid 表示 packet id, 即在这个group中的index;
 		// pkt 实际数据, 作为右值移动到fec_group中存储
 		//     以备将来使用;
-		void update(uint32_t gid, uint16_t pid, vpn_packet&& pkt);
+		void update(vpn_packet&& pkt);
 
 		// 数据已达到可编码.
 		bool available() const;
 
+		// 编码.
+		bool encode();
+
 	public:
 		int ds_{ 0 };
 		int ps_{ 0 };
-		uint32_t gid_{ 0 };
+		int shards_{ 0 };
+		uint32_t gid_{ 1 };
+		uint8_t pid_{ 0 };
 		int64_t total_{ 0 };
 		std::vector<vpn_packet> pkts_;
+		static std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
 
 

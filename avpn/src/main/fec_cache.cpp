@@ -12,6 +12,7 @@
 namespace avpn
 {
 	std::map<uint64_t, avpn::matrix> fec_decode_group::matrix_cache_;
+	std::map<uint64_t, avpn::matrix> fec_encode_group::matrix_cache_;
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -137,6 +138,12 @@ namespace avpn
 		return data_.get();
 	}
 
+	const uint8_t* vpn_packet::data() const
+	{
+		BOOST_ASSERT(data_);
+		return data_.get();
+	}
+
 	uint16_t vpn_packet::size()
 	{
 		return size_;
@@ -191,23 +198,24 @@ namespace avpn
 	fec_encode_group::fec_encode_group(fec_encode_group&& pg) noexcept
 		: ds_(pg.ds_)
 		, ps_(pg.ps_)
+		, shards_(ds_ + ps_)
 		, gid_(pg.gid_)
+		, pid_(pg.pid_)
 		, total_(pg.total_)
 		, pkts_(std::move(pg.pkts_))
 	{
 		pg.ds_ = 0;
 		pg.ps_ = 0;
-		pg.gid_ = 0;
+		pg.shards_ = 0;
+		pg.gid_ = 1;
+		pg.pid_ = 0;
 		pg.total_ = 0;
 	}
 
-	void fec_encode_group::update(uint32_t gid, uint16_t pid, vpn_packet&& pkt)
+	void fec_encode_group::update(vpn_packet&& pkt)
 	{
-		BOOST_ASSERT(gid == gid_ || gid == 0);
-
-		pkts_[pid] = std::move(pkt);
-		gid_ = gid;
-
+		pkts_[pid_++ % ds_] = std::move(pkt);
+		if (pid_ == 0) gid_++;
 		total_++;
 	}
 
@@ -218,6 +226,39 @@ namespace avpn
 		return false;
 	}
 
+
+	bool fec_encode_group::encode()
+	{
+		avpn::matrix* matrix_ptr = nullptr;
+
+		// 找编码缓冲.
+		int64_t idx = (ds_ << 16) | ps_;
+
+		auto it = matrix_cache_.find(idx);
+		if (it == matrix_cache_.end())
+		{
+			matrix_cache_[idx] =
+				avpn::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
+			matrix_ptr = &matrix_cache_[idx];
+		}
+		else
+		{
+			matrix_ptr = &it->second;
+		}
+
+		avpn::reedsolomon fec_enc(ds_, ps_, *matrix_ptr);
+
+		// fec编码.
+		try {
+			fec_enc.encode(pkts_);
+		}
+		catch (const std::exception& e) {
+			LOG_WARN << "fec encode exception: " << e.what();
+			return false;
+		}
+
+		return true;
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 

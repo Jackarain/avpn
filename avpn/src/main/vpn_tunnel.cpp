@@ -91,6 +91,7 @@ namespace avpn {
 		boost::ignore_unused(endp);
 
 		auto& params = m_config.tunnel_params_;
+	//	auto src = endp.src_.address().to_v4().to_uint();
 
 		// 只有以下情况, 将使用tcp发送.
 		// 1. tcp only 状态时.
@@ -101,6 +102,9 @@ namespace avpn {
 				m_identity == Identity::avpn_server))
 		{
 			// 构造数据包.
+			// auto gid = ++m_feg.gid_;
+			// make_transfer(src, gid, );
+			// m_feg.update();
 		}
 
 		//
@@ -331,7 +335,7 @@ namespace avpn {
 		// 更新feg解码器.
 		scoped_exit se(
 			[&]() mutable {
-				m_feg.update(gid, pid, std::move(pkt));
+				m_fdg.update(gid, pid, std::move(pkt));
 			});
 
 		if (pid < m_data_shards)

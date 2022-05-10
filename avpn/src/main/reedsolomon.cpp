@@ -1074,36 +1074,10 @@ namespace avpn {
 			return expTable[logResult];
 		}
 
-		bool codingloop::check_shards(const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs, size_t data_shard_count,
-			std::vector<std::span<uint8_t>>& outputs,
-			std::vector<std::span<uint8_t>>&/* target */)
-		{
-			size_t checkCount = outputs.size();
-			if (checkCount == 0)
-				return true;
-			size_t inputCount = data_shard_count;
-			size_t byteCount = outputs[0].size();
-
-			const auto& table = mulTable;
-
-			for (size_t iByte = 0; iByte < byteCount; iByte++) {
-				for (size_t iOutput = 0; iOutput < checkCount; iOutput++) {
-					const auto& matrixRow = parity_rows[iOutput];
-					int value = 0;
-					for (size_t iInput = 0; iInput < inputCount; iInput++) {
-						value ^= table[matrixRow[iInput] & 0xFF][inputs[iInput][iByte] & 0xFF];
-					}
-					if (outputs[iOutput][iByte] != (uint8_t)value) {
-						return false;
-					}
-				}
-			}
-			return true;
-		}
-
-		void io_table_codingloop::encode(const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs, size_t data_shard_count,
+		void io_table_codingloop::encode(
+			const std::vector<std::vector<uint8_t>>& parity_rows,
+			const std::vector<std::string_view>& inputs,
+			size_t data_shard_count,
 			std::vector<std::span<uint8_t>>& outputs)
 		{
 			size_t outputCount = outputs.size();
@@ -1138,52 +1112,8 @@ namespace avpn {
 			}
 		}
 
-		bool io_table_codingloop::check_shards(const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs, size_t data_shard_count,
-			std::vector<std::span<uint8_t>>& outputs,
-			std::vector<std::span<uint8_t>>& target)
-		{
-			if (target.size() == 0)
-				return codingloop::check_shards(parity_rows, inputs, data_shard_count, outputs, target);
-
-			size_t checkCount = outputs.size();
-			size_t inputCount = data_shard_count;
-			size_t byteCount = outputs[0].size();
-
-			const auto& table = mulTable;
-
-			for (size_t iOutput = 0; iOutput < checkCount; iOutput++) {
-				const auto& outputShard = target[iOutput];
-				const auto& matrixRow = parity_rows[iOutput];
-
-				{
-					int iInput = 0;
-					const auto& inputShard = inputs[iInput];
-					const auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (size_t iByte = 0; iByte < byteCount; iByte++) {
-						outputShard[iByte] = multTableRow[inputShard[iByte] & 0xFF];
-					}
-				}
-
-				for (size_t iInput = 1; iInput < inputCount; iInput++) {
-					auto& inputShard = inputs[iInput];
-					auto& multTableRow = table[matrixRow[iInput] & 0xFF];
-					for (size_t iByte = 0; iByte < byteCount; iByte++) {
-						outputShard[iByte] ^= multTableRow[inputShard[iByte] & 0xFF];
-					}
-				}
-
-				for (size_t iByte = 0; iByte < byteCount; iByte++) {
-					if (outputShard[iByte] != outputShard[iByte]) {
-						return false;
-					}
-				}
-			}
-
-			return true;
-		}
-
-		reedsolomon::reedsolomon(int dataShards, int parityShards) : m_shards(dataShards + parityShards)
+		reedsolomon::reedsolomon(int dataShards, int parityShards)
+			: m_shards(dataShards + parityShards)
 			, m_data_shards(dataShards)
 			, m_parity_shards(parityShards)
 			, m_matrix{ build_matrix(m_shards, m_data_shards) }
@@ -1229,15 +1159,22 @@ namespace avpn {
 			return (total_size + data_shards - 1) / data_shards;
 		}
 
-		void reedsolomon::encode(const std::vector<std::string_view>& shards)
+		void reedsolomon::encode(std::vector<vpn_packet>& shards)
 		{
 			std::vector<std::span<uint8_t>> outputs;
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
-				outputs.push_back(std::span<uint8_t>((uint8_t*)shards[i].data(), shards[i].size()));
+				auto data = shards[i].data();
+				outputs.push_back(std::span<uint8_t>(data, 1450));
+			}
+
+			std::vector<std::string_view> sv;
+			for (size_t i = 0; i < m_data_shards; i++) {
+				auto data = shards[i].data();
+				sv.emplace_back(std::string_view((const char*)data, 1450));
 			}
 
 			// do the coding.
-			m_codingloop->encode(m_parity_rows, shards, m_data_shards, outputs);
+			m_codingloop->encode(m_parity_rows, sv, m_data_shards, outputs);
 		}
 
 		void reedsolomon::decode(std::vector<vpn_packet>& shards)

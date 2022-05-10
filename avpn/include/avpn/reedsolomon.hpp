@@ -69,13 +69,6 @@ namespace avpn {
 			const std::vector<std::string_view>&,
 			size_t,
 			std::vector<std::span<uint8_t>>&) = 0;
-
-		virtual bool check_shards(
-			const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs,
-			size_t data_shard_count,
-			std::vector<std::span<uint8_t>>& outputs,
-			std::vector<std::span<uint8_t>>&/* target */);
 	};
 
 	struct vpn_packet;
@@ -89,13 +82,6 @@ namespace avpn {
 			const std::vector<std::string_view>& inputs,
 			size_t data_shard_count,
 			std::vector<std::span<uint8_t>>& outputs) override;
-
-		virtual bool check_shards(
-			const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs,
-			size_t data_shard_count,
-			std::vector<std::span<uint8_t>>& outputs,
-			std::vector<std::span<uint8_t>>& target) override;
 	};
 
 
@@ -110,7 +96,7 @@ namespace avpn {
 		reedsolomon(int dataShards, int parityShards, const matrix& m);
 		size_t estimate_pershard_size(int total_size, int data_shards = -1);
 
-		void encode(const std::vector<std::string_view>& shards);
+		void encode(std::vector<vpn_packet>& shards);
 		void decode(std::vector<vpn_packet>& shards);
 
 		static matrix build_matrix(int shards, int data_shards);
