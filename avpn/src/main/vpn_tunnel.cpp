@@ -105,6 +105,7 @@ namespace avpn {
 			// auto gid = ++m_feg.gid_;
 			// make_transfer(src, gid, );
 			// m_feg.update();
+			m_feg.update(std::move(pkt), endp);
 		}
 
 		//
@@ -277,11 +278,10 @@ namespace avpn {
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet pkt)
 	{
 		bool enc = false;
-		bool has_src = false;
 		uint8_t type = 0;
 		uint32_t src;
 
-		int ret = unwrap_common_header(pkt, enc, has_src, type, src);
+		int ret = unwrap_common_header(pkt, enc, type, src);
 		if (ret == -1)
 			co_return false;
 

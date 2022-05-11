@@ -15,6 +15,7 @@
 #include "utils/fileop.hpp"
 
 #include "avpn/reedsolomon.hpp"
+#include "avpn/endpoint_pair.hpp"
 
 #include <boost/lockfree/queue.hpp>
 
@@ -137,7 +138,7 @@ namespace avpn {
 		// 更新这个gop的数据.
 		// pkt 实际数据, 作为右值移动到fec_group中存储
 		//     以备将来使用;
-		void update(vpn_packet&& pkt);
+		void update(vpn_packet&& pkt, const endpoint_pair& endp);
 
 		// 数据已达到可编码.
 		bool available() const;

@@ -239,12 +239,11 @@ namespace avpn {
 				// vpn tunnel连接池中, 直到认证完成, 则能
 				// 将其从连接池中移动到已经完成的连接列表.
 				bool enc = false;
-				bool has_src = false;
 				uint8_t type = 0;
 				uint32_t src = 0;
 
 				int ret = unwrap_common_header(pkt,
-					enc, has_src, type, src);
+					enc, type, src);
 				if (!ret)
 					continue;
 
