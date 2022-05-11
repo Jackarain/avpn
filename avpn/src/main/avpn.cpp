@@ -121,20 +121,24 @@ namespace avpn {
 		{
 			vpn_packet pkt;
 
-			auto content = pkt.data();
+			auto payload = pkt.data() + payload_off;
+			auto size = 1450 - payload_off;
+
 			auto bytes = co_await m_tundev.async_read_some(
-				net::buffer(content, 1450), uawaitable[ec]);
+				net::buffer(payload, size), uawaitable[ec]);
 			if (ec)
 			{
 				LOG_ERR << "start_tun_read_loop, read: " << ec.message();
 				break;
 			}
 
-			// resize content.
-			pkt.resize(bytes);
+			// 重置 content 大小.
+			pkt.resize(bytes + payload_off);
+			pkt.content(payload_off);
+			pkt.content_size(bytes);
 
 			// 解析ip相关的信息.
-			auto endp = avpn::lookup_endpoint_pair(content, bytes);
+			auto endp = avpn::lookup_endpoint_pair(payload, bytes);
 
 			// 解析不出来的ip包, 直接跳过...
 			if (endp.empty())

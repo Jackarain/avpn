@@ -91,7 +91,12 @@ namespace avpn {
 		boost::ignore_unused(endp);
 
 		auto& params = m_config.tunnel_params_;
-	//	auto src = endp.src_.address().to_v4().to_uint();
+
+		{
+			// 更新pkt数据.
+			uint32_t src = endp.src_.address().to_v4().to_uint();
+			m_feg.update(pkt, src);
+		}
 
 		// 只有以下情况, 将使用tcp发送.
 		// 1. tcp only 状态时.
@@ -101,13 +106,34 @@ namespace avpn {
 			(m_remote_endpoint.port() == 0 &&
 				m_identity == Identity::avpn_server))
 		{
-			// 构造数据包.
-			// auto gid = ++m_feg.gid_;
-			// make_transfer(src, gid, );
-			// m_feg.update();
-			m_feg.update(std::move(pkt), endp);
+			// 发送.
+			co_await tcp_write_packet(m_tcp_socket, pkt);
+
+#if 0
+			// 保存.
+			m_feg.save(std::move(pkt));
+
+			// 检查fec编码状态.
+			if (!m_feg.available())
+				co_return;
+
+			// 开始fec编码.
+			m_feg.encode();
+
+			// 循环发送fec数据.
+			for (auto i = m_feg.ds_; i < m_feg.shards_; i++)
+			{
+				auto& p = m_feg.pkts_[i];
+				co_await tcp_write_packet(m_tcp_socket, pkt);
+			}
+#endif
+			co_return;
 		}
 
+		// 发送.
+		//
+		// 保存.
+		//
 		//
 
 		co_return;
