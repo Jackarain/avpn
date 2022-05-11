@@ -212,8 +212,10 @@ namespace avpn
 		pg.total_ = 0;
 	}
 
-	void fec_encode_group::update(vpn_packet&& pkt)
+	void fec_encode_group::update(vpn_packet&& pkt, const endpoint_pair& endp)
 	{
+		boost::ignore_unused(endp);
+		// pkt.content()
 		pkts_[pid_++ % ds_] = std::move(pkt);
 		if (pid_ == 0) gid_++;
 		total_++;
