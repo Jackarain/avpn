@@ -6,8 +6,8 @@
 //
 
 #include "utils/scoped_exit.hpp"
-
 #include "avpn/fec_cache.hpp"
+#include "avpn/protocol.hpp"
 
 namespace avpn
 {
@@ -166,7 +166,7 @@ namespace avpn
 
 	uint16_t vpn_packet::content_size()
 	{
-		return content_size_;
+		return (uint16_t)content_size_;
 	}
 
 	void vpn_packet::content_size(size_t count)
@@ -212,13 +212,23 @@ namespace avpn
 		pg.total_ = 0;
 	}
 
-	void fec_encode_group::update(vpn_packet&& pkt, const endpoint_pair& endp)
+	void fec_encode_group::update(vpn_packet& pkt, uint32_t src)
 	{
-		boost::ignore_unused(endp);
-		// pkt.content()
-		pkts_[pid_++ % ds_] = std::move(pkt);
-		if (pid_ == 0) gid_++;
+		// 构造一个sv.
+		std::string_view sv((char*)pkt.content(), pkt.content_size());
+		// 构造transfer数据包.
+		make_transfer(pkt, src, gid_, pid_, sv);
+	}
+
+	void fec_encode_group::save(vpn_packet&& pkt)
+	{
+		auto ret = pid_++ % ds_;
+		pkts_[ret] = std::move(pkt);
+		if (pid_ == 0)
+			gid_++;
 		total_++;
+
+		BOOST_ASSERT(total_ <= ds_);
 	}
 
 	bool fec_encode_group::available() const
@@ -228,10 +238,12 @@ namespace avpn
 		return false;
 	}
 
-
 	bool fec_encode_group::encode()
 	{
 		avpn::matrix* matrix_ptr = nullptr;
+
+		// 当前gop被编码, 清0, 从0开始重新计算新的group.
+		total_ = 0;
 
 		// 找编码缓冲.
 		int64_t idx = (ds_ << 16) | ps_;

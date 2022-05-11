@@ -135,10 +135,13 @@ namespace avpn {
 		fec_encode_group(fec_encode_group&& pg) noexcept;
 
 	public:
-		// 更新这个gop的数据.
-		// pkt 实际数据, 作为右值移动到fec_group中存储
-		//     以备将来使用;
-		void update(vpn_packet&& pkt, const endpoint_pair& endp);
+		// 更新这个pkt的数据.
+		// pkt 实际数据, 填充pkt除IP包之外的
+		//     数据.
+		void update(vpn_packet& pkt, uint32_t src);
+
+		// 保存到编码gop.
+		void save(vpn_packet&& pkt);
 
 		// 数据已达到可编码.
 		bool available() const;
