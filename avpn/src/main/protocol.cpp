@@ -30,6 +30,17 @@ namespace avpn {
 		return pkt;
 	}
 
+	void make_common_header(vpn_packet& pkt,
+		bool enc, uint8_t type, uint32_t src)
+	{
+		bitstream writer(pkt.data(), 1450);
+
+		writer.WriteBits(enc, 1);
+		writer.WriteBits(0, 1);
+		writer.WriteBits(type, 6);
+		writer.WriteUInt32(src);
+	}
+
 	int unwrap_common_header(vpn_packet& pkt,
 		bool& enc, uint8_t& type, uint32_t& src)
 	{
@@ -224,6 +235,22 @@ namespace avpn {
 		return pkt;
 	}
 
+	void make_transfer(vpn_packet& pkt, uint32_t src,
+		uint32_t gid, uint8_t pid, std::string_view data)
+	{
+		make_common_header(pkt, false, vpt_transfer, src);
+		bitstream writer(pkt.data() + header_size, 1450 - header_size);
+
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+		writer.WriteUInt8(0);
+
+		writer.WriteUInt16((uint16_t)data.size());
+
+		auto bytes = writer.ByteOffset() + data.size();
+		pkt.resize(header_size + bytes);
+	}
+
 	int unwrap_transfer(vpn_packet& pkt,
 		uint32_t& src, uint32_t& gid, uint8_t& pid)
 	{
@@ -275,8 +302,8 @@ namespace avpn {
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
-
 		writer.WriteUInt8(ctype);
+
 		writer.WriteUInt16((uint16_t)data.size());
 		writer.WriteString(data.data(), data.size());
 
@@ -284,6 +311,23 @@ namespace avpn {
 		pkt.resize(pkt.size() + bytes);
 
 		return pkt;
+	}
+
+	void make_transfer_compress(vpn_packet& pkt,
+		uint32_t src, uint32_t gid, uint8_t pid,
+		uint8_t ctype, std::string_view data)
+	{
+		make_common_header(pkt, false, vpt_transfer_compress, src);
+		bitstream writer(pkt.data() + header_size, 1450 - header_size);
+
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+		writer.WriteUInt8(ctype);
+
+		writer.WriteUInt16((uint16_t)data.size());
+
+		auto bytes = writer.ByteOffset() + data.size();
+		pkt.resize(header_size + bytes);
 	}
 
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,

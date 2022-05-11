@@ -37,9 +37,16 @@ namespace avpn {
 		vpt_transfer_compress = 6,
 	};
 
+	// transfer 中的IP包数据在消息中偏移.
+	const static int payload_off = 13;
+	const static int header_size = 5;
+
 	//////////////////////////////////////////////////////////////////////////
 
 	vpn_packet make_common_header(
+		bool enc, uint8_t type, uint32_t src);
+
+	void make_common_header(vpn_packet& pkt,
 		bool enc, uint8_t type, uint32_t src);
 
 	int unwrap_common_header(vpn_packet& pkt,
@@ -100,6 +107,10 @@ namespace avpn {
 	vpn_packet make_transfer(uint32_t src,
 		uint32_t gid, uint8_t pid, std::string_view data);
 
+	void make_transfer(vpn_packet& pkt,
+		uint32_t src, uint32_t gid, uint8_t pid,
+		std::string_view data);
+
 	int unwrap_transfer(vpn_packet& pkt,
 		uint32_t& src, uint32_t& gid, uint8_t& pid);
 
@@ -114,6 +125,10 @@ namespace avpn {
 	// data(data_len)
 	vpn_packet make_transfer_compress(uint32_t src,
 		uint32_t gid, uint8_t pid,
+		uint8_t ctype, std::string_view data);
+
+	void make_transfer_compress(vpn_packet& pkt,
+		uint32_t src, uint32_t gid, uint8_t pid,
 		uint8_t ctype, std::string_view data);
 
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
