@@ -239,7 +239,7 @@ namespace avpn {
 		uint32_t gid, uint8_t pid, std::string_view data)
 	{
 		make_common_header(pkt, false, vpt_transfer, src);
-		bitstream writer(pkt.data() + header_size, 1450 - header_size);
+		bitstream writer(pkt.data() + pkt_header_size, 1450 - pkt_header_size);
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
@@ -248,7 +248,7 @@ namespace avpn {
 		writer.WriteUInt16((uint16_t)data.size());
 
 		auto bytes = writer.ByteOffset() + data.size();
-		pkt.resize(header_size + bytes);
+		pkt.resize(pkt_header_size + bytes);
 	}
 
 	int unwrap_transfer(vpn_packet& pkt,
@@ -318,7 +318,7 @@ namespace avpn {
 		uint8_t ctype, std::string_view data)
 	{
 		make_common_header(pkt, false, vpt_transfer_compress, src);
-		bitstream writer(pkt.data() + header_size, 1450 - header_size);
+		bitstream writer(pkt.data() + pkt_header_size, 1450 - pkt_header_size);
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
@@ -327,7 +327,7 @@ namespace avpn {
 		writer.WriteUInt16((uint16_t)data.size());
 
 		auto bytes = writer.ByteOffset() + data.size();
-		pkt.resize(header_size + bytes);
+		pkt.resize(pkt_header_size + bytes);
 	}
 
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,

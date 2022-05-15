@@ -38,8 +38,8 @@ namespace avpn {
 	};
 
 	// transfer 中的IP包数据在消息中偏移.
-	const static int payload_off = 13;
-	const static int header_size = 5;
+	const static int pkt_payload_off = 13;
+	const static int pkt_header_size = 5;
 
 	//////////////////////////////////////////////////////////////////////////
 

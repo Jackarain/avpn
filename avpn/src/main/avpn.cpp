@@ -121,8 +121,8 @@ namespace avpn {
 		{
 			vpn_packet pkt;
 
-			auto payload = pkt.data() + payload_off;
-			auto size = 1450 - payload_off;
+			auto payload = pkt.data() + pkt_payload_off;
+			auto size = 1450 - pkt_payload_off;
 
 			auto bytes = co_await m_tundev.async_read_some(
 				net::buffer(payload, size), uawaitable[ec]);
@@ -133,8 +133,8 @@ namespace avpn {
 			}
 
 			// 重置 content 大小.
-			pkt.resize(bytes + payload_off);
-			pkt.content(payload_off);
+			pkt.resize(bytes + pkt_payload_off);
+			pkt.content(pkt_payload_off);
 			pkt.content_size(bytes);
 
 			// 解析ip相关的信息.
