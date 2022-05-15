@@ -100,7 +100,7 @@ namespace avpn {
 		void resize(size_t count);
 
 		uint8_t* content();
-		void content(size_t offset);
+		void payload_offset(size_t offset);
 		uint16_t content_size();
 		void content_size(size_t count);
 

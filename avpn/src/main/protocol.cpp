@@ -282,7 +282,7 @@ namespace avpn {
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
 
 		auto offset = reader.ByteOffset() + bytes;
-		pkt.content(offset);
+		pkt.payload_offset(offset);
 		pkt.content_size(length);
 
 
@@ -360,7 +360,7 @@ namespace avpn {
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
 
 		auto offset = reader.ByteOffset() + bytes;
-		pkt.content(offset);
+		pkt.payload_offset(offset);
 		pkt.content_size(length);
 
 		bytes += (int)reader.ByteOffset() + length;

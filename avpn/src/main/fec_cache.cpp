@@ -159,7 +159,7 @@ namespace avpn
 		return data_.get() + content_;
 	}
 
-	void vpn_packet::content(size_t offset)
+	void vpn_packet::payload_offset(size_t offset)
 	{
 		content_ = offset;
 	}

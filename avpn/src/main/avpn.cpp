@@ -132,9 +132,9 @@ namespace avpn {
 				break;
 			}
 
-			// 重置 content 大小.
+			// 重置 pkt 的 content size.
 			pkt.resize(bytes + pkt_payload_off);
-			pkt.content(pkt_payload_off);
+			pkt.payload_offset(pkt_payload_off);
 			pkt.content_size(bytes);
 
 			// 解析ip相关的信息.
