@@ -87,9 +87,6 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::tun_forward(vpn_packet pkt, endpoint_pair endp)
 	{
-		boost::ignore_unused(pkt);
-		boost::ignore_unused(endp);
-
 		auto& params = m_config.tunnel_params_;
 
 		{
@@ -130,6 +127,8 @@ namespace avpn {
 			co_return;
 		}
 
+		// TODO:
+		//
 		// 发送.
 		//
 		// 保存.
