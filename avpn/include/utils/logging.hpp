@@ -524,8 +524,10 @@ public:
 						auto file = fn + logging_compress__::GZ_SUFFIX;
 						std::filesystem::remove(file, ignore_ec);
 						if (ignore_ec)
-							std::cout << "delete log failed: " << file
-							<< ", error code: " << ignore_ec.message() << std::endl;
+							std::cerr
+								<< "delete log failed: " << file
+								<< ", error code: " << ignore_ec.message()
+								<< std::endl;
 						return;
 					}
 
