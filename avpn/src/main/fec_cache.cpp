@@ -104,28 +104,26 @@ namespace avpn
 	vpn_packet::vpn_packet(vpn_packet&& p)
 		: data_(std::move(p.data_))
 		, size_(p.size_)
-		, content_(p.content_)
-		, content_size_(p.content_size_)
+		, payload_size_(p.payload_size_)
 		, gid_(p.gid_)
 		, pid_(p.pid_)
 		, type_(p.type_)
 	{
 		p.size_ = 0;
-		p.content_size_ = 0;
+		p.payload_size_ = 0;
 	}
 
 	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
 	{
 		data_ = std::move(p.data_);
 		size_ = p.size_;
-		content_ = p.content_;
-		content_size_ = p.content_size_;
+		payload_size_ = p.payload_size_;
 		gid_ = p.gid_;
 		pid_ = p.pid_;
 		type_ = p.type_;
 
 		p.size_ = 0;
-		p.content_size_ = 0;
+		p.payload_size_ = 0;
 		p.gid_ = 0;
 		p.pid_ = 0;
 
@@ -161,12 +159,12 @@ namespace avpn
 
 	uint16_t vpn_packet::payload_size()
 	{
-		return (uint16_t)content_size_;
+		return (uint16_t)payload_size_;
 	}
 
 	void vpn_packet::payload_size(size_t count)
 	{
-		content_size_ = (uint16_t)count;
+		payload_size_ = (uint16_t)count;
 	}
 
 	vpn_packet_type vpn_packet::type() const

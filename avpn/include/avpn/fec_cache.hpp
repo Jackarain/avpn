@@ -109,9 +109,7 @@ namespace avpn {
 	public:
 		std::unique_ptr<uint8_t, packet_free> data_;
 		uint16_t size_{ 0 };
-
-		size_t content_{ 0 };
-		uint16_t content_size_{ 0 };
+		uint16_t payload_size_{ 0 };
 
 		uint32_t gid_{ 0 };
 		uint8_t pid_{ 0 };
