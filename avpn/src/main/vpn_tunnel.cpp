@@ -136,6 +136,10 @@ namespace avpn {
 		//
 		//
 
+		// 使用udp发送.
+
+
+
 		co_return;
 	}
 
@@ -366,8 +370,8 @@ namespace avpn {
 
 		if (pid < m_data_shards)
 		{
-			auto content = pkt.content();
-			auto content_size = pkt.content_size();
+			auto content = pkt.payload();
+			auto content_size = pkt.payload_size();
 
 			auto ep = avpn::lookup_endpoint_pair(content, content_size);
 			auto& dst_addr = ep.dst_;

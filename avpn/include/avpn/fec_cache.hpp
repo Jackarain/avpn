@@ -99,10 +99,9 @@ namespace avpn {
 		uint16_t size();
 		void resize(size_t count);
 
-		uint8_t* content();
-		void payload_offset(size_t offset);
-		uint16_t content_size();
-		void content_size(size_t count);
+		uint8_t* payload();
+		uint16_t payload_size();
+		void payload_size(size_t count);
 
 		vpn_packet_type type() const;
 		void type(vpn_packet_type t);

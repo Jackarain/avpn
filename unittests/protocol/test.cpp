@@ -74,6 +74,6 @@ BOOST_AUTO_TEST_CASE(test_transfer)
 	BOOST_TEST(gid == (uint32_t)12);
 	BOOST_TEST(pid == (uint8_t)23);
 
-	std::string_view sv((char*)pkt.content(), pkt.content_size());
+	std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 	BOOST_TEST(sv == data);
 }

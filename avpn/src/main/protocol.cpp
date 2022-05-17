@@ -281,10 +281,7 @@ namespace avpn {
 		BOOST_ASSERT(length <= surplus);
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
 
-		auto offset = reader.ByteOffset() + bytes;
-		pkt.payload_offset(offset);
-		pkt.content_size(length);
-
+		pkt.payload_size(length);
 
 		bytes += (int)reader.ByteOffset() + length;
 
@@ -359,9 +356,7 @@ namespace avpn {
 		BOOST_ASSERT(length <= surplus);
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
 
-		auto offset = reader.ByteOffset() + bytes;
-		pkt.payload_offset(offset);
-		pkt.content_size(length);
+		pkt.payload_size(length);
 
 		bytes += (int)reader.ByteOffset() + length;
 

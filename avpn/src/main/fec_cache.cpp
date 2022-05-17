@@ -154,22 +154,17 @@ namespace avpn
 		size_ = (uint16_t)count;
 	}
 
-	uint8_t* vpn_packet::content()
+	uint8_t* vpn_packet::payload()
 	{
-		return data_.get() + content_;
+		return data_.get() + pkt_payload_off;
 	}
 
-	void vpn_packet::payload_offset(size_t offset)
-	{
-		content_ = offset;
-	}
-
-	uint16_t vpn_packet::content_size()
+	uint16_t vpn_packet::payload_size()
 	{
 		return (uint16_t)content_size_;
 	}
 
-	void vpn_packet::content_size(size_t count)
+	void vpn_packet::payload_size(size_t count)
 	{
 		content_size_ = (uint16_t)count;
 	}
@@ -215,7 +210,7 @@ namespace avpn
 	void fec_encode_group::update(vpn_packet& pkt, uint32_t src)
 	{
 		// 构造一个sv.
-		std::string_view sv((char*)pkt.content(), pkt.content_size());
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 		// 构造transfer数据包.
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
