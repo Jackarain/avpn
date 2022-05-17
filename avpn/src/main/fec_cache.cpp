@@ -167,12 +167,12 @@ namespace avpn
 		payload_size_ = (uint16_t)count;
 	}
 
-	vpn_packet_type vpn_packet::type() const
+	vpn_packet_t vpn_packet::type() const
 	{
 		return type_;
 	}
 
-	void vpn_packet::type(vpn_packet_type t)
+	void vpn_packet::type(vpn_packet_t t)
 	{
 		type_ = t;
 	}

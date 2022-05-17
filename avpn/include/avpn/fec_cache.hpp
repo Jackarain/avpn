@@ -75,7 +75,7 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
-	enum vpn_packet_type
+	enum vpn_packet_t
 	{
 		pkt_tcp = 0x06,
 		pkt_udp = 0x11,
@@ -94,18 +94,24 @@ namespace avpn {
 		vpn_packet& operator=(vpn_packet&&);
 		~vpn_packet() = default;
 
+		// pkt的数据指针.
 		uint8_t* data();
 		const uint8_t* data() const;
 
+		// 整个pkt有效数据大小.
 		uint16_t size();
 		void resize(size_t count);
 
+		// payload 表示ip数据包的内容.
 		uint8_t* payload();
+
+		// 设置或获取payload的大小.
 		uint16_t payload_size();
 		void payload_size(size_t count);
 
-		vpn_packet_type type() const;
-		void type(vpn_packet_type t);
+		// 数据包类型.
+		vpn_packet_t type() const;
+		void type(vpn_packet_t t);
 
 	public:
 		std::unique_ptr<uint8_t, packet_free> data_;
@@ -115,7 +121,7 @@ namespace avpn {
 		uint32_t gid_{ 0 };
 		uint8_t pid_{ 0 };
 
-		vpn_packet_type type_;
+		vpn_packet_t type_;
 	};
 
 

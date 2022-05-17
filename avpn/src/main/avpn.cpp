@@ -144,7 +144,7 @@ namespace avpn {
 				continue;
 
 			// 保存数据包类型.
-			pkt.type((vpn_packet_type)endp.type_);
+			pkt.type((vpn_packet_t)endp.type_);
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == Identity::avpn_server)
