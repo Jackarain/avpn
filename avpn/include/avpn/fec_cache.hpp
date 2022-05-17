@@ -81,6 +81,7 @@ namespace avpn {
 		pkt_udp = 0x11,
 		pkt_icmp = 0x01,
 	};
+
 	struct vpn_packet
 	{
 	private:
