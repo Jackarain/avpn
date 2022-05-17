@@ -132,7 +132,7 @@ namespace avpn {
 				break;
 			}
 
-			// 重置 pkt 的 content size.
+			// 重置 pkt 的 payload size.
 			pkt.resize(bytes + pkt_payload_off);
 			pkt.payload_size(bytes);
 
