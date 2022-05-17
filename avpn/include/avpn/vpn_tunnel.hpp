@@ -114,12 +114,16 @@ namespace avpn {
 		// 处理tcp协议.
 		net::awaitable<bool> process_tcp_packet(vpn_packet pkt);
 
+		// 处理udp协议.
+		net::awaitable<void> process_udp_packet(vpn_packet pkt);
+
 		// 作为server时, 接收到keepalive消息.
 		net::awaitable<void> on_tcp_keepalive();
+		net::awaitable<void> on_udp_keepalive();
 
 		// 接收到transfer/compress消息.
-		net::awaitable<void> on_tcp_transfer(vpn_packet pkt);
-		net::awaitable<void> on_tcp_transfer_compress(vpn_packet pkt);
+		net::awaitable<void> on_vpn_transfer(vpn_packet pkt);
+		net::awaitable<void> on_vpn_transfer_compress(vpn_packet pkt);
 
 	private:
 		// 用于当前tunnel业务调度.

@@ -138,6 +138,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::udp_forward(vpn_packet pkt, udp::endpoint remote)
 	{
+		co_await process_udp_packet(std::move(pkt));
 		co_return;
 	}
 
@@ -342,14 +343,48 @@ namespace avpn {
 			break;
 
 		case vpt_transfer:
-			co_await on_tcp_transfer(std::move(pkt));
+			co_await on_vpn_transfer(std::move(pkt));
 			break;
 		case vpt_transfer_compress:
-			co_await on_tcp_transfer_compress(std::move(pkt));
+			co_await on_vpn_transfer_compress(std::move(pkt));
 			break;
 		}
 
 		co_return true;
+	}
+
+	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet pkt)
+	{
+		bool enc = false;
+		uint8_t type = 0;
+		uint32_t src;
+
+		int ret = unwrap_common_header(pkt, enc, type, src);
+		if (ret == -1)
+			co_return;
+
+		switch (type)
+		{
+		case vpt_handshake:
+			break;
+		case vpt_handshake_reply:
+			break;
+
+		case vpt_keepalive:
+			co_await on_udp_keepalive();
+			break;
+		case vpt_keepalive_reply:
+			break;
+
+		case vpt_transfer:
+			co_await on_vpn_transfer(std::move(pkt));
+			break;
+		case vpt_transfer_compress:
+			co_await on_vpn_transfer_compress(std::move(pkt));
+			break;
+		}
+
+		co_return;
 	}
 
 	net::awaitable<void> vpn_tunnel::on_tcp_keepalive()
@@ -358,8 +393,14 @@ namespace avpn {
 		co_return;
 	}
 
+	net::awaitable<void> vpn_tunnel::on_udp_keepalive()
+	{
+		last_see(steady_clock::now());
+		co_return;
+	}
+
 	net::awaitable<void>
-	vpn_tunnel::on_tcp_transfer(vpn_packet pkt)
+	vpn_tunnel::on_vpn_transfer(vpn_packet pkt)
 	{
 		auto service = m_vpn_serivce.lock();
 		if (!service)
@@ -417,7 +458,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::on_tcp_transfer_compress(vpn_packet pkt)
+	vpn_tunnel::on_vpn_transfer_compress(vpn_packet pkt)
 	{
 		uint32_t src = 0;
 
