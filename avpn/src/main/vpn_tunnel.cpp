@@ -135,6 +135,12 @@ namespace avpn {
 		co_return;
 	}
 
+	net::awaitable<void>
+	vpn_tunnel::udp_forward(vpn_packet pkt, udp::endpoint remote)
+	{
+		co_return;
+	}
+
 	void vpn_tunnel::udp_write_packet(vpn_packet_ptr& pkt)
 	{
 		auto service = m_vpn_serivce.lock();

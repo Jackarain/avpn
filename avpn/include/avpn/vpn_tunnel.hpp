@@ -62,6 +62,10 @@ namespace avpn {
 		net::awaitable<void>
 		tun_forward(vpn_packet pkt, endpoint_pair endp);
 
+		// forward udp packet from network.
+		net::awaitable<void>
+		udp_forward(vpn_packet pkt, udp::endpoint remote);
+
 		// 通过udp协议发送数据包.
 		void udp_write_packet(vpn_packet_ptr& pkt);
 		// 通过tcp协议发送数据包.

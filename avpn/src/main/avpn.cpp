@@ -250,20 +250,24 @@ namespace avpn {
 				if (!ret)
 					continue;
 
-				// client握手认证请求.
+				// client握手认证请求, 转入handshake处理流程.
 				if (type == vpt_handshake)
 				{
 					co_await start_udp_handshake(remote, pkt, src);
 					continue;
 				}
 
-				// 根据src寻找对应的client.
+				// 根据src寻找对应的client, 找到后转入相应client
+				// 的处理流程中.
 				vp = co_await net::co_spawn(m_main_context,
 					async_lookup_tunnel(src), net::use_awaitable);
 				if (!vp)
 					continue;
 
-				// TODO: 将UDP消息转发到vp连接中处理.
+				// 将UDP消息转发到对应的vp连接中处理.
+				co_await net::co_spawn(m_main_context,
+					vp->udp_forward(std::move(pkt), remote),
+						net::use_awaitable);
 
 				continue;
 			}
