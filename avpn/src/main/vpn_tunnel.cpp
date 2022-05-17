@@ -138,6 +138,18 @@ namespace avpn {
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 		do_udp_write(ptr);
 
+		// 保存到fec编码器, 如果已经编码, 则需要发送编码部分.
+		bool ret = m_feg.save(ptr);
+		if (!ret)
+			co_return;
+
+		// 循环发送这部分.
+		for (int i = m_data_shards;
+			i < m_data_shards + m_parity_shards; i++)
+		{
+			do_udp_write(m_feg.pkts_[i]);
+		}
+
 		co_return;
 	}
 

@@ -1163,6 +1163,8 @@ namespace avpn {
 		{
 			std::vector<std::span<uint8_t>> outputs;
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
+				if (!shards[i])
+					shards[i] = std::make_shared<vpn_packet>();
 				auto data = shards[i]->data();
 				outputs.push_back(std::span<uint8_t>(data, 1450));
 			}
@@ -1182,7 +1184,7 @@ namespace avpn {
 			auto shard_size = 0;
 
 			for (auto& s : shards) {
-				if (s->size() != 0) {
+				if (s && s->size() != 0) {
 					shard_size = s->size();
 					break;
 				}
@@ -1192,7 +1194,7 @@ namespace avpn {
 			auto data_present = 0;
 
 			for (size_t i = 0; i < static_cast<size_t>(m_shards); i++) {
-				if (shards[i]->size() != 0) {
+				if (shards[i] && shards[i]->size() != 0) {
 					number_present++;
 					if (i < (size_t)m_data_shards) {
 						data_present++;
@@ -1218,12 +1220,15 @@ namespace avpn {
 				sub_matrix_row < m_data_shards;
 				matrix_row++)
 			{
-				if (shards[matrix_row]->size() == 0)
+				if (!shards[matrix_row] || shards[matrix_row]->size() == 0)
 					continue;
 
 				auto data = shards[matrix_row]->data();
 				auto size = shards[matrix_row]->size();
-				sub_shards[sub_matrix_row] = std::string_view((char*)data, size);
+
+				sub_shards[sub_matrix_row] =
+					std::string_view((char*)data, size);
+
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
 			}
@@ -1246,7 +1251,8 @@ namespace avpn {
 
 			auto output_count = 0;
 			for (size_t ishard = 0; ishard < (size_t)m_data_shards; ishard++) {
-				if (shards[ishard]->size() == 0) {
+				if (!shards[ishard] || shards[ishard]->size() == 0) {
+					shards[ishard] = std::make_shared<vpn_packet>();
 					shards[ishard]->resize(shard_size);
 					outputs[output_count] = std::span(shards[ishard]->data(),
 						shards[ishard]->data() + shards[ishard]->size());

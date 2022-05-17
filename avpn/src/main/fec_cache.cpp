@@ -111,7 +111,6 @@ namespace avpn
 		, shards_(ds_ + ps_)
 		, gid_(pg.gid_)
 		, pid_(pg.pid_)
-		, total_(pg.total_)
 		, pkts_(std::move(pg.pkts_))
 	{
 		pg.ds_ = 0;
@@ -119,7 +118,6 @@ namespace avpn
 		pg.shards_ = 0;
 		pg.gid_ = 1;
 		pg.pid_ = 0;
-		pg.total_ = 0;
 	}
 
 	void fec_encode_group::update(vpn_packet& pkt, uint32_t src)
@@ -130,32 +128,29 @@ namespace avpn
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
 
-	void fec_encode_group::save(vpn_packet_ptr& pkt)
+	bool fec_encode_group::save(vpn_packet_ptr& pkt)
 	{
 		auto ret = pid_++ % ds_;
 
 		pkts_[ret] = pkt;
 		if (pid_ == 0)
+		{
+			// gop id自增.
 			gid_++;
 
-		total_++;
+			// 立即编码.
+			if (!encode())
+				return false;
 
-		BOOST_ASSERT(total_ <= ds_);
-	}
-
-	bool fec_encode_group::available() const
-	{
-		if (total_ == ds_)
 			return true;
+		}
+
 		return false;
 	}
 
 	bool fec_encode_group::encode()
 	{
 		avpn::matrix* matrix_ptr = nullptr;
-
-		// 当前gop被编码, 清0, 从0开始重新计算新的group.
-		total_ = 0;
 
 		// 找编码缓冲.
 		int64_t idx = (ds_ << 16) | ps_;

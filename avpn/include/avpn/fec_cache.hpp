@@ -92,10 +92,7 @@ namespace avpn {
 		void update(vpn_packet& pkt, uint32_t src);
 
 		// 保存到编码gop.
-		void save(vpn_packet_ptr& pkt);
-
-		// 数据已达到可编码.
-		bool available() const;
+		bool save(vpn_packet_ptr& pkt);
 
 		// 编码.
 		bool encode();
@@ -106,7 +103,6 @@ namespace avpn {
 		int shards_{ 0 };
 		uint32_t gid_{ 1 };
 		uint8_t pid_{ 0 };
-		int64_t total_{ 0 };
 		std::vector<vpn_packet_ptr> pkts_;
 		static std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
