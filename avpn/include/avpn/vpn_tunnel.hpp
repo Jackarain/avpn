@@ -118,8 +118,7 @@ namespace avpn {
 		net::awaitable<void> process_udp_packet(vpn_packet pkt);
 
 		// 作为server时, 接收到keepalive消息.
-		net::awaitable<void> on_tcp_keepalive();
-		net::awaitable<void> on_udp_keepalive();
+		net::awaitable<void> on_vpn_keepalive();
 
 		// 接收到transfer/compress消息.
 		net::awaitable<void> on_vpn_transfer(vpn_packet pkt);
