@@ -26,8 +26,6 @@ namespace avpn {
 		, m_keyexchange(passphrase)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(pubkey))
 		, m_tick_timer(ioc)
-		, m_fdg(cfg.tunnel_params_.data_shards_,
-			cfg.tunnel_params_.parity_shards_)
 		, m_feg(cfg.tunnel_params_.data_shards_,
 			cfg.tunnel_params_.parity_shards_)
 	{}
@@ -103,7 +101,7 @@ namespace avpn {
 			(m_remote_endpoint.port() == 0 &&
 				m_identity == Identity::avpn_server))
 		{
-			// 发送.
+			// 发送至客户端.
 			co_await tcp_write_packet(m_tcp_socket, pkt);
 
 #if 0
@@ -141,6 +139,15 @@ namespace avpn {
 
 
 		co_return;
+	}
+
+	void vpn_tunnel::do_udp_write(vpn_packet pkt)
+	{
+		auto service = m_vpn_serivce.lock();
+		if (!service)
+			return;
+
+		service->do_udp_write(std::move(pkt), m_remote_endpoint);
 	}
 
 	std::string vpn_tunnel::client_id() const
@@ -365,7 +372,8 @@ namespace avpn {
 		// 更新feg解码器.
 		scoped_exit se(
 			[&]() mutable {
-				m_fdg.update(gid, pid, std::move(pkt));
+				m_recover.update(gid, pid,
+					m_data_shards, m_parity_shards, std::move(pkt));
 			});
 
 		if (pid < m_data_shards)
@@ -391,8 +399,7 @@ namespace avpn {
 			}
 
 			// 转发到tun设备.
-			std::string msg((const char*)content, content_size);
-			service->do_tun_write(std::move(msg));
+			service->do_tun_write(std::move(pkt));
 
 			co_return;
 		}

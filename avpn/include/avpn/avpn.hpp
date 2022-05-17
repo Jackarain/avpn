@@ -164,13 +164,14 @@ namespace avpn {
 	private:
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
-		void do_tun_write(std::string&&);
+		void do_tun_write(vpn_packet);
 		// 处理server上的tun设备pkt.
 		void do_server_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int index);
-		net::awaitable<void> do_udp_write(vpn_packet, udp::endpoint);
+		void do_udp_write(vpn_packet, udp::endpoint);
+		net::awaitable<void> udp_write(vpn_packet, udp::endpoint);
 
 		// 启动avpn服务.
 		void run_as_client();

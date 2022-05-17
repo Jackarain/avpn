@@ -58,9 +58,12 @@ namespace avpn {
 		tcp::socket& tcp_socket();
 		void tcp_socket(tcp::socket&& s, size_t id);
 
-		// forward tun packet.
+		// forward tun packet to network.
 		net::awaitable<void>
 		tun_forward(vpn_packet pkt, endpoint_pair endp);
+
+		// 通过udp协议发送数据包.
+		void do_udp_write(vpn_packet pkt);
 
 		// 返回client的id.
 		std::string client_id() const;
@@ -131,7 +134,7 @@ namespace avpn {
 		// 客户端的client id.
 		std::string m_client_id;
 
-		// 对方使用的ds, ps.
+		// 双方使用的ds, ps.
 		uint8_t m_data_shards{ 0 };
 		uint8_t m_parity_shards{ 0 };
 
@@ -159,7 +162,7 @@ namespace avpn {
 		asio_timer m_tick_timer;
 
 		// fec解码器.
-		fec_decode_group m_fdg;
+		fec_recover m_recover;
 
 		// fec编码器.
 		fec_encode_group m_feg;
