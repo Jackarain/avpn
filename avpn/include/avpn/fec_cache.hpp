@@ -16,6 +16,7 @@
 
 #include "avpn/reedsolomon.hpp"
 #include "avpn/endpoint_pair.hpp"
+#include "avpn/vpn_packet.hpp"
 
 #include <boost/lockfree/queue.hpp>
 
@@ -67,62 +68,8 @@ namespace avpn {
 	// 设置分配器大小.
 	void set_global_allocator_size(size_t max_size);
 
-	struct packet_free
-	{
-		void operator()(void* p);
-	};
-
-
-	//////////////////////////////////////////////////////////////////////////
-	// vpn数据包定义.
-	enum vpn_packet_t
-	{
-		pkt_tcp = 0x06,
-		pkt_udp = 0x11,
-		pkt_icmp = 0x01,
-	};
-
-	struct vpn_packet
-	{
-	private:
-		vpn_packet(const vpn_packet&) = delete;
-		vpn_packet& operator=(const vpn_packet&) = delete;
-
-	public:
-		vpn_packet();
-		vpn_packet(vpn_packet&&);
-		vpn_packet& operator=(vpn_packet&&);
-		~vpn_packet() = default;
-
-		// pkt的数据指针.
-		uint8_t* data();
-		const uint8_t* data() const;
-
-		// 整个pkt有效数据大小.
-		uint16_t size();
-		void resize(size_t count);
-
-		// payload 表示ip数据包的内容.
-		uint8_t* payload();
-
-		// 设置或获取payload的大小.
-		uint16_t payload_size();
-		void payload_size(size_t count);
-
-		// 数据包类型.
-		vpn_packet_t type() const;
-		void type(vpn_packet_t t);
-
-	public:
-		std::unique_ptr<uint8_t, packet_free> data_;
-		uint16_t size_{ 0 };
-		uint16_t payload_size_{ 0 };
-
-		uint32_t gid_{ 0 };
-		uint8_t pid_{ 0 };
-
-		vpn_packet_t type_;
-	};
+	// 返回全局分配器指针.
+	packet_allocator* static_packet_allocator();
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -145,7 +92,7 @@ namespace avpn {
 		void update(vpn_packet& pkt, uint32_t src);
 
 		// 保存到编码gop.
-		void save(vpn_packet&& pkt);
+		void save(vpn_packet_ptr& pkt);
 
 		// 数据已达到可编码.
 		bool available() const;
@@ -160,7 +107,7 @@ namespace avpn {
 		uint32_t gid_{ 1 };
 		uint8_t pid_{ 0 };
 		int64_t total_{ 0 };
-		std::vector<vpn_packet> pkts_;
+		std::vector<vpn_packet_ptr> pkts_;
 		static std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
 
@@ -183,7 +130,7 @@ namespace avpn {
 		// pid 表示 packet id, 即在这个group中的index;
 		// pkt 实际数据, 作为右值移动到fec_group中存储
 		//     以备将来使用;
-		void update(uint32_t gid, uint16_t pid, vpn_packet&& pkt);
+		void update(uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt);
 
 		// 完整接收.
 		bool full() noexcept;
@@ -202,7 +149,7 @@ namespace avpn {
 		bool decode();
 
 	public:
-		std::vector<vpn_packet> pkts_;
+		std::vector<vpn_packet_ptr> pkts_;
 		uint32_t gid_{ 0 };
 		bitfield bs_;
 		int ds_{ 0 };
@@ -229,14 +176,14 @@ namespace avpn {
 		void reset();
 
 		void update(uint32_t gid, uint16_t pid,
-			int ds, int ps, vpn_packet&& pkt);
+			int ds, int ps, vpn_packet_ptr& pkt);
 
 		int64_t garbage_clean();
-		std::vector<vpn_packet> acquire();
+		std::vector<vpn_packet_ptr> acquire();
 
 	public:
 		int64_t cache_size_limit_;
 		std::map<uint32_t, fec_decode_group> groups_;
-		std::vector<vpn_packet> results_;
+		std::vector<vpn_packet_ptr> results_;
 	};
 }

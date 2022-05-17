@@ -48,7 +48,11 @@ BOOST_AUTO_TEST_CASE(fec_cache2_test2)
 	avpn::fec_decode_group gop(8, 4);
 	avpn::vpn_packet pkt;
 
-	gop.update(0, 0, std::move(pkt));
+	avpn::vpn_packet_ptr ptr =
+		std::make_shared<avpn::vpn_packet>(std::move(pkt));
+
+	gop.update(0, 0, ptr);
+
 	BOOST_TEST(pkt.size() == 0);
 	BOOST_TEST(gop.total_ == 0);
 }

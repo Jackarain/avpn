@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "avpn/vpn_packet.hpp"
+
 #include <streambuf>
 #include <string>
 #include <vector>
@@ -96,23 +98,12 @@ namespace avpn {
 		reedsolomon(int dataShards, int parityShards, const matrix& m);
 		size_t estimate_pershard_size(int total_size, int data_shards = -1);
 
-		void encode(std::vector<vpn_packet>& shards);
-		void decode(std::vector<vpn_packet>& shards);
+		void encode(std::vector<vpn_packet_ptr>& shards);
+		void decode(std::vector<vpn_packet_ptr>& shards);
 
 		static matrix build_matrix(int shards, int data_shards);
 
 	private:
-		template<class T>
-		size_t get_shard_size(T& shards)
-		{
-			for (auto& s : shards) {
-				if (s.size() != 0) {
-					return s.size();
-				}
-			}
-
-			return 0;
-		}
 
 		template<class T>
 		void check_shards(const T& shards, bool nilok = false)

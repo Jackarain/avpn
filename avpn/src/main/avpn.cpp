@@ -171,17 +171,17 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_tun_write(vpn_packet pkt)
+	void avpn_service::do_tun_write(vpn_packet_ptr pkt)
 	{
 		net::co_spawn(m_main_context.get_executor(),
-		[this, pkt = std::move(pkt)] () mutable->net::awaitable<void>
+		[this, pkt = pkt] () mutable->net::awaitable<void>
 		{
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
-				net::buffer(pkt.payload(), pkt.payload_size()), uawaitable[ec]);
+				net::buffer(pkt->payload(), pkt->payload_size()), uawaitable[ec]);
 
 			// 统计下载数据量用于计算下载速率.
-			m_down_stat.bytes_ += (int64_t)pkt.payload_size();
+			m_down_stat.bytes_ += (int64_t)pkt->payload_size();
 			auto index = m_down_stat.speeder_count_ % speed_entries;
 			m_down_stat.speeder_[index] = m_down_stat.bytes_;
 		}, net::detached);
@@ -280,14 +280,14 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_udp_write(vpn_packet pkt, udp::endpoint endp)
+	void avpn_service::do_udp_write(vpn_packet_ptr& pkt, udp::endpoint endp)
 	{
 		net::co_spawn(m_main_context.get_executor(),
-			udp_write(std::move(pkt), std::move(endp)), net::detached);
+			udp_write(pkt, std::move(endp)), net::detached);
 	}
 
 	net::awaitable<void>
-	avpn_service::udp_write(vpn_packet pkt, udp::endpoint remote)
+	avpn_service::udp_write(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
 		auto usize = m_udp_sockets.size();
 		static uint32_t index = 0;
@@ -300,7 +300,7 @@ namespace avpn {
 
 		// 调用udp socket发送数据.
 		co_await usock.async_send_to(
-			net::buffer(pkt.data(), pkt.size()),
+			net::buffer(pkt->data(), pkt->size()),
 			remote, uawaitable[ec]);
 		if (ec)
 			LOG_WARN << "udp_write"
@@ -308,7 +308,7 @@ namespace avpn {
 			<< ", error: " << ec.message();
 
 		// 统计发送速率.
-		m_upload_stat.bytes_ += (int64_t)pkt.size();
+		m_upload_stat.bytes_ += (int64_t)pkt->size();
 		auto idx = m_upload_stat.speeder_count_ % speed_entries;
 		m_upload_stat.speeder_[idx] = m_upload_stat.bytes_;
 
@@ -868,7 +868,8 @@ namespace avpn {
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
 					client_id, 0, 0, 0, 0, false, 0, {});
-				co_await udp_write(std::move(response), remote);
+				auto ptr = std::make_shared<vpn_packet>(std::move(response));
+				co_await udp_write(ptr, remote);
 				co_return;
 			}
 
@@ -880,7 +881,8 @@ namespace avpn {
 				src, (uint8_t)m_subnet.prefix_length(),
 				params.passbyvpn_, params.pushdns_,
 				params.pushroutes_);
-			co_await udp_write(std::move(response), remote);
+			auto ptr = std::make_shared<vpn_packet>(std::move(response));
+			co_await udp_write(ptr, remote);
 
 			// 更新远端udp的endpoint.
 			vp->remote_endpoint(remote);
@@ -914,7 +916,8 @@ namespace avpn {
 			vaddr, (uint8_t)m_subnet.prefix_length(),
 			params.passbyvpn_, params.pushdns_,
 			params.pushroutes_);
-		co_await udp_write(std::move(response), remote);
+		auto ptr = std::make_shared<vpn_packet>(std::move(response));
+		co_await udp_write(ptr, remote);
 
 		// 更新vp的远端udp的endpoint.
 		vp->remote_endpoint(remote);

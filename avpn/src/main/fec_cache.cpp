@@ -89,92 +89,9 @@ namespace avpn
 		global_allocator.set_max_size(max_size);
 	}
 
-	void packet_free::operator()(void* p)
+	packet_allocator* static_packet_allocator()
 	{
-		global_allocator.free_packet((uint8_t*)p);
-	}
-
-
-	//////////////////////////////////////////////////////////////////////////
-
-	vpn_packet::vpn_packet()
-		: data_(global_allocator.alloc_packet())
-	{}
-
-	vpn_packet::vpn_packet(vpn_packet&& p)
-		: data_(std::move(p.data_))
-		, size_(p.size_)
-		, payload_size_(p.payload_size_)
-		, gid_(p.gid_)
-		, pid_(p.pid_)
-		, type_(p.type_)
-	{
-		p.size_ = 0;
-		p.payload_size_ = 0;
-	}
-
-	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
-	{
-		data_ = std::move(p.data_);
-		size_ = p.size_;
-		payload_size_ = p.payload_size_;
-		gid_ = p.gid_;
-		pid_ = p.pid_;
-		type_ = p.type_;
-
-		p.size_ = 0;
-		p.payload_size_ = 0;
-		p.gid_ = 0;
-		p.pid_ = 0;
-
-		return *this;
-	}
-
-	uint8_t* vpn_packet::data()
-	{
-		BOOST_ASSERT(data_);
-		return data_.get();
-	}
-
-	const uint8_t* vpn_packet::data() const
-	{
-		BOOST_ASSERT(data_);
-		return data_.get();
-	}
-
-	uint16_t vpn_packet::size()
-	{
-		return size_;
-	}
-
-	void vpn_packet::resize(size_t count)
-	{
-		size_ = (uint16_t)count;
-	}
-
-	uint8_t* vpn_packet::payload()
-	{
-		return data_.get() + pkt_payload_off;
-	}
-
-	uint16_t vpn_packet::payload_size()
-	{
-		return (uint16_t)payload_size_;
-	}
-
-	void vpn_packet::payload_size(size_t count)
-	{
-		payload_size_ = (uint16_t)count;
-	}
-
-	vpn_packet_t vpn_packet::type() const
-	{
-		return type_;
-	}
-
-	void vpn_packet::type(vpn_packet_t t)
-	{
-		type_ = t;
+		return &global_allocator;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -213,12 +130,14 @@ namespace avpn
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
 
-	void fec_encode_group::save(vpn_packet&& pkt)
+	void fec_encode_group::save(vpn_packet_ptr& pkt)
 	{
 		auto ret = pid_++ % ds_;
-		pkts_[ret] = std::move(pkt);
+
+		pkts_[ret] = pkt;
 		if (pid_ == 0)
 			gid_++;
+
 		total_++;
 
 		BOOST_ASSERT(total_ <= ds_);
@@ -296,15 +215,17 @@ namespace avpn
 		pg.total_ = 0;
 	}
 
-	void fec_decode_group::update(uint32_t gid, uint16_t pid, vpn_packet&& pkt)
+	void fec_decode_group::update(
+		uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt)
 	{
 		BOOST_ASSERT(gid == gid_ || gid == 0);
 		gid_ = gid;
 
-		pkts_[pid] = std::move(pkt);
+		pkts_[pid] = pkt;
+
 		bs_.set_bit(pid);
 
-		pkt.resize(1450);
+		pkt->resize(1450);
 		total_ += 1450;
 	}
 
@@ -354,7 +275,7 @@ namespace avpn
 		if (it == matrix_cache_.end())
 		{
 			matrix_cache_[idx] =
-				avpn::reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
+				reedsolomon::build_matrix((size_t)(ds_ + ps_), ds_);
 			matrix_ptr = &matrix_cache_[idx];
 		}
 		else
@@ -362,7 +283,7 @@ namespace avpn
 			matrix_ptr = &it->second;
 		}
 
-		avpn::reedsolomon fec_dec(ds_, ps_, *matrix_ptr);
+		reedsolomon fec_dec(ds_, ps_, *matrix_ptr);
 
 		// fec解码.
 		try {
@@ -392,13 +313,13 @@ namespace avpn
 	}
 
 	void fec_recover::update(uint32_t gid, uint16_t pid,
-		int ds, int ps, vpn_packet&& pkt)
+		int ds, int ps, vpn_packet_ptr& pkt)
 	{
 		auto it = groups_.find(gid);
 		if (it == groups_.end())
 		{
 			fec_decode_group gop(ds, ps);
-			gop.update(gid, pid, std::move(pkt));
+			gop.update(gid, pid, pkt);
 
 			groups_.emplace(gid, std::move(gop));
 		}
@@ -408,7 +329,7 @@ namespace avpn
 			if (gop.used())
 				return;
 
-			gop.update(gid, pid, std::move(pkt));
+			gop.update(gid, pid, pkt);
 			if (!gop.available())
 				return;
 
@@ -418,9 +339,11 @@ namespace avpn
 			if (lost_pkts.empty())
 				return;
 
+			// gop解码.
 			if (!gop.decode())
 				return;
 
+			// 解码后将丢失的pkt放入result容器中.
 			for (auto& index : lost_pkts)
 				results_.emplace_back(std::move(gop.pkts_[index]));
 		}
@@ -452,7 +375,7 @@ namespace avpn
 		return total - bytes;
 	}
 
-	std::vector<vpn_packet> fec_recover::acquire()
+	std::vector<vpn_packet_ptr> fec_recover::acquire()
 	{
 		return std::move(results_);
 	}

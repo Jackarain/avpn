@@ -37,6 +37,7 @@ file(GLOB avpn_SRCS
 	include/avpn/fec_cache.hpp
 	include/avpn/protocol.hpp
 	include/avpn/vpn_client_table.hpp
+	include/avpn/vpn_packet.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp
@@ -51,6 +52,7 @@ file(GLOB avpn_SRCS
 	src/main/fec_cache.cpp
 	src/main/protocol.cpp
 	src/main/vpn_client_table.cpp
+	src/main/vpn_packet.cpp
 )
 
 if (WIN32)

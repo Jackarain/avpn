@@ -1,0 +1,104 @@
+﻿//
+// Copyright (C) 2019 Jack.
+//
+// Author: jack
+// Email:  jack.wgm at gmail dot com
+//
+
+#include "avpn/vpn_packet.hpp"
+#include "avpn/fec_cache.hpp"
+#include "avpn/protocol.hpp"
+
+namespace avpn {
+
+	//////////////////////////////////////////////////////////////////////////
+	void packet_free::operator()(void* p)
+	{
+		static_packet_allocator()->free_packet((uint8_t*)p);
+	}
+
+	vpn_packet::vpn_packet()
+		: data_(static_packet_allocator()->alloc_packet())
+	{}
+
+	vpn_packet::vpn_packet(vpn_packet&& p)
+		: data_(std::move(p.data_))
+		, size_(p.size_)
+		, payload_size_(p.payload_size_)
+		, gid_(p.gid_)
+		, pid_(p.pid_)
+		, type_(p.type_)
+	{
+		p.size_ = 0;
+		p.payload_size_ = 0;
+	}
+
+	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
+	{
+		data_ = std::move(p.data_);
+		size_ = p.size_;
+		payload_size_ = p.payload_size_;
+		gid_ = p.gid_;
+		pid_ = p.pid_;
+		type_ = p.type_;
+
+		p.size_ = 0;
+		p.payload_size_ = 0;
+		p.gid_ = 0;
+		p.pid_ = 0;
+
+		return *this;
+	}
+
+	vpn_packet::~vpn_packet()
+	{
+
+	}
+
+	uint8_t* vpn_packet::data()
+	{
+		BOOST_ASSERT(data_);
+		return data_.get();
+	}
+
+	const uint8_t* vpn_packet::data() const
+	{
+		BOOST_ASSERT(data_);
+		return data_.get();
+	}
+
+	uint16_t vpn_packet::size()
+	{
+		return size_;
+	}
+
+	void vpn_packet::resize(size_t count)
+	{
+		size_ = (uint16_t)count;
+	}
+
+	uint8_t* vpn_packet::payload()
+	{
+		return data_.get() + pkt_payload_off;
+	}
+
+	uint16_t vpn_packet::payload_size()
+	{
+		return (uint16_t)payload_size_;
+	}
+
+	void vpn_packet::payload_size(size_t count)
+	{
+		payload_size_ = (uint16_t)count;
+	}
+
+	vpn_packet_t vpn_packet::type() const
+	{
+		return type_;
+	}
+
+	void vpn_packet::type(vpn_packet_t t)
+	{
+		type_ = t;
+	}
+}

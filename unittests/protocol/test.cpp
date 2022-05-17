@@ -76,4 +76,13 @@ BOOST_AUTO_TEST_CASE(test_transfer)
 
 	std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 	BOOST_TEST(sv == data);
+
+	auto d1 = pkt.data();
+
+	std::shared_ptr<avpn::vpn_packet> sp =
+		std::make_shared<avpn::vpn_packet>(std::move(pkt));
+
+	auto d2 = sp->data();
+
+	BOOST_TEST(d1 == d2);
 }

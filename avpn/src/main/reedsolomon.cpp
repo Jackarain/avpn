@@ -9,7 +9,7 @@
 //
 
 #include "avpn/fec_cache.hpp"
-
+#include "avpn/vpn_packet.hpp"
 #include "avpn/reedsolomon.hpp"
 
 namespace avpn {
@@ -1159,17 +1159,17 @@ namespace avpn {
 			return (total_size + data_shards - 1) / data_shards;
 		}
 
-		void reedsolomon::encode(std::vector<vpn_packet>& shards)
+		void reedsolomon::encode(std::vector<vpn_packet_ptr>& shards)
 		{
 			std::vector<std::span<uint8_t>> outputs;
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
-				auto data = shards[i].data();
+				auto data = shards[i]->data();
 				outputs.push_back(std::span<uint8_t>(data, 1450));
 			}
 
 			std::vector<std::string_view> sv;
 			for (size_t i = 0; i < m_data_shards; i++) {
-				auto data = shards[i].data();
+				auto data = shards[i]->data();
 				sv.emplace_back(std::string_view((const char*)data, 1450));
 			}
 
@@ -1177,14 +1177,22 @@ namespace avpn {
 			m_codingloop->encode(m_parity_rows, sv, m_data_shards, outputs);
 		}
 
-		void reedsolomon::decode(std::vector<vpn_packet>& shards)
+		void reedsolomon::decode(std::vector<vpn_packet_ptr>& shards)
 		{
-			auto shard_size = get_shard_size(shards);
+			auto shard_size = 0;
+
+			for (auto& s : shards) {
+				if (s->size() != 0) {
+					shard_size = s->size();
+					break;
+				}
+			}
+
 			auto number_present = 0;
 			auto data_present = 0;
 
 			for (size_t i = 0; i < static_cast<size_t>(m_shards); i++) {
-				if (shards[i].size() != 0) {
+				if (shards[i]->size() != 0) {
 					number_present++;
 					if (i < (size_t)m_data_shards) {
 						data_present++;
@@ -1210,11 +1218,11 @@ namespace avpn {
 				sub_matrix_row < m_data_shards;
 				matrix_row++)
 			{
-				if (shards[matrix_row].size() == 0)
+				if (shards[matrix_row]->size() == 0)
 					continue;
 
-				auto data = shards[matrix_row].data();
-				auto size = shards[matrix_row].size();
+				auto data = shards[matrix_row]->data();
+				auto size = shards[matrix_row]->size();
 				sub_shards[sub_matrix_row] = std::string_view((char*)data, size);
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
@@ -1238,10 +1246,10 @@ namespace avpn {
 
 			auto output_count = 0;
 			for (size_t ishard = 0; ishard < (size_t)m_data_shards; ishard++) {
-				if (shards[ishard].size() == 0) {
-					shards[ishard].resize(shard_size);
-					outputs[output_count] = std::span(shards[ishard].data(),
-						shards[ishard].data() + shards[ishard].size());
+				if (shards[ishard]->size() == 0) {
+					shards[ishard]->resize(shard_size);
+					outputs[output_count] = std::span(shards[ishard]->data(),
+						shards[ishard]->data() + shards[ishard]->size());
 					matrix_rows[output_count] = data_decode_matrix[ishard];
 					output_count++;
 				}

@@ -63,7 +63,7 @@ namespace avpn {
 		tun_forward(vpn_packet pkt, endpoint_pair endp);
 
 		// 通过udp协议发送数据包.
-		void do_udp_write(vpn_packet pkt);
+		void do_udp_write(vpn_packet_ptr& pkt);
 
 		// 返回client的id.
 		std::string client_id() const;

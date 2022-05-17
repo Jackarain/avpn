@@ -135,19 +135,19 @@ namespace avpn {
 		//
 
 		// 使用udp发送.
-
-
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+		do_udp_write(ptr);
 
 		co_return;
 	}
 
-	void vpn_tunnel::do_udp_write(vpn_packet pkt)
+	void vpn_tunnel::do_udp_write(vpn_packet_ptr& pkt)
 	{
 		auto service = m_vpn_serivce.lock();
 		if (!service)
 			return;
 
-		service->do_udp_write(std::move(pkt), m_remote_endpoint);
+		service->do_udp_write(pkt, m_remote_endpoint);
 	}
 
 	std::string vpn_tunnel::client_id() const
@@ -369,17 +369,20 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
+		// 创建为vpn_packet_ptr, 以便于使用在各模块中.
+		vpn_packet_ptr ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
 		// 更新feg解码器.
 		scoped_exit se(
 			[&]() mutable {
 				m_recover.update(gid, pid,
-					m_data_shards, m_parity_shards, std::move(pkt));
+					m_data_shards, m_parity_shards, ptr);
 			});
 
 		if (pid < m_data_shards)
 		{
-			auto content = pkt.payload();
-			auto content_size = pkt.payload_size();
+			auto content = ptr->payload();
+			auto content_size = ptr->payload_size();
 
 			auto ep = avpn::lookup_endpoint_pair(content, content_size);
 			auto& dst_addr = ep.dst_;
@@ -399,7 +402,7 @@ namespace avpn {
 			}
 
 			// 转发到tun设备.
-			service->do_tun_write(std::move(pkt));
+			service->do_tun_write(ptr);
 
 			co_return;
 		}
