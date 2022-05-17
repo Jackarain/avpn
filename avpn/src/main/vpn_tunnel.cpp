@@ -93,6 +93,8 @@ namespace avpn {
 			m_feg.update(pkt, src);
 		}
 
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
 		// 只有以下情况, 将使用tcp发送.
 		// 1. tcp only 状态时.
 		// 2. 作为server时, 远端udp不可用时.
@@ -101,42 +103,14 @@ namespace avpn {
 			(m_remote_endpoint.port() == 0 &&
 				m_identity == Identity::avpn_server))
 		{
-			// 发送至客户端.
-			co_await tcp_write_packet(m_tcp_socket, pkt);
-
-#if 0
-			// 保存.
-			m_feg.save(std::move(pkt));
-
-			// 检查fec编码状态.
-			if (!m_feg.available())
-				co_return;
-
-			// 开始fec编码.
-			m_feg.encode();
-
-			// 循环发送fec数据.
-			for (auto i = m_feg.ds_; i < m_feg.shards_; i++)
-			{
-				auto& p = m_feg.pkts_[i];
-				co_await tcp_write_packet(m_tcp_socket, pkt);
-			}
-#endif
-			co_return;
+			// 使用tcp发送至客户端.
+			co_await tcp_write_packet(m_tcp_socket, ptr);
 		}
-
-		//
-		// TODO:
-		//
-		// 发送.
-		//
-		// 保存.
-		//
-		//
-
-		// 使用udp发送.
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-		do_udp_write(ptr);
+		else
+		{
+			// 使用udp发送.
+			udp_write_packet(ptr);
+		}
 
 		// 保存到fec编码器, 如果已经编码, 则需要发送编码部分.
 		bool ret = m_feg.save(ptr);
@@ -147,13 +121,13 @@ namespace avpn {
 		for (int i = m_data_shards;
 			i < m_data_shards + m_parity_shards; i++)
 		{
-			do_udp_write(m_feg.pkts_[i]);
+			udp_write_packet(m_feg.pkts_[i]);
 		}
 
 		co_return;
 	}
 
-	void vpn_tunnel::do_udp_write(vpn_packet_ptr& pkt)
+	void vpn_tunnel::udp_write_packet(vpn_packet_ptr& pkt)
 	{
 		auto service = m_vpn_serivce.lock();
 		if (!service)
@@ -296,10 +270,10 @@ namespace avpn {
 	}
 
 	net::awaitable<void> vpn_tunnel::tcp_write_packet(
-		tcp::socket& stream, vpn_packet& pkt)
+		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
 		boost::system::error_code ec;
-		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
+		uint32_t start_len_tag = htonl((uint32_t)pkt->size());
 
 		co_await net::async_write(stream,
 			net::buffer(&start_len_tag, 4), uawaitable[ec]);
@@ -312,7 +286,7 @@ namespace avpn {
 		}
 
 		co_await net::async_write(stream,
-			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
+			net::buffer(pkt->data(), pkt->size()), uawaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_write_packet"
@@ -322,6 +296,12 @@ namespace avpn {
 		}
 
 		co_return;
+	}
+
+	void vpn_tunnel::tcp_write_packet(vpn_packet_ptr& pkt)
+	{
+		net::co_spawn(get_executor(),
+			tcp_write_packet(m_tcp_socket, pkt), net::detached);
 	}
 
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet pkt)
