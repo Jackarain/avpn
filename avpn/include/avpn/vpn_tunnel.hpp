@@ -54,7 +54,7 @@ namespace avpn {
 		// 开始处理tcp协议.
 		void start_tcp_loop();
 
-		// 返回该tunnel的tcp socket引用.
+		// 设置/返回该tunnel的tcp socket引用.
 		tcp::socket& tcp_socket();
 		void tcp_socket(tcp::socket&& s, size_t id);
 
@@ -66,32 +66,27 @@ namespace avpn {
 		net::awaitable<void>
 		udp_forward(vpn_packet pkt, udp::endpoint remote);
 
-		// 通过udp协议发送数据包.
+		// 通过udp/tcp协议发送数据包.
 		void udp_write_packet(vpn_packet_ptr& pkt);
-		// 通过tcp协议发送数据包.
 		void tcp_write_packet(vpn_packet_ptr& pkt);
 
-		// 返回client的id.
+		// 设置/返回client的id.
 		std::string client_id() const;
-		// 设置client的id.
 		void client_id(const std::string& id);
 
 		// 返回协商的密钥.
 		std::string shared_key() const;
 
-		// 返回server分配的vnet addr.
+		// 设置/返回server分配的vnet addr.
 		net::ip::network_v4 vnet_addr() const;
-		// 设置vnet addr.
 		void vnet_addr(const net::ip::network_v4& vaddr);
 
-		// 返回远端udp的endpoint.
+		// 设置/返回远端udp的endpoint.
 		udp::endpoint remote_endpoint() const;
-		// 设置远端udp的endpoint.
 		void remote_endpoint(const udp::endpoint& endp);
 
-		// 最后活跃时间.
+		// 设置/返回tunnel最后活跃时间.
 		time_point last_see() const;
-		// 更新最后活跃时间.
 		void last_see(const time_point& now);
 
 		// Obtains the executor associated with the io_context.
@@ -104,17 +99,14 @@ namespace avpn {
 		// tcp消息循环.
 		net::awaitable<void> tcp_loop();
 
-		// 在tcp连接上读取一个vpn_packet消息.
+		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(
 			tcp::socket& stream, vpn_packet& pkt);
-		// 在tcp连接上发送一个vpn_packet消息.
 		net::awaitable<void> tcp_write_packet(
 			tcp::socket& stream, vpn_packet_ptr& pkt);
 
-		// 处理tcp协议.
+		// 处理tcp/udp协议.
 		net::awaitable<bool> process_tcp_packet(vpn_packet pkt);
-
-		// 处理udp协议.
 		net::awaitable<void> process_udp_packet(vpn_packet pkt);
 
 		// 作为server时, 接收到keepalive消息.
