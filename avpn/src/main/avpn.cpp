@@ -357,12 +357,20 @@ namespace avpn {
 
 		// 开始侦听udp客户端消息.
 		net::co_spawn(m_main_context,
-			[this]() mutable->net::awaitable<void>
+			[this]() mutable -> net::awaitable<void>
 			{
-				co_await start_udp_server();
+				co_await start_udp_client();
 				co_return;
 			}, net::detached);
 
+		net::co_spawn(
+			m_main_context,
+			[this]() mutable -> net::awaitable<void>
+			{
+				co_await start_tcp_client();
+				co_return;
+			},
+			net::detached);
 	}
 
 	void avpn_service::run_as_server()
@@ -784,6 +792,11 @@ namespace avpn {
 			}
 		}
 
+		co_return;
+	}
+
+	net::awaitable<void> avpn_service::start_tcp_client()
+	{
 		co_return;
 	}
 

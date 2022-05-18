@@ -200,6 +200,9 @@ namespace avpn {
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
 		net::awaitable<void> start_udp_server();
 
+		// 作为client时, 开始进行tcp连接.
+		net::awaitable<void> start_tcp_client();
+
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
 
