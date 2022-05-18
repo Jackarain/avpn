@@ -155,6 +155,12 @@ namespace crypto_util {
 		return { (char*)member.staticPublicKey_.data(), member.staticPublicKey_.size() };
 	}
 
+	std::string_view keyexchange::StaticPrivateKey()
+	{
+		auto& member = *m_member;
+		return { (char*)member.staticPrivateKey_.data(), member.staticPrivateKey_.size() };
+	}
+
 	std::string_view keyexchange::EphemeralPublicKey()
 	{
 		auto& member = *m_member;

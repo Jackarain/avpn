@@ -26,17 +26,21 @@ namespace crypto_util {
 
 	public:
 		keyexchange(std::string_view static_private_key = {},
-			std::string_view static_public_key = {}, bool use_curve25519 = true);
+			std::string_view static_public_key = {},
+			bool use_curve25519 = true);
 		~keyexchange() = default;
 
 	public:
 		// DH或ECDH相关.
 		std::string_view StaticPublicKey();
+		std::string_view StaticPrivateKey();
+
 		std::string_view GenerateSharedKey(std::string_view otherPubKey);
 
 		// DH2相关.
 		std::string_view EphemeralPublicKey();
-		std::string_view GenerateSharedKey(std::string_view otherStaticPubKey, std::string_view otherEphemeralPubKey);
+		std::string_view GenerateSharedKey(std::string_view otherStaticPubKey,
+			std::string_view otherEphemeralPubKey);
 
 	private:
 		std::shared_ptr<keyexchange_member> m_member;
