@@ -193,14 +193,14 @@ namespace avpn {
 
 		// 作为server时, 初始化tcp连接监听.
 		bool init_tcp_acceptors();
-		// 作为server时, 监听client的tcp连接.
+
+		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
-		// 作为server时, 监听client的udp消息.
 		net::awaitable<void> start_udp_server();
 
-		// 开始tcp连接握手认证.
-		net::awaitable<void> start_tcp_handshake(tcp::socket, size_t);
-		// 开始udp连接握手认证.
+		// 开始tcp/udp连接握手认证.
+		net::awaitable<void> start_tcp_handshake(
+			tcp::socket, size_t);
 		net::awaitable<void> start_udp_handshake(
 			udp::endpoint, vpn_packet&, uint32_t);
 
