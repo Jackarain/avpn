@@ -411,14 +411,8 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
-		// 更新feg解码器.
-		scoped_exit se(
-			[&]() mutable {
-				m_recover.update(gid, pid,
-					m_data_shards, m_parity_shards, pkt);
-			});
-
-		if (pid < m_data_shards)
+		auto write_pkt = [this, service](vpn_packet_ptr& pkt)
+			mutable -> net::awaitable<void>
 		{
 			auto content = pkt->payload();
 			auto content_size = pkt->payload_size();
@@ -450,6 +444,25 @@ namespace avpn {
 			service->do_tun_write(pkt);
 
 			co_return;
+		};
+
+		// 如果是data shards, 则write到tun设备或转发.
+		if (pid < m_data_shards)
+			co_await write_pkt(pkt);
+
+		// 更新feg解码器, 并检查解码结果将结果write到tun设备或转发.
+		m_recover.update(gid, pid,
+			m_data_shards, m_parity_shards, pkt);
+
+		auto results = std::move(m_recover.results_);
+		if (results.empty())
+			co_return;
+
+		for (auto& p : results)
+		{
+			if (!p)
+				continue;
+			co_await write_pkt(p);
 		}
 
 		co_return;
