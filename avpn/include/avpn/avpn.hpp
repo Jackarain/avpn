@@ -165,8 +165,10 @@ namespace avpn {
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
 		void do_tun_write(vpn_packet_ptr);
-		// 处理server上的tun设备pkt.
+
+		// 处理server/client上的tun设备pkt.
 		void do_server_tun_read(vpn_packet, endpoint_pair);
+		void do_client_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int);
@@ -283,7 +285,11 @@ namespace avpn {
 		// 的生命期后, 需要从该容器手工清除.
 		vpn_client_table m_clients;
 
-		// 子网信息, 作为server时由配置参数确定.
+		// 作为client时, tunnel对象.
+		vpn_tunnel_weak_ptr m_tunnel;
+
+		// 子网信息, 包含本机虚拟ip信息.
+		// 作为server时, 由配置参数确定.
 		// 作为client时, 由认证完成时确定.
 		net::ip::network_v4 m_subnet;
 

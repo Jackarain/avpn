@@ -156,14 +156,8 @@ namespace avpn {
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-				// TODO: 作为client时, 未连接状态, 丢弃所有packet.
-
-				// 统计上传数据量用于计算上传速率.
-				m_upload_stat.bytes_ += (int64_t)bytes;
-				auto index = m_down_stat.speeder_count_ % speed_entries;
-				m_upload_stat.speeder_[index] = m_upload_stat.bytes_;
-
-				// 透传到tunnel.
+				do_client_tun_read(std::move(pkt), std::move(endp));
+				continue;
 			}
 		}
 
@@ -203,8 +197,37 @@ namespace avpn {
 
 		// 转发到对应的vp对象.
 		net::co_spawn(vp->get_executor(),
-			vp->tun_forward(ptr, std::move(endp)),
-				net::detached);
+			[this, vp, ptr, endp = std::move(endp)]()
+			mutable -> net::awaitable<void>
+			{
+				co_await vp->tun_forward(ptr, std::move(endp));
+				co_return;
+			}, net::detached);
+	}
+
+	void avpn_service::do_client_tun_read(vpn_packet pkt, endpoint_pair endp)
+	{
+		// 获取tunnel对象指针.
+		auto vp = m_tunnel.lock();
+		if (!vp)
+			return;
+
+		// 创建packet指针再通过tun_forward传入协程.
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+		// 透传到tunnel.
+		net::co_spawn(vp->get_executor(),
+			[this, vp, ptr, endp = std::move(endp)]()
+			mutable->net::awaitable<void>
+		{
+			co_await vp->tun_forward(ptr, std::move(endp));
+			co_return;
+		}, net::detached);
+
+		// 统计上传数据量用于计算上传速率.
+		m_upload_stat.bytes_ += (int64_t)pkt.size();
+		auto index = m_down_stat.speeder_count_ % speed_entries;
+		m_upload_stat.speeder_[index] = m_upload_stat.bytes_;
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
