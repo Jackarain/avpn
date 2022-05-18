@@ -60,7 +60,7 @@ namespace avpn {
 
 		// forward tun packet to network.
 		net::awaitable<void>
-		tun_forward(vpn_packet pkt, endpoint_pair endp);
+		tun_forward(vpn_packet_ptr pkt, endpoint_pair endp);
 
 		// forward udp packet from network.
 		net::awaitable<void>

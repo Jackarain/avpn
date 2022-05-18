@@ -83,17 +83,15 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::tun_forward(vpn_packet pkt, endpoint_pair endp)
+	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
 	{
 		auto& params = m_config.tunnel_params_;
 
 		{
 			// 更新pkt数据.
 			uint32_t src = endp.src_.address().to_v4().to_uint();
-			m_feg.update(pkt, src);
+			m_feg.update(*pkt, src);
 		}
-
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 默认使用udp发送.
 		bool use_tcp_transfer = false;
@@ -111,12 +109,12 @@ namespace avpn {
 		}
 
 		if (use_tcp_transfer)
-			co_await tcp_write_packet(m_tcp_socket, ptr);
+			co_await tcp_write_packet(m_tcp_socket, pkt);
 		else
-			udp_write_packet(ptr);
+			udp_write_packet(pkt);
 
 		// 保存到fec编码器, 如果已经编码, 则需要发送编码部分.
-		bool ret = m_feg.save(ptr);
+		bool ret = m_feg.save(pkt);
 		if (!ret)
 			co_return;
 
@@ -124,12 +122,12 @@ namespace avpn {
 		for (int i = m_data_shards;
 			i < m_data_shards + m_parity_shards; i++)
 		{
-			ptr = m_feg.pkts_[i];
+			pkt = m_feg.pkts_[i];
 
 			if (use_tcp_transfer)
-				co_await tcp_write_packet(m_tcp_socket, ptr);
+				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
-				udp_write_packet(ptr);
+				udp_write_packet(pkt);
 		}
 
 		co_return;
@@ -425,7 +423,7 @@ namespace avpn {
 			auto content = ptr->payload();
 			auto content_size = ptr->payload_size();
 
-			auto ep = avpn::lookup_endpoint_pair(content, content_size);
+			auto ep = lookup_endpoint_pair(content, content_size);
 			auto& dst_addr = ep.dst_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
@@ -438,7 +436,13 @@ namespace avpn {
 				if (!m_config.tunnel_params_.c2c_)
 					co_return;
 
-				// TODO: 通过avpn service转发内网数据.
+				// 通过avpn service查找对应的tunnel
+				// 然后转发内网数据到这个tunnel.
+				auto dst_tunnel = service->lookup_tunnel(uint_dst);
+				if (!dst_tunnel)
+					co_return;
+
+				co_await dst_tunnel->tun_forward(ptr, std::move(ep));
 				co_return;
 			}
 

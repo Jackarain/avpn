@@ -211,7 +211,7 @@ namespace avpn {
 		net::awaitable<void> tcp_write_packet(tcp::socket&,
 			vpn_packet&, size_t);
 
-		// 根据虚拟ip查询对应的tunnel信息.
+		// 根据虚拟ip/client id查询对应的tunnel信息.
 		vpn_tunnel_ptr lookup_tunnel(uint32_t);
 		vpn_tunnel_ptr lookup_tunnel(std::string);
 

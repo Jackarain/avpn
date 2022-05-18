@@ -197,9 +197,12 @@ namespace avpn {
 			return;
 		}
 
+		// 创建packet指针再通过tun_forward传入协程.
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
 		// 转发到对应的vp对象.
 		net::co_spawn(vp->get_executor(),
-			vp->tun_forward(std::move(pkt), std::move(endp)),
+			vp->tun_forward(ptr, std::move(endp)),
 				net::detached);
 	}
 

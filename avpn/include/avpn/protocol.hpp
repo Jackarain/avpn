@@ -22,7 +22,8 @@ namespace avpn {
 	// encrypt(1)	0表示未加密, 1表示加密.
 	// rsv(1)       保留位.
 	// type(6)		消息类型.
-	// src(32)	    源地址, 由has_src指示是否存有效.
+	// src(32)	    ip包发起端的虚拟源地址, 当server收到pkt时, 通过
+	//				src索引到具体的tunnel, 对于client来说用不到.
 	// body(N)		N个字节的消息体, 如果encrypt为01, 则
 	//				这个body为加密体.
 
