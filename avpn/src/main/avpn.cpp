@@ -137,7 +137,7 @@ namespace avpn {
 			pkt.payload_size(bytes);
 
 			// 解析ip相关的信息.
-			auto endp = avpn::lookup_endpoint_pair(payload, bytes);
+			auto endp = parser_endpoint(payload, bytes);
 
 			// 解析不出来的ip包, 直接跳过...
 			if (endp.empty())

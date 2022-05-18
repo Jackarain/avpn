@@ -161,7 +161,7 @@ namespace avpn {
 		return true;
 	}
 
-	inline endpoint_pair lookup_endpoint_pair(const uint8_t* buf, std::size_t len)
+	inline endpoint_pair parser_endpoint(const uint8_t* buf, std::size_t len)
 	{
 		uint8_t version = (buf[0] & 0xf0) >> 4;
 

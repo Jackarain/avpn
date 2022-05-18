@@ -417,7 +417,7 @@ namespace avpn {
 			auto content = pkt->payload();
 			auto content_size = pkt->payload_size();
 
-			auto ep = lookup_endpoint_pair(content, content_size);
+			auto ep = parser_endpoint(content, content_size);
 			auto& dst_addr = ep.dst_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();

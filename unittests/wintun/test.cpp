@@ -670,7 +670,7 @@ bool open_tun()
 				ret = read_wintun(read_bufs);
 				if (ret > 0)
 				{
-					auto endp = avpn::lookup_endpoint_pair((const uint8_t*)read_bufs.data(), ret);
+					auto endp = avpn::parser_endpoint((const uint8_t*)read_bufs.data(), ret);
 					endp.to_string();
 					break;
 				}
