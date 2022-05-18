@@ -189,6 +189,7 @@ namespace avpn {
 
 	void avpn_service::do_server_tun_read(vpn_packet pkt, endpoint_pair endp)
 	{
+		// 根据对端的虚拟ip查找tunnel对象.
 		uint32_t dst = endp.dst_.address().to_v4().to_uint();
 		auto vp =  lookup_tunnel(dst);
 		if (!vp)
