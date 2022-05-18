@@ -817,6 +817,12 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tcp_client()
 	{
+		// scoped_exit用于退出此函数时将自动重试.
+		scoped_exit se([&]() mutable
+			{
+				m_client_tcp_cnt = 1;
+			});
+
 		tcp::socket stream(m_main_context);
 
 		auto ret = co_await connect_server(stream);
@@ -853,14 +859,25 @@ namespace avpn {
 			addr, prefix_length, passbyvpn, pushdns, routes);
 		if (id.empty())
 		{
-			LOG_WARN << "";
+			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
+			co_return;
 		}
 
-		//
-		// 连接成功后, 发起认证请求.
-		// make_handshake(0, m_client_id, tunnel_param.);
+		auto self = shared_from_this();
 
-		// 创建vpn tunnel对象, 并进入tunnel对象的tcp loop中.
+		// 判断client的tunnel对象是否创建, 如果
+		// 已经创建, 则表示已经握手成功.
+		auto tunnel = m_tunnel.lock();
+		if (!tunnel)
+		{
+			// 创建tunnel对象, 在完成握手后, 进入tunnel
+			// 的tcp loop中循环处理tcp消息.
+			tunnel = vpn_tunnel::make(m_main_context,
+				self, m_config, std::string(pubkey), m_client_key);
+			m_tunnel = tunnel;
+
+			setup_tun(m_vnet);
+		}
 
 		co_return;
 	}
@@ -868,11 +885,6 @@ namespace avpn {
 	net::awaitable<bool> avpn_service::connect_server(tcp::socket& stream)
 	{
 		auto& upstreams = m_config.upstreams_;
-
-		scoped_exit se([&]() mutable
-			{
-				m_client_tcp_cnt = 1;
-			});
 
 		for (auto it = upstreams.begin();
 			!m_abort && it < upstreams.end(); it++)
@@ -917,14 +929,11 @@ namespace avpn {
 			if (ec)
 			{
 				LOG_ERR << "connect_server, async_connect: " << ec.message();
-				LOG_DBG << "Wait a moment to reconnect...";
 				co_return false;
 			}
 
 			net::ip::tcp::no_delay option(true);
 			stream.set_option(option, ec);
-
-			se.cancel();
 		}
 
 		co_return true;
