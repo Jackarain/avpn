@@ -213,12 +213,12 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			auto ptr = m_udp_sockets[index];
-			auto& usock = ptr->sock_;
+			auto socket_ptr = m_udp_sockets[index];
+			auto& udp_socket = socket_ptr->sock_;
 
 			vpn_packet pkt;
 
-			auto bytes = co_await usock.async_receive_from(
+			auto bytes = co_await udp_socket.async_receive_from(
 				net::buffer(pkt.data(), 1450), remote, uawaitable[ec]);
 			if (ec)
 				continue;
@@ -227,7 +227,7 @@ namespace avpn {
 			// 因为client一旦检测到超时, 则会重建
 			// udp socket对象重新向server建立通信.
 			if (m_identity == Identity::avpn_client)
-				ptr->last_see_ = steady_clock::now();
+				socket_ptr->last_see_ = steady_clock::now();
 
 			// 重置为实际接收的数据大小.
 			pkt.resize(bytes);
@@ -267,9 +267,12 @@ namespace avpn {
 				if (!vp)
 					continue;
 
+				// 创建packet指针再通过tun_forward传入协程.
+				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
 				// 将UDP消息转发到对应的vp连接中处理.
 				co_await net::co_spawn(m_main_context,
-					vp->udp_forward(std::move(pkt), remote),
+					vp->udp_forward(ptr, remote),
 						net::use_awaitable);
 
 				continue;

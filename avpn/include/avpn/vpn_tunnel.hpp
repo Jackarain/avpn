@@ -64,7 +64,7 @@ namespace avpn {
 
 		// forward udp packet from network.
 		net::awaitable<void>
-		udp_forward(vpn_packet pkt, udp::endpoint remote);
+		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
 
 		// 通过udp/tcp协议发送数据包.
 		void udp_write_packet(vpn_packet_ptr& pkt);
@@ -106,15 +106,15 @@ namespace avpn {
 			tcp::socket& stream, vpn_packet_ptr& pkt);
 
 		// 处理tcp/udp协议.
-		net::awaitable<bool> process_tcp_packet(vpn_packet pkt);
-		net::awaitable<void> process_udp_packet(vpn_packet pkt);
+		net::awaitable<bool> process_tcp_packet(vpn_packet_ptr pkt);
+		net::awaitable<void> process_udp_packet(vpn_packet_ptr pkt);
 
 		// 作为server时, 接收到keepalive消息.
 		net::awaitable<void> on_vpn_keepalive();
 
 		// 接收到transfer/compress消息.
-		net::awaitable<void> on_vpn_transfer(vpn_packet pkt);
-		net::awaitable<void> on_vpn_transfer_compress(vpn_packet pkt);
+		net::awaitable<void> on_vpn_transfer(vpn_packet_ptr pkt);
+		net::awaitable<void> on_vpn_transfer_compress(vpn_packet_ptr pkt);
 
 	private:
 		// 用于当前tunnel业务调度.

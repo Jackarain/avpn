@@ -134,9 +134,9 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::udp_forward(vpn_packet pkt, udp::endpoint remote)
+	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
-		co_await process_udp_packet(std::move(pkt));
+		co_await process_udp_packet(pkt);
 		co_return;
 	}
 
@@ -225,7 +225,10 @@ namespace avpn {
 			if (ret == -1)
 				break;
 
-			if (!co_await process_tcp_packet(std::move(pkt)))
+			// 创建packet指针再通过tun_forward传入协程.
+			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+			if (!co_await process_tcp_packet(ptr))
 			{
 				LOG_ERR << "process_tcp_packet, break tcp loop.";
 				break;
@@ -317,13 +320,13 @@ namespace avpn {
 			tcp_write_packet(m_tcp_socket, pkt), net::detached);
 	}
 
-	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet pkt)
+	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
 	{
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
 
-		int ret = unwrap_common_header(pkt, enc, type, src);
+		int ret = unwrap_common_header(*pkt, enc, type, src);
 		if (ret == -1)
 			co_return false;
 
@@ -351,13 +354,13 @@ namespace avpn {
 		co_return true;
 	}
 
-	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet pkt)
+	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet_ptr pkt)
 	{
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
 
-		int ret = unwrap_common_header(pkt, enc, type, src);
+		int ret = unwrap_common_header(*pkt, enc, type, src);
 		if (ret == -1)
 			co_return;
 
@@ -392,7 +395,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::on_vpn_transfer(vpn_packet pkt)
+	vpn_tunnel::on_vpn_transfer(vpn_packet_ptr pkt)
 	{
 		auto service = m_vpn_serivce.lock();
 		if (!service)
@@ -404,24 +407,21 @@ namespace avpn {
 		uint32_t gid;
 		uint8_t pid;
 
-		int ret = unwrap_transfer(pkt, src, gid, pid);
+		int ret = unwrap_transfer(*pkt, src, gid, pid);
 		if (ret < 0)
 			co_return;
-
-		// 创建为vpn_packet_ptr, 以便于使用在各模块中.
-		vpn_packet_ptr ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 更新feg解码器.
 		scoped_exit se(
 			[&]() mutable {
 				m_recover.update(gid, pid,
-					m_data_shards, m_parity_shards, ptr);
+					m_data_shards, m_parity_shards, pkt);
 			});
 
 		if (pid < m_data_shards)
 		{
-			auto content = ptr->payload();
-			auto content_size = ptr->payload_size();
+			auto content = pkt->payload();
+			auto content_size = pkt->payload_size();
 
 			auto ep = lookup_endpoint_pair(content, content_size);
 			auto& dst_addr = ep.dst_;
@@ -442,12 +442,12 @@ namespace avpn {
 				if (!dst_tunnel)
 					co_return;
 
-				co_await dst_tunnel->tun_forward(ptr, std::move(ep));
+				co_await dst_tunnel->tun_forward(pkt, std::move(ep));
 				co_return;
 			}
 
 			// 转发到tun设备.
-			service->do_tun_write(ptr);
+			service->do_tun_write(pkt);
 
 			co_return;
 		}
@@ -456,7 +456,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::on_vpn_transfer_compress(vpn_packet pkt)
+	vpn_tunnel::on_vpn_transfer_compress(vpn_packet_ptr pkt)
 	{
 		uint32_t src = 0;
 
@@ -464,7 +464,7 @@ namespace avpn {
 		uint8_t pid;
 		uint8_t ctype;
 
-		int ret = unwrap_transfer_compress(pkt, src, gid, pid, ctype);
+		int ret = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
 		if (ret < 0)
 			co_return;
 
