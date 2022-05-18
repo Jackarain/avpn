@@ -32,6 +32,7 @@ namespace avpn {
 		, m_main_context(m_ioc_pool.main_io_context())
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
+		, m_client_key(base64_encode(gen_unique_string(32)))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
 		, m_connect_timer(m_main_context)
@@ -806,9 +807,17 @@ namespace avpn {
 			auto ret = co_await connect_server(stream);
 			if (!ret)
 				continue;
+
+			if (m_abort)
+				co_return;
+
+			break;
 		}
 
-		// 发起认证请求.
+		// auto& tunnel_param = m_config.tunnel_params_;
+
+		// 连接成功后, 发起认证请求.
+		// make_handshake(0, m_client_id, tunnel_param.);
 
 		// 创建vpn tunnel对象, 并进入tunnel对象的tcp loop中.
 

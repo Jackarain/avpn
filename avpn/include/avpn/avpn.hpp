@@ -248,6 +248,8 @@ namespace avpn {
 		// 随机id, 用于client连接前标识身份. 避免server
 		// 重复在同一个client分配资源.
 		std::string m_client_id;
+		// 随机密钥, 用于client加密.
+		std::string m_client_key;
 
 		// tun设备.
 		avpn::tun_device m_tundev;
