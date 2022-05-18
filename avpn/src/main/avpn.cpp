@@ -339,7 +339,7 @@ namespace avpn {
 		setup_tun(m_subnet);
 
 		// 初始化tcp连接.
-		bool ret = init_tcp_acceptors();
+		bool ret = init_acceptors();
 		if (!ret)
 			return;
 
@@ -550,7 +550,7 @@ namespace avpn {
 		co_return ret;
 	}
 
-	bool avpn_service::init_tcp_acceptors()
+	bool avpn_service::init_acceptors()
 	{
 		auto& tcp_listens = m_config.tcp_listens_;
 

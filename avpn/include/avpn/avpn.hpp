@@ -192,7 +192,7 @@ namespace avpn {
 		net::awaitable<ip_assign_type> ip_assigner();
 
 		// 作为server时, 初始化tcp连接监听.
-		bool init_tcp_acceptors();
+		bool init_acceptors();
 
 		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
