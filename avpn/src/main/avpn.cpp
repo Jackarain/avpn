@@ -34,6 +34,7 @@ namespace avpn {
 		, m_client_id(gen_unique_string(32))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
+		, m_connect_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
@@ -797,7 +798,85 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tcp_client()
 	{
+		tcp::socket stream(m_main_context);
+
+		// 发起向服务器的连接, 如果连接失败则一直重试.
+		while (!m_abort)
+		{
+			auto ret = co_await connect_server(stream);
+			if (!ret)
+				continue;
+		}
+
+		// 发起认证请求.
+
+		// 创建vpn tunnel对象, 并进入tunnel对象的tcp loop中.
+
 		co_return;
+	}
+
+	net::awaitable<bool> avpn_service::connect_server(tcp::socket& stream)
+	{
+		auto& upstreams = m_config.upstreams_;
+
+		for (auto it = upstreams.begin();
+			!m_abort && it < upstreams.end(); it++)
+		{
+			auto upstream = *it;
+
+			util::uri parser;
+			if (!parser.parse(upstream))
+				continue;
+
+			// skip udp url.
+			auto scheme = std::string(parser.scheme());
+			boost::to_lower(scheme);
+			if (scheme == "udp")
+				continue;
+
+			tcp::resolver resolver{ m_main_context };
+			boost::system::error_code ec;
+
+			auto const results = co_await resolver.async_resolve(
+				std::string(parser.host()),
+				std::string(parser.port()),
+				uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "connect_server"
+					<< ", async_resolve: " << ec.message();
+				continue;
+			}
+
+			// start async connect to server.
+			co_await asio_util::async_connect(stream, results,
+				net::redirect_error(
+					net::bind_cancellation_slot(
+						m_cancel_sig.slot(), net::use_awaitable), ec));
+			if (m_abort)
+			{
+				LOG_ERR << "connect_server, async_connect abort";
+				co_return false;
+			}
+
+			if (ec)
+			{
+				LOG_ERR << "connect_server, async_connect: " << ec.message();
+				LOG_DBG << "Wait a moment to reconnect...";
+
+				m_connect_timer.expires_from_now(std::chrono::seconds(5));
+				co_await m_connect_timer.async_wait(uawaitable[ec]);
+
+				continue;
+			}
+
+			net::ip::tcp::no_delay option(true);
+			stream.set_option(option, ec);
+
+
+		}
+
+		co_return false;
 	}
 
 	net::awaitable<void> avpn_service::start_udp_client()
@@ -895,7 +974,7 @@ namespace avpn {
 			}
 		}
 
-		// 发起握手请求.
+		// TODO: 发起UDP握手请求.
 
 	}
 

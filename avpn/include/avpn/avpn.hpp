@@ -202,6 +202,7 @@ namespace avpn {
 
 		// 作为client时, 开始进行tcp连接.
 		net::awaitable<void> start_tcp_client();
+		net::awaitable<bool> connect_server(tcp::socket&);
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
@@ -253,6 +254,10 @@ namespace avpn {
 
 		// 定时器, 用于处理一系列定时任务.
 		asio_timer m_tick_timer;
+		// 用于连接重试.
+		asio_timer m_connect_timer;
+		// 专门用于退出时取消asio_util::async_connect.
+		boost::asio::cancellation_signal m_cancel_sig;
 
 		// 虚拟网络.
 		net::ip::network_v4 m_vnet;
