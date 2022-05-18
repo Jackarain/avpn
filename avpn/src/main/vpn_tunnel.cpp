@@ -51,7 +51,12 @@ namespace avpn {
 		m_abort = false;
 
 		// 启动tick协程.
-		net::co_spawn(m_io_context, tick(), net::detached);
+		auto self = shared_from_this();
+		net::co_spawn(m_io_context,
+			[this, self]() mutable -> net::awaitable<void>
+			{
+				co_await tick();
+			}, net::detached);
 	}
 
 	void vpn_tunnel::close_tunnel()
@@ -64,8 +69,12 @@ namespace avpn {
 
 	void vpn_tunnel::start_tcp_loop()
 	{
+		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
-			tcp_loop(), net::detached);
+			[this, self]() mutable -> net::awaitable<void>
+			{
+				co_await tcp_loop();
+			}, net::detached);
 	}
 
 	tcp::socket& vpn_tunnel::tcp_socket()
@@ -86,6 +95,7 @@ namespace avpn {
 	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
 	{
 		[[maybe_unused]] auto self = shared_from_this();
+
 		auto& params = m_config.tunnel_params_;
 
 		{
@@ -138,6 +148,7 @@ namespace avpn {
 	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
 		[[maybe_unused]] auto self = shared_from_this();
+
 		co_await process_udp_packet(pkt);
 		co_return;
 	}
@@ -203,7 +214,6 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 
 		while (!m_abort)
@@ -245,7 +255,6 @@ namespace avpn {
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		int start_len_tag = -1;
 
@@ -292,7 +301,6 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tcp_write_packet(
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		uint32_t start_len_tag = htonl((uint32_t)pkt->size());
 
@@ -321,13 +329,17 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_write_packet(vpn_packet_ptr& pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
+
 		net::co_spawn(get_executor(),
-			tcp_write_packet(m_tcp_socket, pkt), net::detached);
+			[this, self, pkt]() mutable -> net::awaitable<void>
+			{
+				co_await tcp_write_packet(m_tcp_socket, pkt);
+			}, net::detached);
 	}
 
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
@@ -362,7 +374,6 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet_ptr pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
@@ -397,7 +408,6 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::on_vpn_keepalive()
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		last_see(steady_clock::now());
 		co_return;
 	}
@@ -405,7 +415,6 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer(vpn_packet_ptr pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		auto service = m_vpn_serivce.lock();
 		if (!service)
 			co_return;
@@ -480,7 +489,6 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer_compress(vpn_packet_ptr pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
 		uint32_t src = 0;
 
 		uint32_t gid;
