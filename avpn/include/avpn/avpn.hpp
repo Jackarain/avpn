@@ -251,6 +251,9 @@ namespace avpn {
 		// 随机密钥, 用于client加密.
 		std::string m_client_key;
 
+		// client连接超时计数.
+		int m_client_tcp_cnt{ 0 };
+
 		// tun设备.
 		avpn::tun_device m_tundev;
 

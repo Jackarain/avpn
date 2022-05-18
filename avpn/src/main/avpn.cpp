@@ -482,6 +482,21 @@ namespace avpn {
 			}
 		};
 
+		// 检查client tcp连接是否超时需要重连.
+		auto check_client_tcp = [&]() mutable
+		{
+			// 为0表示没有开始计数, 无需检查.
+			if (m_client_tcp_cnt > 0)
+			{
+				if (++m_client_tcp_cnt > 10)
+				{
+					m_client_tcp_cnt = 0;
+					net::co_spawn(m_main_context,
+						start_tcp_client(), net::detached);
+				}
+			}
+		};
+
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
@@ -501,6 +516,9 @@ namespace avpn {
 			// 检查超时连接, 清除超时的连接.
 			if (m_identity == Identity::avpn_server)
 				check_tunnel(now);
+
+			if (m_identity == Identity::avpn_client)
+				check_client_tcp();
 		}
 
 		LOG_WARN << "avpn_service::tick() quit...";
@@ -801,21 +819,44 @@ namespace avpn {
 	{
 		tcp::socket stream(m_main_context);
 
-		// 发起向服务器的连接, 如果连接失败则一直重试.
-		while (!m_abort)
+		auto ret = co_await connect_server(stream);
+		if (!ret)
+			co_return;
+
+		auto& params = m_config.tunnel_params_;
+
+		crypto_util::keyexchange ke(m_client_key);
+		auto pubkey = ke.StaticPublicKey();
+
+		auto pkt = make_handshake(0, m_client_id, pubkey,
+			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
+
+		// 发送handshake到server.
+		co_await tcp_write_packet(stream, pkt, 0);
+
+		// 就地等待server回复.
+		auto bytes = co_await tcp_read_packet(stream, pkt, 0);
+		if (bytes == -1)
+			co_return;
+
+		// 解析handshake_reply消息.
+		std::string id;
+		uint8_t ds;
+		uint8_t ps;
+		uint32_t addr;
+		uint8_t prefix_length;
+		bool passbyvpn;
+		uint32_t pushdns;
+		std::vector<std::string> routes;
+
+		bytes = unwrap_handshake_reply(pkt, id, ds, ps,
+			addr, prefix_length, passbyvpn, pushdns, routes);
+		if (id.empty())
 		{
-			auto ret = co_await connect_server(stream);
-			if (!ret)
-				continue;
-
-			if (m_abort)
-				co_return;
-
-			break;
+			LOG_WARN << "";
 		}
 
-		// auto& tunnel_param = m_config.tunnel_params_;
-
+		//
 		// 连接成功后, 发起认证请求.
 		// make_handshake(0, m_client_id, tunnel_param.);
 
@@ -827,6 +868,11 @@ namespace avpn {
 	net::awaitable<bool> avpn_service::connect_server(tcp::socket& stream)
 	{
 		auto& upstreams = m_config.upstreams_;
+
+		scoped_exit se([&]() mutable
+			{
+				m_client_tcp_cnt = 1;
+			});
 
 		for (auto it = upstreams.begin();
 			!m_abort && it < upstreams.end(); it++)
@@ -872,20 +918,16 @@ namespace avpn {
 			{
 				LOG_ERR << "connect_server, async_connect: " << ec.message();
 				LOG_DBG << "Wait a moment to reconnect...";
-
-				m_connect_timer.expires_from_now(std::chrono::seconds(5));
-				co_await m_connect_timer.async_wait(uawaitable[ec]);
-
-				continue;
+				co_return false;
 			}
 
 			net::ip::tcp::no_delay option(true);
 			stream.set_option(option, ec);
 
-
+			se.cancel();
 		}
 
-		co_return false;
+		co_return true;
 	}
 
 	net::awaitable<void> avpn_service::start_udp_client()
@@ -1022,7 +1064,7 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
-					client_id, 0, 0, 0, 0, false, 0, {});
+					{}, 0, 0, 0, 0, false, 0, {});
 				co_await tcp_write_packet(stream, response, id);
 				co_return;
 			}
@@ -1111,7 +1153,7 @@ namespace avpn {
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
-					client_id, 0, 0, 0, 0, false, 0, {});
+					{}, 0, 0, 0, 0, false, 0, {});
 				auto ptr = std::make_shared<vpn_packet>(std::move(response));
 				co_await udp_write(ptr, remote);
 				co_return;

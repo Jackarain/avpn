@@ -711,7 +711,7 @@ namespace avpn {
 						}
 
 						// 回调用户.
-						fallback.dismiss();
+						fallback.cancel();
 						ec = {};
 						handler(ec, bytes_transferred);
 
@@ -810,7 +810,7 @@ namespace avpn {
 						}
 
 						// 回调用户.
-						fallback.dismiss();
+						fallback.cancel();
 						ec = {};
 						self_->m_instrand--;
 						handler(ec, bytes_transferred);
