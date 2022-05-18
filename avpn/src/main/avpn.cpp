@@ -280,7 +280,7 @@ namespace avpn {
 				// client握手认证请求, 转入handshake处理流程.
 				if (type == vpt_handshake)
 				{
-					co_await start_udp_handshake(remote, pkt, src);
+					co_await do_udp_handshake(remote, pkt, src);
 					continue;
 				}
 
@@ -352,6 +352,17 @@ namespace avpn {
 	{
 		m_identity = Identity::avpn_client;
 		m_abort = false;
+
+		LOG_DBG << "Start run_as_client...";
+
+		// 开始侦听udp客户端消息.
+		net::co_spawn(m_main_context,
+			[this]() mutable->net::awaitable<void>
+			{
+				co_await start_udp_server();
+				co_return;
+			}, net::detached);
+
 	}
 
 	void avpn_service::run_as_server()
@@ -698,7 +709,7 @@ namespace avpn {
 			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
 			// 协商通信key).
 			net::co_spawn(executor,
-				start_tcp_handshake(std::move(socket), connection_id),
+				do_tcp_handshake(std::move(socket), connection_id),
 					net::detached);
 		}
 
@@ -776,7 +787,106 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> avpn_service::start_tcp_handshake(
+	net::awaitable<void> avpn_service::start_udp_client()
+	{
+		std::vector<udp::endpoint> endps;
+		boost::system::error_code ec;
+
+		auto& upstreams = m_config.upstreams_;
+		for (auto it = upstreams.begin(); !m_abort
+			&& it != upstreams.end(); it++)
+		{
+			auto upstream = *it;
+			util::uri parser;
+
+			if (!parser.parse(upstream))
+				continue;
+
+			auto scheme = std::string(parser.scheme());
+			boost::to_lower(scheme);
+
+			if (scheme != "udp")
+				continue;
+
+			tcp::resolver resolver{ m_main_context };
+			auto const results = co_await resolver.async_resolve(
+				std::string(parser.host()),
+				std::string(parser.port()),
+				uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "start_udp_client"
+					<< ", find udp async_resolve: " << ec.message();
+				continue;
+			}
+
+			for (auto& endp : results)
+			{
+				auto tmp = endp.endpoint();
+				endps.emplace_back(
+					udp::endpoint(tmp.address(), tmp.port()));
+			}
+		}
+
+		for (auto& socket_ptr : m_udp_sockets)
+		{
+			if (!socket_ptr)
+				continue;
+			if (!socket_ptr->sock_.is_open())
+				continue;
+
+			socket_ptr->sock_.close(ec);
+		}
+
+		m_udp_sockets.clear();
+
+		// 创建udp socket, 使用随机端口, 创建4倍个数的udp socket用于
+		// 与vpn服务端通信以提高收发效率.
+		const static int max_client_udp_socket = 4;
+		auto size = endps.size() * max_client_udp_socket;
+		for (size_t i = 0; i < size; i++)
+		{
+			auto& endp = endps[i % endps.size()];
+
+			udp::socket sock(m_main_context,
+				udp::endpoint(endp.protocol(), 0));
+
+			auto local_endp = sock.local_endpoint(ec);
+			if (ec)
+			{
+				LOG_ERR << "start_udp_client"
+					<< ", udp open error: " << ec.message();
+				continue;
+			}
+
+			auto socket_ptr = std::make_shared<udp_socket>(
+				udp_socket{ steady_clock::now(), std::move(sock) });
+			m_udp_sockets.emplace_back(std::move(socket_ptr));
+		}
+
+		auto tmp_sockets = m_udp_sockets;
+		for (int fast = 0; fast < 8; fast++)
+		{
+			for (int n = 0; n < (int)tmp_sockets.size(); n++)
+			{
+				auto socket_ptr = tmp_sockets[n];
+				auto local_endp = socket_ptr->sock_.local_endpoint();
+
+				auto address_string = local_endp.address().to_string();
+				LOG_DBG << "start_udp_client"
+					<< ", create udp socket: [" << address_string
+					<< "]:" << local_endp.port();
+
+				net::co_spawn(m_ioc_pool.get_io_context(),
+					start_udp_read_loop(n), net::detached);
+			}
+		}
+
+		// 发起握手请求.
+
+	}
+
+	net::awaitable<void> avpn_service::do_tcp_handshake(
 		tcp::socket stream, size_t id)
 	{
 		vpn_packet pkt;
@@ -874,7 +984,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	avpn_service::start_udp_handshake(
+	avpn_service::do_udp_handshake(
 		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
 	{
 		uint8_t ds;
