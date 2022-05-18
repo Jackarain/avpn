@@ -169,7 +169,7 @@ namespace avpn {
 		void do_server_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
-		net::awaitable<void> start_udp_read_loop(int index);
+		net::awaitable<void> start_udp_read_loop(int);
 		void do_udp_write(vpn_packet_ptr&, udp::endpoint);
 		net::awaitable<void> udp_write(vpn_packet_ptr, udp::endpoint);
 
