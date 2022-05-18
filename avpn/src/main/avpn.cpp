@@ -115,6 +115,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 
 		while (!m_abort)
@@ -208,6 +209,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		udp::endpoint remote;
 		boost::system::error_code ec;
 
@@ -299,6 +301,7 @@ namespace avpn {
 	net::awaitable<void>
 	avpn_service::udp_write(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		auto usize = m_udp_sockets.size();
 		static uint32_t index = 0;
 
@@ -626,6 +629,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tcp_listen(tcp::acceptor& a)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code error;
 
 		while (!m_abort)
@@ -684,6 +688,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_server()
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		BOOST_ASSERT(m_identity == Identity::avpn_server);
 
 		boost::system::error_code ec;
@@ -755,6 +760,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tcp_handshake(
 		tcp::socket stream, size_t id)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		vpn_packet pkt;
 
 		int ret = co_await tcp_read_packet(stream, pkt, id);
@@ -853,6 +859,7 @@ namespace avpn {
 	avpn_service::start_udp_handshake(
 		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		uint8_t ds;
 		uint8_t ps;
 		std::string pubkey;
@@ -937,6 +944,7 @@ namespace avpn {
 	net::awaitable<int> avpn_service::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt, size_t id)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		int start_len_tag = -1;
 
@@ -981,6 +989,7 @@ namespace avpn {
 	avpn_service::tcp_write_packet(tcp::socket& stream,
 		vpn_packet& pkt, size_t id)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
 
@@ -1022,12 +1031,14 @@ namespace avpn {
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(uint32_t vaddr)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		co_return lookup_tunnel(vaddr);
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(std::string id)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		co_return lookup_tunnel(id);
 	}
 
@@ -1035,11 +1046,9 @@ namespace avpn {
 	avpn_service::make_tunnel(
 		uint32_t vaddr, std::string id, std::string pubkey)
 	{
-		vpn_client vc;
-
 		auto self = shared_from_this();
-		auto& ioc = m_ioc_pool.get_io_context();
 
+		auto& ioc = m_ioc_pool.get_io_context();
 		auto vp = vpn_tunnel::make(ioc, self, m_config,
 			pubkey, m_config.passphrase_);
 
@@ -1049,6 +1058,8 @@ namespace avpn {
 
 		// 设置vp的vnet addr.
 		vp->vnet_addr(vnetaddr);
+
+		vpn_client vc;
 
 		vc.id_ = id;
 		vc.vnet_addr_ = vaddr;

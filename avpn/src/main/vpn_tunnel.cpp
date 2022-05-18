@@ -85,6 +85,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		auto& params = m_config.tunnel_params_;
 
 		{
@@ -136,6 +137,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		co_await process_udp_packet(pkt);
 		co_return;
 	}
@@ -201,6 +203,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 
 		while (!m_abort)
@@ -242,6 +245,7 @@ namespace avpn {
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		int start_len_tag = -1;
 
@@ -288,6 +292,7 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tcp_write_packet(
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		boost::system::error_code ec;
 		uint32_t start_len_tag = htonl((uint32_t)pkt->size());
 
@@ -322,6 +327,7 @@ namespace avpn {
 
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
@@ -356,6 +362,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet_ptr pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
@@ -390,6 +397,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::on_vpn_keepalive()
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		last_see(steady_clock::now());
 		co_return;
 	}
@@ -397,6 +405,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer(vpn_packet_ptr pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		auto service = m_vpn_serivce.lock();
 		if (!service)
 			co_return;
@@ -471,6 +480,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer_compress(vpn_packet_ptr pkt)
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		uint32_t src = 0;
 
 		uint32_t gid;
