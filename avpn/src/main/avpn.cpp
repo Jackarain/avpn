@@ -303,13 +303,12 @@ namespace avpn {
 		static uint32_t index = 0;
 
 		// TODO: 这里可以优化为选择一个活跃的udp socket 用于发送.
-		auto ptr = m_udp_sockets[index++ % usize];
+		auto socket_ptr = m_udp_sockets[index++ % usize];
+		auto& udp_socket = socket_ptr->sock_;
+
 		boost::system::error_code ec;
-
-		auto& usock = ptr->sock_;
-
 		// 调用udp socket发送数据.
-		co_await usock.async_send_to(
+		co_await udp_socket.async_send_to(
 			net::buffer(pkt->data(), pkt->size()),
 			remote, uawaitable[ec]);
 		if (ec)
