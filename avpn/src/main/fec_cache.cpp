@@ -247,13 +247,13 @@ namespace avpn
 		return result;
 	}
 
-	void fec_decode_group::set_used()
+	void fec_decode_group::set_expired()
 	{
 		used_ = true;
 		pkts_.clear();
 	}
 
-	bool fec_decode_group::used() const
+	bool fec_decode_group::expired() const
 	{
 		return used_;
 	}
@@ -321,14 +321,14 @@ namespace avpn
 		else
 		{
 			auto& gop = it->second;
-			if (gop.used())
+			if (gop.expired())
 				return;
 
 			gop.update(gid, pid, pkt);
 			if (!gop.available())
 				return;
 
-			scoped_exit se([&gop]() mutable { gop.set_used(); });
+			scoped_exit se([&gop]() mutable { gop.set_expired(); });
 
 			auto lost_pkts = gop.lost();
 			if (lost_pkts.empty())

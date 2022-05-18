@@ -136,10 +136,9 @@ namespace avpn {
 		// 丢失的索引, 如果未发生丢失, 则返回空.
 		std::vector<int> lost() const;
 
-		// 设置为已经被用过的.
-		void set_used();
-		// 返回是否被用过.
-		bool used() const;
+		// 设置/返回为已经被用过的.
+		void set_expired();
+		bool expired() const;
 
 		// fec解码数据.
 		bool decode();
