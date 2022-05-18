@@ -100,17 +100,12 @@ int platform_init()
 	/* Enable minidump when application crashed. */
 #elif defined(__linux__)
 	rlimit of = { 50000, 100000 };
-	if (setrlimit(RLIMIT_NOFILE, &of) < 0)
-	{
-		perror("setrlimit for nofile");
-	}
+	setrlimit(RLIMIT_NOFILE, &of);
+
 	struct rlimit core_limit;
 	core_limit.rlim_cur = RLIM_INFINITY;
 	core_limit.rlim_max = RLIM_INFINITY;
-	if (setrlimit(RLIMIT_CORE, &core_limit) < 0)
-	{
-		perror("setrlimit for coredump");
-	}
+	setrlimit(RLIMIT_CORE, &core_limit);
 
 	/* Set the stack size programmatically with setrlimit */
 	rlimit rl;
@@ -121,9 +116,7 @@ int platform_init()
 		if (rl.rlim_cur < stack_size)
 		{
 			rl.rlim_cur = stack_size;
-			result = setrlimit(RLIMIT_STACK, &rl);
-			if (result != 0)
-				perror("setrlimit for stack size");
+			setrlimit(RLIMIT_STACK, &rl);
 		}
 	}
 #endif
@@ -168,12 +161,13 @@ std::string version_info()
 #endif // _WIN32
 
 	std::ostringstream oss;
-	oss << "avpn version: v" << AVPN_VERSION
+	oss << "Version: v" << AVPN_VERSION
 		<< ", " << AVPN_GIT_REVISION
-		<< " built on " << __DATE__
+		<< "\nBuilt on " << __DATE__
 		<< " " << __TIME__
 		<< " runs on " << os_name
-		<< ", " << BOOST_COMPILER;
+		<< ", " << BOOST_COMPILER
+		<< ", boost " << BOOST_LIB_VERSION;
 	std::cerr << oss.str() << "\n";
 
 	return oss.str();
