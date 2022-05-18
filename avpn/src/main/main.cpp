@@ -155,9 +155,10 @@ std::string version_info()
 	int ma_ver, mi_ver, patch_ver;
 	sscanf(un.release, "%d.%d.%d", &ma_ver, &mi_ver, &patch_ver);
 
-	if (std::string(un.sysname) == "Linux" && ma_ver < 3)
+	if (std::string(un.sysname) == "Linux" && ma_ver < 4)
 	{
-		std::cerr << "you are running a very very OLD kernel. please upgrade your system" << std::endl;
+		std::cerr << "WARNING: kernel too old, "
+			<< "please upgrade your system!" << std::endl;
 	}
 
 #elif defined(__APPLE__)
@@ -167,8 +168,12 @@ std::string version_info()
 #endif // _WIN32
 
 	std::ostringstream oss;
-	oss << "avpn version: v" << AVPN_VERSION << ", " << AVPN_GIT_REVISION
-		<< " built on " << __DATE__ << " " << __TIME__ << " runs on " << os_name << ", " << BOOST_COMPILER;
+	oss << "avpn version: v" << AVPN_VERSION
+		<< ", " << AVPN_GIT_REVISION
+		<< " built on " << __DATE__
+		<< " " << __TIME__
+		<< " runs on " << os_name
+		<< ", " << BOOST_COMPILER;
 	std::cerr << oss.str() << "\n";
 
 	return oss.str();
