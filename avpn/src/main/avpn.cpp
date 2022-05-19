@@ -83,7 +83,7 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		m_cancel_sig.emit(boost::asio::cancellation_type::all);
+		m_cancel_sig.emit(net::cancellation_type::all);
 
 		for (auto& a : m_tcp_acceptors)
 			a.cancel(ignore_ec);

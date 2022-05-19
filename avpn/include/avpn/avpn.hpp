@@ -269,7 +269,7 @@ namespace avpn {
 		// 用于连接重试.
 		asio_timer m_connect_timer;
 		// 专门用于退出时取消asio_util::async_connect.
-		boost::asio::cancellation_signal m_cancel_sig;
+		net::cancellation_signal m_cancel_sig;
 
 		// 上下行速率统计.
 		speed_stat m_down_stat;
