@@ -88,12 +88,12 @@ namespace avpn {
 		for (auto& a : m_tcp_acceptors)
 			a.cancel(ignore_ec);
 
-		for (auto& usockptr : m_udp_sockets)
+		for (auto& socket_ptr : m_udp_sockets)
 		{
-			if (!usockptr) continue;
+			if (!socket_ptr) continue;
 
-			auto& usock = *usockptr;
-			usock.sock_.close(ignore_ec);
+			auto& udp_socket = *socket_ptr;
+			udp_socket.sock_.close(ignore_ec);
 		}
 
 		// TODO: 退出时删除路由.
