@@ -875,6 +875,8 @@ namespace avpn {
 				self, m_config, std::string(pubkey), m_client_key);
 			m_tunnel = tunnel;
 
+			m_subnet = make_network(addr, (unsigned short)prefix_length);
+
 			setup_tun(m_subnet);
 		}
 
