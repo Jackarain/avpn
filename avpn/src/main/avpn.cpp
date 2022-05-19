@@ -1112,14 +1112,14 @@ namespace avpn {
 		if (ret == -1)
 			co_return;
 
-		vpn_tunnel_ptr vp;
+		vpn_tunnel_ptr tunnel;
 
 		if (src != 0)
 		{
 			// 使用main线程查询, 以避免加锁.
-			vp = co_await net::co_spawn(m_main_context,
+			tunnel = co_await net::co_spawn(m_main_context,
 				async_lookup_tunnel(src), net::use_awaitable);
-			if (!vp)
+			if (!tunnel)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
@@ -1140,40 +1140,40 @@ namespace avpn {
 			co_await tcp_write_packet(stream, response, id);
 
 			auto vnet = make_network(src, m_subnet.prefix_length());
-			BOOST_ASSERT(vnet == vp->vnet_addr());
-			// vp->vnet_addr(vnet);
+			BOOST_ASSERT(vnet == tunnel->vnet_addr());
+			// tunnel->vnet_addr(vnet);
 
 			boost::system::error_code ec;
-			vp->tcp_socket().close(ec);
+			tunnel->tcp_socket().close(ec);
 
 			// 替换为新的tcp socket, 然后用新的tcp socket
 			// 用于tcp通信.
-			vp->tcp_socket(std::move(stream), id);
+			tunnel->tcp_socket(std::move(stream), id);
 
 			// 启动tunnel的tcp读取循环.
-			vp->start_tcp_loop();
-			vp->start_tunnel(ds, ps);
+			tunnel->start_tcp_loop();
+			tunnel->start_tunnel(ds, ps);
 
 			co_return;
 		}
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		vp = co_await net::co_spawn(m_main_context,
+		tunnel = co_await net::co_spawn(m_main_context,
 			async_lookup_tunnel(client_id), net::use_awaitable);
-		if (!vp)
+		if (!tunnel)
 		{
 			// 分配一个虚拟ip.
 			auto [ip_string, vaddr] = co_await co_spawn(
 				m_main_context, ip_assigner(), net::use_awaitable);
 
 			// 创建tunnel.
-			vp = co_await net::co_spawn(m_main_context,
+			tunnel = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
 		}
 
 		// 获取虚拟ip.
-		auto vnetaddr = vp->vnet_addr();
+		auto vnetaddr = tunnel->vnet_addr();
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
@@ -1186,15 +1186,15 @@ namespace avpn {
 		co_await tcp_write_packet(stream, response, id);
 
 		boost::system::error_code ec;
-		vp->tcp_socket().close(ec);
+		tunnel->tcp_socket().close(ec);
 
 		// 替换为新的tcp socket, 然后用新的tcp socket
 		// 用于tcp通信.
-		vp->tcp_socket(std::move(stream), id);
+		tunnel->tcp_socket(std::move(stream), id);
 
-		// 开始vp的tcp读取消息循环.
-		vp->start_tcp_loop();
-		vp->start_tunnel(ds, ps);
+		// 开始tunnel的tcp读取消息循环.
+		tunnel->start_tcp_loop();
+		tunnel->start_tunnel(ds, ps);
 
 		co_return;
 	}
@@ -1215,14 +1215,14 @@ namespace avpn {
 		if (ret == -1)
 			co_return;
 
-		vpn_tunnel_ptr vp;
+		vpn_tunnel_ptr tunnel;
 
 		if (src != 0)
 		{
 			// 使用main线程查询, 以避免加锁.
-			vp = co_await net::co_spawn(m_main_context,
+			tunnel = co_await net::co_spawn(m_main_context,
 				async_lookup_tunnel(src), net::use_awaitable);
-			if (!vp)
+			if (!tunnel)
 			{
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 				auto response = make_handshake_reply(
@@ -1247,28 +1247,28 @@ namespace avpn {
 			co_await udp_write(ptr, remote);
 
 			// 更新远端udp的endpoint.
-			vp->remote_endpoint(remote);
-			vp->start_tunnel(ds, ps);
+			tunnel->remote_endpoint(remote);
+			tunnel->start_tunnel(ds, ps);
 			co_return;
 		}
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		vp = co_await net::co_spawn(m_main_context,
+		tunnel = co_await net::co_spawn(m_main_context,
 			async_lookup_tunnel(client_id), net::use_awaitable);
-		if (!vp)
+		if (!tunnel)
 		{
 			// 分配一个虚拟ip.
 			auto [ip_string, vaddr] = co_await co_spawn(
 				m_main_context, ip_assigner(), net::use_awaitable);
 
 			// 创建tunnel.
-			vp = co_await net::co_spawn(m_main_context,
+			tunnel = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
 		}
 
-		// 获取vp的虚拟ip.
-		auto vnetaddr = vp->vnet_addr();
+		// 获取tunnel的虚拟ip.
+		auto vnetaddr = tunnel->vnet_addr();
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 回复认证消息.
@@ -1284,9 +1284,9 @@ namespace avpn {
 		auto ptr = std::make_shared<vpn_packet>(std::move(response));
 		co_await udp_write(ptr, remote);
 
-		// 更新vp的远端udp的endpoint.
-		vp->remote_endpoint(remote);
-		vp->start_tunnel(ds, ps);
+		// 更新tunnel的远端udp的endpoint.
+		tunnel->remote_endpoint(remote);
+		tunnel->start_tunnel(ds, ps);
 
 		co_return;
 	}
@@ -1294,6 +1294,54 @@ namespace avpn {
 	net::awaitable<void> avpn_service::do_udp_handshake_reply(
 		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
 	{
+		// 解析handshake_reply消息.
+		std::string id;
+		uint8_t ds;
+		uint8_t ps;
+		uint32_t addr;
+		uint8_t prefix_length;
+		bool passbyvpn;
+		uint32_t pushdns;
+		std::vector<std::string> routes;
+
+		auto bytes = unwrap_handshake_reply(pkt, id, ds, ps,
+			addr, prefix_length, passbyvpn, pushdns, routes);
+		if (id.empty())
+		{
+			LOG_WARN << "udp handshake reply detected server reboot!";
+			co_return;
+		}
+		if (bytes < 0)
+		{
+			LOG_WARN << "udp handshake reply detected invalid!";
+			co_return;
+		}
+
+		auto self = shared_from_this();
+
+		crypto_util::keyexchange ke(m_client_key);
+		auto pubkey = ke.StaticPublicKey();
+
+		// 判断client的tunnel对象是否创建, 如果
+		// 已经创建, 则表示已经握手成功.
+		auto tunnel = m_tunnel.lock();
+		if (!tunnel)
+		{
+			// 创建tunnel对象, 在完成握手后, 进入tunnel
+			// 的tcp loop中循环处理tcp消息.
+			tunnel = vpn_tunnel::make(m_main_context,
+				self, m_config, std::string(pubkey), m_client_key);
+			m_tunnel = tunnel;
+
+			m_subnet = make_network(addr, (unsigned short)prefix_length);
+
+			setup_tun(m_subnet);
+		}
+
+		// 更新tunnel的远端udp的endpoint.
+		tunnel->remote_endpoint(remote);
+		tunnel->start_tunnel(ds, ps);
+
 		co_return;
 	}
 
