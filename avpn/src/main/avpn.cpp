@@ -1236,9 +1236,12 @@ namespace avpn {
 			// 然后将原来tunnel中的udp remote替换.
 			auto response = make_handshake_reply(
 				client_id,
-				(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
-				src, (uint8_t)m_subnet.prefix_length(),
-				params.passbyvpn_, params.pushdns_,
+				(uint8_t)params.data_shards_,
+				(uint8_t)params.parity_shards_,
+				src,
+				(uint8_t)m_subnet.prefix_length(),
+				params.passbyvpn_,
+				params.pushdns_,
 				params.pushroutes_);
 			auto ptr = std::make_shared<vpn_packet>(std::move(response));
 			co_await udp_write(ptr, remote);
@@ -1271,9 +1274,12 @@ namespace avpn {
 		// 回复认证消息.
 		auto response = make_handshake_reply(
 			client_id,
-			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
-			vaddr, (uint8_t)m_subnet.prefix_length(),
-			params.passbyvpn_, params.pushdns_,
+			(uint8_t)params.data_shards_,
+			(uint8_t)params.parity_shards_,
+			vaddr,
+			(uint8_t)m_subnet.prefix_length(),
+			params.passbyvpn_,
+			params.pushdns_,
 			params.pushroutes_);
 		auto ptr = std::make_shared<vpn_packet>(std::move(response));
 		co_await udp_write(ptr, remote);
