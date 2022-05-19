@@ -249,6 +249,15 @@ namespace avpn {
 		}
 
 		LOG_WARN << "tcp_loop, tcp loop quit...";
+		if (!m_abort)
+		{
+			auto service = m_vpn_serivce.lock();
+			if (!service)
+				co_return;
+
+			// 重置tcp重连计数, 等待tcp重连.
+			service->reset_tcp_cnt(1);
+		}
 		co_return;
 	}
 

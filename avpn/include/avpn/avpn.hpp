@@ -231,6 +231,9 @@ namespace avpn {
 		net::awaitable<vpn_tunnel_ptr>
 			make_tunnel(uint32_t, std::string, std::string);
 
+		// 作为client时, 重置tcp连接计数.
+		void reset_tcp_cnt(int);
+
 	private:
 		// io context pool
 		// 用于使用不同的io_context为不同的client服务.
@@ -263,9 +266,6 @@ namespace avpn {
 		asio_timer m_connect_timer;
 		// 专门用于退出时取消asio_util::async_connect.
 		boost::asio::cancellation_signal m_cancel_sig;
-
-		// 虚拟网络.
-		net::ip::network_v4 m_vnet;
 
 		// 上下行速率统计.
 		speed_stat m_down_stat;

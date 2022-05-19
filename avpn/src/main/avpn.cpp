@@ -98,9 +98,9 @@ namespace avpn {
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
-		m_vnet = {};
 		m_upload_stat = {};
 		m_down_stat = {};
+		m_subnet = {};
 
 		LOG_DBG << "avpn_service.stop()";
 	}
@@ -354,6 +354,7 @@ namespace avpn {
 	{
 		m_identity = Identity::avpn_client;
 		m_abort = false;
+		m_subnet = {};
 
 		LOG_DBG << "Start run_as_client...";
 
@@ -575,8 +576,6 @@ namespace avpn {
 			LOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
-
-		m_vnet = net;
 	}
 
 	net::awaitable<avpn_service::ip_assign_type>
@@ -876,8 +875,18 @@ namespace avpn {
 				self, m_config, std::string(pubkey), m_client_key);
 			m_tunnel = tunnel;
 
-			setup_tun(m_vnet);
+			setup_tun(m_subnet);
 		}
+
+		// 启动tcp loop, 先关闭原来的tcp socket.
+		boost::system::error_code ec;
+		tunnel->tcp_socket().close(ec);
+
+		// 替换为新的tcp socket对象.
+		tunnel->tcp_socket(std::move(stream), 0);
+
+		// 启动tcp loop协程.
+		tunnel->start_tcp_loop();
 
 		co_return;
 	}
@@ -1344,5 +1353,11 @@ namespace avpn {
 
 		co_return vp;
 	}
+
+	void avpn_service::reset_tcp_cnt(int cnt)
+	{
+		m_client_tcp_cnt = cnt;
+	}
+
 }
 
