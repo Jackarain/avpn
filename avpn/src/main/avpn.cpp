@@ -260,7 +260,7 @@ namespace avpn {
 			// 重置为实际接收的数据大小.
 			pkt.resize(bytes);
 
-			vpn_tunnel_ptr vp;
+			vpn_tunnel_ptr tunnel;
 			if (m_identity == Identity::avpn_server)
 			{
 				// 根据协议中的虚拟ip信息, 找到相应vpn连接
@@ -290,9 +290,9 @@ namespace avpn {
 
 				// 根据src寻找对应的client, 找到后转入相应client
 				// 的处理流程中.
-				vp = co_await net::co_spawn(m_main_context,
+				tunnel = co_await net::co_spawn(m_main_context,
 					async_lookup_tunnel(src), net::use_awaitable);
-				if (!vp)
+				if (!tunnel)
 					continue;
 
 				// 创建packet指针再通过tun_forward传入协程.
@@ -300,7 +300,7 @@ namespace avpn {
 
 				// 将UDP消息转发到对应的vp连接中处理.
 				co_await net::co_spawn(m_main_context,
-					vp->udp_forward(ptr, remote),
+					tunnel->udp_forward(ptr, remote),
 						net::use_awaitable);
 
 				continue;
@@ -324,8 +324,19 @@ namespace avpn {
 					continue;
 				}
 
+				tunnel = m_tunnel.lock();
+				if (!tunnel)
+					continue;
+
 				// 转发到client连接, 让client对象处理相应
 				// 的协议数据.
+
+				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+				// 将UDP消息转发到对应的vp连接中处理.
+				co_await net::co_spawn(m_main_context,
+					tunnel->udp_forward(ptr, remote),
+					net::use_awaitable);
 
 				continue;
 			}
