@@ -306,6 +306,22 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_client)
 			{
+				bool enc = false;
+				uint8_t type = 0;
+				uint32_t src = 0;
+
+				int ret = unwrap_common_header(pkt,
+					enc, type, src);
+				if (!ret)
+					continue;
+
+				// server握手认证请求回复, 转入handshake处理流程.
+				if (type == vpt_handshake_reply)
+				{
+					co_await do_udp_handshake_reply(remote, pkt, src);
+					continue;
+				}
+
 				// 转发到client连接, 让client对象处理相应
 				// 的协议数据.
 
@@ -832,8 +848,9 @@ namespace avpn {
 
 		crypto_util::keyexchange ke(m_client_key);
 		auto pubkey = ke.StaticPublicKey();
+		auto src = m_subnet.address().to_uint();
 
-		auto pkt = make_handshake(0, m_client_id, pubkey,
+		auto pkt = make_handshake(src, m_client_id, pubkey,
 			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
 
 		// 发送handshake到server.
@@ -859,6 +876,11 @@ namespace avpn {
 		if (id.empty())
 		{
 			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
+			co_return;
+		}
+		if (bytes < 0)
+		{
+			LOG_WARN << "unwrap_handshake_reply detected invalid!";
 			co_return;
 		}
 
@@ -955,6 +977,7 @@ namespace avpn {
 		std::vector<udp::endpoint> endps;
 		boost::system::error_code ec;
 
+		// 筛选出udp协议的url.
 		auto& upstreams = m_config.upstreams_;
 		for (auto it = upstreams.begin(); !m_abort
 			&& it != upstreams.end(); it++)
@@ -991,6 +1014,7 @@ namespace avpn {
 			}
 		}
 
+		// 关闭清除原来的udp socket.
 		for (auto& socket_ptr : m_udp_sockets)
 		{
 			if (!socket_ptr)
@@ -1045,8 +1069,23 @@ namespace avpn {
 			}
 		}
 
-		// TODO: 发起UDP握手请求.
+		// 发起UDP握手请求.
+		auto& params = m_config.tunnel_params_;
+		auto src = m_subnet.address().to_uint();
 
+		crypto_util::keyexchange ke(m_client_key);
+		auto pubkey = ke.StaticPublicKey();
+
+		auto pkt = make_handshake(src, m_client_id, pubkey,
+			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
+
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+		// 发送udp握手包.
+		for (auto& endp : endps)
+			do_udp_write(ptr, endp);
+
+		co_return;
 	}
 
 	net::awaitable<void> avpn_service::do_tcp_handshake(
@@ -1100,15 +1139,21 @@ namespace avpn {
 				params.pushroutes_);
 			co_await tcp_write_packet(stream, response, id);
 
+			auto vnet = make_network(src, m_subnet.prefix_length());
+			BOOST_ASSERT(vnet == vp->vnet_addr());
+			// vp->vnet_addr(vnet);
+
+			boost::system::error_code ec;
+			vp->tcp_socket().close(ec);
+
 			// 替换为新的tcp socket, 然后用新的tcp socket
 			// 用于tcp通信.
 			vp->tcp_socket(std::move(stream), id);
 
-			vp->vnet_addr(m_subnet);
-
 			// 启动tunnel的tcp读取循环.
 			vp->start_tcp_loop();
 			vp->start_tunnel(ds, ps);
+
 			co_return;
 		}
 
@@ -1140,9 +1185,17 @@ namespace avpn {
 			params.pushroutes_);
 		co_await tcp_write_packet(stream, response, id);
 
+		boost::system::error_code ec;
+		vp->tcp_socket().close(ec);
+
+		// 替换为新的tcp socket, 然后用新的tcp socket
+		// 用于tcp通信.
+		vp->tcp_socket(std::move(stream), id);
+
 		// 开始vp的tcp读取消息循环.
 		vp->start_tcp_loop();
 		vp->start_tunnel(ds, ps);
+
 		co_return;
 	}
 
@@ -1228,6 +1281,13 @@ namespace avpn {
 		// 更新vp的远端udp的endpoint.
 		vp->remote_endpoint(remote);
 		vp->start_tunnel(ds, ps);
+
+		co_return;
+	}
+
+	net::awaitable<void> avpn_service::do_udp_handshake_reply(
+		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
+	{
 		co_return;
 	}
 
