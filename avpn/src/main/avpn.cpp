@@ -1146,9 +1146,12 @@ namespace avpn {
 			// 再动vpn的tcp读取循环.
 			auto response = make_handshake_reply(
 				client_id,
-				(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
-				src, (uint8_t)m_subnet.prefix_length(),
-				params.passbyvpn_, params.pushdns_,
+				(uint8_t)params.data_shards_,
+				(uint8_t)params.parity_shards_,
+				src,
+				(uint8_t)m_subnet.prefix_length(),
+				params.passbyvpn_,
+				params.pushdns_,
 				params.pushroutes_);
 			co_await tcp_write_packet(stream, response, id);
 
@@ -1192,9 +1195,12 @@ namespace avpn {
 		// 回复认证消息.
 		auto response = make_handshake_reply(
 			client_id,
-			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_,
-			vaddr, (uint8_t)m_subnet.prefix_length(),
-			params.passbyvpn_, params.pushdns_,
+			(uint8_t)params.data_shards_,
+			(uint8_t)params.parity_shards_,
+			vaddr,
+			(uint8_t)m_subnet.prefix_length(),
+			params.passbyvpn_,
+			params.pushdns_,
 			params.pushroutes_);
 		co_await tcp_write_packet(stream, response, id);
 
