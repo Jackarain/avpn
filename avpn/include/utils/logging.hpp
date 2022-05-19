@@ -360,8 +360,8 @@ namespace logger_aux__ {
 		const char* data_from_end = src.c_str() + src.size();
 		const char* data_from_next = 0;
 
-		std::unique_ptr<wchar_t> buffer(new wchar_t[src.size() + 1]);
-		wchar_t* data_to = buffer.get();
+		std::vector<wchar_t> buffer(src.size() + 1, 0);
+		wchar_t* data_to = buffer.data();
 		wchar_t* data_to_end = data_to + src.size() + 1;
 		wchar_t* data_to_next = 0;
 
