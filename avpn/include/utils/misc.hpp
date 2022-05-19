@@ -90,6 +90,9 @@ bool make_listen_endpoint(const std::string& address,
 
 bool same_ipv4_network(const net::ip::network_v4& net, uint32_t u32_addr);
 
+net::ip::network_v4
+make_network(uint32_t u32_addr, unsigned short prefix_length);
+
 // 设置local_ip所指定的设备的dns, 若local_ip为空, 则设定全局dns.
 bool set_dns(const std::string& dns, std::string local_ip = "");
 

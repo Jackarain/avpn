@@ -2116,6 +2116,12 @@ bool same_ipv4_network(const net::ip::network_v4& net, uint32_t u32_addr)
 	return false;
 }
 
+net::ip::network_v4
+make_network(uint32_t u32_addr, unsigned short prefix_length)
+{
+	auto ipaddr = net::ip::address_v4(u32_addr);
+	return net::ip::make_network_v4(ipaddr, prefix_length);
+}
 
 //////////////////////////////////////////////////////////////////////////
 
