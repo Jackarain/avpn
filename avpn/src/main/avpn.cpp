@@ -1051,7 +1051,7 @@ namespace avpn {
 			udp::socket sock(m_main_context,
 				udp::endpoint(endp.protocol(), 0));
 
-			auto local_endp = sock.local_endpoint(ec);
+			[[maybe_unused]] auto local_endp = sock.local_endpoint(ec);
 			if (ec)
 			{
 				LOG_ERR << "start_udp_client"
