@@ -24,6 +24,17 @@
 
 namespace crypto_util {
 
+	std::string ecdh_keygen()
+	{
+		using namespace CryptoPP;
+
+		AutoSeededRandomPool prng;
+		std::string ret(32, 0);
+		x25519().GeneratePrivateKey(prng, (byte*)ret.data());
+
+		return ret;
+	}
+
 	struct keyexchange_member
 	{
 		keyexchange_member()

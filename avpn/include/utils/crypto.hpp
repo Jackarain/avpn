@@ -18,6 +18,8 @@
 
 namespace crypto_util {
 
+	std::string ecdh_keygen();
+
 	struct keyexchange_member;
 	class keyexchange
 	{
