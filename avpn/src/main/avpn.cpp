@@ -320,7 +320,7 @@ namespace avpn {
 				// server握手认证请求回复, 转入handshake处理流程.
 				if (type == vpt_handshake_reply)
 				{
-					co_await do_udp_handshake_reply(remote, pkt, src);
+					co_await do_udp_handshake_reply(remote, pkt);
 					continue;
 				}
 
@@ -1311,7 +1311,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void> avpn_service::do_udp_handshake_reply(
-		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
+		udp::endpoint remote, vpn_packet& pkt)
 	{
 		// 解析handshake_reply消息.
 		std::string id;

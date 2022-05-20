@@ -215,7 +215,7 @@ namespace avpn {
 
 		// 作为client时, 处理server的udp握手回复.
 		net::awaitable<void> do_udp_handshake_reply(
-			udp::endpoint, vpn_packet&, uint32_t);
+			udp::endpoint, vpn_packet&);
 
 		// 在tcp连接上读取一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(tcp::socket&,
