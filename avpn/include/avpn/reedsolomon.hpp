@@ -50,7 +50,7 @@ namespace avpn {
 		bool is_square() const;
 		matrix invert() const;
 
-		std::string to_string() const;
+		// std::string to_string() const;
 
 	private:
 		void gaussianElimination();

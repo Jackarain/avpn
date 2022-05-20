@@ -976,6 +976,7 @@ namespace avpn {
 			return result.sub_matrix(0, size, size, size * 2);
 		}
 
+#if 0
 		std::string matrix::to_string() const
 		{
 			std::vector<std::string> rowOut;
@@ -989,6 +990,7 @@ namespace avpn {
 			}
 			return "[" + boost::algorithm::join(rowOut, ", \n") + "]";
 		}
+#endif
 
 		void matrix::gaussianElimination()
 		{
