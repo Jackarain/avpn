@@ -441,10 +441,6 @@ namespace avpn {
 				co_await start_udp_server();
 				co_return;
 			}, net::detached);
-
-		// 开始读取tun上的数据包.
-		net::co_spawn(m_main_context,
-			start_tun_read_loop(), net::detached);
 	}
 
 	net::awaitable<void> avpn_service::tick()
@@ -657,6 +653,10 @@ namespace avpn {
 			LOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
 			return;
 		}
+
+		// 开始读取tun上的数据包.
+		net::co_spawn(m_main_context,
+			start_tun_read_loop(), net::detached);
 	}
 
 	net::awaitable<avpn_service::ip_assign_type>
