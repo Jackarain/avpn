@@ -357,6 +357,115 @@ std::string base64_decode(std::string_view input)
 }
 
 //////////////////////////////////////////////////////////////////////////
+static const char* base58_chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+static const int8_t base58_map[256] =
+{
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1, 0, 1, 2, 3, 4, 5, 6,  7, 8,-1,-1,-1,-1,-1,-1,
+	-1, 9,10,11,12,13,14,15, 16,-1,17,18,19,20,21,-1,
+	22,23,24,25,26,27,28,29, 30,31,32,-1,-1,-1,-1,-1,
+	-1,33,34,35,36,37,38,39, 40,41,42,43,-1,44,45,46,
+	47,48,49,50,51,52,53,54, 55,56,57,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	-1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+};
+
+std::string base58_decode(std::string_view input)
+{
+	auto psz = input.data();
+	// Skip leading spaces.
+	while (*psz && *psz == ' ')
+		psz++;
+	// Skip and count leading '1's.
+	int zeroes = 0;
+	int length = 0;
+	while (*psz == '1') {
+		zeroes++;
+		psz++;
+	}
+	// Allocate enough space in big-endian base256 representation.
+	auto size = strlen(psz) * 733 / 1000 + 1; // log(58) / log(256), rounded up.
+	std::vector<uint8_t> bin256(size, 0);
+	// Process the characters.
+	static_assert(sizeof(base58_map) / sizeof(base58_map[0]) == 256,
+		"mapBase58.size() should be 256"); // guarantee not out of range
+	while (*psz && !(*psz == ' ')) {
+		// Decode base58 character
+		int carry = base58_map[(uint8_t)*psz];
+		if (carry == -1)  // Invalid b58 character
+			return {};
+		int i = 0;
+		for (std::vector<unsigned char>::reverse_iterator it =
+			bin256.rbegin(); (carry != 0 || i < length) && (it != bin256.rend());
+			++it, ++i) {
+			carry += 58 * (*it);
+			*it = carry % 256;
+			carry /= 256;
+		}
+		assert(carry == 0);
+		length = i;
+		psz++;
+	}
+	// Skip trailing spaces.
+	while ((*psz == ' '))
+		psz++;
+	if (*psz != 0)
+		return {};
+
+	return to_hex({ (char*)bin256.data(), bin256.size() });
+}
+
+std::string base58_encode(std::string_view input)
+{
+	// Skip & count leading zeroes.
+	int zeroes = 0;
+	int length = 0;
+	while (input.size() > 0 && input[0] == 0) {
+		input = input.substr(1);
+		zeroes++;
+	}
+	// Allocate enough space in big-endian base58 representation.
+	auto size = input.size() * 138 / 100 + 1; // log(256) / log(58), rounded up.
+	std::vector<unsigned char> b58(size);
+	// Process the bytes.
+	while (input.size() > 0) {
+		int carry = (unsigned char)input[0];
+		int i = 0;
+		// Apply "b58 = b58 * 256 + ch".
+		for (auto it = b58.rbegin();
+			(carry != 0 || i < length) && (it != b58.rend());
+			it++, i++)
+		{
+			carry += 256 * (*it);
+			*it = carry % 58;
+			carry /= 58;
+		}
+		assert(carry == 0);
+		length = i;
+		input = input.substr(1);
+	}
+	// Skip leading zeroes in base58 result.
+	auto it = b58.begin() + (size - length);
+	while (it != b58.end() && *it == 0)
+		it++;
+	// Translate the result into a string.
+	std::string str;
+	str.reserve(zeroes + (b58.end() - it));
+	str.assign(zeroes, '1');
+	while (it != b58.end())
+		str += base58_chars[*(it++)];
+	return str;
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 bool unescape_path(const std::string& in, std::string& out)
 {
@@ -1753,10 +1862,12 @@ void create_pid(std::string suffix, std::filesystem::path target_pidfile/* = {}*
 		// 创建avpn.pid文件.
 		fileop::write(target_pidfile, oss.str());
 		return;
-
 	}
+
 	auto tmppath = fs::temp_directory_path();
-	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", base64_encode(suffix));
+
+	auto avpn_tmppath = tmppath /
+		std::format("avpn-{}", base58_encode(suffix));
 
 	// 创建临时avpn文件夹.
 	fs::create_directories(avpn_tmppath, ignore_ec);
@@ -1773,7 +1884,9 @@ void create_pid(std::string suffix, std::filesystem::path target_pidfile/* = {}*
 uint64_t check_pid(std::string suffix)
 {
 	auto tmppath = fs::temp_directory_path();
-	auto avpn_tmppath = tmppath / std::format("avpn-{}dir", base64_encode(suffix));
+	auto avpn_tmppath = tmppath /
+		std::format("avpn-{}", base64_encode(suffix));
+
 	if (!fs::exists(avpn_tmppath))
 		return 0;
 
