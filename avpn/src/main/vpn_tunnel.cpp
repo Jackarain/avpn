@@ -440,6 +440,10 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
+		// 更新最后可见时间.
+		if (m_identity == Identity::avpn_server)
+			last_see(steady_clock::now());
+
 		auto write_pkt = [this, service](vpn_packet_ptr& pkt)
 			mutable -> net::awaitable<void>
 		{
