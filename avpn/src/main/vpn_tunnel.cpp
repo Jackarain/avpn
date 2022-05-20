@@ -251,7 +251,9 @@ namespace avpn {
 		}
 
 		LOG_WARN << "tcp_loop, tcp loop quit...";
-		if (!m_abort)
+
+		// 当运行身份为client时, 尝试重连服务器.
+		if (!m_abort && m_identity == Identity::avpn_client)
 		{
 			auto service = m_vpn_serivce.lock();
 			if (!service)
