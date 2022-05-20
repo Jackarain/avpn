@@ -1155,7 +1155,8 @@ namespace avpn {
 				params.pushroutes_);
 			co_await tcp_write_packet(stream, response, id);
 
-			auto vnet = make_network(src, m_subnet.prefix_length());
+			[[maybe_unused]] auto vnet =
+				make_network(src, m_subnet.prefix_length());
 			BOOST_ASSERT(vnet == tunnel->vnet_addr());
 			// tunnel->vnet_addr(vnet);
 
