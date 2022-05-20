@@ -1170,7 +1170,7 @@ namespace avpn {
 			}
 
 			std::vector<std::string_view> sv;
-			for (size_t i = 0; i < m_data_shards; i++) {
+			for (size_t i = 0; i < (size_t)m_data_shards; i++) {
 				auto data = shards[i]->data();
 				sv.emplace_back(std::string_view((const char*)data, 1450));
 			}
