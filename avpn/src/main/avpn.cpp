@@ -1109,6 +1109,11 @@ namespace avpn {
 				continue;
 			}
 
+			auto address_string = local_endp.address().to_string();
+			LOG_DBG << "start_udp_client"
+				<< ", create udp socket: [" << address_string
+				<< "]:" << local_endp.port();
+
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
@@ -1120,13 +1125,6 @@ namespace avpn {
 			for (int n = 0; n < (int)tmp_sockets.size(); n++)
 			{
 				auto socket_ptr = tmp_sockets[n];
-				auto local_endp = socket_ptr->sock_.local_endpoint();
-
-				auto address_string = local_endp.address().to_string();
-				LOG_DBG << "start_udp_client"
-					<< ", create udp socket: [" << address_string
-					<< "]:" << local_endp.port();
-
 				net::co_spawn(m_ioc_pool.get_io_context(),
 					start_udp_read_loop(n), net::detached);
 			}
