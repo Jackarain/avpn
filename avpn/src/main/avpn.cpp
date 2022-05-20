@@ -834,8 +834,6 @@ namespace avpn {
 		auto& listens = m_config.udp_listens_;
 		for (auto& listen : listens)
 		{
-			LOG_DBG << "start_udp_server, udp listen: " << listen;
-
 			udp::endpoint endp;
 			bool ipv6only = make_listen_endpoint(listen, endp, ec);
 			if (ec)
