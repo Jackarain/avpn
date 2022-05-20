@@ -597,7 +597,10 @@ namespace avpn {
 				check_tunnel(now);
 
 			if (m_identity == Identity::avpn_client)
+			{
 				check_client_tcp();
+				check_client_udp();
+			}
 		}
 
 		LOG_WARN << "avpn_service::tick() quit...";
