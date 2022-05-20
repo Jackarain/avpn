@@ -965,12 +965,18 @@ namespace avpn {
 			setup_tun(m_subnet);
 		}
 
+		// 成功连接, 取消重连.
+		se.cancel();
+
 		// 启动tcp loop, 先关闭原来的tcp socket.
 		boost::system::error_code ec;
 		tunnel->tcp_socket().close(ec);
 
 		// 替换为新的tcp socket对象.
 		tunnel->tcp_socket(std::move(stream), 0);
+
+		// 启动tunnel.
+		tunnel->start_tunnel(ds, ps);
 
 		// 启动tcp loop协程.
 		tunnel->start_tcp_loop();
