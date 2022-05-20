@@ -1011,6 +1011,9 @@ namespace avpn {
 				continue;
 			}
 
+			// Print connect to server.
+			LOG_DBG << "connect_server, connect to server: " << upstream;
+
 			// start async connect to server.
 			co_await asio_util::async_connect(stream, results,
 				net::redirect_error(
