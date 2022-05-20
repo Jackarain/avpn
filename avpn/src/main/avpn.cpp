@@ -527,6 +527,55 @@ namespace avpn {
 			}
 		};
 
+		// 检查client udp是否超时.
+		auto check_client_udp = [&]() mutable
+		{
+			auto tunnel = m_tunnel.lock();
+			if (!tunnel)
+				return;
+
+			auto now = steady_clock::now();
+			auto tmp_sockets = m_udp_sockets;
+			for (size_t i = 0; i < tmp_sockets.size(); i++)
+			{
+				if (m_abort)
+					break;
+
+				auto socket_ptr = tmp_sockets[i];
+				if (!socket_ptr)
+					continue;
+
+				auto duration = now - socket_ptr->last_see_;
+				if (duration < std::chrono::seconds(60))
+					continue;
+
+				auto local_endp = socket_ptr->sock_.local_endpoint();
+				auto protocol = local_endp.protocol();
+
+				socket_ptr->sock_.close(ec);
+
+				udp::socket new_usock(m_main_context,
+					udp::endpoint(protocol, 0));
+				auto new_endp = new_usock.local_endpoint(ec);
+				if (ec)
+				{
+					LOG_ERR << "Renew udp socket: " << local_endp
+						<< " -> " << new_endp
+						<< ", ec: " << ec.message();
+				}
+				else
+				{
+					LOG_INFO << "Renew udp socket: " << local_endp
+						<< " -> " << new_endp;
+				}
+
+				auto new_udp_socket = std::make_shared<udp_socket>(
+					udp_socket{ now, std::move(new_usock) });
+
+				m_udp_sockets[i] = new_udp_socket;
+			}
+		};
+
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
