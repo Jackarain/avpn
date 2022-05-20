@@ -32,7 +32,7 @@ namespace avpn {
 		, m_main_context(m_ioc_pool.main_io_context())
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
-		, m_client_key(base64_encode(gen_unique_string(32)))
+		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
 		, m_connect_timer(m_main_context)
