@@ -40,6 +40,11 @@ namespace avpn {
 			vpn_tunnel(ioc, vpn, cfg, pubkey, passphrase));
 	}
 
+	vpn_tunnel::~vpn_tunnel()
+	{
+		LOG_DBG << "vpn_tunnel::~vpn_tunnel, this: " << this;
+	}
+
 	void vpn_tunnel::start_tunnel(uint8_t ds, uint8_t ps)
 	{
 		if (m_abort != boost::indeterminate)

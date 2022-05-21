@@ -284,7 +284,9 @@ namespace avpn {
 				// client握手认证请求, 转入handshake处理流程.
 				if (type == vpt_handshake)
 				{
-					co_await do_udp_handshake(remote, pkt, src);
+					net::co_spawn(m_main_context,
+						do_udp_handshake(remote, pkt, src),
+							net::detached);
 					continue;
 				}
 
@@ -320,7 +322,9 @@ namespace avpn {
 				// server握手认证请求回复, 转入handshake处理流程.
 				if (type == vpt_handshake_reply)
 				{
-					co_await do_udp_handshake_reply(remote, pkt);
+					net::co_spawn(m_main_context,
+						do_udp_handshake_reply(remote, pkt),
+							net::detached);
 					continue;
 				}
 
@@ -807,8 +811,6 @@ namespace avpn {
 
 			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
 
-			auto executor = socket.get_executor();
-
 			// 新连接, server先读取client的认证请求, 如果client未认证, 则
 			// 会发出认证请求, 如果是已认证过只是断开重连, 发送认证重连消息
 			// server会根据重连信息中的src虚拟ip找到对应的client, 并使用这
@@ -816,7 +818,7 @@ namespace avpn {
 			// tcp连接, 解密失败, 则回复认证失败消息, 以快速触发client进行
 			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
 			// 协商通信key).
-			net::co_spawn(executor,
+			net::co_spawn(m_main_context,
 				do_tcp_handshake(std::move(socket), connection_id),
 					net::detached);
 		}
@@ -960,6 +962,8 @@ namespace avpn {
 				self, m_config, std::string(pubkey), m_client_key);
 			m_tunnel = tunnel;
 
+			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
+				<< ", thread: " << std::this_thread::get_id();
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			setup_tun(m_subnet);
@@ -1410,6 +1414,8 @@ namespace avpn {
 				self, m_config, std::string(pubkey), m_client_key);
 			m_tunnel = tunnel;
 
+			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()
+				<< ", thread: " << std::this_thread::get_id();
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			setup_tun(m_subnet);

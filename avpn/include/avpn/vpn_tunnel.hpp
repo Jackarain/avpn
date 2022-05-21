@@ -42,7 +42,7 @@ namespace avpn {
 		static std::shared_ptr<vpn_tunnel> make(
 			net::io_context&, std::shared_ptr<avpn_service>&,
 				const service_config&, std::string, std::string);
-		~vpn_tunnel() = default;
+		~vpn_tunnel();
 
 	public:
 		// 开始tunnel工作.
