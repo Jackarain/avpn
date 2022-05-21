@@ -154,8 +154,6 @@ namespace avpn {
 	{
 		[[maybe_unused]] auto self = shared_from_this();
 
-		m_remote_endpoint = remote;
-
 		co_await process_udp_packet(pkt);
 		co_return;
 	}

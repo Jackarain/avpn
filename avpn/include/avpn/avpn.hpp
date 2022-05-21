@@ -179,6 +179,8 @@ namespace avpn {
 		void run_as_client();
 		void run_as_server();
 
+		net::awaitable<void> run_client();
+
 		// 定时器, 用于计算像一些定时运算, 如统计速率.
 		net::awaitable<void> tick();
 
@@ -257,6 +259,8 @@ namespace avpn {
 		std::string m_client_id;
 		// 随机密钥, 用于client加密.
 		std::string m_client_key;
+		// 作为client时, server的udp端口.
+		std::vector<udp::endpoint> m_server_endps;
 
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };

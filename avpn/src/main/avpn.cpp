@@ -332,6 +332,9 @@ namespace avpn {
 				if (!tunnel)
 					continue;
 
+				// 更新远程endpoint.
+				tunnel->remote_endpoint(remote);
+
 				// 转发到client连接, 让client对象处理相应
 				// 的协议数据.
 
@@ -391,22 +394,13 @@ namespace avpn {
 
 		LOG_DBG << "Start run_as_client...";
 
-		// 开始侦听udp客户端消息.
+		// 开始客户端.
 		net::co_spawn(m_main_context,
 			[this]() mutable -> net::awaitable<void>
 			{
-				co_await start_udp_client();
+				co_await run_client();
 				co_return;
 			}, net::detached);
-
-		net::co_spawn(
-			m_main_context,
-			[this]() mutable -> net::awaitable<void>
-			{
-				co_await start_tcp_client();
-				co_return;
-			},
-			net::detached);
 	}
 
 	void avpn_service::run_as_server()
@@ -445,6 +439,61 @@ namespace avpn {
 				co_await start_udp_server();
 				co_return;
 			}, net::detached);
+	}
+
+	net::awaitable<void> avpn_service::run_client()
+	{
+		boost::system::error_code ec;
+
+		// 筛选出udp协议的url.
+		auto& upstreams = m_config.upstreams_;
+		for (auto it = upstreams.begin(); !m_abort
+			&& it != upstreams.end(); it++)
+		{
+			auto upstream = *it;
+			util::uri parser;
+
+			if (!parser.parse(upstream))
+				continue;
+
+			auto scheme = std::string(parser.scheme());
+			boost::to_lower(scheme);
+
+			if (scheme != "udp")
+				continue;
+
+			udp::resolver resolver{ m_main_context };
+			auto const results = co_await resolver.async_resolve(
+				std::string(parser.host()),
+				std::string(parser.port()),
+				uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "start_udp_client"
+					<< ", find udp async_resolve: " << ec.message();
+				continue;
+			}
+
+			for (auto& endp : results)
+				m_server_endps.emplace_back(endp.endpoint());
+		}
+
+		// 开始侦听udp客户端消息.
+		net::co_spawn(m_main_context,
+			[this]() mutable -> net::awaitable<void>
+			{
+				co_await start_udp_client();
+				co_return;
+			}, net::detached);
+
+		net::co_spawn(
+			m_main_context,
+			[this]() mutable -> net::awaitable<void>
+			{
+				co_await start_tcp_client();
+				co_return;
+			},
+			net::detached);
 	}
 
 	net::awaitable<void> avpn_service::tick()
@@ -962,6 +1011,8 @@ namespace avpn {
 				self, m_config, std::string(pubkey), m_client_key);
 			m_tunnel = tunnel;
 
+			tunnel->remote_endpoint(m_server_endps.front());
+
 			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id();
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
@@ -1050,45 +1101,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
-		std::vector<udp::endpoint> endps;
 		boost::system::error_code ec;
-
-		// 筛选出udp协议的url.
-		auto& upstreams = m_config.upstreams_;
-		for (auto it = upstreams.begin(); !m_abort
-			&& it != upstreams.end(); it++)
-		{
-			auto upstream = *it;
-			util::uri parser;
-
-			if (!parser.parse(upstream))
-				continue;
-
-			auto scheme = std::string(parser.scheme());
-			boost::to_lower(scheme);
-
-			if (scheme != "udp")
-				continue;
-
-			tcp::resolver resolver{ m_main_context };
-			auto const results = co_await resolver.async_resolve(
-				std::string(parser.host()),
-				std::string(parser.port()),
-				uawaitable[ec]);
-			if (ec)
-			{
-				LOG_ERR << "start_udp_client"
-					<< ", find udp async_resolve: " << ec.message();
-				continue;
-			}
-
-			for (auto& endp : results)
-			{
-				auto tmp = endp.endpoint();
-				endps.emplace_back(
-					udp::endpoint(tmp.address(), tmp.port()));
-			}
-		}
 
 		// 关闭清除原来的udp socket.
 		for (auto& socket_ptr : m_udp_sockets)
@@ -1106,10 +1119,10 @@ namespace avpn {
 		// 创建udp socket, 使用随机端口, 创建4倍个数的udp socket用于
 		// 与vpn服务端通信以提高收发效率.
 		const static int max_client_udp_socket = 4;
-		auto size = endps.size() * max_client_udp_socket;
+		auto size = m_server_endps.size() * max_client_udp_socket;
 		for (size_t i = 0; i < size; i++)
 		{
-			auto& endp = endps[i % endps.size()];
+			auto& endp = m_server_endps[i % m_server_endps.size()];
 
 			udp::socket sock(m_main_context,
 				udp::endpoint(endp.protocol(), 0));
@@ -1156,7 +1169,7 @@ namespace avpn {
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 发送udp握手包.
-		for (auto& endp : endps)
+		for (auto endp : m_server_endps)
 			do_udp_write(ptr, endp);
 
 		co_return;
