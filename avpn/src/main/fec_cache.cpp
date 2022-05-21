@@ -213,7 +213,6 @@ namespace avpn
 	void fec_decode_group::update(
 		uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt)
 	{
-		BOOST_ASSERT(gid == gid_ || gid == 0);
 		gid_ = gid;
 
 		pkts_[pid] = pkt;
