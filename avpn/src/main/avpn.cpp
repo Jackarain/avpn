@@ -332,12 +332,8 @@ namespace avpn {
 				if (!tunnel)
 					continue;
 
-				// 更新远程endpoint.
-				tunnel->remote_endpoint(remote);
-
 				// 转发到client连接, 让client对象处理相应
 				// 的协议数据.
-
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 				// 将UDP消息转发到对应的vp连接中处理.
