@@ -129,6 +129,22 @@ namespace avpn {
 		else
 			udp_write_packet(pkt);
 
+		// 倍发模式, 无需要fec, 直接发送冗余.
+		if (params.data_shards_ == 1)
+		{
+			params.parity_shards_ =
+				std::min<int>(5, params.parity_shards_);
+
+			for (int i = 0;
+				i < params.parity_shards_ - 1;
+				i++)
+			{
+				udp_write_packet(pkt);
+			}
+
+			co_return;
+		}
+
 		// 保存到fec编码器, 如果已经编码, 则需要发送编码部分.
 		bool ret = m_feg.save(pkt);
 		if (!ret)

@@ -223,8 +223,10 @@ namespace avpn {
 		uint32_t gid, uint8_t pid, std::string_view data)
 	{
 		auto pkt = make_common_header(false, vpt_transfer, src);
-
 		bitstream writer(pkt.data() + pkt.size(), 1450 - pkt.size());
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
@@ -244,6 +246,9 @@ namespace avpn {
 	{
 		make_common_header(pkt, false, vpt_transfer, src);
 		bitstream writer(pkt.data() + pkt_header_size, 1450 - pkt_header_size);
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
 
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
