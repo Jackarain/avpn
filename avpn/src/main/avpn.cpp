@@ -303,7 +303,7 @@ namespace avpn {
 				// 将UDP消息转发到对应的tunnel连接中处理.
 				net::co_spawn(tunnel->get_executor(),
 					tunnel->udp_forward(ptr, remote),
-						net::use_awaitable);
+						net::detached);
 
 				continue;
 			}

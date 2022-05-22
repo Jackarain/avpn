@@ -504,7 +504,11 @@ namespace avpn {
 		if (pid < m_data_shards)
 			co_await write_pkt(pkt);
 
-		// 更新feg解码器, 并检查解码结果将结果write到tun设备或转发.
+		// ds等于1时, 关闭fec.
+		if (m_data_shards == 1)
+			co_return;
+
+		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(gid, pid,
 			m_data_shards, m_parity_shards, pkt);
 
