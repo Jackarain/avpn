@@ -124,14 +124,18 @@ namespace avpn {
 			use_tcp_transfer = true;
 		}
 
+		// 通过udp或tcp发送pkt.
 		if (use_tcp_transfer)
 			co_await tcp_write_packet(m_tcp_socket, pkt);
 		else
 			udp_write_packet(pkt);
 
-		// 倍发模式, 无需要fec, 直接发送冗余.
+		// TCP倍发模式, 无需要fec, 直接发送冗余.
 		if (params.data_shards_ == 1)
 		{
+			if (pkt->type() != vpn_packet_t::pkt_tcp)
+				co_return;
+
 			params.parity_shards_ =
 				std::min<int>(5, params.parity_shards_);
 
@@ -179,6 +183,11 @@ namespace avpn {
 		auto service = m_vpn_serivce.lock();
 		if (!service)
 			return;
+
+		LOG_DBG << "write pkt"
+			<< ", gid: " << pkt->gid_
+			<< ", pid: " << pkt->pid_
+			<< ", size: " << pkt->payload_size();
 
 		service->do_udp_write(pkt, m_remote_endpoint);
 	}
@@ -461,6 +470,11 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
+		LOG_DBG << "forward pkt"
+			<< ", gid: " << pkt->gid_
+			<< ", pid: " << pkt->pid_
+			<< ", size: " << pkt->payload_size();
+
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
@@ -487,11 +501,12 @@ namespace avpn {
 				// 通过avpn service查找对应的tunnel
 				// 然后转发内网数据到这个tunnel.
 				auto dst_tunnel = service->lookup_tunnel(uint_dst);
-				if (!dst_tunnel)
+				if (dst_tunnel)
+				{
+					// 内网转发.
+					co_await dst_tunnel->tun_forward(pkt, std::move(ep));
 					co_return;
-
-				co_await dst_tunnel->tun_forward(pkt, std::move(ep));
-				co_return;
+				}
 			}
 
 			// 转发到tun设备.
