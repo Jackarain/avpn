@@ -300,8 +300,8 @@ namespace avpn {
 				// 创建packet指针再通过tun_forward传入协程.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
-				// 将UDP消息转发到对应的vp连接中处理.
-				co_await net::co_spawn(m_main_context,
+				// 将UDP消息转发到对应的tunnel连接中处理.
+				net::co_spawn(tunnel->get_executor(),
 					tunnel->udp_forward(ptr, remote),
 						net::use_awaitable);
 
