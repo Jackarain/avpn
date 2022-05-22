@@ -130,13 +130,13 @@ namespace avpn
 
 	bool fec_encode_group::save(vpn_packet_ptr& pkt)
 	{
-		auto ret = pid_++ % ds_;
+		pkts_[pid_++] = pkt;
 
-		pkts_[ret] = pkt;
-		if (pid_ == 0)
+		if (pid_ == ds_)
 		{
 			// gop id自增.
 			gid_++;
+			pid_ = 0;
 
 			// 立即编码.
 			if (!encode())
