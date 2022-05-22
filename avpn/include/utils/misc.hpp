@@ -66,7 +66,7 @@ std::vector<windows_driver> enum_windows_devices();
 #endif // WIN32
 
 // 创建pid文件.
-void create_pid(std::string suffix, std::filesystem::path target_pidfile = {});
+void create_pid(std::string suffix, std::filesystem::path pidfile = {});
 // 检查pid文件.
 uint64_t check_pid(std::string suffix);
 
