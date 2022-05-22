@@ -184,11 +184,12 @@ namespace avpn {
 		if (!service)
 			return;
 
+#if defined(PRINT_VPN_IO)
 		LOG_DBG << "write pkt"
 			<< ", gid: " << pkt->gid_
 			<< ", pid: " << pkt->pid_
 			<< ", size: " << pkt->payload_size();
-
+#endif
 		service->do_udp_write(pkt, m_remote_endpoint);
 	}
 
@@ -470,10 +471,12 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
+#if defined(PRINT_VPN_IO)
 		LOG_DBG << "forward pkt"
 			<< ", gid: " << pkt->gid_
 			<< ", pid: " << pkt->pid_
 			<< ", size: " << pkt->payload_size();
+#endif
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
@@ -519,7 +522,8 @@ namespace avpn {
 		if (pid < m_data_shards)
 			co_await write_pkt(pkt);
 
-		// ds等于1时, 关闭fec.
+		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
+		// 已经接收到.
 		if (m_data_shards == 1)
 			co_return;
 
@@ -530,6 +534,9 @@ namespace avpn {
 		auto results = std::move(m_recover.results_);
 		if (results.empty())
 			co_return;
+
+		if (results.size())
+			LOG_DBG << "recover pkts: " << results.size();
 
 		for (auto& p : results)
 		{
