@@ -50,14 +50,6 @@ namespace avpn {
 	avpn_service::~avpn_service()
 	{
 		// TODO: 退出时删除所有添加的路由.
-
-		// 删除所有avpn临时文件.
-		using namespace std::filesystem;
-		auto tmpdir = temp_directory_path() / "avpn";
-
-		std::error_code ignore_ec;
-		remove_all(tmpdir, ignore_ec);
-
 		LOG_DBG << "avpn_service::~avpn_service()";
 	}
 
