@@ -278,7 +278,7 @@ namespace avpn {
 				if (type == vpt_handshake)
 				{
 					net::co_spawn(m_main_context,
-						do_udp_handshake(remote, pkt, src),
+						do_udp_handshake(remote, std::move(pkt), src),
 							net::detached);
 					continue;
 				}
@@ -316,7 +316,7 @@ namespace avpn {
 				if (type == vpt_handshake_reply)
 				{
 					net::co_spawn(m_main_context,
-						do_udp_handshake_reply(remote, pkt),
+						do_udp_handshake_reply(remote, std::move(pkt)),
 							net::detached);
 					continue;
 				}
@@ -341,7 +341,7 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_udp_write(vpn_packet_ptr& pkt, udp::endpoint endp)
+	void avpn_service::do_udp_write(vpn_packet_ptr pkt, udp::endpoint endp)
 	{
 		net::co_spawn(m_main_context.get_executor(),
 			udp_write(pkt, std::move(endp)), net::detached);
@@ -1003,7 +1003,8 @@ namespace avpn {
 			tunnel->remote_endpoint(m_server_endps.front());
 
 			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id();
+				<< ", thread: " << std::this_thread::get_id()
+				<< ", cid: " << m_client_id;
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			setup_tun(m_subnet);
@@ -1284,7 +1285,7 @@ namespace avpn {
 
 	net::awaitable<void>
 	avpn_service::do_udp_handshake(
-		udp::endpoint remote, vpn_packet& pkt, uint32_t src)
+		udp::endpoint remote, vpn_packet pkt, uint32_t src)
 	{
 		uint8_t ds;
 		uint8_t ps;
@@ -1297,6 +1298,9 @@ namespace avpn {
 			src, client_id, pubkey, ds, ps);
 		if (ret == -1)
 			co_return;
+
+		LOG_DBG << "server udp handshake: " << remote
+			<< ", cid: " << client_id;
 
 		vpn_tunnel_ptr tunnel;
 
@@ -1375,7 +1379,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void> avpn_service::do_udp_handshake_reply(
-		udp::endpoint remote, vpn_packet& pkt)
+		udp::endpoint remote, vpn_packet pkt)
 	{
 		// 解析handshake_reply消息.
 		std::string id;
@@ -1417,7 +1421,8 @@ namespace avpn {
 			m_tunnel = tunnel;
 
 			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id();
+				<< ", thread: " << std::this_thread::get_id()
+				<< ", cid: " << m_client_id;
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			setup_tun(m_subnet);

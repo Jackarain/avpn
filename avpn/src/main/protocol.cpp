@@ -92,6 +92,8 @@ namespace avpn {
 		uint8_t type;
 
 		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
 		if (type != vpt_handshake)
 			return -1;
 		auto surplus = pkt.size() - bytes;
@@ -167,6 +169,8 @@ namespace avpn {
 		uint8_t type;
 
 		auto bytes = unwrap_common_header(pkt, enc, type, addr);
+		if (bytes == -1)
+			return -1;
 		if (type != vpt_handshake_reply)
 			return -1;
 		auto surplus = pkt.size() - bytes;
@@ -270,6 +274,8 @@ namespace avpn {
 		uint8_t type;
 
 		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
 		if (type != vpt_transfer)
 			return -1;
 
@@ -355,6 +361,8 @@ namespace avpn {
 		uint8_t type;
 
 		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
 		if (type != vpt_transfer_compress)
 			return -1;
 		auto surplus = pkt.size() - bytes;

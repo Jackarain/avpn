@@ -172,7 +172,7 @@ namespace avpn {
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int);
-		void do_udp_write(vpn_packet_ptr&, udp::endpoint);
+		void do_udp_write(vpn_packet_ptr, udp::endpoint);
 		net::awaitable<void> udp_write(vpn_packet_ptr, udp::endpoint);
 
 		// 启动avpn服务.
@@ -213,11 +213,11 @@ namespace avpn {
 		net::awaitable<void> do_tcp_handshake(
 			tcp::socket, size_t);
 		net::awaitable<void> do_udp_handshake(
-			udp::endpoint, vpn_packet&, uint32_t);
+			udp::endpoint, vpn_packet, uint32_t);
 
 		// 作为client时, 处理server的udp握手回复.
 		net::awaitable<void> do_udp_handshake_reply(
-			udp::endpoint, vpn_packet&);
+			udp::endpoint, vpn_packet);
 
 		// 在tcp连接上读取一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(tcp::socket&,
