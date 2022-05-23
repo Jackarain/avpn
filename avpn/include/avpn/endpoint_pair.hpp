@@ -67,16 +67,15 @@ namespace avpn {
 		net::ip::tcp::endpoint src_;
 		net::ip::tcp::endpoint dst_;
 
-		int type_;
+		int type_{ -1 };
+		int size_{ -1 };
 
 		endpoint_pair()
-			: type_(-1)
 		{}
 
 		// ipv4地址传入构造endpoint pair.
 		endpoint_pair(uint32_t src_ip, uint16_t src_port,
 			uint32_t dst_ip, uint16_t dst_port)
-			: type_(-1)
 		{
 			src_.address(net::ip::address_v4(ntohl(src_ip)));
 			src_.port(ntohs(src_port));
@@ -87,7 +86,6 @@ namespace avpn {
 		// ipv4地址传入构造endpoint pair.
 		endpoint_pair(net::ip::address_v6 src_ip, uint16_t src_port,
 			net::ip::address_v6 dst_ip, uint16_t dst_port)
-			: type_(-1)
 		{
 			src_.address(src_ip);
 			src_.port(ntohs(src_port));
@@ -99,8 +97,10 @@ namespace avpn {
 			: src_(std::move(endp.src_))
 			, dst_(std::move(endp.dst_))
 			, type_(endp.type_)
+			, size_(endp.size_)
 		{
 			endp.type_ = -1;
+			endp.size_ = -1;
 		}
 
 		bool empty() const
@@ -187,6 +187,7 @@ namespace avpn {
 
 				endpoint_pair endp(src_ip, src_port, dst_ip, dst_port);
 				endp.type_ = type;
+				endp.size_ = total;
 
 				return endp;
 			}
@@ -219,6 +220,7 @@ namespace avpn {
 
 				endpoint_pair endp(src_ip, src_port, dst_ip, dst_port);
 				endp.type_ = type;
+				endp.size_ = total;
 
 				return endp;
 			}
@@ -226,6 +228,7 @@ namespace avpn {
 			{
 				endpoint_pair endp(src_ip, 0, dst_ip, 0);
 				endp.type_ = type;
+				endp.size_ = total;
 
 				return endp;
 			}
