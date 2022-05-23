@@ -46,13 +46,13 @@ namespace avpn
 			if (garbage_pool_.pop(p))
 			{
 				garbage_size_--;
-				std::memset(p, 0, 1450);
+				std::memset(p, 0, avpn_packet_size);
 				return p;
 			}
 		}
 
-		p = (uint8_t*)std::calloc(1, 1450);
-		memory_size_ += 1450;
+		p = (uint8_t*)std::calloc(1, avpn_packet_size);
+		memory_size_ += avpn_packet_size;
 		return p;
 	}
 
@@ -62,7 +62,7 @@ namespace avpn
 		if ((size_t)memory_size_ >= max_size_)
 		{
 			std::free((void*)p);
-			memory_size_ -= 1450;
+			memory_size_ -= avpn_packet_size;
 			return;
 		}
 
@@ -120,7 +120,7 @@ namespace avpn
 		pg.pid_ = 0;
 	}
 
-	void fec_encode_group::update(vpn_packet& pkt, uint32_t src)
+	void fec_encode_group::make_fec_header(vpn_packet& pkt, uint32_t src)
 	{
 		// 构造一个sv.
 		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
@@ -128,19 +128,32 @@ namespace avpn
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
 
-	bool fec_encode_group::save(vpn_packet_ptr& pkt)
+	bool fec_encode_group::encode(vpn_packet_ptr& pkt, uint32_t src/* = 0 */)
 	{
 		pkts_[pid_++] = pkt;
 
 		if (pid_ == ds_)
 		{
-			// gop id自增.
+			// 立即编码.
+			if (!do_encode())
+				return false;
+
+			// 编码完后填充协议头.
+			for (auto i = ds_; i < ds_ + ps_; i++)
+			{
+				auto& ptr = pkts_[i];
+				if (!ptr)
+					continue;
+
+				ptr->resize(avpn_packet_size);
+				ptr->payload_size(avpn_payload_size);
+
+				make_fec_header(*ptr, src);
+			}
+
+			// gop id自增, 开始下一组fec编码.
 			gid_++;
 			pid_ = 0;
-
-			// 立即编码.
-			if (!encode())
-				return false;
 
 			return true;
 		}
@@ -148,7 +161,7 @@ namespace avpn
 		return false;
 	}
 
-	bool fec_encode_group::encode()
+	bool fec_encode_group::do_encode()
 	{
 		avpn::matrix* matrix_ptr = nullptr;
 
@@ -220,8 +233,8 @@ namespace avpn
 
 		bs_.set_bit(pid);
 
-		pkt->resize(1450);
-		total_ += 1450;
+		pkt->resize(avpn_packet_size);
+		total_ += avpn_packet_size;
 	}
 
 	bool fec_decode_group::full() noexcept

@@ -79,7 +79,7 @@ namespace avpn {
 
 	uint8_t* vpn_packet::payload()
 	{
-		return data_.get() + pkt_payload_off;
+		return data_.get() + avpn_payload_header_size;
 	}
 
 	uint16_t vpn_packet::payload_size()

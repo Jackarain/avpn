@@ -86,16 +86,16 @@ namespace avpn {
 		fec_encode_group(fec_encode_group&& pg) noexcept;
 
 	public:
-		// 更新这个pkt的数据.
-		// pkt 实际数据, 填充pkt除IP包之外的
-		//     数据.
-		void update(vpn_packet& pkt, uint32_t src);
+		// 更新这个pkt的数据包的fec头.
+		// pkt 实际数据, 填充pkt除IP包之外的header.
+		void make_fec_header(vpn_packet& pkt, uint32_t src);
 
-		// 保存到编码gop.
-		bool save(vpn_packet_ptr& pkt);
+		// 编码gop, 如果成功编码则返回true, 这时可以取编码的数据
+		// 发送到网络.
+		bool encode(vpn_packet_ptr& pkt, uint32_t src = 0);
 
-		// 编码.
-		bool encode();
+	private:
+		bool do_encode();
 
 	public:
 		int ds_{ 0 };

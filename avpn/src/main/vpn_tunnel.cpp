@@ -11,6 +11,8 @@
 
 #include "utils/scoped_exit.hpp"
 
+#define PRINT_VPN_IO
+
 namespace avpn {
 
 	vpn_tunnel::vpn_tunnel(net::io_context& ioc,
@@ -106,7 +108,7 @@ namespace avpn {
 		{
 			// 更新pkt数据.
 			uint32_t src = endp.src_.address().to_v4().to_uint();
-			m_feg.update(*pkt, src);
+			m_feg.make_fec_header(*pkt, src);
 		}
 
 		// 默认使用udp发送.
@@ -149,14 +151,14 @@ namespace avpn {
 			co_return;
 		}
 
-		// 保存到fec编码器, 如果已经编码, 则需要发送编码部分.
-		bool ret = m_feg.save(pkt);
+		// fec编码, 如果成功编码, 则需要发送编码部分.
+		bool ret = m_feg.encode(pkt);
 		if (!ret)
 			co_return;
 
 		// 循环发送已编码部分.
-		for (int i = m_data_shards;
-			i < m_data_shards + m_parity_shards; i++)
+		for (int i = params.data_shards_;
+			i < params.data_shards_ + params.parity_shards_; i++)
 		{
 			pkt = m_feg.pkts_[i];
 
@@ -314,7 +316,7 @@ namespace avpn {
 
 		{
 			start_len_tag = ntohl(start_len_tag);
-			if ((uint32_t)start_len_tag > (uint32_t)static_mtu)
+			if ((uint32_t)start_len_tag > (uint32_t)avpn_static_mtu)
 			{
 				LOG_ERR << "tcp_read_packet"
 					<< ", id: " << m_tcp_socket_id
@@ -535,8 +537,7 @@ namespace avpn {
 		if (results.empty())
 			co_return;
 
-		if (results.size())
-			LOG_DBG << "recover pkts: " << results.size();
+		LOG_DBG << "recover pkts: " << results.size();
 
 		for (auto& p : results)
 		{

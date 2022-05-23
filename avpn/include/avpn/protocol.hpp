@@ -11,9 +11,6 @@
 
 namespace avpn {
 
-	const static int normal_mtu = 1500;
-	const static int static_mtu = 1450;
-	const static uint16_t avpn_protocol_version = 1;
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -38,9 +35,8 @@ namespace avpn {
 		vpt_transfer_compress = 6,
 	};
 
-	// transfer 中的IP包数据在消息中偏移.
-	const static int pkt_payload_off = 13;
-	const static int pkt_header_size = 5;
+	const static uint16_t avpn_protocol_version = 1;
+
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -103,6 +99,7 @@ namespace avpn {
 	// gid(32)
 	// pid(8)
 	// rsv(8)
+	// rsv(8)
 	// data_len(16)
 	// data(data_len)
 	vpn_packet make_transfer(uint32_t src,
@@ -122,6 +119,7 @@ namespace avpn {
 	// gid(32)
 	// pid(8)
 	// compress_type(8)
+	// rsv(8)
 	// data_len(16)
 	// data(data_len)
 	vpn_packet make_transfer_compress(uint32_t src,

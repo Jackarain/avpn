@@ -1167,14 +1167,14 @@ namespace avpn {
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
 				if (!shards[i])
 					shards[i] = std::make_shared<vpn_packet>();
-				auto data = shards[i]->data();
-				outputs.push_back(std::span<uint8_t>(data, 1450));
+				auto data = shards[i]->payload();
+				outputs.push_back(std::span<uint8_t>(data, avpn_payload_size));
 			}
 
 			std::vector<std::string_view> sv;
 			for (size_t i = 0; i < (size_t)m_data_shards; i++) {
-				auto data = shards[i]->data();
-				sv.emplace_back(std::string_view((const char*)data, 1450));
+				auto data = shards[i]->payload();
+				sv.emplace_back(std::string_view((const char*)data, avpn_payload_size));
 			}
 
 			// do the coding.
