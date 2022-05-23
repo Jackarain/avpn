@@ -11,7 +11,6 @@
 
 #include "utils/scoped_exit.hpp"
 
-#define PRINT_VPN_IO
 
 namespace avpn {
 
@@ -186,12 +185,6 @@ namespace avpn {
 		if (!service)
 			return;
 
-#if defined(PRINT_VPN_IO)
-		LOG_DBG << "write pkt"
-			<< ", gid: " << pkt->gid_
-			<< ", pid: " << pkt->pid_
-			<< ", size: " << pkt->payload_size();
-#endif
 		service->do_udp_write(pkt, m_remote_endpoint);
 	}
 
@@ -473,13 +466,6 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
-#if defined(PRINT_VPN_IO)
-		LOG_DBG << "forward pkt"
-			<< ", gid: " << pkt->gid_
-			<< ", pid: " << pkt->pid_
-			<< ", size: " << pkt->payload_size();
-#endif
-
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
@@ -488,9 +474,12 @@ namespace avpn {
 			mutable -> net::awaitable<void>
 		{
 			auto content = pkt->payload();
-			auto content_size = pkt->payload_size();
-
-			auto ep = parser_endpoint(content, content_size);
+			auto ep = parser_endpoint(content, avpn_payload_size);
+			if (pkt->payload_size() <= 0)
+			{
+				pkt->payload_size(ep.size_);
+				pkt->resize(ep.size_ + avpn_payload_header_size);
+			}
 			auto& dst_addr = ep.dst_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
@@ -533,11 +522,13 @@ namespace avpn {
 		m_recover.update(gid, pid,
 			m_data_shards, m_parity_shards, pkt);
 
+		// 获取fc解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);
 		if (results.empty())
 			co_return;
 
-		LOG_DBG << "recover pkts: " << results.size();
+		LOG_DBG << "gop: " << pkt->gid_
+			<< ", recover pkts: " << results.size();
 
 		for (auto& p : results)
 		{
