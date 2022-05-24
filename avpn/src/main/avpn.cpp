@@ -131,8 +131,9 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
-		boost::system::error_code ec;
+		LOG_DBG << "start tun read loop";
 
+		boost::system::error_code ec;
 		while (!m_abort)
 		{
 			vpn_packet pkt;
@@ -194,6 +195,8 @@ namespace avpn {
 			m_down_stat.bytes_ += (int64_t)pkt->payload_size();
 			auto index = m_down_stat.speeder_count_ % speed_entries;
 			m_down_stat.speeder_[index] = m_down_stat.bytes_;
+
+			co_return;
 		}, net::detached);
 	}
 
@@ -250,6 +253,8 @@ namespace avpn {
 	{
 		udp::endpoint remote;
 		boost::system::error_code ec;
+
+		LOG_DBG << "start_udp_read_loop enter";
 
 		while (!m_abort)
 		{
@@ -362,6 +367,7 @@ namespace avpn {
 			}
 		}
 
+		LOG_DBG << "start_udp_read_loop quit";
 		co_return;
 	}
 
@@ -508,6 +514,8 @@ namespace avpn {
 				co_return;
 			},
 			net::detached);
+
+		co_return;
 	}
 
 	net::awaitable<void> avpn_service::tick()
@@ -729,8 +737,7 @@ namespace avpn {
 			start_tun_read_loop(), net::detached);
 	}
 
-	net::awaitable<avpn_service::ip_assign_type>
-	avpn_service::ip_assigner()
+	ip_assign_type avpn_service::ip_assigner()
 	{
 		std::string ip_string;
 		uint32_t ipaddr;
@@ -760,7 +767,7 @@ namespace avpn {
 
 		ip_assign_type ret{ ip_string, ipaddr };
 
-		co_return ret;
+		return ret;
 	}
 
 	bool avpn_service::init_acceptors()
@@ -1287,17 +1294,14 @@ namespace avpn {
 		if (!tunnel)
 		{
 			// 分配一个虚拟ip.
-			auto [ip_string, vaddr] = co_await co_spawn(
-				m_main_context, ip_assigner(), net::use_awaitable);
+			auto [ip_string, vaddr] = ip_assigner();
 
 			// 创建tunnel.
-			tunnel = co_await net::co_spawn(m_main_context,
-				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+			tunnel = make_tunnel(vaddr, client_id, pubkey);
 
-			boost::system::error_code ec;
-			auto remote = stream.remote_endpoint(ec);
+			// 输出创建tunnel相关日志.
 			LOG_DBG << "tcp handshake, make tunnel: " << tunnel.get()
-				<< ", remote: " << remote
+				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << client_id
 				<< ", assign addr: " << ip_string;
 		}
@@ -1392,15 +1396,14 @@ namespace avpn {
 		if (!tunnel)
 		{
 			// 分配一个虚拟ip.
-			auto [ip_string, vaddr] = co_await co_spawn(
-				m_main_context, ip_assigner(), net::use_awaitable);
+			auto [ip_string, vaddr] = ip_assigner();
 
 			// 创建tunnel.
-			tunnel = co_await net::co_spawn(m_main_context,
-				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+			tunnel = make_tunnel(vaddr, client_id, pubkey);
 
+			// 输出创建的tunnel相关信息日志.
 			LOG_DBG << "udp handshake, make tunnel: " << tunnel.get()
-				<< ", remote: " << remote
+				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << client_id
 				<< ", assign addr: " << ip_string;
 		}
@@ -1583,8 +1586,7 @@ namespace avpn {
 		co_return lookup_tunnel(id);
 	}
 
-	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::make_tunnel(
+	vpn_tunnel_ptr avpn_service::make_tunnel(
 		uint32_t vaddr, std::string id, std::string pubkey)
 	{
 		auto self = shared_from_this();
@@ -1608,7 +1610,7 @@ namespace avpn {
 
 		m_clients.make(vc);
 
-		co_return vp;
+		return vp;
 	}
 
 	void avpn_service::reset_tcp_cnt(int cnt)

@@ -51,6 +51,8 @@ namespace avpn {
 		if (m_abort || !m_abort)
 			return;
 
+		LOG_DBG << "start tunnel, ds: " << ds << ", ps: " << ps;
+
 		m_data_shards = ds;
 		m_parity_shards = ps;
 
@@ -83,6 +85,7 @@ namespace avpn {
 			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await tcp_loop();
+				co_return;
 			}, net::detached);
 	}
 
@@ -243,22 +246,30 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
-		boost::system::error_code ec;
+		LOG_WARN << "vpn_tunnel enter tick: " << this;
 
 		while (!m_abort)
 		{
+			boost::system::error_code ec;
+
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
+
+			if (ec)
+				break;
 
 			if (m_identity == Identity::avpn_server)
 				continue;
 		}
 
+		LOG_WARN << "vpn_tunnel::tick() quit...";
 		co_return;
 	}
 
 	net::awaitable<void> vpn_tunnel::tcp_loop()
 	{
+		LOG_DBG << "enter tcp loop: " << this;
+
 		while (!m_abort)
 		{
 			vpn_packet pkt;
@@ -379,6 +390,7 @@ namespace avpn {
 			[this, self, pkt]() mutable -> net::awaitable<void>
 			{
 				co_await tcp_write_packet(m_tcp_socket, pkt);
+				co_return;
 			}, net::detached);
 	}
 

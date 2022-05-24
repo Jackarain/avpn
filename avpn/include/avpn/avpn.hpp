@@ -118,6 +118,7 @@ namespace avpn {
 
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
 	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
+	using ip_assign_type = std::tuple<std::string, uint32_t>;
 
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
@@ -192,8 +193,7 @@ namespace avpn {
 		void setup_tun(const net::ip::network_v4&);
 
 		// 分配一个虚拟ip给client.
-		using ip_assign_type = std::tuple<std::string, uint32_t>;
-		net::awaitable<ip_assign_type> ip_assigner();
+		ip_assign_type ip_assigner();
 
 		// 作为server时, 初始化tcp连接监听.
 		bool init_acceptors();
@@ -234,8 +234,7 @@ namespace avpn {
 		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(std::string);
 
 		// 创建隧道对象.
-		net::awaitable<vpn_tunnel_ptr>
-			make_tunnel(uint32_t, std::string, std::string);
+		vpn_tunnel_ptr make_tunnel(uint32_t, std::string, std::string);
 
 		// 作为client时, 重置tcp连接计数.
 		void reset_tcp_cnt(int);
