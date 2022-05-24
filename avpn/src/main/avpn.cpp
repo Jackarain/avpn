@@ -1032,11 +1032,15 @@ namespace avpn {
 			setup_tun(m_subnet);
 		}
 
+		boost::system::error_code ec;
+
+		auto remote = stream.remote_endpoint(ec);
+		LOG_DBG << "Tcp connected to "<< remote << " successfully!";
+
 		// 成功连接, 取消重连.
 		se.cancel();
 
 		// 启动tcp loop, 先关闭原来的tcp socket.
-		boost::system::error_code ec;
 		tunnel->tcp_socket().close(ec);
 
 		// 替换为新的tcp socket对象.
