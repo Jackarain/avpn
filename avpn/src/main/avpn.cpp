@@ -1058,10 +1058,12 @@ namespace avpn {
 		// 已经创建, 则表示已经握手成功.
 		if (!tunnel)
 		{
+			auto server_pubkey = base64_decode(m_config.passphrase_);
+
 			// 创建tunnel对象, 在完成握手后, 进入tunnel
 			// 的tcp loop中循环处理tcp消息.
 			tunnel = vpn_tunnel::make(m_main_context,
-				self, m_config, std::string(pubkey), m_client_key);
+				self, m_config, server_pubkey, m_client_key);
 			m_tunnel = tunnel;
 
 			tunnel->remote_endpoint(m_server_endps.front());
@@ -1455,18 +1457,17 @@ namespace avpn {
 
 		auto self = shared_from_this();
 
-		crypto_util::keyexchange ke(m_client_key);
-		auto pubkey = ke.StaticPublicKey();
-
 		// 判断client的tunnel对象是否创建, 如果
 		// 已经创建, 则表示已经握手成功.
 		auto tunnel = m_tunnel.lock();
 		if (!tunnel)
 		{
+			auto server_pubkey = base64_decode(m_config.passphrase_);
+
 			// 创建tunnel对象, 在完成握手后, 进入tunnel
 			// 的tcp loop中循环处理tcp消息.
 			tunnel = vpn_tunnel::make(m_main_context,
-				self, m_config, std::string(pubkey), m_client_key);
+				self, m_config, server_pubkey, m_client_key);
 			m_tunnel = tunnel;
 
 			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()

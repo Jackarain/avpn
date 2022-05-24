@@ -265,7 +265,8 @@ namespace avpn {
 		// 随机id, 用于client连接前标识身份. 避免server
 		// 重复在同一个client分配资源.
 		std::string m_client_id;
-		// 随机密钥, 用于client加密.
+		// 随机生成的密钥对, 用于client和server的公钥协商出解
+		// 密密钥.
 		std::string m_client_key;
 		// 作为client时, server的udp端口.
 		std::vector<udp::endpoint> m_server_endps;

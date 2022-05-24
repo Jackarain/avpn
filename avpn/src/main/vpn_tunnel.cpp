@@ -25,7 +25,7 @@ namespace avpn {
 		, m_pubkey(pubkey)
 		, m_tcp_socket(ioc)
 		, m_keyexchange(passphrase)
-		, m_shared_key(m_keyexchange.GenerateSharedKey(pubkey))
+		, m_shared_key(m_keyexchange.GenerateSharedKey(m_pubkey))
 		, m_tick_timer(ioc)
 		, m_feg(cfg.tunnel_params_.data_shards_,
 			cfg.tunnel_params_.parity_shards_)
