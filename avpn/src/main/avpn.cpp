@@ -562,6 +562,8 @@ namespace avpn {
 				auto duration = now - vp->last_see();
 				if (duration >= std::chrono::minutes(2))
 				{
+					LOG_WARN << "tunnel: " << vp.get() << " timeout";
+					vp->close_tunnel();
 					it = clients.erase(it);
 					continue;
 				}
