@@ -207,7 +207,7 @@ namespace avpn {
 		auto vp =  lookup_tunnel(dst);
 		if (!vp)
 		{
-			LOG_WARN << "tun read, t -> c, lost connection: " << endp;
+			LOG_WARN << "Tun read, t -> c, lost connection: " << endp;
 			return;
 		}
 
