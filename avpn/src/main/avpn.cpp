@@ -964,10 +964,12 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tcp_client()
 	{
 		auto self = shared_from_this();
+		boost::system::error_code ec;
 
 		// scoped_exit用于退出此函数时将自动重试.
 		scoped_exit se([&]() mutable
 			{
+				LOG_WARN << "Set tcp reconnect";
 				m_client_tcp_cnt = 1;
 			});
 
@@ -1013,7 +1015,12 @@ namespace avpn {
 			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
 			if (tunnel)
 			{
+				// 关闭已创建的隧道.
 				tunnel->close_tunnel();
+				stream.close(ec);
+
+				// 取消重连.
+				se.cancel();
 
 				// server已重启, 重建client.
 				run_as_client();
@@ -1045,8 +1052,6 @@ namespace avpn {
 
 			setup_tun(m_subnet);
 		}
-
-		boost::system::error_code ec;
 
 		auto remote = stream.remote_endpoint(ec);
 		LOG_DBG << "Tcp connected to "<< remote << " successfully!";
@@ -1608,6 +1613,7 @@ namespace avpn {
 
 	void avpn_service::reset_tcp_cnt(int cnt)
 	{
+		LOG_WARN << "Reset tcp reconnect";
 		m_client_tcp_cnt = cnt;
 	}
 

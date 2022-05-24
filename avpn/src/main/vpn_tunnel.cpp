@@ -534,8 +534,8 @@ namespace avpn {
 		if (results.empty())
 			co_return;
 
-		LOG_DBG << "gop: " << pkt->gid_
-			<< ", recover pkts: " << results.size();
+		LOG_DBG << "Fec recover, gop: " << pkt->gid_
+			<< ", pkts: " << results.size();
 
 		for (auto& p : results)
 		{
