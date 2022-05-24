@@ -71,6 +71,9 @@ namespace avpn {
 
 		boost::system::error_code ec;
 		m_tick_timer.cancel(ec);
+
+		if (m_tcp_socket.is_open())
+			m_tcp_socket.close(ec);
 	}
 
 	void vpn_tunnel::start_tcp_loop()

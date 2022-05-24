@@ -88,6 +88,26 @@ namespace avpn {
 			udp_socket.sock_.close(ignore_ec);
 		}
 
+		// 根据client/server身份关闭相应隧道.
+		if (m_identity == Identity::avpn_client)
+		{
+			auto client = m_tunnel.lock();
+			if (client)
+				client->close_tunnel();
+		}
+
+		if (m_identity == Identity::avpn_server)
+		{
+			auto& tab = m_clients.table();
+			for (auto& c : tab)
+			{
+				auto client = c.tunnel_.lock();
+				if (!client)
+					continue;
+				client->close_tunnel();
+			}
+		}
+
 		// TODO: 退出时删除路由.
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tundev.close();
