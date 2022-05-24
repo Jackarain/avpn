@@ -104,31 +104,3 @@ std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept;
 // 添加或删除指定路由.
 std::tuple<std::string, bool> add_route(const std::string& route);
 std::tuple<std::string, bool> del_route(const std::string& route);
-
-
-template <class RandomIt>
-void rand_shuffle(RandomIt first, RandomIt last)
-{
-	static thread_local std::default_random_engine g =
-		std::default_random_engine(std::random_device()());
-	std::shuffle(first, last, g);
-}
-
-template <class Ty>
-Ty rand_int(Ty first, Ty last)
-{
-	static thread_local std::default_random_engine g =
-		std::default_random_engine(std::random_device()());
-	std::uniform_int_distribution<Ty> uid(first, last);
-	return uid(g);
-}
-
-template <class Ty>
-Ty rand_discrete(std::initializer_list<Ty> ilist)
-{
-	static thread_local std::default_random_engine g =
-		std::default_random_engine(std::random_device()());
-	std::discrete_distribution<Ty> dd(ilist.begin(), ilist.end());
-	return dd(g);
-}
-
