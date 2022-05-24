@@ -772,7 +772,7 @@ namespace avpn {
 			}
 		}
 
-		if (!m_push_params.pushdns_ != 0 &&
+		if (m_push_params.pushdns_ != 0 &&
 			m_config.identity_ == Identity::avpn_client)
 		{
 			auto dns = net::ip::address_v4(m_push_params.pushdns_).to_string();
