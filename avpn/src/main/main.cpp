@@ -349,6 +349,7 @@ int main(int argc, char** argv)
 
 	cfg.ifdev_ = ifdev;
 	cfg.controller_ = controller;
+	cfg.passphrase_ = passphrase;
 
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;

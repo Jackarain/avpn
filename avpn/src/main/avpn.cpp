@@ -304,7 +304,7 @@ namespace avpn {
 				if (type == vpt_handshake)
 				{
 					net::co_spawn(m_main_context,
-						do_udp_handshake(remote, std::move(pkt), src),
+						on_udp_handshake(remote, std::move(pkt), src),
 							net::detached);
 					continue;
 				}
@@ -346,7 +346,7 @@ namespace avpn {
 				if (type == vpt_handshake_reply)
 				{
 					net::co_spawn(m_main_context,
-						do_udp_handshake_reply(remote, std::move(pkt)),
+						on_udp_handshake_reply(remote, std::move(pkt)),
 							net::detached);
 					continue;
 				}
@@ -906,7 +906,7 @@ namespace avpn {
 			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
 			// 协商通信key).
 			net::co_spawn(m_main_context,
-				do_tcp_handshake(std::move(socket), connection_id),
+				on_tcp_handshake(std::move(socket), connection_id),
 					net::detached);
 		}
 
@@ -1069,6 +1069,9 @@ namespace avpn {
 			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << m_client_id;
+			LOG_DBG << "Negotiated shared key: "
+				<< base64_encode(tunnel->shared_key());
+
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			co_await setup_tun(m_subnet);
@@ -1228,7 +1231,7 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> avpn_service::do_tcp_handshake(
+	net::awaitable<void> avpn_service::on_tcp_handshake(
 		tcp::socket stream, size_t id)
 	{
 		vpn_packet pkt;
@@ -1306,6 +1309,9 @@ namespace avpn {
 		tunnel = co_await async_make_tunnel(client_id, pubkey);
 		BOOST_ASSERT(tunnel && "tunnel must be valid");
 
+		LOG_DBG << "Negotiated shared key: "
+			<< base64_encode(tunnel->shared_key());
+
 		// 获取虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
 		auto vaddr = vnetaddr.address().to_uint();
@@ -1337,7 +1343,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	avpn_service::do_udp_handshake(
+	avpn_service::on_udp_handshake(
 		udp::endpoint remote, vpn_packet pkt, uint32_t src)
 	{
 		uint8_t ds;
@@ -1394,6 +1400,9 @@ namespace avpn {
 		tunnel = co_await async_make_tunnel(client_id, pubkey);
 		BOOST_ASSERT(tunnel && "tunnel must be valid");
 
+		LOG_DBG << "Negotiated shared key: "
+			<< base64_encode(tunnel->shared_key());
+
 		// 获取tunnel的虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
 		auto vaddr = vnetaddr.address().to_uint();
@@ -1418,7 +1427,7 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> avpn_service::do_udp_handshake_reply(
+	net::awaitable<void> avpn_service::on_udp_handshake_reply(
 		udp::endpoint remote, vpn_packet pkt)
 	{
 		// 解析handshake_reply消息.
@@ -1463,6 +1472,10 @@ namespace avpn {
 			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << m_client_id;
+
+			LOG_DBG << "Negotiated shared key: "
+				<< base64_encode(tunnel->shared_key());
+
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
 			co_await setup_tun(m_subnet);

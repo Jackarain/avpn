@@ -91,7 +91,13 @@ namespace avpn {
 		std::vector<std::string> udp_listens_;
 
 		// 作为server时, 指定ecdh的私钥(base64编码)
-		// 作为client时, 指定为server的ecdh公钥信息.
+		// 作为client时, 指定为server的ecdh公钥信息(base64编码).
+		// client 本身的密钥对由系统自动随机生成, 在握手时通过协议
+		// 传输公钥到server.
+		// server 通过握手协议拿到client的公钥, 及本参数指定的密钥
+		// 对, 协商出解密密钥.
+		// client 通过本参数指定的server的公钥, 及自己生成的密钥对,
+		// 协商出解密密钥.
 		std::string passphrase_;
 
 		// 指定tun设备名称.
@@ -209,14 +215,14 @@ namespace avpn {
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
 
-		// 开始tcp/udp连接握手认证.
-		net::awaitable<void> do_tcp_handshake(
+		// 处理tcp/udp连接握手认证.
+		net::awaitable<void> on_tcp_handshake(
 			tcp::socket, size_t);
-		net::awaitable<void> do_udp_handshake(
+		net::awaitable<void> on_udp_handshake(
 			udp::endpoint, vpn_packet, uint32_t);
 
 		// 作为client时, 处理server的udp握手回复.
-		net::awaitable<void> do_udp_handshake_reply(
+		net::awaitable<void> on_udp_handshake_reply(
 			udp::endpoint, vpn_packet);
 
 		// 在tcp连接上读取一个vpn_packet消息.
