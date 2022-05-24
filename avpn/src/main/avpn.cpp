@@ -254,8 +254,6 @@ namespace avpn {
 		udp::endpoint remote;
 		boost::system::error_code ec;
 
-		LOG_DBG << "start_udp_read_loop enter";
-
 		while (!m_abort)
 		{
 			auto socket_ptr = m_udp_sockets[index];
@@ -367,7 +365,6 @@ namespace avpn {
 			}
 		}
 
-		LOG_DBG << "start_udp_read_loop quit";
 		co_return;
 	}
 
@@ -1289,22 +1286,8 @@ namespace avpn {
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		tunnel = co_await net::co_spawn(m_main_context,
-			async_lookup_tunnel(client_id), net::use_awaitable);
-		if (!tunnel)
-		{
-			// 分配一个虚拟ip.
-			auto [ip_string, vaddr] = ip_assigner();
-
-			// 创建tunnel.
-			tunnel = make_tunnel(vaddr, client_id, pubkey);
-
-			// 输出创建tunnel相关日志.
-			LOG_DBG << "tcp handshake, make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id()
-				<< ", cid: " << client_id
-				<< ", assign addr: " << ip_string;
-		}
+		tunnel = co_await async_make_tunnel(client_id, pubkey);
+		BOOST_ASSERT(tunnel && "tunnel must be valid");
 
 		// 获取虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
@@ -1391,22 +1374,8 @@ namespace avpn {
 
 		// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
 		// 请求, 并回复认证信息.
-		tunnel = co_await net::co_spawn(m_main_context,
-			async_lookup_tunnel(client_id), net::use_awaitable);
-		if (!tunnel)
-		{
-			// 分配一个虚拟ip.
-			auto [ip_string, vaddr] = ip_assigner();
-
-			// 创建tunnel.
-			tunnel = make_tunnel(vaddr, client_id, pubkey);
-
-			// 输出创建的tunnel相关信息日志.
-			LOG_DBG << "udp handshake, make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id()
-				<< ", cid: " << client_id
-				<< ", assign addr: " << ip_string;
-		}
+		tunnel = co_await async_make_tunnel(client_id, pubkey);
+		BOOST_ASSERT(tunnel && "tunnel must be valid");
 
 		// 获取tunnel的虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
@@ -1584,6 +1553,29 @@ namespace avpn {
 	avpn_service::async_lookup_tunnel(std::string id)
 	{
 		co_return lookup_tunnel(id);
+	}
+
+	net::awaitable<avpn::vpn_tunnel_ptr>
+	avpn_service::async_make_tunnel(std::string id, std::string pubkey)
+	{
+		// 查找存在的tunnel.
+		auto tunnel = lookup_tunnel(id);
+		if (tunnel)
+			co_return tunnel;
+
+		// 分配一个虚拟ip.
+		auto [ip_string, vaddr] = ip_assigner();
+
+		// 创建tunnel.
+		tunnel = make_tunnel(vaddr, id, pubkey);
+
+		// 输出创建tunnel相关日志.
+		LOG_DBG << "make tunnel: " << tunnel.get()
+			<< ", thread: " << std::this_thread::get_id()
+			<< ", cid: " << id
+			<< ", assign addr: " << ip_string;
+
+		co_return tunnel;
 	}
 
 	vpn_tunnel_ptr avpn_service::make_tunnel(

@@ -246,7 +246,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
-		LOG_WARN << "vpn_tunnel enter tick: " << this;
+		LOG_DBG << "vpn_tunnel enter tick: " << this;
 
 		while (!m_abort)
 		{

@@ -233,6 +233,9 @@ namespace avpn {
 		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(uint32_t);
 		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(std::string);
 
+		net::awaitable<vpn_tunnel_ptr>
+			async_make_tunnel(std::string, std::string);
+
 		// 创建隧道对象.
 		vpn_tunnel_ptr make_tunnel(uint32_t, std::string, std::string);
 
