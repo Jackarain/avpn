@@ -277,7 +277,10 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "tcp_loop, tcp loop quit...";
+		std::string qmsg = "tcp_loop, tcp loop quit";
+		scoped_exit se([&]() mutable {
+			LOG_WARN << qmsg;
+			});
 
 		// 当运行身份为client时, 尝试重连服务器.
 		if (!m_abort && m_identity == Identity::avpn_client)
@@ -287,6 +290,7 @@ namespace avpn {
 				co_return;
 
 			// 重置tcp重连计数, 等待tcp重连.
+			qmsg += " with reconnect";
 			service->reset_tcp_cnt(1);
 		}
 		co_return;
