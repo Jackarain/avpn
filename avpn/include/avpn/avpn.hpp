@@ -190,7 +190,7 @@ namespace avpn {
 		// client在每次认证完成后根据server分配的ip信息配置 tun
 		// 设备.
 		// server在启动时根据配置参数信息配置tun设备.
-		void setup_tun(const net::ip::network_v4&);
+		net::awaitable<void> setup_tun(const net::ip::network_v4&);
 
 		// 分配一个虚拟ip给client.
 		ip_assign_type ip_assigner();
@@ -272,8 +272,8 @@ namespace avpn {
 
 		// 定时器, 用于处理一系列定时任务.
 		asio_timer m_tick_timer;
-		// 用于连接重试.
-		asio_timer m_connect_timer;
+		// 等待定时器.
+		asio_timer m_wait_timer;
 		// 专门用于退出时取消asio_util::async_connect.
 		net::cancellation_signal m_cancel_sig;
 

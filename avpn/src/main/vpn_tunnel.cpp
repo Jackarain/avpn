@@ -268,7 +268,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tcp_loop()
 	{
-		LOG_DBG << "enter tcp loop: " << this;
+		LOG_DBG << "Enter tcp loop: " << this;
 
 		while (!m_abort)
 		{

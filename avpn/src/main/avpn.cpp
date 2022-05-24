@@ -35,7 +35,7 @@ namespace avpn {
 		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
-		, m_connect_timer(m_main_context)
+		, m_wait_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
@@ -112,6 +112,7 @@ namespace avpn {
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
+		m_wait_timer.cancel(ignore_ec);
 		m_upload_stat = {};
 		m_down_stat = {};
 		m_subnet = {};
@@ -131,7 +132,7 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
-		LOG_DBG << "start tun read loop";
+		LOG_DBG << "Start tun read loop";
 
 		boost::system::error_code ec;
 		while (!m_abort)
@@ -177,6 +178,8 @@ namespace avpn {
 				continue;
 			}
 		}
+
+		m_wait_timer.cancel_one(ec);
 
 		LOG_WARN << "start_tun_read_loop quit...";
 		co_return;
@@ -426,7 +429,8 @@ namespace avpn {
 		m_abort = false;
 
 		LOG_DBG << "Start run_as_server...";
-		setup_tun(m_subnet);
+		net::co_spawn(m_main_context,
+			setup_tun(m_subnet), net::detached);
 
 		// 初始化tcp连接.
 		bool ret = init_acceptors();
@@ -588,7 +592,7 @@ namespace avpn {
 			// 为0表示没有开始计数, 无需检查.
 			if (m_client_tcp_cnt > 0)
 			{
-				LOG_DBG << "Tcp reconnect time: " << m_client_tcp_cnt;
+				LOG_DBG << "Tcp reconnect timer: " << m_client_tcp_cnt;
 				if (++m_client_tcp_cnt > 10)
 				{
 					m_client_tcp_cnt = 0;
@@ -678,8 +682,12 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::setup_tun(const net::ip::network_v4& net)
+	net::awaitable<void>
+	avpn_service::setup_tun(const net::ip::network_v4 & net)
 	{
+		// 设置定时等待.
+		m_wait_timer.expires_from_now(std::chrono::seconds(1));
+
 		// 先关闭设备.
 		m_tundev.close();
 
@@ -726,12 +734,21 @@ namespace avpn {
 		if (!m_tundev.open(dc))
 		{
 			LOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
-			return;
+			co_return;
 		}
+
+		// 等待1s后开始循环读取tun设备.
+		boost::system::error_code ec;
+		co_await m_wait_timer.async_wait(uawaitable[ec]);
+		if (ec)
+			LOG_INFO << "Tun read loop exited";
+		else
+			LOG_INFO << "Tun read loop starting";
 
 		// 开始读取tun上的数据包.
 		net::co_spawn(m_main_context,
 			start_tun_read_loop(), net::detached);
+		co_return;
 	}
 
 	ip_assign_type avpn_service::ip_assigner()
@@ -1054,7 +1071,7 @@ namespace avpn {
 				<< ", cid: " << m_client_id;
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
-			setup_tun(m_subnet);
+			co_await setup_tun(m_subnet);
 		}
 
 		auto remote = stream.remote_endpoint(ec);
@@ -1448,7 +1465,7 @@ namespace avpn {
 				<< ", cid: " << m_client_id;
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
-			setup_tun(m_subnet);
+			co_await setup_tun(m_subnet);
 		}
 
 		// 更新tunnel的远端udp的endpoint.
