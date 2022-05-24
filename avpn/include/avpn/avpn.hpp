@@ -53,6 +53,7 @@ namespace avpn {
 		// 压缩选项, 指定压缩算法
 		// 可以指定的压缩算法: deflate, lz4, zstd.
 		std::string compress_;
+
 		// 保持网络活动消息间隔.
 		int keepalive_;
 
@@ -60,14 +61,17 @@ namespace avpn {
 		std::vector<std::string> pushroutes_;
 
 		// server推送dns.
-		uint32_t pushdns_;
+		uint32_t pushdns_{ 0 };
 
 		// 客户端默认通过vpn server作为全局网络出口此时的
 		// server必须做nat, 否则可能无法通过vpn server上网.
-		bool passbyvpn_;
+		bool passbyvpn_{ false };
 
 		// 作为client时, 是否忽略掉服务器推送的路由.
-		bool ignore_pushroute = { false };
+		bool ignore_pushroute_ = { false };
+
+		// server的IP地址.
+		std::string server_ip_;
 
 		// 是否允许客户端之间通信.
 		bool c2c_;
@@ -270,9 +274,10 @@ namespace avpn {
 		std::string m_client_key;
 		// 作为client时, server的udp端口.
 		std::vector<udp::endpoint> m_server_endps;
-
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
+		// 作为client时, server推送的路由, dns, passbyvpn信息.
+		tunnel_params m_push_params;
 
 		// tun设备.
 		avpn::tun_device m_tundev;

@@ -737,6 +737,49 @@ namespace avpn {
 			co_return;
 		}
 
+		// 根据server的推送信息配置网络.
+		if (m_push_params.passbyvpn_ &&
+			m_config.identity_ == Identity::avpn_client)
+		{
+			auto vgateway = gateway.to_string();
+
+			del_route("0.0.0.0/0 " + vgateway);
+
+			if (set_default_route(ipaddr,
+				vgateway,
+				defgw_string,
+				m_push_params.server_ip_))
+				LOG_DBG << "Default gateway: "
+					<< defgw_string << " change successfully!";
+			else
+				LOG_INFO << "Default gateway: "
+					<< defgw_string << ", change faild!";
+		}
+
+		auto& params = m_config.tunnel_params_;
+		if (!params.ignore_pushroute_)
+		{
+			for (auto& route : m_push_params.pushroutes_)
+			{
+				auto [ret, ok] = add_route(route);
+				if (ok)
+					LOG_DBG << "Add route: " << route
+						<< " route added successfully!";
+				else
+					LOG_ERR << "Add route: " << route
+						<< " route added fail, reason: "
+						<< boost::trim_copy(ret);
+			}
+		}
+
+		if (!m_push_params.pushdns_ != 0 &&
+			m_config.identity_ == Identity::avpn_client)
+		{
+			auto dns = net::ip::address_v4(m_push_params.pushdns_).to_string();
+			if (set_dns(dns, ipaddr))
+				LOG_DBG << "Set dns: " << dns << " successfully";
+		}
+
 		// 等待1s后开始循环读取tun设备.
 		boost::system::error_code ec;
 		co_await m_wait_timer.async_wait(uawaitable[ec]);
@@ -1025,12 +1068,15 @@ namespace avpn {
 		uint8_t ps;
 		uint32_t addr;
 		uint8_t prefix_length;
-		bool passbyvpn;
-		uint32_t pushdns;
-		std::vector<std::string> routes;
+
+		auto& passbyvpn = m_push_params.passbyvpn_;
+		auto& pushdns = m_push_params.pushdns_;
+		auto& pushroutes = m_push_params.pushroutes_;
+		auto remote = stream.remote_endpoint(ec);
+		m_push_params.server_ip_ = remote.address().to_string();
 
 		bytes = unwrap_handshake_reply(pkt, id, ds, ps,
-			addr, prefix_length, passbyvpn, pushdns, routes);
+			addr, prefix_length, passbyvpn, pushdns, pushroutes);
 		if (id.empty())
 		{
 			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
@@ -1079,7 +1125,6 @@ namespace avpn {
 			co_await setup_tun(m_subnet);
 		}
 
-		auto remote = stream.remote_endpoint(ec);
 		LOG_DBG << "Tcp connected to "<< remote << " successfully!";
 
 		// 成功连接, 取消重连.
@@ -1438,12 +1483,14 @@ namespace avpn {
 		uint8_t ps;
 		uint32_t addr;
 		uint8_t prefix_length;
-		bool passbyvpn;
-		uint32_t pushdns;
-		std::vector<std::string> routes;
+
+		auto& passbyvpn = m_push_params.passbyvpn_;
+		auto& pushdns = m_push_params.pushdns_;
+		auto& pushroutes = m_push_params.pushroutes_;
+		m_push_params.server_ip_ = remote.address().to_string();
 
 		auto bytes = unwrap_handshake_reply(pkt, id, ds, ps,
-			addr, prefix_length, passbyvpn, pushdns, routes);
+			addr, prefix_length, passbyvpn, pushdns, pushroutes);
 		if (id.empty())
 		{
 			LOG_WARN << "udp handshake reply detected server reboot!";

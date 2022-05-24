@@ -364,7 +364,7 @@ int main(int argc, char** argv)
 	}
 	params.pushroutes_ = routes;
 	params.passbyvpn_ = passbyvpn;
-	params.ignore_pushroute = noroute;
+	params.ignore_pushroute_ = noroute;
 	params.c2c_ = c2c;
 	params.subnet_ = subnet;
 
