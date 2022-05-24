@@ -80,12 +80,6 @@ std::string gen_uuid();
 void set_thread_name(const char* name);
 void set_thread_name(std::thread* thread, const char* name);
 
-// google认证码相关.
-int google_auth_code(const std::string& secret,
-	unsigned long tm = 0, unsigned long duration = 30);
-std::string google_code_to_string(int google_code);
-std::string google_generate_secret();
-
 // 用于解析listen使用的endpoint.
 bool make_listen_endpoint(const std::string& address,
 	tcp::endpoint& endp, boost::system::error_code& ec);
