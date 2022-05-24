@@ -85,7 +85,7 @@ namespace fileop {
 	template<class T>
 	std::streamsize read(const std::filesystem::path& file, T& val)
 	{
-		std::fstream f(file, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+		std::fstream f(file, std::ios_base::binary | std::ios_base::in);
 		auto fsize = std::filesystem::file_size(file);
 		val.resize(fsize);
 
