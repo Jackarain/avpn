@@ -1469,6 +1469,7 @@ namespace avpn {
 			tunnel = vpn_tunnel::make(m_main_context,
 				self, m_config, server_pubkey, m_client_key);
 			m_tunnel = tunnel;
+			tunnel->remote_endpoint(remote);
 
 			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id()
@@ -1604,7 +1605,7 @@ namespace avpn {
 		LOG_DBG << "make tunnel: " << tunnel.get()
 			<< ", thread: " << std::this_thread::get_id()
 			<< ", cid: " << id
-			<< ", assign addr: " << ip_string;
+			<< ", assign: " << ip_string;
 
 		co_return tunnel;
 	}
