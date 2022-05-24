@@ -48,7 +48,7 @@ namespace avpn {
 
 	void vpn_tunnel::start_tunnel(uint8_t ds, uint8_t ps)
 	{
-		if (m_abort != boost::indeterminate)
+		if (m_abort || !m_abort)
 			return;
 
 		m_data_shards = ds;
