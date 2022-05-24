@@ -121,7 +121,7 @@ namespace avpn {
 		net::io_context& m_io_context;
 
 		// service 对象引用.
-		std::weak_ptr<avpn_service> m_vpn_serivce;
+		std::weak_ptr<avpn_service> m_serivce;
 
 		// vpn相关配置.
 		service_config m_config;

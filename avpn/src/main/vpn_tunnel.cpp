@@ -19,7 +19,7 @@ namespace avpn {
 		const service_config& cfg,
 		std::string pubkey, std::string passphrase)
 		: m_io_context(ioc)
-		, m_vpn_serivce(vpn)
+		, m_serivce(vpn)
 		, m_config(cfg)
 		, m_identity(cfg.identity_)
 		, m_pubkey(pubkey)
@@ -187,7 +187,7 @@ namespace avpn {
 
 	void vpn_tunnel::udp_write_packet(vpn_packet_ptr& pkt)
 	{
-		auto service = m_vpn_serivce.lock();
+		auto service = m_serivce.lock();
 		if (!service)
 			return;
 
@@ -296,7 +296,7 @@ namespace avpn {
 		// 当运行身份为client时, 尝试重连服务器.
 		if (!m_abort && m_identity == Identity::avpn_client)
 		{
-			auto service = m_vpn_serivce.lock();
+			auto service = m_serivce.lock();
 			if (!service)
 				co_return;
 
@@ -471,7 +471,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer(vpn_packet_ptr pkt)
 	{
-		auto service = m_vpn_serivce.lock();
+		auto service = m_serivce.lock();
 		if (!service)
 			co_return;
 

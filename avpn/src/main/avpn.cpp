@@ -207,8 +207,8 @@ namespace avpn {
 	{
 		// 根据对端的虚拟ip查找tunnel对象.
 		uint32_t dst = endp.dst_.address().to_v4().to_uint();
-		auto vp =  lookup_tunnel(dst);
-		if (!vp)
+		auto tunnel =  lookup_tunnel(dst);
+		if (!tunnel)
 		{
 			LOG_WARN << "Tun read, t -> c, lost connection: " << endp;
 			return;
@@ -218,11 +218,11 @@ namespace avpn {
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 转发到对应的vp对象.
-		net::co_spawn(vp->get_executor(),
-			[this, vp, ptr, endp = std::move(endp)]()
+		net::co_spawn(tunnel->get_executor(),
+			[this, tunnel, ptr, endp = std::move(endp)]()
 			mutable -> net::awaitable<void>
 			{
-				co_await vp->tun_forward(ptr, std::move(endp));
+				co_await tunnel->tun_forward(ptr, std::move(endp));
 				co_return;
 			}, net::detached);
 	}
@@ -230,19 +230,19 @@ namespace avpn {
 	void avpn_service::do_client_tun_read(vpn_packet pkt, endpoint_pair endp)
 	{
 		// 获取tunnel对象指针.
-		auto vp = m_tunnel.lock();
-		if (!vp)
+		auto tunnel = m_tunnel.lock();
+		if (!tunnel)
 			return;
 
 		// 创建packet指针再通过tun_forward传入协程.
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 透传到tunnel.
-		net::co_spawn(vp->get_executor(),
-			[this, vp, ptr, endp = std::move(endp)]()
+		net::co_spawn(tunnel->get_executor(),
+			[this, tunnel, ptr, endp = std::move(endp)]()
 			mutable->net::awaitable<void>
 		{
-			co_await vp->tun_forward(ptr, std::move(endp));
+			co_await tunnel->tun_forward(ptr, std::move(endp));
 			co_return;
 		}, net::detached);
 
@@ -1616,7 +1616,7 @@ namespace avpn {
 		auto self = shared_from_this();
 
 		auto& ioc = m_ioc_pool.get_io_context();
-		auto vp = vpn_tunnel::make(ioc, self, m_config,
+		auto tunnel = vpn_tunnel::make(ioc, self, m_config,
 			pubkey, m_config.passphrase_);
 
 		auto ipaddr = net::ip::address_v4(vaddr);
@@ -1624,17 +1624,17 @@ namespace avpn {
 			ipaddr, m_subnet.prefix_length());
 
 		// 设置vp的vnet addr.
-		vp->vnet_addr(vnetaddr);
+		tunnel->vnet_addr(vnetaddr);
 
 		vpn_client vc;
 
 		vc.id_ = id;
 		vc.vnet_addr_ = vaddr;
-		vc.tunnel_ = vp;
+		vc.tunnel_ = tunnel;
 
 		m_clients.make(vc);
 
-		return vp;
+		return tunnel;
 	}
 
 	void avpn_service::reset_tcp_cnt(int cnt)
