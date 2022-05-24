@@ -1271,6 +1271,13 @@ namespace avpn {
 			// 创建tunnel.
 			tunnel = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+
+			boost::system::error_code ec;
+			auto remote = stream.remote_endpoint(ec);
+			LOG_DBG << "tcp handshake, make tunnel: " << tunnel.get()
+				<< ", remote: " << remote
+				<< ", cid: " << client_id
+				<< ", assign addr: " << ip_string;
 		}
 
 		// 获取虚拟ip.
@@ -1318,9 +1325,6 @@ namespace avpn {
 			src, client_id, pubkey, ds, ps);
 		if (ret == -1)
 			co_return;
-
-		LOG_DBG << "server udp handshake: " << remote
-			<< ", cid: " << client_id;
 
 		vpn_tunnel_ptr tunnel;
 
@@ -1372,6 +1376,11 @@ namespace avpn {
 			// 创建tunnel.
 			tunnel = co_await net::co_spawn(m_main_context,
 				make_tunnel(vaddr, client_id, pubkey), net::use_awaitable);
+
+			LOG_DBG << "udp handshake, make tunnel: " << tunnel.get()
+				<< ", remote: " << remote
+				<< ", cid: " << client_id
+				<< ", assign addr: " << ip_string;
 		}
 
 		// 获取tunnel的虚拟ip.
