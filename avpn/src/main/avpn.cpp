@@ -404,6 +404,7 @@ namespace avpn {
 		m_identity = Identity::avpn_client;
 		m_abort = false;
 		m_subnet = {};
+		m_client_tcp_cnt = 0;
 
 		LOG_DBG << "Start run_as_client...";
 
@@ -582,6 +583,7 @@ namespace avpn {
 			// 为0表示没有开始计数, 无需检查.
 			if (m_client_tcp_cnt > 0)
 			{
+				LOG_DBG << "Tcp reconnect time: " << m_client_tcp_cnt;
 				if (++m_client_tcp_cnt > 10)
 				{
 					m_client_tcp_cnt = 0;
@@ -961,6 +963,8 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tcp_client()
 	{
+		auto self = shared_from_this();
+
 		// scoped_exit用于退出此函数时将自动重试.
 		scoped_exit se([&]() mutable
 			{
@@ -990,6 +994,8 @@ namespace avpn {
 		if (bytes == -1)
 			co_return;
 
+		auto tunnel = m_tunnel.lock();
+
 		// 解析handshake_reply消息.
 		std::string id;
 		uint8_t ds;
@@ -1005,6 +1011,13 @@ namespace avpn {
 		if (id.empty())
 		{
 			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
+			if (tunnel)
+			{
+				tunnel->close_tunnel();
+
+				// server已重启, 重建client.
+				run_as_client();
+			}
 			co_return;
 		}
 		if (bytes < 0)
@@ -1013,11 +1026,8 @@ namespace avpn {
 			co_return;
 		}
 
-		auto self = shared_from_this();
-
 		// 判断client的tunnel对象是否创建, 如果
 		// 已经创建, 则表示已经握手成功.
-		auto tunnel = m_tunnel.lock();
 		if (!tunnel)
 		{
 			// 创建tunnel对象, 在完成握手后, 进入tunnel
@@ -1043,9 +1053,6 @@ namespace avpn {
 
 		// 成功连接, 取消重连.
 		se.cancel();
-
-		// 启动tcp loop, 先关闭原来的tcp socket.
-		tunnel->tcp_socket().close(ec);
 
 		// 替换为新的tcp socket对象.
 		tunnel->tcp_socket(std::move(stream), 0);
