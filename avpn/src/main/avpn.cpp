@@ -308,7 +308,11 @@ namespace avpn {
 				tunnel = co_await net::co_spawn(m_main_context,
 					async_lookup_tunnel(src), net::use_awaitable);
 				if (!tunnel)
+				{
+					net::ip::address_v4 src_addr(src);
+					LOG_WARN << "Not found client: " << src_addr.to_string();
 					continue;
+				}
 
 				// 创建packet指针再通过tun_forward传入协程.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
@@ -552,18 +556,18 @@ namespace avpn {
 				it != clients.end();)
 			{
 				auto& c = *it;
-				auto vp = c.tunnel_.lock();
-				if (!vp)
+				auto tunnel = c.tunnel_.lock();
+				if (!tunnel)
 				{
 					it = clients.erase(it);
 					continue;
 				}
 
-				auto duration = now - vp->last_see();
+				auto duration = now - tunnel->last_see();
 				if (duration >= std::chrono::minutes(2))
 				{
-					LOG_WARN << "tunnel: " << vp.get() << " timeout";
-					vp->close_tunnel();
+					LOG_WARN << "tunnel: " << tunnel.get() << " timeout";
+					tunnel->close_tunnel();
 					it = clients.erase(it);
 					continue;
 				}
