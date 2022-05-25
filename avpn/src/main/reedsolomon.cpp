@@ -1183,15 +1183,6 @@ namespace avpn {
 
 		void reedsolomon::decode(std::vector<vpn_packet_ptr>& shards)
 		{
-			auto shard_size = 0;
-
-			for (auto& s : shards) {
-				if (s && s->size() != 0) {
-					shard_size = s->size();
-					break;
-				}
-			}
-
 			auto number_present = 0;
 			auto data_present = 0;
 
@@ -1222,14 +1213,13 @@ namespace avpn {
 				sub_matrix_row < m_data_shards;
 				matrix_row++)
 			{
-				if (!shards[matrix_row] || shards[matrix_row]->size() == 0)
+				if (!shards[matrix_row])
 					continue;
 
-				auto data = shards[matrix_row]->data();
-				auto size = shards[matrix_row]->size();
+				auto data = shards[matrix_row]->payload();
 
 				sub_shards[sub_matrix_row] =
-					std::string_view((char*)data, size);
+					std::string_view((char*)data, avpn_payload_size);
 
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
@@ -1255,9 +1245,10 @@ namespace avpn {
 			for (size_t ishard = 0; ishard < (size_t)m_data_shards; ishard++) {
 				if (!shards[ishard] || shards[ishard]->size() == 0) {
 					shards[ishard] = std::make_shared<vpn_packet>();
-					shards[ishard]->resize(shard_size);
-					outputs[output_count] = std::span(shards[ishard]->data(),
-						shards[ishard]->data() + shards[ishard]->size());
+					shards[ishard]->resize(avpn_packet_size);
+					shards[ishard]->payload_size(avpn_payload_size);
+					outputs[output_count] = std::span(shards[ishard]->payload(),
+						shards[ishard]->payload() + shards[ishard]->payload_size());
 					matrix_rows[output_count] = data_decode_matrix[ishard];
 					output_count++;
 				}
