@@ -248,6 +248,7 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tick()
 	{
 		LOG_DBG << "vpn_tunnel enter tick: " << this;
+		int print_fec_interval = 0;
 
 		while (!m_abort)
 		{
@@ -258,6 +259,13 @@ namespace avpn {
 
 			if (ec)
 				break;
+
+			if (++print_fec_interval >= 10)
+			{
+				print_fec_interval = 0;
+				LOG_INFO << "Packet corrected: " << m_num_corrected
+					<< ", incorrect: " << m_num_incorrect;
+			}
 
 			if (m_identity == Identity::avpn_server)
 				continue;
@@ -495,19 +503,10 @@ namespace avpn {
 		{
 			auto content = pkt->payload();
 			auto ep = parser_endpoint(content, avpn_payload_size);
-			// if (pkt->payload_size() <= 0)
+			if (ep.size_ <= 0 || ep.size_ > avpn_payload_size)
 			{
-				pkt->payload_size(ep.size_);
-				pkt->resize(ep.size_ + avpn_payload_header_size);
-			}
-			if (pkt->payload_size() > avpn_payload_size
-				|| pkt->payload_size() == 0)
-			{
-				LOG_DBG << "Large: " << pkt->payload_size()
-					<< ", ep: " << ep
-					<< ", id: " << ep.id_;
+				m_num_incorrect++;
 				co_return;
-				// BOOST_ASSERT(pkt->payload_size() > avpn_payload_size);
 			}
 			auto& dst_addr = ep.dst_;
 
@@ -556,8 +555,8 @@ namespace avpn {
 		if (results.empty())
 			co_return;
 
-// 		LOG_DBG << "Fec recover, gop: " << pkt->gid_
-// 			<< ", pkts: " << results.size();
+		// 更新统计信息.
+		m_num_corrected += (int)results.size();
 
 		for (auto& p : results)
 		{

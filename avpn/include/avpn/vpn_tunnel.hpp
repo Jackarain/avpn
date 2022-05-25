@@ -135,9 +135,14 @@ namespace avpn {
 		// 客户端的client id.
 		std::string m_client_id;
 
-		// 双方使用的ds, ps.
+		// 对方fec编码使用的ds, ps.
+		// 本端解码时需要使用对方的ds,ps来进行fec解码.
 		uint8_t m_data_shards{ 0 };
 		uint8_t m_parity_shards{ 0 };
+
+		// fec纠错相关统计信息.
+		int m_num_corrected{ 0 };
+		int m_num_incorrect{ 0 };
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;
