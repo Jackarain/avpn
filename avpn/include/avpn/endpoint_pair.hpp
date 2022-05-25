@@ -69,6 +69,7 @@ namespace avpn {
 
 		int type_{ -1 };
 		int size_{ -1 };
+		uint16_t id_{ 0 };
 
 		endpoint_pair()
 		{}
@@ -98,9 +99,11 @@ namespace avpn {
 			, dst_(std::move(endp.dst_))
 			, type_(endp.type_)
 			, size_(endp.size_)
+			, id_(endp.id_)
 		{
 			endp.type_ = -1;
 			endp.size_ = -1;
+			endp.id_ = 0;
 		}
 
 		bool empty() const
@@ -174,6 +177,7 @@ namespace avpn {
 				return {};
 
 			[[maybe_unused]] uint16_t total = ntohs(*(uint16_t*)(buf + 2));
+			uint16_t id = ntohs(*(uint16_t*)(buf + 4));
 			uint8_t type = *(uint8_t*)(buf + 9);
 			uint32_t src_ip = (*(uint32_t*)(buf + 12));
 			uint32_t dst_ip = (*(uint32_t*)(buf + 16));
@@ -188,13 +192,13 @@ namespace avpn {
 				endpoint_pair endp(src_ip, src_port, dst_ip, dst_port);
 				endp.type_ = type;
 				endp.size_ = total;
+				endp.id_ = id;
 
 				return endp;
 			}
 			else if (type == ip_udp)
 			{
 				auto p = buf + 4;
-				uint16_t id = (*(uint16_t*)(p + 0));
 
 				p = buf + ihl;
 
@@ -221,6 +225,7 @@ namespace avpn {
 				endpoint_pair endp(src_ip, src_port, dst_ip, dst_port);
 				endp.type_ = type;
 				endp.size_ = total;
+				endp.id_ = id;
 
 				return endp;
 			}
@@ -229,6 +234,7 @@ namespace avpn {
 				endpoint_pair endp(src_ip, 0, dst_ip, 0);
 				endp.type_ = type;
 				endp.size_ = total;
+				endp.id_ = id;
 
 				return endp;
 			}

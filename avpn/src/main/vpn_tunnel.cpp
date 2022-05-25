@@ -489,15 +489,24 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
 
-		auto write_pkt = [this, service](vpn_packet_ptr& pkt)
+		auto write_pkt = [this, service](vpn_packet_ptr pkt)
 			mutable -> net::awaitable<void>
 		{
 			auto content = pkt->payload();
 			auto ep = parser_endpoint(content, avpn_payload_size);
-			if (pkt->payload_size() <= 0)
+			// if (pkt->payload_size() <= 0)
 			{
 				pkt->payload_size(ep.size_);
 				pkt->resize(ep.size_ + avpn_payload_header_size);
+			}
+			if (pkt->payload_size() > avpn_payload_size
+				|| pkt->payload_size() == 0)
+			{
+				LOG_DBG << "Large: " << pkt->payload_size()
+					<< ", ep: " << ep
+					<< ", id: " << ep.id_;
+				co_return;
+				// BOOST_ASSERT(pkt->payload_size() > avpn_payload_size);
 			}
 			auto& dst_addr = ep.dst_;
 
@@ -541,13 +550,13 @@ namespace avpn {
 		m_recover.update(gid, pid,
 			m_data_shards, m_parity_shards, pkt);
 
-		// 获取fc解码结果并循环发送到tun设备.
+		// 获取fec解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);
 		if (results.empty())
 			co_return;
 
-		LOG_DBG << "Fec recover, gop: " << pkt->gid_
-			<< ", pkts: " << results.size();
+// 		LOG_DBG << "Fec recover, gop: " << pkt->gid_
+// 			<< ", pkts: " << results.size();
 
 		for (auto& p : results)
 		{

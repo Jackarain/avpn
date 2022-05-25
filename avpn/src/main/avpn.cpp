@@ -161,6 +161,11 @@ namespace avpn {
 			if (endp.empty())
 				continue;
 
+			if (endp.size_ > avpn_payload_size)
+				LOG_DBG << "Read big pkt: " << endp.size_
+				<< ", ep: " << endp
+				<< ", id: " << endp.id_;
+
 			// 保存数据包类型.
 			pkt.type((vpn_packet_t)endp.type_);
 

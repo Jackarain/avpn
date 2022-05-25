@@ -128,9 +128,6 @@ namespace avpn {
 		//     以备将来使用;
 		void update(uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt);
 
-		// 完整接收.
-		bool full() noexcept;
-
 		// 可用, 只要能完整解码此gop, 则表示可用.
 		bool available() const;
 		// 丢失的索引, 如果未发生丢失, 则返回空.
@@ -146,7 +143,6 @@ namespace avpn {
 	public:
 		std::vector<vpn_packet_ptr> pkts_;
 		uint32_t gid_{ 0 };
-		bitfield bs_;
 		int ds_{ 0 };
 		int ps_{ 0 };
 		int64_t total_{ 0 };

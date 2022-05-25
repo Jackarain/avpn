@@ -149,6 +149,7 @@ namespace avpn
 				ptr->payload_size(avpn_payload_size);
 
 				make_fec_header(*ptr, src);
+				pid_++;
 			}
 
 			// gop id自增, 开始下一组fec编码.
@@ -198,7 +199,6 @@ namespace avpn
 
 	fec_decode_group::fec_decode_group(int data_shards, int parity_shards)
 		: pkts_(data_shards + parity_shards)
-		, bs_(data_shards + parity_shards)
 		, ds_(data_shards)
 		, ps_(parity_shards)
 		, time_(asio_timer::clock_type::now())
@@ -210,7 +210,6 @@ namespace avpn
 	fec_decode_group::fec_decode_group(fec_decode_group&& pg) noexcept
 		: pkts_(std::move(pg.pkts_))
 		, gid_(pg.gid_)
-		, bs_(std::move(pg.bs_))
 		, ds_(pg.ds_)
 		, ps_(pg.ps_)
 		, total_(pg.total_)
@@ -231,20 +230,17 @@ namespace avpn
 
 		pkts_[pid] = pkt;
 
-		bs_.set_bit(pid);
-
 		pkt->resize(avpn_packet_size);
 		total_ += avpn_packet_size;
 	}
 
-	bool fec_decode_group::full() noexcept
-	{
-		return bs_.count() == (ds_ + ps_);
-	}
-
 	bool fec_decode_group::available() const
 	{
-		return bs_.count() >= ds_;
+		int sum = 0;
+		for (auto& p : pkts_)
+			if (p) sum++;
+
+		return sum >= ds_;
 	}
 
 	std::vector<int> fec_decode_group::lost() const
@@ -253,7 +249,7 @@ namespace avpn
 
 		for (auto i = 0; i < ds_; i++)
 		{
-			if (!bs_[i])
+			if (!pkts_[i])
 				result.push_back(i);
 		}
 
