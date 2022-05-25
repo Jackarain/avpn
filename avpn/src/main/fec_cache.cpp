@@ -349,7 +349,14 @@ namespace avpn
 
 			// 解码后将丢失的pkt放入result容器中.
 			for (auto& index : lost_pkts)
-				results_.emplace_back(std::move(gop.pkts_[index]));
+			{
+				auto& p = gop.pkts_[index];
+
+				p->gid_ = gid;
+				p->pid_ = (uint8_t)index;
+
+				results_.emplace_back(std::move(p));
+			}
 		}
 	}
 
