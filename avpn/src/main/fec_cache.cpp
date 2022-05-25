@@ -52,7 +52,7 @@ namespace avpn
 		}
 
 		p = (uint8_t*)std::calloc(1, avpn_packet_size);
-		memory_size_ += avpn_packet_size;
+		memory_size_ += avpn_whole_packet_size;
 		return p;
 	}
 
@@ -62,7 +62,7 @@ namespace avpn
 		if ((size_t)memory_size_ >= max_size_)
 		{
 			std::free((void*)p);
-			memory_size_ -= avpn_packet_size;
+			memory_size_ -= avpn_whole_packet_size;
 			return;
 		}
 
@@ -324,7 +324,6 @@ namespace avpn
 		{
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, pkt);
-
 			groups_.emplace(gid, std::move(gop));
 		}
 		else
@@ -337,7 +336,21 @@ namespace avpn
 			if (!gop.available())
 				return;
 
-			scoped_exit se([&gop]() mutable { gop.set_expired(); });
+			scoped_exit se([this, &gop, &gid]() mutable
+			{
+				gop.set_expired();
+
+				for (auto it = groups_.begin();
+					it != groups_.end();)
+				{
+					auto& [i, g] = *it;
+
+					if (g.gid_ + 64 > gid)
+						break;
+
+					it = groups_.erase(it);
+				}
+			});
 
 			auto lost_pkts = gop.lost();
 			if (lost_pkts.empty())

@@ -21,6 +21,9 @@ namespace avpn {
 	const static int avpn_normal_mtu = 1500;
 	// avpn数据包大小定义.
 	const static int avpn_packet_size = 1464;
+	// avpn数据包整个大小.
+	const static int avpn_whole_packet_size =
+		avpn_packet_size + 24; // 24 == sizeof vpn_packet.
 	// avpn数据包中IP包大小定义.
 	const static int avpn_payload_size =
 		avpn_packet_size - avpn_payload_header_size;
