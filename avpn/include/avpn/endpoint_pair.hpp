@@ -166,12 +166,14 @@ namespace avpn {
 
 	inline endpoint_pair parser_endpoint(const uint8_t* buf, std::size_t len)
 	{
-		uint8_t version = (buf[0] & 0xf0) >> 4;
+		if (buf[0] != 0x45)
+			return {};
 
 		static std::tuple<uint32_t, uint32_t> fd_test;
 
-		if (version == 4) {
-
+		uint8_t version = (buf[0] & 0xf0) >> 4;
+		if (version == 4)
+		{
 			int ihl = ((*(const uint8_t*)(buf)) & 0x0f) * 4;
 			if (len < (size_t)ihl + 4)
 				return {};
