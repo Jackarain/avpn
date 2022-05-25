@@ -109,10 +109,11 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 
 		auto& params = m_config.tunnel_params_;
+		uint32_t src = 0;
 
 		{
 			// 更新pkt数据.
-			uint32_t src = endp.src_.address().to_v4().to_uint();
+			src = endp.src_.address().to_v4().to_uint();
 			m_feg.make_fec_header(*pkt, src);
 		}
 
@@ -157,7 +158,7 @@ namespace avpn {
 		}
 
 		// fec编码, 如果成功编码, 则需要发送编码部分.
-		bool ret = m_feg.encode(pkt);
+		bool ret = m_feg.encode(pkt, src);
 		if (!ret)
 			co_return;
 
