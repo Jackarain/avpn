@@ -438,7 +438,6 @@ namespace avpn {
 		explicit wintun_windows_service(net::io_context& io_context)
 			: net::detail::service_base<wintun_windows_service>(io_context)
 			, m_receive_object_moved(io_context)
-			, m_strand(io_context.get_executor())
 		{
 			static details::init_wintun initer;
 		}
@@ -638,6 +637,7 @@ namespace avpn {
 				auto bufsize = net::buffer_size(buffers);
 				auto bufptr = net::buffer_cast<uint8_t*>(buffers);
 				std::string_view bufs((const char*)bufptr, bufsize);
+				boost::system::error_code ec;
 
 				auto bytes_transferred = self_->read_wintun(bufs);
 				if (bytes_transferred == 0)
@@ -666,15 +666,21 @@ namespace avpn {
 							continue;
 						}
 					}
-				}
 
-				boost::system::error_code ec;
+					// 被中止操作.
+					if (self_->m_abort)
+					{
+						ec = net::error::operation_aborted;
+						handler(ec, 0);
+						return;
+					}
+				}
 
 				// 经过spin后, 还是没有接收到数据, 则丢入等待协程.
 				if (bytes_transferred == 0)
 				{
 					net::co_spawn(this->get_executor(),
-						[self_ = self_, handler = std::move(handler), bufs = std::move(bufs)]
+						[self = self_, handler = std::move(handler), bufs = std::move(bufs)]
 					() mutable->net::awaitable<void>
 					{
 						boost::system::error_code ec;
@@ -682,23 +688,23 @@ namespace avpn {
 
 						scoped_exit fallback([&]() mutable
 							{
-								handler(ec, bytes_transferred);
+								handler(ec, 0);
 							});
 
-						if (self_->m_abort)
+						if (self->m_abort)
 						{
 							ec = net::error::operation_aborted;
 							co_return;
 						}
 
-						auto& object = self_->m_receive_object_moved;
+						auto& object = self->m_receive_object_moved;
 						for (;;)
 						{
 							co_await object.async_wait(uawaitable[ec]);
 							if (ec)
 								co_return;
 
-							bytes_transferred = self_->read_wintun(bufs);
+							bytes_transferred = self->read_wintun(bufs);
 							if (bytes_transferred == 0)
 								continue;
 							if (bytes_transferred > 0)
@@ -720,10 +726,9 @@ namespace avpn {
 
 					return;
 				}
-				else if (bytes_transferred < 0)
-				{
+
+				if (bytes_transferred < 0)
 					ec = net::error::operation_aborted;
-				}
 
 				// 回调用户.
 				handler(ec, bytes_transferred);
@@ -764,31 +769,29 @@ namespace avpn {
 				boost::system::error_code ec;
 
 				auto bytes_transferred = self_->write_wintun(bufs);
-				if (bytes_transferred <= 0 || self_->m_instrand > 0)
+				if (bytes_transferred < 0 || self_->m_abort)
 				{
-					if ((self_->m_instrand == 0 && bytes_transferred < 0)
-						|| self_->m_abort)
-					{
-						handler(ec, bytes_transferred);
-						return;
-					}
-					self_->m_instrand++;
+					ec = net::error::operation_aborted;
+					handler(ec, 0);
+					return;
+				}
 
+				if (bytes_transferred == 0)
+				{
 					// ring buffer已满, 写不进了, 开启协程写入.
-					net::co_spawn(self_->m_strand,
-						[self_ = self_, handler = std::move(handler), bufs = std::move(bufs)]
+					net::co_spawn(self_->get_executor(),
+						[self = self_, handler = std::move(handler), bufs = std::move(bufs)]
 					() mutable->net::awaitable<void>
 					{
-						auto bytes_transferred = self_->write_wintun(bufs);
+						auto bytes_transferred = self->write_wintun(bufs);
 						boost::system::error_code ec;
 
 						scoped_exit fallback([&]() mutable
 							{
-								self_->m_instrand--;
 								handler(ec, bytes_transferred);
 							});
 
-						if (bytes_transferred < 0 || self_->m_abort)
+						if (bytes_transferred < 0 || self->m_abort)
 						{
 							ec = net::error::operation_aborted;
 							co_return;
@@ -796,13 +799,13 @@ namespace avpn {
 
 						while (bytes_transferred == 0)
 						{
-							asio_timer wait_timer(self_->get_executor());
+							asio_timer wait_timer(self->get_executor());
 
 							wait_timer.expires_from_now(std::chrono::milliseconds(1));
 							co_await wait_timer.async_wait(uawaitable[ec]);
 
-							bytes_transferred = self_->write_wintun(bufs);
-							if (bytes_transferred < 0)
+							bytes_transferred = self->write_wintun(bufs);
+							if (bytes_transferred < 0 || self->m_abort)
 							{
 								ec = net::error::operation_aborted;
 								co_return;
@@ -812,7 +815,6 @@ namespace avpn {
 						// 回调用户.
 						fallback.cancel();
 						ec = {};
-						self_->m_instrand--;
 						handler(ec, bytes_transferred);
 
 						co_return;
@@ -853,9 +855,6 @@ namespace avpn {
 
 		struct tun_ring* m_send_ring{ nullptr };
 		struct tun_ring* m_receive_ring{ nullptr };
-
-		volatile int m_instrand{ 0 };
-		net::strand<net::any_io_executor> m_strand;
 
 		WINTUN_ADAPTER_HANDLE m_wintun_handle{ 0 };
 		MIB_UNICASTIPADDRESS_ROW m_address_row{ 0 };
