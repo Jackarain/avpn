@@ -322,6 +322,12 @@ namespace avpn {
 				{
 					net::ip::address_v4 src_addr(src);
 					LOG_WARN << "Not found client: " << src_addr.to_string();
+
+					auto response = make_handshake_reply(
+						{}, 0, 0, 0, 0, false, 0, {});
+					auto ptr = std::make_shared<vpn_packet>(
+						std::move(response));
+					co_await udp_write(ptr, remote);
 					continue;
 				}
 
@@ -1482,6 +1488,9 @@ namespace avpn {
 	net::awaitable<void> avpn_service::on_udp_handshake_reply(
 		udp::endpoint remote, vpn_packet pkt)
 	{
+		auto self = shared_from_this();
+		auto tunnel = m_tunnel.lock();
+
 		// 解析handshake_reply消息.
 		std::string id;
 		uint8_t ds;
@@ -1499,6 +1508,13 @@ namespace avpn {
 		if (id.empty())
 		{
 			LOG_WARN << "udp handshake reply detected server reboot!";
+
+			// 关闭已创建的隧道.
+			if (tunnel)
+				tunnel->close_tunnel();
+
+			// server已重启, 重建client.
+			run_as_client();
 			co_return;
 		}
 		if (bytes < 0)
@@ -1507,11 +1523,8 @@ namespace avpn {
 			co_return;
 		}
 
-		auto self = shared_from_this();
-
 		// 判断client的tunnel对象是否创建, 如果
 		// 已经创建, 则表示已经握手成功.
-		auto tunnel = m_tunnel.lock();
 		if (!tunnel)
 		{
 			auto server_pubkey = base64_decode(m_config.passphrase_);
