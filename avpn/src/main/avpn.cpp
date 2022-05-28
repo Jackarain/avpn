@@ -184,6 +184,8 @@ namespace avpn {
 			}
 		}
 
+		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
+		// tun read loop开始读取.
 		m_wait_timer.cancel_one(ec);
 
 		LOG_WARN << "start_tun_read_loop quit...";
@@ -807,7 +809,7 @@ namespace avpn {
 				LOG_DBG << "Set dns: " << dns << " successfully";
 		}
 
-		// 等待1s后开始循环读取tun设备.
+		// 等待1s后, 再开始循环读取tun设备.
 		boost::system::error_code ec;
 		co_await m_wait_timer.async_wait(uawaitable[ec]);
 		if (ec)
@@ -817,7 +819,16 @@ namespace avpn {
 
 		// 开始读取tun上的数据包.
 		net::co_spawn(m_main_context,
-			start_tun_read_loop(), net::detached);
+			[this]()mutable->net::awaitable<void>
+			{
+				co_await start_tun_read_loop();
+
+				if (m_client_reset_cnt != 0)
+					m_client_reset_cnt++;
+
+				co_return;
+			}, net::detached);
+
 		co_return;
 	}
 
@@ -1235,6 +1246,18 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
+		// 只有不是在重启client时建立udp socket, 这也就是说只有在第1次
+		// 启动client时创建好所有udp socket对象.
+		if (m_client_reset_cnt == 0)
+			co_await make_udp_client();
+
+		// 发起UDP握手请求.
+		co_await start_udp_handshake();
+		co_return;
+	}
+
+	net::awaitable<void> avpn_service::make_udp_client()
+	{
 		boost::system::error_code ec;
 
 		// 关闭清除原来的udp socket.
@@ -1286,10 +1309,19 @@ namespace avpn {
 			{
 				auto socket_ptr = tmp_sockets[n];
 				net::co_spawn(m_ioc_pool.get_io_context(),
-					start_udp_read_loop(n), net::detached);
+					[this, n]() mutable -> net::awaitable<void>
+					{
+						co_await start_udp_read_loop(n);
+						co_return;
+					}, net::detached);
 			}
 		}
 
+		co_return;
+	}
+
+	net::awaitable<void> avpn_service::start_udp_handshake()
+	{
 		// 发起UDP握手请求.
 		auto& params = m_config.tunnel_params_;
 		auto src = m_subnet.address().to_uint();
@@ -1737,6 +1769,8 @@ namespace avpn {
 
 		if (m_client_reset_cnt != 0)
 			m_client_reset_cnt++;
+
+		co_return;
 	}
 
 	void avpn_service::reset_tcp_cnt(int cnt)

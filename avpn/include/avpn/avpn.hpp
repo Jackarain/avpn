@@ -218,6 +218,9 @@ namespace avpn {
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
+		net::awaitable<void> make_udp_client();
+		// 作为client时, 发起udp握手请求.
+		net::awaitable<void> start_udp_handshake();
 
 		// 处理tcp/udp连接握手认证.
 		net::awaitable<void> on_tcp_handshake(
