@@ -607,10 +607,10 @@ namespace avpn {
 			{
 				LOG_DBG << "Client restart timer: " << m_client_reset_cnt;
 
-				if (m_client_reset_cnt > 3)
+				if (m_client_reset_cnt >= 3)
 				{
-					m_client_reset_cnt = 0;
 					run_as_client();
+					m_client_reset_cnt = 0;
 				}
 			}
 		};
@@ -704,6 +704,7 @@ namespace avpn {
 			{
 				check_client_tcp();
 				check_client_udp();
+				check_client_reset();
 			}
 		}
 
@@ -1120,6 +1121,11 @@ namespace avpn {
 			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
 			if (tunnel)
 			{
+				m_tunnel = {};
+
+				// 设置为1, 表示重启过程开始.
+				m_client_reset_cnt = 1;
+
 				// 关闭已创建的隧道.
 				tunnel->close_tunnel();
 				stream.close(ec);
@@ -1129,9 +1135,6 @@ namespace avpn {
 
 				// 关闭tun设备.
 				m_tundev.close();
-
-				// 设置为1, 表示重启过程开始.
-				m_client_reset_cnt = 1;
 			}
 			co_return;
 		}
@@ -1246,10 +1249,13 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
-		// 只有不是在重启client时建立udp socket, 这也就是说只有在第1次
-		// 启动client时创建好所有udp socket对象.
-		if (m_client_reset_cnt == 0)
+		// 只有在第1次启动client时创建好所有udp socket对象.
+		static bool start_udp = false;
+		if (!start_udp)
+		{
+			start_udp = true;
 			co_await make_udp_client();
+		}
 
 		// 发起UDP握手请求.
 		co_await start_udp_handshake();
@@ -1568,9 +1574,16 @@ namespace avpn {
 			// 关闭已创建的隧道.
 			if (tunnel)
 				tunnel->close_tunnel();
+			else
+				co_return;
 
-			// server已重启, 重建client.
-			run_as_client();
+			m_tunnel = {};
+
+			// 设置为1, 表示重启过程开始.
+			m_client_reset_cnt = 1;
+
+			// 关闭tun设备.
+			m_tundev.close();
 			co_return;
 		}
 		if (bytes < 0)
