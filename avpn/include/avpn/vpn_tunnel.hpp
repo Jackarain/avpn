@@ -51,8 +51,8 @@ namespace avpn {
 		// 关闭tunnel.
 		void close_tunnel();
 
-		// 开始处理tcp协议.
-		void start_tcp_loop();
+		// tcp消息循环.
+		net::awaitable<void> tcp_loop();
 
 		// 设置/返回该tunnel的tcp socket引用.
 		tcp::socket& tcp_socket();
@@ -95,9 +95,6 @@ namespace avpn {
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
-
-		// tcp消息循环.
-		net::awaitable<void> tcp_loop();
 
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(

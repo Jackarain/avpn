@@ -248,6 +248,7 @@ namespace avpn {
 
 		// 创建隧道对象.
 		vpn_tunnel_ptr make_tunnel(uint32_t, std::string, std::string);
+		net::awaitable<void> start_tunnel_tcp(vpn_tunnel_ptr);
 
 		// 作为client时, 重置tcp连接计数.
 		void reset_tcp_cnt(int);
@@ -276,6 +277,8 @@ namespace avpn {
 		std::vector<udp::endpoint> m_server_endps;
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
+		// client重启计数.
+		int m_client_reset_cnt{ 0 };
 		// 作为client时, server推送的路由, dns, passbyvpn信息.
 		tunnel_params m_push_params;
 

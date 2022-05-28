@@ -78,15 +78,45 @@ namespace avpn {
 			m_tcp_socket.close(ec);
 	}
 
-	void vpn_tunnel::start_tcp_loop()
+	net::awaitable<void> vpn_tunnel::tcp_loop()
 	{
-		auto self = shared_from_this();
-		net::co_spawn(m_io_context,
-			[this, self]() mutable -> net::awaitable<void>
+		LOG_DBG << "Enter tcp loop: " << this;
+
+		while (!m_abort)
+		{
+			vpn_packet pkt;
+
+			auto ret = co_await tcp_read_packet(m_tcp_socket, pkt);
+			if (ret == -1)
+				break;
+
+			// 创建packet指针再通过tun_forward传入协程.
+			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+			if (!co_await process_tcp_packet(ptr))
 			{
-				co_await tcp_loop();
+				LOG_ERR << "process_tcp_packet, break tcp loop.";
+				break;
+			}
+		}
+
+		std::string qmsg = "tcp_loop, tcp loop quit";
+		scoped_exit se([&]() mutable {
+			LOG_WARN << qmsg;
+			});
+
+		// 当运行身份为client时, 尝试重连服务器.
+		if (!m_abort && m_identity == Identity::avpn_client)
+		{
+			auto service = m_serivce.lock();
+			if (!service)
 				co_return;
-			}, net::detached);
+
+			// 重置tcp重连计数, 等待tcp重连.
+			qmsg += " with reconnect";
+			service->reset_tcp_cnt(1);
+		}
+		co_return;
 	}
 
 	tcp::socket& vpn_tunnel::tcp_socket()
@@ -272,47 +302,6 @@ namespace avpn {
 		}
 
 		LOG_WARN << "vpn_tunnel::tick() quit...";
-		co_return;
-	}
-
-	net::awaitable<void> vpn_tunnel::tcp_loop()
-	{
-		LOG_DBG << "Enter tcp loop: " << this;
-
-		while (!m_abort)
-		{
-			vpn_packet pkt;
-
-			auto ret = co_await tcp_read_packet(m_tcp_socket, pkt);
-			if (ret == -1)
-				break;
-
-			// 创建packet指针再通过tun_forward传入协程.
-			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-
-			if (!co_await process_tcp_packet(ptr))
-			{
-				LOG_ERR << "process_tcp_packet, break tcp loop.";
-				break;
-			}
-		}
-
-		std::string qmsg = "tcp_loop, tcp loop quit";
-		scoped_exit se([&]() mutable {
-			LOG_WARN << qmsg;
-			});
-
-		// 当运行身份为client时, 尝试重连服务器.
-		if (!m_abort && m_identity == Identity::avpn_client)
-		{
-			auto service = m_serivce.lock();
-			if (!service)
-				co_return;
-
-			// 重置tcp重连计数, 等待tcp重连.
-			qmsg += " with reconnect";
-			service->reset_tcp_cnt(1);
-		}
 		co_return;
 	}
 

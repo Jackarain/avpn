@@ -597,6 +597,22 @@ namespace avpn {
 			}
 		};
 
+		// 检查client 是否能够重启.
+		auto check_client_reset = [&]() mutable
+		{
+			// m_client_reset_cnt若为0表示没启动重启.
+			if (m_client_reset_cnt > 0)
+			{
+				LOG_DBG << "Client restart timer: " << m_client_reset_cnt;
+
+				if (m_client_reset_cnt > 3)
+				{
+					m_client_reset_cnt = 0;
+					run_as_client();
+				}
+			}
+		};
+
 		// 检查client tcp连接是否超时需要重连.
 		auto check_client_tcp = [&]() mutable
 		{
@@ -1100,8 +1116,11 @@ namespace avpn {
 				// 取消重连.
 				se.cancel();
 
-				// server已重启, 重建client.
-				run_as_client();
+				// 关闭tun设备.
+				m_tundev.close();
+
+				// 设置为1, 表示重启过程开始.
+				m_client_reset_cnt = 1;
 			}
 			co_return;
 		}
@@ -1147,8 +1166,9 @@ namespace avpn {
 		// 启动tunnel.
 		tunnel->start_tunnel(ds, ps);
 
-		// 启动tcp loop协程.
-		tunnel->start_tcp_loop();
+		// 开始tunnel的tcp读取消息循环.
+		net::co_spawn(m_main_context,
+			start_tunnel_tcp(tunnel), net::detached);
 
 		co_return;
 	}
@@ -1356,8 +1376,10 @@ namespace avpn {
 			tunnel->tcp_socket(std::move(stream), id);
 
 			// 启动tunnel的tcp读取循环.
-			tunnel->start_tcp_loop();
 			tunnel->start_tunnel(ds, ps);
+			// 开始tunnel的tcp读取消息循环.
+			net::co_spawn(m_main_context,
+				start_tunnel_tcp(tunnel), net::detached);
 
 			co_return;
 		}
@@ -1393,9 +1415,11 @@ namespace avpn {
 		// 用于tcp通信.
 		tunnel->tcp_socket(std::move(stream), id);
 
-		// 开始tunnel的tcp读取消息循环.
-		tunnel->start_tcp_loop();
 		tunnel->start_tunnel(ds, ps);
+
+		// 开始tunnel的tcp读取消息循环.
+		net::co_spawn(m_main_context,
+			start_tunnel_tcp(tunnel), net::detached);
 
 		co_return;
 	}
@@ -1700,6 +1724,19 @@ namespace avpn {
 		m_clients.make(vc);
 
 		return tunnel;
+	}
+
+	net::awaitable<void> avpn_service::start_tunnel_tcp(vpn_tunnel_ptr tunnel)
+	{
+		co_await net::co_spawn(tunnel->get_executor(),
+			[this, tunnel]() mutable -> net::awaitable<void>
+			{
+				co_await tunnel->tcp_loop();
+				co_return;
+			}, net::use_awaitable);
+
+		if (m_client_reset_cnt != 0)
+			m_client_reset_cnt++;
 	}
 
 	void avpn_service::reset_tcp_cnt(int cnt)
