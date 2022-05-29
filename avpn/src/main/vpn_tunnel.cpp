@@ -193,8 +193,7 @@ namespace avpn {
 			co_return;
 
 		// 循环发送已编码部分.
-		for (int i = params.data_shards_;
-			i < params.data_shards_ + params.parity_shards_; i++)
+		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
 		{
 			pkt = m_feg.pkts_[i];
 
@@ -482,6 +481,9 @@ namespace avpn {
 		int ret = unwrap_transfer(*pkt, src, gid, pid);
 		if (ret < 0)
 			co_return;
+
+		BOOST_ASSERT(gid > 0);
+		BOOST_ASSERT(pid < (m_data_shards + m_parity_shards));
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)

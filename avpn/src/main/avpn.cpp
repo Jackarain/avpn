@@ -161,11 +161,6 @@ namespace avpn {
 			if (endp.empty())
 				continue;
 
-			if (endp.size_ > avpn_payload_size)
-				LOG_DBG << "Read big pkt: " << endp.size_
-				<< ", ep: " << endp
-				<< ", id: " << endp.id_;
-
 			// 保存数据包类型.
 			pkt.type((vpn_packet_t)endp.type_);
 
@@ -214,7 +209,7 @@ namespace avpn {
 	{
 		// 根据对端的虚拟ip查找tunnel对象.
 		uint32_t dst = endp.dst_.address().to_v4().to_uint();
-		auto tunnel =  lookup_tunnel(dst);
+		auto tunnel = lookup_tunnel(dst);
 		if (!tunnel)
 		{
 			LOG_WARN << "Tun read, t -> c, lost connection: " << endp;

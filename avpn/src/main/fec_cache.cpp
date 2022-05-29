@@ -99,6 +99,7 @@ namespace avpn
 	fec_encode_group::fec_encode_group(int data_shards, int parity_shards)
 		: ds_(data_shards)
 		, ps_(parity_shards)
+		, shards_(ds_ + ps_)
 		, pkts_(data_shards + parity_shards)
 	{
 		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
@@ -124,7 +125,9 @@ namespace avpn
 	{
 		// 构造一个sv.
 		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
+
 		// 构造transfer数据包.
+		BOOST_ASSERT(pid_ < shards_);
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
 
@@ -139,7 +142,7 @@ namespace avpn
 				return false;
 
 			// 编码完后填充协议头.
-			for (auto i = ds_; i < ds_ + ps_; i++)
+			for (auto i = ds_; i < shards_; i++)
 			{
 				auto& ptr = pkts_[i];
 				if (!ptr)

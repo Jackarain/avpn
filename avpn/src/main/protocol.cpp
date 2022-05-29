@@ -240,13 +240,6 @@ namespace avpn {
 		writer.WriteUInt16((uint16_t)data.size());
 		writer.WriteString(data.data(), data.size());
 
-		auto ep = parser_endpoint((uint8_t*)data.data(), data.size());
-		if (ep.size_ > avpn_payload_size)
-			LOG_DBG << "Large packet: " << ep.size_
-			<< ", ep: " << ep
-			<< ", id: " << ep.id_
-			<< ", pid: " << pid;
-
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
 
