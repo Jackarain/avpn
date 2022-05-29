@@ -142,9 +142,9 @@ namespace avpn
 				return false;
 
 			// 编码完后填充协议头.
-			for (auto i = ds_; i < shards_; i++)
+			for (; pid_ < shards_; pid_++)
 			{
-				auto& ptr = pkts_[i];
+				auto& ptr = pkts_[pid_];
 				if (!ptr)
 					continue;
 
@@ -152,7 +152,6 @@ namespace avpn
 				ptr->payload_size(avpn_payload_size);
 
 				make_fec_header(*ptr, src);
-				pid_++;
 			}
 
 			// gop id自增, 开始下一组fec编码.
