@@ -597,15 +597,20 @@ namespace avpn {
 		// 检查client 是否能够重启.
 		auto check_client_reset = [&]() mutable
 		{
-			// m_client_reset_cnt若为0表示没启动重启.
-			if (m_client_reset_cnt > 0)
+			// m_client_reset_flag若为0表示没启动重启.
+			if (m_client_reset_flag > 0)
 			{
-				LOG_DBG << "Client restart timer: " << m_client_reset_cnt;
+				// 重启过程中, 停止tcp重连逻辑.
+				m_client_tcp_cnt = 0;
 
-				if (m_client_reset_cnt >= 3)
+				// 输出重启flag, 以便诊断错误.
+				LOG_DBG << "Client restart flag: " << m_client_reset_flag;
+
+				auto result = m_client_reset_flag & vpn_restart_ready;
+				if (result == vpn_restart_ready)
 				{
 					run_as_client();
-					m_client_reset_cnt = 0;
+					m_client_reset_flag = 0;
 				}
 			}
 		};
@@ -697,9 +702,10 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_client)
 			{
+				check_client_reset();
+
 				check_client_tcp();
 				check_client_udp();
-				check_client_reset();
 			}
 		}
 
@@ -819,8 +825,7 @@ namespace avpn {
 			{
 				co_await start_tun_read_loop();
 
-				if (m_client_reset_cnt != 0)
-					m_client_reset_cnt++;
+				m_client_reset_flag |= vpn_tun_loop_exit;
 
 				co_return;
 			}, net::detached);
@@ -1113,13 +1118,13 @@ namespace avpn {
 			addr, prefix_length, passbyvpn, pushdns, pushroutes);
 		if (id.empty())
 		{
-			LOG_WARN << "unwrap_handshake_reply detected server reboot!";
+			LOG_WARN << "tcp handshake reply detected server reboot!";
 			if (tunnel)
 			{
 				m_tunnel = {};
 
-				// 设置为1, 表示重启过程开始.
-				m_client_reset_cnt = 1;
+				// 设置为vpn_restart, 表示重启过程开始.
+				m_client_reset_flag |= vpn_restart;
 
 				// 关闭已创建的隧道.
 				tunnel->close_tunnel();
@@ -1138,6 +1143,8 @@ namespace avpn {
 			LOG_WARN << "unwrap_handshake_reply detected invalid!";
 			co_return;
 		}
+
+		m_client_reset_flag = 0;
 
 		// 判断client的tunnel对象是否创建, 如果
 		// 已经创建, 则表示已经握手成功.
@@ -1574,8 +1581,8 @@ namespace avpn {
 
 			m_tunnel = {};
 
-			// 设置为1, 表示重启过程开始.
-			m_client_reset_cnt = 1;
+			// 设置为vpn_restart, 表示重启过程开始.
+			m_client_reset_flag |= vpn_restart;
 
 			// 关闭tun设备.
 			m_tundev.close();
@@ -1775,8 +1782,7 @@ namespace avpn {
 				co_return;
 			}, net::use_awaitable);
 
-		if (m_client_reset_cnt != 0)
-			m_client_reset_cnt++;
+		m_client_reset_flag |= vpn_tcp_loop_exit;
 
 		co_return;
 	}

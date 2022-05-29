@@ -281,7 +281,13 @@ namespace avpn {
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
 		// client重启计数.
-		int m_client_reset_cnt{ 0 };
+		enum {
+			vpn_restart       = 0b00000001,
+			vpn_tcp_loop_exit = 0b00000010,
+			vpn_tun_loop_exit = 0b00000100,
+			vpn_restart_ready = 0b00000111,
+		};
+		int m_client_reset_flag{ 0 };
 		// 作为client时, server推送的路由, dns, passbyvpn信息.
 		tunnel_params m_push_params;
 
