@@ -67,8 +67,8 @@ namespace avpn {
 		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
 
 		// 通过udp/tcp协议发送数据包.
-		void udp_write_packet(vpn_packet_ptr& pkt);
-		void tcp_write_packet(vpn_packet_ptr& pkt);
+		void udp_write_pkt(vpn_packet_ptr& pkt);
+		void tcp_write_pkt(vpn_packet_ptr& pkt);
 
 		// 设置/返回client的id.
 		std::string client_id() const;
@@ -140,6 +140,10 @@ namespace avpn {
 		// fec纠错相关统计信息.
 		int m_num_corrected{ 0 };
 		int m_num_incorrect{ 0 };
+
+		// 网络统计信息.
+		int m_num_send_packet{ 0 };
+		int m_num_recv_packet{ 0 };
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;

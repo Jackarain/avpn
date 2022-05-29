@@ -92,7 +92,7 @@ namespace avpn {
 
 			// 创建packet指针再通过tun_forward传入协程.
 			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-
+			m_num_recv_packet++;
 			if (!co_await process_tcp_packet(ptr))
 			{
 				LOG_ERR << "process_tcp_packet, break tcp loop.";
@@ -166,7 +166,7 @@ namespace avpn {
 		if (use_tcp_transfer)
 			co_await tcp_write_packet(m_tcp_socket, pkt);
 		else
-			udp_write_packet(pkt);
+			udp_write_pkt(pkt);
 
 		// TCP倍发模式, 无需要fec, 直接发送冗余.
 		if (params.data_shards_ == 1)
@@ -181,7 +181,7 @@ namespace avpn {
 				i < params.parity_shards_ - 1;
 				i++)
 			{
-				udp_write_packet(pkt);
+				udp_write_pkt(pkt);
 			}
 
 			co_return;
@@ -200,7 +200,7 @@ namespace avpn {
 			if (use_tcp_transfer)
 				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
-				udp_write_packet(pkt);
+				udp_write_pkt(pkt);
 		}
 
 		co_return;
@@ -211,15 +211,18 @@ namespace avpn {
 	{
 		[[maybe_unused]] auto self = shared_from_this();
 		m_remote_endpoint = remote;
+		m_num_recv_packet++;
 		co_await process_udp_packet(pkt);
 		co_return;
 	}
 
-	void vpn_tunnel::udp_write_packet(vpn_packet_ptr& pkt)
+	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
 	{
 		auto service = m_serivce.lock();
 		if (!service)
 			return;
+
+		m_num_send_packet++;
 
 		service->do_udp_write(pkt, m_remote_endpoint);
 	}
@@ -293,7 +296,9 @@ namespace avpn {
 			{
 				print_fec_interval = 0;
 				LOG_INFO << "Packet corrected: " << m_num_corrected
-					<< ", incorrect: " << m_num_incorrect;
+					<< ", incorrect: " << m_num_incorrect
+					<< ", send: " << m_num_send_packet
+					<< ", recv: " << m_num_recv_packet;
 			}
 
 			if (m_identity == Identity::avpn_server)
@@ -376,13 +381,13 @@ namespace avpn {
 			co_return;
 		}
 
+		m_num_send_packet++;
 		co_return;
 	}
 
-	void vpn_tunnel::tcp_write_packet(vpn_packet_ptr& pkt)
+	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
 	{
-		[[maybe_unused]] auto self = shared_from_this();
-
+		auto self = shared_from_this();
 		net::co_spawn(get_executor(),
 			[this, self, pkt]() mutable -> net::awaitable<void>
 			{
