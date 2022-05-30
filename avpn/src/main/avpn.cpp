@@ -35,7 +35,7 @@ namespace avpn {
 		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
 		, m_tundev(m_main_context)
 		, m_tick_timer(m_main_context)
-		, m_wait_timer(m_main_context)
+		, m_tun_wait_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
@@ -112,7 +112,7 @@ namespace avpn {
 		LOG_DBG << "avpn_service stop tuntap.";
 		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
-		m_wait_timer.cancel(ignore_ec);
+		m_tun_wait_timer.cancel(ignore_ec);
 		m_upload_stat = {};
 		m_down_stat = {};
 		m_subnet = {};
@@ -181,7 +181,7 @@ namespace avpn {
 
 		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
 		// tun read loop开始读取.
-		m_wait_timer.cancel_one(ec);
+		m_tun_wait_timer.cancel_one(ec);
 
 		LOG_WARN << "start_tun_read_loop quit...";
 		co_return;
@@ -717,7 +717,7 @@ namespace avpn {
 	avpn_service::setup_tun(const net::ip::network_v4 & net)
 	{
 		// 设置定时等待.
-		m_wait_timer.expires_from_now(std::chrono::seconds(1));
+		m_tun_wait_timer.expires_from_now(std::chrono::seconds(1));
 
 		// 先关闭设备.
 		m_tundev.close();
@@ -813,7 +813,7 @@ namespace avpn {
 
 		// 等待1s后, 再开始循环读取tun设备.
 		boost::system::error_code ec;
-		co_await m_wait_timer.async_wait(uawaitable[ec]);
+		co_await m_tun_wait_timer.async_wait(uawaitable[ec]);
 		if (ec)
 			LOG_INFO << "Tun read loop exited";
 		else

@@ -273,13 +273,17 @@ namespace avpn {
 		// 随机id, 用于client连接前标识身份. 避免server
 		// 重复在同一个client分配资源.
 		std::string m_client_id;
+
 		// 随机生成的密钥对, 用于client和server的公钥协商出解
 		// 密密钥.
 		std::string m_client_key;
+
 		// 作为client时, server的udp端口.
 		std::vector<udp::endpoint> m_server_endps;
+
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
+
 		// client重启计数.
 		enum {
 			vpn_restart       = 0b00000001,
@@ -288,16 +292,18 @@ namespace avpn {
 			vpn_restart_ready = 0b00000111,
 		};
 		int m_client_reset_flag{ 0 };
+
 		// 作为client时, server推送的路由, dns, passbyvpn信息.
 		tunnel_params m_push_params;
 
 		// tun设备.
 		avpn::tun_device m_tundev;
 
-		// 定时器, 用于处理一系列定时任务.
+		// m_tick_timer 定时器, 用于处理一系列定时任务.
+		// m_tun_wait_timer 定时器, 用于等待tun设备异步退出.
 		asio_timer m_tick_timer;
-		// 等待定时器.
-		asio_timer m_wait_timer;
+		asio_timer m_tun_wait_timer;
+
 		// 专门用于退出时取消asio_util::async_connect.
 		net::cancellation_signal m_cancel_sig;
 
