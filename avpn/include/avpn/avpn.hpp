@@ -271,6 +271,8 @@ namespace avpn {
 
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
+		// client的udp创建标志.
+		int m_start_udp{ 0 };
 
 		// client重启计数.
 		enum {

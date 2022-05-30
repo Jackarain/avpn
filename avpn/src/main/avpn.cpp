@@ -116,6 +116,7 @@ namespace avpn {
 		m_subnet = {};
 		m_upload_speed = 0;
 		m_down_speed = 0;
+		m_start_udp = 0;
 
 		LOG_DBG << "avpn_service.stop()";
 	}
@@ -1222,10 +1223,9 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
 		// 只有在第1次启动client时创建好所有udp socket对象.
-		static bool start_udp = false;
-		if (!start_udp)
+		if (m_start_udp == 0)
 		{
-			start_udp = true;
+			m_start_udp = 1;
 			co_await make_udp_client();
 		}
 
