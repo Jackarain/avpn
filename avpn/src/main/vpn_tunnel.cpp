@@ -111,6 +111,9 @@ namespace avpn {
 				LOG_ERR << "process_tcp_packet, break tcp loop.";
 				break;
 			}
+
+			// 计算下载速率.
+			compute_speed(m_down_stat, pkt.size());
 		}
 
 		std::string qmsg = "tcp_loop, tcp loop quit";
@@ -181,6 +184,9 @@ namespace avpn {
 		else
 			udp_write_pkt(pkt);
 
+		// 计算上行速率.
+		compute_speed(m_upload_stat, pkt->size());
+
 		// TCP倍发模式, 无需要fec, 直接发送冗余.
 		if (params.data_shards_ == 1)
 		{
@@ -195,6 +201,9 @@ namespace avpn {
 				i++)
 			{
 				udp_write_pkt(pkt);
+
+				// 计算上行速率.
+				compute_speed(m_upload_stat, pkt->size());
 			}
 
 			co_return;
@@ -214,6 +223,9 @@ namespace avpn {
 				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
 				udp_write_pkt(pkt);
+
+			// 计算上行速率.
+			compute_speed(m_upload_stat, pkt->size());
 		}
 
 		co_return;
@@ -225,6 +237,7 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 		m_remote_endpoint = remote;
 		m_num_recv_packet++;
+		compute_speed(m_down_stat, pkt->size());
 		co_await process_udp_packet(pkt);
 		co_return;
 	}
@@ -317,7 +330,9 @@ namespace avpn {
 				LOG_INFO << "Packet corrected: " << m_num_corrected
 					<< ", incorrect: " << m_num_incorrect
 					<< ", send: " << m_num_send_packet
-					<< ", recv: " << m_num_recv_packet;
+					<< ", recv: " << m_num_recv_packet
+					<< ", D: " << m_down_stat.rate_
+					<< ", U: " << m_upload_stat.rate_;
 			}
 
 			if (m_identity == Identity::avpn_server)

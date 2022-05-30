@@ -89,13 +89,20 @@ namespace avpn {
 		// 构造控制服务器的endpoint.
 		tcp::endpoint endp;
 		make_listen_endpoint(m_config.controller_, endp, ec);
+		if (ec)
+		{
+			auto real_contorller = "127.0.0.1:" + m_config.controller_;
+			make_listen_endpoint(real_contorller, endp, ec);
+		}
 		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
 
 		// 连接到服务器.
 		co_await sock.async_connect(endp, uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect, connect: " << ec.message();
+			LOG_ERR << "controller::start_connect"
+				<< ", connect: " << m_config.controller_
+				<< ", error: " << ec.message();
 
 			// 全部退出.
 			m_ioc_pool.stop();

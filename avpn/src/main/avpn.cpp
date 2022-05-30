@@ -546,8 +546,7 @@ namespace avpn {
 		// 检查client 是否能够重启.
 		auto check_client_reset = [&]() mutable
 		{
-			// m_client_reset_flag若为0表示没启动重启.
-			if (m_client_reset_flag > 0)
+			if (m_client_reset_flag & vpn_restart)
 			{
 				// 重启过程中, 停止tcp重连逻辑.
 				m_client_tcp_cnt = 0;
@@ -670,6 +669,13 @@ namespace avpn {
 
 				check_client_tcp();
 				check_client_udp();
+
+				auto tunnel = m_tunnel.lock();
+				if (!tunnel)
+					continue;
+
+				m_upload_speed = tunnel->upload_rate();
+				m_down_speed = tunnel->download_rate();
 			}
 		}
 
