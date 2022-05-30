@@ -29,6 +29,18 @@ namespace avpn {
 
 	class vpn_tunnel : public std::enable_shared_from_this<vpn_tunnel>
 	{
+		// 速率统计相关数据结构.
+		const static int speed_entries = 3;
+		struct speed_stat
+		{
+			int64_t speeder_[speed_entries]{ 0 };
+			time_point speeder_time_[speed_entries]{ steady_clock::now() };
+			int64_t speeder_count_{ 0 };
+
+			int64_t bytes_{ 0 };
+			int64_t rate_{ 0 };
+		};
+
 		// c++11 noncopyable.
 		vpn_tunnel(const vpn_tunnel&) = delete;
 		vpn_tunnel& operator=(const vpn_tunnel&) = delete;
@@ -50,6 +62,10 @@ namespace avpn {
 
 		// 关闭tunnel.
 		void close_tunnel();
+
+		// 返回当前上下行实时速率.
+		int64_t upload_rate() const;
+		int64_t download_rate() const;
 
 		// tcp消息循环.
 		net::awaitable<void> tcp_loop();
@@ -95,6 +111,10 @@ namespace avpn {
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
+
+		// 速率计算.
+		void compute_speed(speed_stat& stat, int bytes);
+		void compute_speed(speed_stat& stat, const time_point& now);
 
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(
@@ -144,6 +164,10 @@ namespace avpn {
 		// 网络统计信息.
 		int m_num_send_packet{ 0 };
 		int m_num_recv_packet{ 0 };
+
+		// 上下行速率统计.
+		speed_stat m_down_stat;
+		speed_stat m_upload_stat;
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;

@@ -132,18 +132,6 @@ namespace avpn {
 
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
-		// 速率统计相关数据结构.
-		const static int speed_entries = 3;
-		struct speed_stat
-		{
-			int64_t speeder_[speed_entries]{ 0 };
-			time_point speeder_time_[speed_entries]{ steady_clock::now() };
-			int64_t speeder_count_{ 0 };
-
-			int64_t bytes_{ 0 };
-			int64_t rate_{ 0 };
-		};
-
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
 		avpn_service& operator=(const avpn_service&) = delete;
@@ -307,10 +295,6 @@ namespace avpn {
 		// 专门用于退出时取消asio_util::async_connect.
 		net::cancellation_signal m_cancel_sig;
 
-		// 上下行速率统计.
-		speed_stat m_down_stat;
-		speed_stat m_upload_stat;
-
 		// 作为server时, 用于tcp的服务器acceptor.
 		std::vector<tcp::acceptor> m_tcp_acceptors;
 
@@ -340,6 +324,9 @@ namespace avpn {
 		// client的生命期, 在client的生命期后, 需要从该容
 		// 器手工清除.
 		vpn_client_table m_clients;
+
+		int64_t m_upload_speed{ 0 };
+		int64_t m_down_speed{ 0 };
 
 		// 作为client时, tunnel对象.
 		vpn_tunnel_weak_ptr m_tunnel;

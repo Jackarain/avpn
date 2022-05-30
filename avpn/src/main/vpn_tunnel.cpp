@@ -71,11 +71,24 @@ namespace avpn {
 	{
 		m_abort = true;
 
+		m_upload_stat = {};
+		m_down_stat = {};
+
 		boost::system::error_code ec;
 		m_tick_timer.cancel(ec);
 
 		if (m_tcp_socket.is_open())
 			m_tcp_socket.close(ec);
+	}
+
+	int64_t vpn_tunnel::upload_rate() const
+	{
+		return m_upload_stat.rate_;
+	}
+
+	int64_t vpn_tunnel::download_rate() const
+	{
+		return m_down_stat.rate_;
 	}
 
 	net::awaitable<void> vpn_tunnel::tcp_loop()
@@ -280,7 +293,7 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tick()
 	{
 		LOG_DBG << "vpn_tunnel enter tick: " << this;
-		int print_fec_interval = 0;
+		int print_stat_interval = 0;
 
 		while (!m_abort)
 		{
@@ -288,13 +301,19 @@ namespace avpn {
 
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
-
 			if (ec)
 				break;
 
-			if (++print_fec_interval >= 10)
+			auto now = std::chrono::steady_clock::now();
+
+			// 计算上下行速率.
+			compute_speed(m_down_stat, now);
+			compute_speed(m_upload_stat, now);
+
+			// 输出统计信息.
+			if (++print_stat_interval >= 10)
 			{
-				print_fec_interval = 0;
+				print_stat_interval = 0;
 				LOG_INFO << "Packet corrected: " << m_num_corrected
 					<< ", incorrect: " << m_num_incorrect
 					<< ", send: " << m_num_send_packet
@@ -307,6 +326,47 @@ namespace avpn {
 
 		LOG_WARN << "vpn_tunnel::tick() quit...";
 		co_return;
+	}
+
+	void vpn_tunnel::compute_speed(speed_stat& stat, int bytes)
+	{
+		// 统计上传数据量用于计算上传速率.
+		stat.bytes_ += (int64_t)bytes;
+		auto index = stat.speeder_count_ % speed_entries;
+		stat.speeder_[index] = stat.bytes_;
+	}
+
+	void vpn_tunnel::compute_speed(speed_stat& stat, const time_point& now)
+	{
+		auto& speeder_time = stat.speeder_time_;
+
+		int nowindex = stat.speeder_count_ % speed_entries;
+		speeder_time[nowindex] = now;
+
+		auto speeder_count = stat.speeder_count_ + 1;
+		if (speeder_count > 0)
+		{
+			int checkindex = speeder_count >= speed_entries
+				? speeder_count % speed_entries : 0;
+
+			auto& speeder = stat.speeder_;
+
+			auto deltams = now - speeder_time[checkindex];
+			auto amount = speeder[nowindex] - speeder[checkindex];
+
+			if (amount < 0)
+				amount = 0;
+
+			auto ms = std::chrono::duration_cast<
+				std::chrono::milliseconds>(deltams);
+			if (ms.count() <= 0)
+				ms = std::chrono::milliseconds(1);
+
+			stat.rate_ = int64_t((double)amount /
+				((double)ms.count() / 1000.0f));
+		}
+
+		stat.speeder_count_ = speeder_count;
 	}
 
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(

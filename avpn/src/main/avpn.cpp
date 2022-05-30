@@ -113,21 +113,21 @@ namespace avpn {
 		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
 		m_tun_wait_timer.cancel(ignore_ec);
-		m_upload_stat = {};
-		m_down_stat = {};
 		m_subnet = {};
+		m_upload_speed = 0;
+		m_down_speed = 0;
 
 		LOG_DBG << "avpn_service.stop()";
 	}
 
 	int64_t avpn_service::upload_rate() const
 	{
-		return m_upload_stat.rate_;
+		return m_upload_speed;
 	}
 
 	int64_t avpn_service::download_rate() const
 	{
-		return m_down_stat.rate_;
+		return m_down_speed;
 	}
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
@@ -195,12 +195,6 @@ namespace avpn {
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
 				net::buffer(pkt->payload(), pkt->payload_size()), uawaitable[ec]);
-
-			// 统计下载数据量用于计算下载速率.
-			m_down_stat.bytes_ += (int64_t)pkt->payload_size();
-			auto index = m_down_stat.speeder_count_ % speed_entries;
-			m_down_stat.speeder_[index] = m_down_stat.bytes_;
-
 			co_return;
 		}, net::detached);
 	}
@@ -247,11 +241,6 @@ namespace avpn {
 			co_await tunnel->tun_forward(ptr, std::move(endp));
 			co_return;
 		}, net::detached);
-
-		// 统计上传数据量用于计算上传速率.
-		m_upload_stat.bytes_ += (int64_t)pkt.size();
-		auto index = m_down_stat.speeder_count_ % speed_entries;
-		m_upload_stat.speeder_[index] = m_upload_stat.bytes_;
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
@@ -405,11 +394,6 @@ namespace avpn {
 			<< ", send_to " << remote
 			<< ", error: " << ec.message();
 
-		// 统计发送速率.
-		m_upload_stat.bytes_ += (int64_t)pkt->size();
-		auto idx = m_upload_stat.speeder_count_ % speed_entries;
-		m_upload_stat.speeder_[idx] = m_upload_stat.bytes_;
-
 		co_return;
 	}
 
@@ -530,41 +514,6 @@ namespace avpn {
 	net::awaitable<void> avpn_service::tick()
 	{
 		boost::system::error_code ec;
-
-		// 计算上下行速率.
-		auto compute_speed = [&](speed_stat& stat,
-			time_point& now) mutable
-		{
-			auto& speeder_time = stat.speeder_time_;
-
-			int nowindex = stat.speeder_count_ % speed_entries;
-			speeder_time[nowindex] = now;
-
-			auto speeder_count = stat.speeder_count_ + 1;
-			if (speeder_count > 0)
-			{
-				int checkindex = speeder_count >= speed_entries
-					? speeder_count % speed_entries : 0;
-
-				auto& speeder = stat.speeder_;
-
-				auto deltams = now - speeder_time[checkindex];
-				auto amount = speeder[nowindex] - speeder[checkindex];
-
-				if (amount < 0)
-					amount = 0;
-
-				auto ms = std::chrono::duration_cast<
-					std::chrono::milliseconds>(deltams);
-				if (ms.count() <= 0)
-					ms = std::chrono::milliseconds(1);
-
-				stat.rate_ = int64_t((double)amount /
-					((double)ms.count() / 1000.0f));
-			}
-
-			stat.speeder_count_ = speeder_count;
-		};
 
 		// 检查tunnel.
 		auto check_tunnel = [&](time_point& now) mutable
@@ -692,13 +641,28 @@ namespace avpn {
 
 			auto now = std::chrono::steady_clock::now();
 
-			// 计算上下行速率.
-			compute_speed(m_down_stat, now);
-			compute_speed(m_upload_stat, now);
-
 			// 检查超时连接, 清除超时的连接.
 			if (m_identity == Identity::avpn_server)
+			{
 				check_tunnel(now);
+
+				int64_t urate = 0;
+				int64_t drate = 0;
+
+				auto& tab = m_clients.table();
+				for (auto& c : tab)
+				{
+					auto client = c.tunnel_.lock();
+					if (!client)
+						continue;
+
+					urate += client->upload_rate();
+					drate += client->download_rate();
+				}
+
+				m_upload_speed = urate;
+				m_down_speed = drate;
+			}
 
 			if (m_identity == Identity::avpn_client)
 			{
