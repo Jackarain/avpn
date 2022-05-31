@@ -75,11 +75,11 @@ namespace avpn {
 	// id(id_len)
 	// ds(8)
 	// ps(8)
-	// vaddr(number)
-	// prefix_length(number)
-	// passbyvpn(number)
-	// pushdns(number)
-	// routes(number)
+	// vaddr(32)
+	// prefix_length(8)
+	// passbyvpn(8)
+	// pushdns(32)
+	// routes(8)
 	// {size(u8), string[size]}[routes]
 	vpn_packet make_handshake_reply(std::string_view id,
 		uint8_t ds, uint8_t ps,
