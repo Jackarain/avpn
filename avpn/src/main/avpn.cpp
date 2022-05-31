@@ -135,9 +135,10 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
-		LOG_DBG << "Start tun read loop";
-
+		co_await net::this_coro::executor;
 		boost::system::error_code ec;
+		LOG_DBG << "Start tun read loop: " << std::this_thread::get_id();
+
 		while (!m_abort)
 		{
 			vpn_packet pkt;
@@ -796,7 +797,6 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this]()mutable->net::awaitable<void>
 			{
-				co_await net::this_coro::executor;
 				co_await start_tun_read_loop();
 				m_client_reset_flag |= vpn_tun_loop_exit;
 
