@@ -196,6 +196,9 @@ namespace avpn {
 		// 作为server时, 初始化tcp连接监听.
 		bool init_acceptors();
 
+		// 作为client时, 根据连接协议筛选出server信息.
+		net::awaitable<void> make_endpoint(std::string protocol);
+
 		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
 		net::awaitable<void> start_udp_server();
@@ -266,8 +269,10 @@ namespace avpn {
 		// 密密钥.
 		std::string m_client_key;
 
-		// 作为client时, server的udp端口.
-		std::vector<udp::endpoint> m_server_endps;
+		// 作为client时, server的udp端口信息.
+		std::vector<udp::endpoint> m_server_udp_endps;
+		// 作为client时, server的tcp端口信息.
+		std::vector<tcp::endpoint> m_server_tcp_endps;
 
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
@@ -280,6 +285,7 @@ namespace avpn {
 			vpn_tcp_loop_exit = 0b00000010,
 			vpn_tun_loop_exit = 0b00000100,
 			vpn_restart_ready = 0b00000111,
+			vpn_restart_busy  = 0b00001000,
 		};
 		int m_client_reset_flag{ 0 };
 
@@ -331,7 +337,7 @@ namespace avpn {
 		int64_t m_down_speed{ 0 };
 
 		// 作为client时, tunnel对象.
-		vpn_tunnel_weak_ptr m_tunnel;
+		vpn_tunnel_ptr m_tunnel;
 
 		// 子网信息, 包含本机虚拟ip信息.
 		// 作为server时, 由配置参数确定.
