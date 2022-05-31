@@ -65,7 +65,7 @@ namespace avpn {
 		// 启动tick协程.
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
-			[this, self]() mutable -> net::awaitable<void>
+			[this, self = self]() mutable -> net::awaitable<void>
 			{
 				co_await tick();
 				co_return;
@@ -100,6 +100,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tcp_loop()
 	{
+		[[maybe_unused]] auto self = shared_from_this();
 		LOG_DBG << "Enter tcp loop: " << this;
 
 		while (!m_abort)
@@ -321,18 +322,22 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tick()
 	{
 		co_await net::this_coro::executor;
-		auto self = shared_from_this();
-		LOG_DBG << "vpn_tunnel enter tick: " << this;
+		[[maybe_unused]] auto self = shared_from_this();
+		LOG_DBG << "vpn_tunnel enter tick: " << this
+			<< ", abort: " << m_abort.value;
 		int print_stat_interval = 0;
 
-		while (!m_abort)
+		while (!m_abort.value)
 		{
 			boost::system::error_code ec;
 
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
 			if (ec)
+			{
+				LOG_WARN << "vpn_tunnel::tick, ec: " << ec.message();
 				break;
+			}
 
 			auto now = std::chrono::steady_clock::now();
 

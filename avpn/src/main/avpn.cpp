@@ -90,10 +90,11 @@ namespace avpn {
 		// 根据client/server身份关闭相应隧道.
 		if (m_identity == Identity::avpn_client)
 		{
-			if (m_tunnel)
+			auto tunnel = m_tunnel.lock();
+			if (tunnel)
 			{
-				m_tunnel->close_tunnel();
-				m_tunnel.reset();
+				tunnel->close_tunnel();
+				m_tunnel = {};
 			}
 		}
 
@@ -227,19 +228,23 @@ namespace avpn {
 	void avpn_service::do_client_tun_read(vpn_packet pkt, endpoint_pair endp)
 	{
 		// 获取tunnel对象指针.
-		if (!m_tunnel)
+		auto tunnel = m_tunnel.lock();
+		if (!tunnel)
 			return;
 
 		// 创建packet指针再通过tun_forward传入协程.
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 透传到tunnel.
-		net::co_spawn(m_tunnel->get_executor(),
+		net::co_spawn(tunnel->get_executor(),
 			[this, ptr, endp = std::move(endp)]()
 			mutable->net::awaitable<void>
 		{
 			co_await net::this_coro::executor;
-			co_await m_tunnel->tun_forward(ptr, std::move(endp));
+			auto tunnel = m_tunnel.lock();
+			if (!tunnel)
+				co_return;
+			co_await tunnel->tun_forward(ptr, std::move(endp));
 			co_return;
 		}, net::detached);
 	}
@@ -362,7 +367,8 @@ namespace avpn {
 				}
 
 				// client的tunnel还没建立好, 忽略所有非vpt_handshake_reply消息.
-				if (!m_tunnel)
+				auto tunnel = m_tunnel.lock();
+				if (!tunnel)
 					continue;
 
 				// 转发到client连接, 让client对象处理相应的协议数据.
@@ -374,7 +380,10 @@ namespace avpn {
 					mutable -> net::awaitable<void>
 					{
 						co_await net::this_coro::executor;
-						co_await m_tunnel->udp_forward(ptr, remote);
+						auto tunnel = m_tunnel.lock();
+						if (!tunnel)
+							co_return;
+						co_await tunnel->udp_forward(ptr, remote);
 						co_return;
 					}, net::detached);
 
@@ -575,7 +584,7 @@ namespace avpn {
 		// 检查client udp是否超时.
 		auto check_client_udp = [&]() mutable
 		{
-			auto tunnel = m_tunnel;
+			auto tunnel = m_tunnel.lock();
 			if (!tunnel)
 				return;
 
@@ -663,7 +672,7 @@ namespace avpn {
 				check_client_tcp();
 				check_client_udp();
 
-				auto tunnel = m_tunnel;
+				auto tunnel = m_tunnel.lock();
 				if (!tunnel)
 					continue;
 
@@ -965,6 +974,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tcp_listen(tcp::acceptor& a)
 	{
 		boost::system::error_code error;
+		[[maybe_unused]] auto self = shared_from_this();
 
 		while (!m_abort)
 		{
@@ -1124,7 +1134,6 @@ namespace avpn {
 		std::string id;
 		uint8_t ds;
 		uint8_t ps;
-		uint32_t addr;
 		uint8_t prefix_length;
 
 		auto& passbyvpn = m_push_params.passbyvpn_;
@@ -1134,21 +1143,23 @@ namespace avpn {
 		m_push_params.server_ip_ = remote.address().to_string();
 
 		bytes = unwrap_handshake_reply(pkt, id, ds, ps,
-			addr, prefix_length, passbyvpn, pushdns, pushroutes);
+			src, prefix_length, passbyvpn, pushdns, pushroutes);
+
+		auto tunnel = m_tunnel.lock();
 		if (src == 0)
 		{
 			LOG_WARN << "tcp handshake reply: '" << id
 				<< "' detected server reboot!";
 
 			// 如果tunnel对象为空, 则表示重启已经开始.
-			if (!m_tunnel)
+			if (!tunnel)
 				co_return;
 
 			// 设置为vpn_restart, 表示重启过程开始.
 			m_client_reset_flag |= vpn_restart;
 
 			// 关闭已创建的隧道.
-			m_tunnel->close_tunnel();
+			tunnel->close_tunnel();
 			stream.close(ec);
 
 			// 取消重连.
@@ -1170,24 +1181,24 @@ namespace avpn {
 
 		// 判断client的tunnel对象是否创建, 如果
 		// 已经创建, 则表示已经握手成功.
-		if (!m_tunnel)
+		if (!tunnel)
 		{
 			auto server_pubkey = base64_decode(m_config.passphrase_);
 
 			// 创建tunnel对象, 在完成握手后, 进入tunnel
 			// 的tcp loop中循环处理tcp消息.
-			m_tunnel = vpn_tunnel::make(m_main_context,
+			tunnel = vpn_tunnel::make(m_main_context,
 				self, m_config, server_pubkey, m_client_key);
+			m_tunnel = tunnel;
+			tunnel->remote_endpoint(m_server_udp_endps.front());
 
-			m_tunnel->remote_endpoint(m_server_udp_endps.front());
-
-			LOG_DBG << "Handshake by tcp, make tunnel: " << m_tunnel.get()
+			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << m_client_id;
 			LOG_DBG << "Negotiated shared key: "
-				<< base64_encode(m_tunnel->shared_key());
+				<< base64_encode(tunnel->shared_key());
 
-			m_subnet = make_network(addr, (unsigned short)prefix_length);
+			m_subnet = make_network(src, (unsigned short)prefix_length);
 
 			co_await setup_tun(m_subnet);
 		}
@@ -1201,14 +1212,18 @@ namespace avpn {
 		se.cancel();
 
 		// 替换为新的tcp socket对象.
-		m_tunnel->tcp_socket(std::move(stream), 0);
+		tunnel->tcp_socket(std::move(stream), 0);
 
 		// 启动tunnel.
-		m_tunnel->start_tunnel(ds, ps);
+		tunnel->start_tunnel(ds, ps);
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			start_tunnel_tcp(m_tunnel), net::detached);
+			[this, tunnel]() mutable -> net::awaitable<void>
+			{
+				co_await start_tunnel_tcp(tunnel);
+				co_return;
+			}, net::detached);
 
 		co_return;
 	}
@@ -1405,15 +1420,21 @@ namespace avpn {
 			// 请求, 并回复认证信息.
 			tunnel = co_await async_make_tunnel(client_id, pubkey);
 			BOOST_ASSERT(tunnel && "tunnel must be valid");
+			if (!tunnel)
+			{
+				LOG_ERR << "async make tunnel fail!!!";
+				co_return;
+			}
 		}
-
-		// 输出协商的加密密钥到日志.
-		LOG_DBG << "Negotiated shared key via tcp: "
-			<< base64_encode(tunnel->shared_key());
 
 		// 获取tunnel的虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
-		auto vaddr = vnetaddr.address().to_uint();
+		uint32_t vaddr = vnetaddr.address().to_uint();
+
+		// 输出协商的加密密钥到日志.
+		LOG_DBG << "Negotiated shared key via tcp: "
+			<< base64_encode(tunnel->shared_key())
+			<< ", ip: " << vaddr;
 
 		// 回复认证消息.
 		auto response = make_handshake_reply(
@@ -1434,7 +1455,11 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			start_tunnel_tcp(tunnel), net::detached);
+			[this, tunnel = std::move(tunnel)]() mutable -> net::awaitable<void>
+			{
+				co_await start_tunnel_tcp(tunnel);
+				co_return;
+			}, net::detached);
 
 		co_return;
 	}
@@ -1491,13 +1516,14 @@ namespace avpn {
 			BOOST_ASSERT(tunnel && "tunnel must be valid");
 		}
 
-		// 输出协商的加密密钥到日志.
-		LOG_DBG << "Negotiated shared key via udp: "
-			<< base64_encode(tunnel->shared_key());
-
 		// 获取tunnel的虚拟ip.
 		auto vnetaddr = tunnel->vnet_addr();
 		auto vaddr = vnetaddr.address().to_uint();
+
+		// 输出协商的加密密钥到日志.
+		LOG_DBG << "Negotiated shared key via udp: "
+			<< base64_encode(tunnel->shared_key())
+			<< ", ip: " << vaddr;
 
 		// 回复认证消息.
 		auto response = make_handshake_reply(
@@ -1544,6 +1570,8 @@ namespace avpn {
 			LOG_WARN << "udp handshake reply detected invalid!";
 			co_return;
 		}
+
+		vpn_tunnel_ptr tunnel = m_tunnel.lock();
 		if (addr == 0)
 		{
 			LOG_WARN << "udp handshake reply: '" << id
@@ -1551,14 +1579,14 @@ namespace avpn {
 
 			// 如果tunnel指针为空, 则表示重启已经开始, 在这个消息之前,
 			// tunnel指针已经被清了.
-			if (!m_tunnel)
+			if (!tunnel)
 				co_return;
 
 			// 设置为vpn_restart, 表示重启过程开始.
 			m_client_reset_flag |= vpn_restart;
 
 			// 关闭已创建的隧道.
-			m_tunnel->close_tunnel();
+			tunnel->close_tunnel();
 
 			// 关闭tun设备.
 			m_tundev.close();
@@ -1571,22 +1599,24 @@ namespace avpn {
 
 		// 判断client的tunnel对象是否创建, 如果已经创建, 则表示已经握手成功.
 		// 如果未创建, 则创建tunnel对象.
-		if (!m_tunnel)
+		if (!tunnel)
 		{
 			auto server_pubkey = base64_decode(m_config.passphrase_);
 
 			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中循环处
 			// 理tcp消息.
-			m_tunnel = vpn_tunnel::make(m_main_context,
+			tunnel = vpn_tunnel::make(m_main_context,
 				self, m_config, server_pubkey, m_client_key);
-			m_tunnel->remote_endpoint(remote);
+			BOOST_ASSERT(tunnel);
+			m_tunnel = tunnel;
+			tunnel->remote_endpoint(remote);
 
-			LOG_DBG << "Handshake by udp, make tunnel: " << m_tunnel.get()
+			LOG_DBG << "Handshake by udp, make tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id()
 				<< ", cid: " << m_client_id;
 
 			LOG_DBG << "Negotiated shared key via udp: "
-				<< base64_encode(m_tunnel->shared_key());
+				<< base64_encode(tunnel->shared_key());
 
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 
@@ -1597,8 +1627,8 @@ namespace avpn {
 		m_client_reset_flag = 0;
 
 		// 更新tunnel的远端udp的endpoint.
-		m_tunnel->remote_endpoint(remote);
-		m_tunnel->start_tunnel(ds, ps);
+		tunnel->remote_endpoint(remote);
+		tunnel->start_tunnel(ds, ps);
 
 		co_return;
 	}
@@ -1759,7 +1789,8 @@ namespace avpn {
 		co_await net::this_coro::executor;
 		auto self = shared_from_this();
 
-		co_await net::co_spawn(tunnel->get_executor(),
+		auto executor = tunnel->get_executor();
+		co_await net::co_spawn(executor,
 			[this, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await tunnel->tcp_loop();

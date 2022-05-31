@@ -337,7 +337,7 @@ namespace avpn {
 		int64_t m_down_speed{ 0 };
 
 		// 作为client时, tunnel对象.
-		vpn_tunnel_ptr m_tunnel;
+		vpn_tunnel_weak_ptr m_tunnel;
 
 		// 子网信息, 包含本机虚拟ip信息.
 		// 作为server时, 由配置参数确定.
