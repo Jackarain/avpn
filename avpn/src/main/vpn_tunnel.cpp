@@ -29,7 +29,9 @@ namespace avpn {
 		, m_tick_timer(ioc)
 		, m_feg(cfg.tunnel_params_.data_shards_,
 			cfg.tunnel_params_.parity_shards_)
-	{}
+	{
+		m_crypto = std::make_unique<crypto_util::stream_crypto>(m_shared_key);
+	}
 
 	std::shared_ptr<vpn_tunnel>
 	vpn_tunnel::make(net::io_context& ioc,
@@ -156,7 +158,6 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
 	{
-		co_await net::this_coro::executor;
 		[[maybe_unused]] auto self = shared_from_this();
 
 		auto& params = m_config.tunnel_params_;
@@ -240,7 +241,15 @@ namespace avpn {
 	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
 		[[maybe_unused]] auto self = shared_from_this();
-		m_remote_endpoint = remote;
+
+		if (m_identity == Identity::avpn_server)
+		{
+			if (m_remote_endpoint != remote)
+				LOG_INFO << "Update: " << this
+						<< " udp endpoint: " << remote;
+			m_remote_endpoint = remote;
+		}
+
 		m_num_recv_packet++;
 		compute_speed(m_down_stat, pkt->size());
 		co_await process_udp_packet(pkt);
@@ -273,6 +282,11 @@ namespace avpn {
 		return m_shared_key;
 	}
 
+	crypto_util::stream_crypto& vpn_tunnel::crypto()
+	{
+		return *m_crypto;
+	}
+
 	net::ip::network_v4 vpn_tunnel::vnet_addr() const
 	{
 		return m_vaddr;
@@ -290,6 +304,9 @@ namespace avpn {
 
 	void vpn_tunnel::remote_endpoint(const udp::endpoint& endp)
 	{
+		if (m_remote_endpoint != endp)
+			LOG_INFO << "Update: " << this
+				<< " remote endpoint: " << endp;
 		m_remote_endpoint = endp;
 	}
 

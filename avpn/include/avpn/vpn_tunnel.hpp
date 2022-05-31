@@ -92,6 +92,8 @@ namespace avpn {
 
 		// 返回协商的密钥.
 		std::string shared_key() const;
+		// 返回加密对象.
+		crypto_util::stream_crypto& crypto();
 
 		// 设置/返回server分配的vnet addr.
 		net::ip::network_v4 vnet_addr() const;
@@ -175,6 +177,8 @@ namespace avpn {
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;
+		// 用于加密.
+		std::unique_ptr<crypto_util::stream_crypto> m_crypto;
 
 		// 密钥.
 		std::string m_shared_key;
