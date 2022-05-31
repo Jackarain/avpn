@@ -192,9 +192,10 @@ namespace avpn {
 
 	void avpn_service::do_tun_write(vpn_packet_ptr pkt)
 	{
-		net::co_spawn(m_main_context.get_executor(),
+		net::co_spawn(m_main_context,
 		[this, pkt = pkt] () mutable->net::awaitable<void>
 		{
+			co_await net::this_coro::executor;
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
 				net::buffer(pkt->payload(), pkt->payload_size()), uawaitable[ec]);
@@ -1219,7 +1220,7 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			[this, tunnel]() mutable -> net::awaitable<void>
+			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await start_tunnel_tcp(tunnel);
 				co_return;
@@ -1455,7 +1456,7 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			[this, tunnel = std::move(tunnel)]() mutable -> net::awaitable<void>
+			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await start_tunnel_tcp(tunnel);
 				co_return;
@@ -1791,7 +1792,7 @@ namespace avpn {
 
 		auto executor = tunnel->get_executor();
 		co_await net::co_spawn(executor,
-			[this, tunnel]() mutable -> net::awaitable<void>
+			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await tunnel->tcp_loop();
 				co_return;

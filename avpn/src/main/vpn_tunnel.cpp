@@ -361,7 +361,7 @@ namespace avpn {
 				continue;
 		}
 
-		LOG_WARN << "vpn_tunnel::tick() quit...";
+		LOG_WARN << "vpn_tunnel::tick() " << this << " quit...";
 		co_return;
 	}
 
