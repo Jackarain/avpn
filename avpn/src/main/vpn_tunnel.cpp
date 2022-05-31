@@ -323,8 +323,7 @@ namespace avpn {
 	{
 		co_await net::this_coro::executor;
 		[[maybe_unused]] auto self = shared_from_this();
-		LOG_DBG << "vpn_tunnel enter tick: " << this
-			<< ", abort: " << m_abort.value;
+		LOG_DBG << "vpn_tunnel enter tick: " << this;
 		int print_stat_interval = 0;
 
 		while (!m_abort.value)
@@ -349,10 +348,10 @@ namespace avpn {
 			if (++print_stat_interval >= 10)
 			{
 				print_stat_interval = 0;
-				LOG_INFO << "Packet corrected: " << m_num_corrected
-					<< ", incorrect: " << m_num_incorrect
-					<< ", send: " << m_num_send_packet
-					<< ", recv: " << m_num_recv_packet
+				LOG_INFO << this << ", CORR: " << m_num_corrected
+					<< ", WNG: " << m_num_incorrect
+					<< ", TX: " << m_num_send_packet
+					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
 					<< ", U: " << m_upload_stat.rate_;
 			}
