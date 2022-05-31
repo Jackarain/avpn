@@ -68,6 +68,7 @@ namespace avpn {
 			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await tick();
+				co_return;
 			}, net::detached);
 	}
 
@@ -319,6 +320,8 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
+		co_await net::this_coro::executor;
+		auto self = shared_from_this();
 		LOG_DBG << "vpn_tunnel enter tick: " << this;
 		int print_stat_interval = 0;
 
