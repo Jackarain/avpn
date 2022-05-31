@@ -243,12 +243,7 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 
 		if (m_identity == Identity::avpn_server)
-		{
-			if (m_remote_endpoint != remote)
-				LOG_INFO << "Update: " << this
-						<< " udp endpoint: " << remote;
 			m_remote_endpoint = remote;
-		}
 
 		m_num_recv_packet++;
 		compute_speed(m_down_stat, pkt->size());
@@ -304,9 +299,6 @@ namespace avpn {
 
 	void vpn_tunnel::remote_endpoint(const udp::endpoint& endp)
 	{
-		if (m_remote_endpoint != endp)
-			LOG_INFO << "Update: " << this
-				<< " remote endpoint: " << endp;
 		m_remote_endpoint = endp;
 	}
 
