@@ -794,8 +794,8 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this]()mutable->net::awaitable<void>
 			{
+				co_await net::this_coro::executor;
 				co_await start_tun_read_loop();
-
 				m_client_reset_flag |= vpn_tun_loop_exit;
 
 				co_return;
@@ -1322,6 +1322,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::on_tcp_handshake(
 		tcp::socket stream, size_t id)
 	{
+		co_await net::this_coro::executor;
 		vpn_packet pkt;
 
 		int ret = co_await tcp_read_packet(stream, pkt, id);
@@ -1424,7 +1425,6 @@ namespace avpn {
 		// 替换为新的tcp socket, 然后用新的tcp socket
 		// 用于tcp通信.
 		tunnel->tcp_socket(std::move(stream), id);
-
 		tunnel->start_tunnel(ds, ps);
 
 		// 开始tunnel的tcp读取消息循环.
@@ -1438,6 +1438,7 @@ namespace avpn {
 	avpn_service::on_udp_handshake(
 		udp::endpoint remote, vpn_packet pkt, uint32_t src)
 	{
+		co_await net::this_coro::executor;
 		uint8_t ds;
 		uint8_t ps;
 		std::string pubkey;
@@ -1522,6 +1523,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::on_udp_handshake_reply(
 		udp::endpoint remote, vpn_packet pkt)
 	{
+		co_await net::this_coro::executor;
 		auto self = shared_from_this();
 		auto tunnel = m_tunnel.lock();
 
@@ -1684,18 +1686,22 @@ namespace avpn {
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(uint32_t vaddr)
 	{
+		co_await net::this_coro::executor;
 		co_return lookup_tunnel(vaddr);
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(std::string id)
 	{
+		co_await net::this_coro::executor;
 		co_return lookup_tunnel(id);
 	}
 
 	net::awaitable<avpn::vpn_tunnel_ptr>
 	avpn_service::async_make_tunnel(std::string id, std::string pubkey)
 	{
+		co_await net::this_coro::executor;
+
 		// 查找存在的tunnel.
 		auto tunnel = lookup_tunnel(id);
 		if (tunnel)
@@ -1745,6 +1751,9 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tunnel_tcp(vpn_tunnel_ptr tunnel)
 	{
+		co_await net::this_coro::executor;
+		auto self = shared_from_this();
+
 		co_await net::co_spawn(tunnel->get_executor(),
 			[this, tunnel]() mutable -> net::awaitable<void>
 			{

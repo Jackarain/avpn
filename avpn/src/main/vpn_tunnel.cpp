@@ -51,7 +51,9 @@ namespace avpn {
 		if (m_abort || !m_abort)
 			return;
 
-		LOG_DBG << "start tunnel, ds: " << ds << ", ps: " << ps;
+		LOG_DBG << "start tunnel: " << this
+			<< ", ds: " << ds
+			<< ", ps : " << ps;
 
 		m_data_shards = ds;
 		m_parity_shards = ps;
@@ -69,6 +71,8 @@ namespace avpn {
 
 	void vpn_tunnel::close_tunnel()
 	{
+		LOG_INFO << "closing vpn_tunnel: " << this;
+
 		m_abort = true;
 
 		m_upload_stat = {};
@@ -152,6 +156,7 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
 	{
+		co_await net::this_coro::executor;
 		[[maybe_unused]] auto self = shared_from_this();
 
 		auto& params = m_config.tunnel_params_;
@@ -616,6 +621,8 @@ namespace avpn {
 		// 已经接收到.
 		if (m_data_shards == 1)
 			co_return;
+
+		co_await net::this_coro::executor;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(gid, pid,
