@@ -734,9 +734,12 @@ namespace avpn {
 			co_return;
 		}
 
+		auto& params = m_config.tunnel_params_;
+
 		// 根据server的推送信息配置网络.
-		if (m_push_params.passbyvpn_ &&
-			m_config.identity_ == Identity::avpn_client)
+		if (!params.ignore_pushroute_ &&
+			(m_push_params.passbyvpn_ &&
+			m_config.identity_ == Identity::avpn_client))
 		{
 			auto vgateway = gateway.to_string();
 
@@ -753,7 +756,6 @@ namespace avpn {
 					<< defgw_string << ", change faild!";
 		}
 
-		auto& params = m_config.tunnel_params_;
 		if (!params.ignore_pushroute_)
 		{
 			for (auto& route : m_push_params.pushroutes_)
@@ -769,8 +771,9 @@ namespace avpn {
 			}
 		}
 
-		if (m_push_params.pushdns_ != 0 &&
-			m_config.identity_ == Identity::avpn_client)
+		if (!params.ignore_pushroute_ &&
+			(m_push_params.pushdns_ != 0 &&
+			m_config.identity_ == Identity::avpn_client))
 		{
 			auto dns = net::ip::address_v4(m_push_params.pushdns_).to_string();
 			if (set_dns(dns, ipaddr))
