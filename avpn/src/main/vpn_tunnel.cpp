@@ -468,6 +468,7 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tcp_write_packet(
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
+		auto self = shared_from_this();
 		bool deque_writing = !m_tcp_deque.empty();
 		m_tcp_deque.push_back(pkt);
 
