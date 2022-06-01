@@ -96,6 +96,32 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
+	// 构造keepalive消息, c -> s.
+	// 协议格式
+	// id_len(8)
+	// id(id_len)
+	vpn_packet make_keepalive(uint32_t src,
+		std::string_view id);
+
+	int unwrap_keepalive(vpn_packet& pkt,
+		uint32_t& src, std::string& id);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// 构造keepalive_reply消息, s -> c.
+	// 协议格式
+	// id_len(8)
+	// id(id_len)
+	vpn_packet make_keepalive_reply(uint32_t src,
+		std::string_view id);
+
+	int unwrap_keepalive_reply(vpn_packet& pkt,
+		uint32_t& src, std::string& id);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
 	// 传输数据消息, c <-> s.
 	// 协议格式
 	// gid(32)

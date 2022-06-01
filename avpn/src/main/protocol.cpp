@@ -223,6 +223,86 @@ namespace avpn {
 		return bytes;
 	}
 
+	vpn_packet make_keepalive(uint32_t src, std::string_view id)
+	{
+		auto pkt = make_common_header(false, vpt_keepalive, src);
+
+		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
+		writer.WriteUInt8((uint8_t)id.size());
+		writer.WriteString(id.data(), id.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_keepalive(vpn_packet& pkt, uint32_t& src, std::string& id)
+	{
+		bool enc;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
+		if (type != vpt_keepalive)
+			return -1;
+		auto surplus = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, surplus);
+		uint8_t length = 0;
+
+		bool ret = reader.ReadUInt8(&length);
+		if (!ret) return -1;
+		id.resize(length);
+		BOOST_ASSERT(length <= 32);
+		ret = reader.ReadString((char*)id.data(), length);
+		if (!ret) return -1;
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
+	vpn_packet make_keepalive_reply(uint32_t src, std::string_view id)
+	{
+		auto pkt = make_common_header(false, vpt_keepalive_reply, src);
+
+		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
+		writer.WriteUInt8((uint8_t)id.size());
+		writer.WriteString(id.data(), id.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_keepalive_reply(vpn_packet& pkt, uint32_t& src, std::string& id)
+	{
+		bool enc;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
+		if (type != vpt_keepalive_reply)
+			return -1;
+		auto surplus = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, surplus);
+		uint8_t length = 0;
+
+		bool ret = reader.ReadUInt8(&length);
+		if (!ret) return -1;
+		id.resize(length);
+		BOOST_ASSERT(length <= 32);
+		ret = reader.ReadString((char*)id.data(), length);
+		if (!ret) return -1;
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
 	vpn_packet make_transfer(uint32_t src,
 		uint32_t gid, uint8_t pid, std::string_view data)
 	{
