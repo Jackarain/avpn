@@ -1193,6 +1193,7 @@ namespace avpn {
 				<< base64_encode(tunnel->shared_key());
 
 			m_subnet = make_network(src, (unsigned short)prefix_length);
+			tunnel->vnet_addr(m_subnet);
 
 			co_await setup_tun(m_subnet);
 		}
@@ -1610,6 +1611,7 @@ namespace avpn {
 				<< base64_encode(tunnel->shared_key());
 
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
+			tunnel->vnet_addr(m_subnet);
 
 			co_await setup_tun(m_subnet);
 		}
