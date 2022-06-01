@@ -675,6 +675,25 @@ namespace avpn {
 			co_return;
 		};
 
+		auto opt = m_recover.find(gid);
+		if (!opt)
+		{
+			if (pid < m_data_shards)
+				co_await write_pkt(pkt);
+
+			if (m_data_shards == 1)
+				co_return;
+
+			m_recover.update(opt, gid, pid,
+				m_data_shards, m_parity_shards, pkt);
+
+			co_return;
+		}
+
+		auto& gop = *opt;
+		if (gop.expired())
+			co_return;
+
 		// 如果是data shards, 则write到tun设备或转发.
 		if (pid < m_data_shards)
 			co_await write_pkt(pkt);
@@ -685,7 +704,7 @@ namespace avpn {
 			co_return;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
-		m_recover.update(gid, pid,
+		m_recover.update(opt, gid, pid,
 			m_data_shards, m_parity_shards, pkt);
 
 		// 获取fec解码结果并循环发送到tun设备.

@@ -1149,6 +1149,9 @@ namespace avpn {
 			if (!tunnel)
 				co_return;
 
+			if (m_client_reset_flag & vpn_restart)
+				co_return;
+
 			// 设置为vpn_restart, 表示重启过程开始.
 			m_client_reset_flag |= vpn_restart;
 
@@ -1573,6 +1576,9 @@ namespace avpn {
 			// 如果tunnel指针为空, 则表示重启已经开始, 在这个消息之前,
 			// tunnel指针已经被清了.
 			if (!tunnel)
+				co_return;
+
+			if (m_client_reset_flag & vpn_restart)
 				co_return;
 
 			// 设置为vpn_restart, 表示重启过程开始.
