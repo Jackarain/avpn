@@ -1194,6 +1194,7 @@ namespace avpn {
 
 			m_subnet = make_network(src, (unsigned short)prefix_length);
 			tunnel->vnet_addr(m_subnet);
+			tunnel->client_id(m_client_id);
 
 			co_await setup_tun(m_subnet);
 		}
@@ -1612,6 +1613,7 @@ namespace avpn {
 
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 			tunnel->vnet_addr(m_subnet);
+			tunnel->client_id(m_client_id);
 
 			co_await setup_tun(m_subnet);
 		}
@@ -1759,8 +1761,10 @@ namespace avpn {
 		auto vnetaddr = net::ip::make_network_v4(
 			ipaddr, m_subnet.prefix_length());
 
-		// 设置vp的vnet addr.
+		// 设置tunnel的vnet addr.
 		tunnel->vnet_addr(vnetaddr);
+		// 设置tunnel的client id.
+		tunnel->client_id(id);
 
 		vpn_client vc;
 
@@ -1778,14 +1782,13 @@ namespace avpn {
 		auto self = shared_from_this();
 
 		auto executor = tunnel->get_executor();
-		co_await net::co_spawn(executor,
-			[this, tunnel]() mutable -> net::awaitable<void>
+		net::co_spawn(executor,
+			[this, self, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await tunnel->tcp_loop();
+				m_client_reset_flag |= vpn_tcp_loop_exit;
 				co_return;
-			}, net::use_awaitable);
-
-		m_client_reset_flag |= vpn_tcp_loop_exit;
+			}, net::detached);
 
 		co_return;
 	}
