@@ -86,6 +86,8 @@ namespace avpn {
 
 		if (m_tcp_socket.is_open())
 			m_tcp_socket.close(ec);
+
+		m_tcp_deque = {};
 	}
 
 	int64_t vpn_tunnel::upload_rate() const
@@ -152,6 +154,7 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);
+		m_tcp_deque.clear();
 
 		m_tcp_socket = std::move(s);
 		m_tcp_socket_id = id;
@@ -260,7 +263,6 @@ namespace avpn {
 			return;
 
 		m_num_send_packet++;
-
 		service->do_udp_write(pkt, m_remote_endpoint);
 	}
 
@@ -323,7 +325,7 @@ namespace avpn {
 	{
 		[[maybe_unused]] auto self = shared_from_this();
 		LOG_DBG << "vpn_tunnel enter tick: " << this;
-		int print_stat_interval = 0;
+		int tick_interval = 0;
 
 		while (!m_abort.value)
 		{
@@ -344,9 +346,8 @@ namespace avpn {
 			compute_speed(m_upload_stat, now);
 
 			// 输出统计信息.
-			if (++print_stat_interval >= 10)
+			if (++tick_interval % 10 == 0)
 			{
-				print_stat_interval = 0;
 				LOG_INFO << this << ", CORR: " << m_num_corrected
 					<< ", WNG: " << m_num_incorrect
 					<< ", TX: " << m_num_send_packet
@@ -357,6 +358,20 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 				continue;
+
+			auto keepalive = m_config.tunnel_params_.keepalive_ / 1000;
+			if (tick_interval % keepalive == 0)
+			{
+				// keepalive, 随机使用tcp/udp发送.
+				uint32_t src = m_vaddr.address().to_uint();
+				auto pkt = make_keepalive(src, m_client_id);
+				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+
+				if (std::rand() % 2 == 0)
+					udp_write_pkt(ptr);
+				else
+					tcp_write_pkt(ptr);
+			}
 		}
 
 		LOG_WARN << "vpn_tunnel::tick() " << this << " quit...";
@@ -453,30 +468,46 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tcp_write_packet(
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
-		boost::system::error_code ec;
-		uint32_t start_len_tag = htonl((uint32_t)pkt->size());
+		bool deque_writing = !m_tcp_deque.empty();
+		m_tcp_deque.push_back(pkt);
 
-		co_await net::async_write(stream,
-			net::buffer(&start_len_tag, 4), uawaitable[ec]);
-		if (ec)
-		{
-			LOG_ERR << "tcp_write_packet"
-				<< ", id: " << m_tcp_socket_id
-				<< ", async_write tag error: " << ec.message();
+		if (deque_writing)
 			co_return;
+
+		while (!m_abort && !m_tcp_deque.empty())
+		{
+			pkt = m_tcp_deque.front();
+
+			scoped_exit se([this] () mutable {
+				m_tcp_deque.pop_front();
+			});
+
+			boost::system::error_code ec;
+			uint32_t start_len_tag = htonl((uint32_t)pkt->size());
+
+			co_await net::async_write(stream,
+				net::buffer(&start_len_tag, 4), uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "tcp_write_packet"
+					<< ", id: " << m_tcp_socket_id
+					<< ", async_write tag error: " << ec.message();
+				co_return;
+			}
+
+			co_await net::async_write(stream,
+				net::buffer(pkt->data(), pkt->size()), uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "tcp_write_packet"
+					<< ", id: " << m_tcp_socket_id
+					<< ", async_write body error: " << ec.message();
+				co_return;
+			}
+
+			m_num_send_packet++;
 		}
 
-		co_await net::async_write(stream,
-			net::buffer(pkt->data(), pkt->size()), uawaitable[ec]);
-		if (ec)
-		{
-			LOG_ERR << "tcp_write_packet"
-				<< ", id: " << m_tcp_socket_id
-				<< ", async_write body error: " << ec.message();
-			co_return;
-		}
-
-		m_num_send_packet++;
 		co_return;
 	}
 
@@ -509,9 +540,10 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_vpn_keepalive();
+			co_await on_vpn_keepalive(src);
 			break;
 		case vpt_keepalive_reply:
+			co_await on_vpn_keepalive_reply();
 			break;
 
 		case vpt_transfer:
@@ -543,9 +575,10 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_vpn_keepalive();
+			co_await on_vpn_keepalive(src);
 			break;
 		case vpt_keepalive_reply:
+			co_await on_vpn_keepalive_reply();
 			break;
 
 		case vpt_transfer:
@@ -559,7 +592,20 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> vpn_tunnel::on_vpn_keepalive()
+	net::awaitable<void> vpn_tunnel::on_vpn_keepalive(uint32_t src)
+	{
+		if (m_identity == Identity::avpn_server)
+		{
+			auto pkt = std::make_shared<vpn_packet>(
+				make_keepalive_reply(src, m_client_id));
+			tcp_write_pkt(pkt);
+		}
+
+		last_see(steady_clock::now());
+		co_return;
+	}
+
+	net::awaitable<void> vpn_tunnel::on_vpn_keepalive_reply()
 	{
 		last_see(steady_clock::now());
 		co_return;

@@ -129,7 +129,9 @@ namespace avpn {
 		net::awaitable<void> process_udp_packet(vpn_packet_ptr pkt);
 
 		// 作为server时, 接收到keepalive消息.
-		net::awaitable<void> on_vpn_keepalive();
+		net::awaitable<void> on_vpn_keepalive(uint32_t src);
+		// 作为client时, 接收到keepalive_reply消息.
+		net::awaitable<void> on_vpn_keepalive_reply();
 
 		// 接收到transfer/compress消息.
 		net::awaitable<void> on_vpn_transfer(vpn_packet_ptr pkt);
@@ -174,6 +176,7 @@ namespace avpn {
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;
 		size_t m_tcp_socket_id{ 0 };
+		std::deque<vpn_packet_ptr> m_tcp_deque;
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;
