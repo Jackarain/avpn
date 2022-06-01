@@ -65,7 +65,7 @@ namespace avpn {
 		// 启动tick协程.
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
-			[this, self = self]() mutable -> net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await tick();
 				co_return;
@@ -321,7 +321,6 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::tick()
 	{
-		co_await net::this_coro::executor;
 		[[maybe_unused]] auto self = shared_from_this();
 		LOG_DBG << "vpn_tunnel enter tick: " << this;
 		int print_stat_interval = 0;
@@ -484,7 +483,7 @@ namespace avpn {
 	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
 	{
 		auto self = shared_from_this();
-		net::co_spawn(get_executor(),
+		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable -> net::awaitable<void>
 			{
 				co_await tcp_write_packet(m_tcp_socket, pkt);
@@ -637,8 +636,6 @@ namespace avpn {
 		// 已经接收到.
 		if (m_data_shards == 1)
 			co_return;
-
-		co_await net::this_coro::executor;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(gid, pid,

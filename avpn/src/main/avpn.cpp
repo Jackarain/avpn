@@ -135,7 +135,6 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
-		co_await net::this_coro::executor;
 		boost::system::error_code ec;
 		LOG_DBG << "Start tun read loop: " << std::this_thread::get_id();
 
@@ -194,9 +193,8 @@ namespace avpn {
 	void avpn_service::do_tun_write(vpn_packet_ptr pkt)
 	{
 		net::co_spawn(m_main_context,
-		[this, pkt = pkt] () mutable->net::awaitable<void>
+		[this, pkt] () mutable->net::awaitable<void>
 		{
-			co_await net::this_coro::executor;
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
 				net::buffer(pkt->payload(), pkt->payload_size()), uawaitable[ec]);
@@ -221,7 +219,6 @@ namespace avpn {
 			[tunnel, ptr, endp = std::move(endp)]()
 			mutable -> net::awaitable<void>
 			{
-				co_await net::this_coro::executor;
 				co_await tunnel->tun_forward(ptr, std::move(endp));
 				co_return;
 			}, net::detached);
@@ -242,7 +239,6 @@ namespace avpn {
 			[this, ptr, endp = std::move(endp)]()
 			mutable->net::awaitable<void>
 		{
-			co_await net::this_coro::executor;
 			auto tunnel = m_tunnel.lock();
 			if (!tunnel)
 				co_return;
@@ -253,7 +249,6 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
 	{
-		co_await net::this_coro::executor;
 		udp::endpoint remote;
 		boost::system::error_code ec;
 
@@ -340,7 +335,6 @@ namespace avpn {
 					[this, tunnel, ptr, remote]()
 					mutable -> net::awaitable<void>
 					{
-						co_await net::this_coro::executor;
 						co_await tunnel->udp_forward(ptr, remote);
 						co_return;
 					}, net::detached);
@@ -381,7 +375,6 @@ namespace avpn {
 					[this, ptr, remote]()
 					mutable -> net::awaitable<void>
 					{
-						co_await net::this_coro::executor;
 						auto tunnel = m_tunnel.lock();
 						if (!tunnel)
 							co_return;
@@ -398,14 +391,13 @@ namespace avpn {
 
 	void avpn_service::do_udp_write(vpn_packet_ptr pkt, udp::endpoint endp)
 	{
-		net::co_spawn(m_main_context.get_executor(),
+		net::co_spawn(m_main_context,
 			udp_write(pkt, std::move(endp)), net::detached);
 	}
 
 	net::awaitable<void>
 	avpn_service::udp_write(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
-		co_await net::this_coro::executor;
 		auto usize = m_udp_sockets.size();
 		static uint32_t index = 0;
 
@@ -440,7 +432,6 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this]() mutable -> net::awaitable<void>
 			{
-				co_await net::this_coro::executor;
 				co_await run_client();
 				co_return;
 			}, net::detached);
@@ -579,6 +570,7 @@ namespace avpn {
 					m_client_tcp_cnt = 0;
 					net::co_spawn(m_main_context,
 						start_tcp_client(), net::detached);
+					LOG_DBG << "Tcp reconnect started...";
 				}
 			}
 		};
@@ -794,8 +786,9 @@ namespace avpn {
 			LOG_INFO << "Tun read loop starting";
 
 		// 开始读取tun上的数据包.
+		auto self = shared_from_this();
 		net::co_spawn(m_main_context,
-			[this]()mutable->net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await start_tun_read_loop();
 				m_client_reset_flag |= vpn_tun_loop_exit;
@@ -1220,7 +1213,7 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
+			[this, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await start_tunnel_tcp(tunnel);
 				co_return;
@@ -1365,7 +1358,6 @@ namespace avpn {
 	net::awaitable<void> avpn_service::on_tcp_handshake(
 		tcp::socket stream, size_t id)
 	{
-		co_await net::this_coro::executor;
 		vpn_packet pkt;
 
 		int ret = co_await tcp_read_packet(stream, pkt, id);
@@ -1456,7 +1448,7 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
+			[this, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await start_tunnel_tcp(tunnel);
 				co_return;
@@ -1469,7 +1461,6 @@ namespace avpn {
 	avpn_service::on_udp_handshake(
 		udp::endpoint remote, vpn_packet pkt, uint32_t src)
 	{
-		co_await net::this_coro::executor;
 		uint8_t ds;
 		uint8_t ps;
 		std::string pubkey;
@@ -1549,7 +1540,6 @@ namespace avpn {
 	net::awaitable<void> avpn_service::on_udp_handshake_reply(
 		udp::endpoint remote, vpn_packet pkt)
 	{
-		co_await net::this_coro::executor;
 		auto self = shared_from_this();
 
 		// 解析handshake_reply消息.
@@ -1722,22 +1712,18 @@ namespace avpn {
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(uint32_t vaddr)
 	{
-		co_await net::this_coro::executor;
 		co_return lookup_tunnel(vaddr);
 	}
 
 	net::awaitable<vpn_tunnel_ptr>
 	avpn_service::async_lookup_tunnel(std::string id)
 	{
-		co_await net::this_coro::executor;
 		co_return lookup_tunnel(id);
 	}
 
 	net::awaitable<avpn::vpn_tunnel_ptr>
 	avpn_service::async_make_tunnel(std::string id, std::string pubkey)
 	{
-		co_await net::this_coro::executor;
-
 		// 查找存在的tunnel.
 		auto tunnel = lookup_tunnel(id);
 		if (tunnel)
@@ -1787,12 +1773,11 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_tunnel_tcp(vpn_tunnel_ptr tunnel)
 	{
-		co_await net::this_coro::executor;
 		auto self = shared_from_this();
 
 		auto executor = tunnel->get_executor();
 		co_await net::co_spawn(executor,
-			[this, tunnel = tunnel]() mutable -> net::awaitable<void>
+			[this, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await tunnel->tcp_loop();
 				co_return;
