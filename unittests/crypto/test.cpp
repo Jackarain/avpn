@@ -26,6 +26,98 @@
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
 
+boost::asio::io_context ioc;
+boost::asio::io_context::work* work2;
+boost::asio::io_context ioc2;
+
+struct params
+{
+	params() {
+		LOG_DBG << "params(): " << this;
+	}
+	~params() {
+		LOG_DBG << "~params(): " << this;
+	}
+	params(params&) {
+		LOG_DBG << "params(params&): " << this;
+	}
+	params(params&&) {
+		LOG_DBG << "params(params&&): " << this;
+	}
+
+	void print() {
+		LOG_DBG << "print: " << this;
+	}
+};
+
+
+net::awaitable<void>
+test3(params p)
+{
+	LOG_DBG << "##############1: " << std::this_thread::get_id();
+	co_await boost::asio::this_coro::executor;
+	LOG_DBG << "##############2: " << std::this_thread::get_id();
+
+	p.print();
+
+	co_return;
+}
+
+net::awaitable<void>
+test2(params p)
+{
+	LOG_DBG << "*************1: " << std::this_thread::get_id();
+	co_await boost::asio::this_coro::executor;
+	LOG_DBG << "*************2: " << std::this_thread::get_id();
+	boost::asio::co_spawn(ioc2, test3(std::move(p)), boost::asio::detached);
+	LOG_DBG << "*************3: " << std::this_thread::get_id();
+	co_return;
+}
+
+net::awaitable<void>
+test(params p)
+{
+	p.print();
+	LOG_DBG << ".............1: " << std::this_thread::get_id();
+	co_await test2(std::move(p));
+	LOG_DBG << ".............2: " << std::this_thread::get_id();
+	// boost::asio::co_spawn(ioc, test2(std::move(p)), boost::asio::detached);
+
+	co_return;
+}
+
+using intptr = std::shared_ptr<int>;
+net::awaitable<intptr>
+async_make_tunnel(int i)
+{
+	auto ptr = std::make_shared<int>(i);
+	LOG_DBG << i;
+	co_return ptr;
+}
+
+BOOST_AUTO_TEST_CASE(asio_coroutine_test)
+{
+	params p;
+	boost::asio::co_spawn(ioc, test(std::move(p)), boost::asio::detached);
+
+// 	for (int i = 0; i < 100; i++)
+// 	{
+// 		boost::asio::co_spawn(ioc, [i]() -> boost::asio::awaitable<void> {
+// 			co_await async_make_tunnel(i);
+// 			}, boost::asio::detached);
+// 	}
+
+	std::thread t([]() {
+		work2 = new boost::asio::io_context::work(ioc2);
+		ioc2.run();
+		});
+
+	ioc.run();
+	if (work2)
+		delete work2;
+	t.join();
+}
+
 BOOST_AUTO_TEST_CASE(ecdh_keyexchange_test)
 {
 	std::string privateKey1 = "ICBmoiZBqo7pyHZVK+vM2I3LF9PePa18DVjkcbLl/XM=";
@@ -121,6 +213,7 @@ BOOST_AUTO_TEST_CASE(dh2_keyexchange_test)
 	}
 }
 
+#if 0
 BOOST_AUTO_TEST_CASE(stream_crypto_test1)
 {
 	std::string origin = "The quick brown fox jumps over the lazy dog";
@@ -151,6 +244,7 @@ BOOST_AUTO_TEST_CASE(stream_crypto_test1)
 	auto r2 = dec3.aead_decrypt(std::as_writable_bytes(std::span{ encoded }), h);
 	BOOST_TEST(r2 == false);
 }
+#endif
 
 BOOST_AUTO_TEST_CASE(stream_crypto_test2)
 {
