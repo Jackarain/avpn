@@ -56,6 +56,7 @@ namespace avpn {
 	void avpn_service::start()
 	{
 		m_abort = false;
+		m_client_reset_flag = vpn_tcp_loop_exit;
 
 		// 开启定时器.
 		net::co_spawn(m_main_context, tick(), net::detached);
@@ -793,6 +794,7 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this, self]() mutable -> net::awaitable<void>
 			{
+				m_client_reset_flag &= ~vpn_tun_loop_exit;
 				co_await start_tun_read_loop();
 				m_client_reset_flag |= vpn_tun_loop_exit;
 
@@ -1208,7 +1210,8 @@ namespace avpn {
 		LOG_DBG << "Tcp connected to "<< remote << " successfully!";
 
 		// 成功握手, 重置标志清0.
-		m_client_reset_flag = 0;
+		m_client_reset_flag &= ~vpn_restart;
+		m_client_reset_flag &= ~vpn_restart_busy;
 
 		// 成功连接, 取消重连.
 		se.cancel();
@@ -1232,13 +1235,25 @@ namespace avpn {
 
 	net::awaitable<bool> avpn_service::connect_server(tcp::socket& stream)
 	{
+		auto executor = co_await net::this_coro::executor;
+		boost::system::error_code ec;
+
+		while (!(m_client_reset_flag & vpn_tcp_loop_exit) && !m_abort)
+		{
+			asio_timer t(executor);
+			t.expires_from_now(std::chrono::milliseconds(16));
+			co_await t.async_wait(uawaitable[ec]);
+		}
+
+		// make tcp endpoints.
 		co_await make_endpoint("tcp");
 
-		for (const auto& endp : m_server_tcp_endps)
+		// start async connect to server.
+		for (auto it = m_server_tcp_endps.begin();
+			it != m_server_tcp_endps.end() && !m_abort; it++)
 		{
-			boost::system::error_code ec;
+			const auto& endp = *it;
 
-			// start async connect to server.
 			stream.close(ec);
 			co_await stream.async_connect(endp,
 				net::redirect_error(
@@ -1628,7 +1643,8 @@ namespace avpn {
 		}
 
 		// 成功握手, 重置标志清0.
-		m_client_reset_flag = 0;
+		m_client_reset_flag &= ~vpn_restart;
+		m_client_reset_flag &= ~vpn_restart_busy;
 
 		// 更新tunnel的远端udp的endpoint.
 		tunnel->remote_endpoint(remote);
@@ -1794,6 +1810,7 @@ namespace avpn {
 		net::co_spawn(executor,
 			[this, self, tunnel]() mutable -> net::awaitable<void>
 			{
+				m_client_reset_flag &= ~vpn_tcp_loop_exit;
 				co_await tunnel->tcp_loop();
 				m_client_reset_flag |= vpn_tcp_loop_exit;
 				co_return;

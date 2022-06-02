@@ -74,20 +74,28 @@ namespace avpn {
 
 	void vpn_tunnel::close_tunnel()
 	{
-		LOG_INFO << "closing vpn_tunnel: " << this;
+		auto self = shared_from_this();
+		net::co_spawn(m_io_context,
+			[this, self]() mutable -> net::awaitable<void>
+			{
+				LOG_INFO << "closing vpn_tunnel: " << this
+					<< ", thread: " << std::this_thread::get_id();
 
-		m_abort = true;
+				m_abort = true;
 
-		m_upload_stat = {};
-		m_down_stat = {};
+				m_upload_stat = {};
+				m_down_stat = {};
 
-		boost::system::error_code ec;
-		m_tick_timer.cancel(ec);
+				boost::system::error_code ec;
+				m_tick_timer.cancel(ec);
 
-		if (m_tcp_socket.is_open())
-			m_tcp_socket.close(ec);
+				if (m_tcp_socket.is_open())
+					m_tcp_socket.close(ec);
 
-		m_tcp_deque = {};
+				m_tcp_deque = {};
+
+				co_return;
+			}, net::detached);
 	}
 
 	int64_t vpn_tunnel::upload_rate() const
@@ -126,9 +134,9 @@ namespace avpn {
 			compute_speed(m_down_stat, pkt.size());
 		}
 
-		std::string qmsg = "tcp_loop, tcp loop quit";
+		std::string suffix;
 		scoped_exit se([&]() mutable {
-			LOG_WARN << qmsg;
+			LOG_WARN << "Quit tcp loop: " << this << suffix;
 			});
 
 		// 当运行身份为client时, 尝试重连服务器.
@@ -139,7 +147,7 @@ namespace avpn {
 				co_return;
 
 			// 重置tcp重连计数, 等待tcp重连.
-			qmsg += " with reconnect";
+			suffix = " with reconnect";
 			service->reset_tcp_cnt(1);
 		}
 		co_return;
@@ -324,8 +332,10 @@ namespace avpn {
 	net::awaitable<void> vpn_tunnel::tick()
 	{
 		[[maybe_unused]] auto self = shared_from_this();
-		LOG_DBG << "vpn_tunnel enter tick: " << this;
 		int tick_interval = 0;
+
+		LOG_DBG << "Enter vpn_tunnel tick: " << this
+			<< ", thread: " << std::this_thread::get_id();
 
 		while (!m_abort.value)
 		{
@@ -479,8 +489,10 @@ namespace avpn {
 		{
 			pkt = m_tcp_deque.front();
 
-			scoped_exit se([this] () mutable {
-				m_tcp_deque.pop_front();
+			scoped_exit se([this] () mutable
+			{
+				if (!m_tcp_deque.empty())
+					m_tcp_deque.pop_front();
 			});
 
 			boost::system::error_code ec;
