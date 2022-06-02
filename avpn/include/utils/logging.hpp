@@ -26,6 +26,8 @@
 #include <boost/asio/post.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/basic_endpoint.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 
 namespace net = boost::asio;
 
