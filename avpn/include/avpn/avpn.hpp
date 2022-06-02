@@ -127,6 +127,14 @@ namespace avpn {
 	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 	using ip_assign_type = std::tuple<std::string, uint32_t>;
 
+#if defined(AVPN_WINDOWS)
+	using wintun_device = basic_tun_service<avpn::wintun_windows_service>;
+	using tuntap_device = basic_tun_service<avpn::tuntap_windows_service>;
+	using vtun_device_type = vtun_device<wintun_device, tuntap_device>;
+#else
+	using vtun_device_type = vtun_device<tun_device>;
+#endif
+
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
 		// c++11 noncopyable.
@@ -290,7 +298,7 @@ namespace avpn {
 		tunnel_params m_push_params;
 
 		// tun设备.
-		avpn::tun_device m_tundev;
+		vtun_device_type m_tundev;
 
 		// m_tick_timer 定时器, 用于处理一系列定时任务.
 		// m_tun_wait_timer 定时器, 用于等待tun设备异步退出.

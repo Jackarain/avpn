@@ -26,6 +26,20 @@ namespace avpn {
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
 
+	vtun_device_type instantiate_vtun_device(
+		[[maybe_unused]] int device_type,
+		net::io_context& ioc)
+	{
+#if defined(AVPN_WINDOWS)
+		if (device_type == 0)
+			return vtun_device_type(tuntap_device(ioc));
+		else
+			return vtun_device_type(wintun_device(ioc));
+#else
+		return vtun_device_type(tun_device(ioc));
+#endif
+	}
+
 	avpn_service::avpn_service(
 		io_context_pool& ios, const service_config& config)
 		: m_ioc_pool(ios)
@@ -33,13 +47,14 @@ namespace avpn {
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
 		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
-		, m_tundev(m_main_context)
+		, m_tundev(instantiate_vtun_device(0, m_main_context))
 		, m_tick_timer(m_main_context)
 		, m_tun_wait_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
-	{}
+	{
+	}
 
 	std::shared_ptr<avpn_service> avpn_service::make_avpn_service(
 			io_context_pool& ioc_pool, avpn::service_config cfg)
