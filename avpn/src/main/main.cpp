@@ -252,7 +252,7 @@ int main(int argc, char** argv)
 		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
 	;
 
-	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置
+	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置.
 	if (std::filesystem::path(argv[0]).filename() == "openvpn")
 	{
 		desc.add_options()
@@ -408,9 +408,8 @@ int main(int argc, char** argv)
 	else
 	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
-	// 如果开启了socks服务, 则listen一个socks服务.
-	// 这个socks server目前和avpn无关, 是额外的功
-	// 能, 用于将来实现tun2socks备用.
+	// 如果开启了socks服务, 则listen一个socks服务. 这个socks server
+	// 目前和avpn无关, 是额外的功能, 用于将来实现tun2socks备用.
 	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
 	for (auto& socks : socks_listens)
 	{

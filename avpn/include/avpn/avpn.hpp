@@ -30,20 +30,17 @@ namespace avpn {
 
 	struct tunnel_params
 	{
-		// fec数据设置, 指定多少份fec数据.当data_shards_
-		// 为1时, 不再使用fec恢复算法, 转变成parity_shards_
-		// 指定的倍数发包.
+		// fec数据设置, 指定多少份fec数据.当data_shards_为1时, 不再
+		// 使用fec恢复算法, 转变成parity_shards_指定的倍数发包.
 		int data_shards_;
 
 		// fec冗余设置.
-		// 当data_shards_大于1时, parity_shards_
-		// 指定为多少份恢复数据包, 即最大可丢失多少个数
-		// 据包还能恢复.
-		// 如果data_shards_设置为1时, 则parity_shards_
-		// 为具体发包倍数.
-		// 例如: data_shards_为1, 而parity_shards_为0,
-		// 则为原样发包, parity_shards_为1则为2倍发包,
-		// 最大5倍.
+		// 当data_shards_大于1时, parity_shards_指定为多少份恢复数
+		// 据包, 即最大可丢失多少个数据包还能恢复.
+		// 如果data_shards_设置为1时, 则parity_shards_为具体发包倍
+		// 数.
+		// 例如: data_shards_为1, 而parity_shards_为0, 则为原样发
+		// 包, parity_shards_为1则为2倍发包, 最大5倍.
 		int parity_shards_;
 
 		// 可以指定不同的连接模式
@@ -63,8 +60,8 @@ namespace avpn {
 		// server推送dns.
 		uint32_t pushdns_{ 0 };
 
-		// 客户端默认通过vpn server作为全局网络出口此时的
-		// server必须做nat, 否则可能无法通过vpn server上网.
+		// 客户端默认通过vpn server作为全局网络出口此时的server必须做
+		// nat, 否则可能无法通过vpn server上网.
 		bool passbyvpn_{ false };
 
 		// 作为client时, 是否忽略掉服务器推送的路由.
@@ -96,10 +93,10 @@ namespace avpn {
 
 		// 作为server时, 指定ecdh的私钥(base64编码)
 		// 作为client时, 指定为server的ecdh公钥信息(base64编码).
-		// client 本身的密钥对由系统自动随机生成, 在握手时通过协议
-		// 传输公钥到server.
-		// server 通过握手协议拿到client的公钥, 及本参数指定的密钥
-		// 对, 协商出解密密钥.
+		// client 本身的密钥对由系统自动随机生成, 在握手时通过协议传
+		// 输公钥到server.
+		// server 通过握手协议拿到client的公钥, 及本参数指定的密钥对,
+		// 协商出解密密钥.
 		// client 通过本参数指定的server的公钥, 及自己生成的密钥对,
 		// 协商出解密密钥.
 		std::string passphrase_;
@@ -107,9 +104,9 @@ namespace avpn {
 		// 指定tun设备名称.
 		std::string ifdev_;
 
-		// 用于控制avpn的controller的信息.avpn将自动连接
-		// controller, 并等待controller发送控制信息：开
-		// 启或关闭, 或获取avpn实时速率等信息.
+		// 用于控制avpn的controller的信息.avpn将自动连接controller,
+		// 并等待controller发送控制信息：开启或关闭, 或获取avpn实时速
+		// 率等信息.
 		std::string controller_;
 
 		// 当前avpn运行的模式: server/client.
@@ -261,8 +258,8 @@ namespace avpn {
 		// 运行的身份.
 		Identity m_identity{ Identity::avpn_server };
 
-		// 随机id, 用于client连接前标识身份. 避免server
-		// 重复在同一个client分配资源.
+		// 随机id, 用于client连接前标识身份, 避免server重复在同一个
+		// client分配资源.
 		std::string m_client_id;
 
 		// 随机生成的密钥对, 用于client和server的公钥协商出解
@@ -307,13 +304,11 @@ namespace avpn {
 		std::vector<tcp::acceptor> m_tcp_acceptors;
 
 		// udp socket集合.
-		// 作为server时, m_udp_sockets初始化为几个用于
-		// 监听client的udp消息的udp socket.
-		// 作为client时, 可以随时创建新的udp_socket用于
-		// 和server通信.
-		// last_see_ 用作client时, 标识最后和server
-		// 通信时间, 如果超时则可创建新的udp_socket替代
-		// 超时的udp_socket.
+		// 作为server时, m_udp_sockets初始化为几个用于监听client的
+		// udp消息的udp socket.
+		// 作为client时, 可以随时创建新的udp_socket用于和server通信.
+		// last_see_ 用作client时, 标识最后和server通信时间, 如果超
+		// 时则可创建新的udp_socket替代超时的udp_socket.
 		struct udp_socket
 		{
 			udp_socket(time_point now, udp::socket&& sock)
@@ -328,9 +323,8 @@ namespace avpn {
 		std::vector<udp_socket_ptr> m_udp_sockets;
 
 		// 作为server时, 保存client连接的容器.
-		// 所有client连接将保存到这个容器, 这个容器不管理
-		// client的生命期, 在client的生命期后, 需要从该容
-		// 器手工清除.
+		// 所有client连接将保存到这个容器, 这个容器不管理client的生命
+		// 期, 在client的生命期后, 需要从该容器手工清除.
 		vpn_client_table m_clients;
 
 		int64_t m_upload_speed{ 0 };
@@ -339,9 +333,8 @@ namespace avpn {
 		// 作为client时, tunnel对象.
 		vpn_tunnel_weak_ptr m_tunnel;
 
-		// 子网信息, 包含本机虚拟ip信息.
-		// 作为server时, 由配置参数确定.
-		// 作为client时, 由认证完成时确定.
+		// 子网信息, 包含本机虚拟ip信息; 作为server时, 由配置参数确
+		// 定, 作为client时, 由认证完成时确定.
 		net::ip::network_v4 m_subnet;
 
 		// 作为server时, 虚拟 IP 分配器.

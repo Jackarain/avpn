@@ -267,9 +267,8 @@ namespace avpn {
 			if (ec)
 				continue;
 
-			// 只有是client时, 才需要更新last see.
-			// 因为client一旦检测到超时, 则会重建
-			// udp socket对象重新向server建立通信.
+			// 只有是client时, 才需要更新last see, 因为client一旦检
+			// 测到超时, 则会重建udp socket对象重新向server建立通信.
 			if (m_identity == Identity::avpn_client)
 				socket_ptr->last_see_ = steady_clock::now();
 
@@ -278,14 +277,14 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 			{
-				// 根据协议中的虚拟ip信息, 找到相应vpn连接进行相应
-				// 数据处理.
+				// 根据协议中的虚拟ip信息, 找到相应vpn连接进行相应数
+				// 据处理.
 
-				// 如果是认证请求, 则根据client的id, 先查询client
-				// 连接池中是否已有相同id存在的请求, 如果有则直接
-				// 使用池中vpn tunnel, 如果没有, 则创建新的 vpn
-				// tunnel, 并加入到 vpn tunnel连接池中, 直到认证
-				// 完成, 则能将其从连接池中移动到已经完成的连接列表.
+				// 如果是认证请求, 则根据client的id, 先查询client连
+				// 接池中是否已有相同id存在的请求, 如果有则直接使用池
+				// 中vpn tunnel, 如果没有, 则创建新的 vpn tunnel,
+				// 并加入到 vpn tunnel连接池中, 直到认证完成, 则能将
+				// 其从连接池中移动到已经完成的连接列表.
 				bool enc = false;
 				uint8_t type = 0;
 				uint32_t src = 0;
@@ -1015,13 +1014,13 @@ namespace avpn {
 
 			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
 
-			// 新连接, server先读取client的认证请求, 如果client未认证, 则
-			// 会发出认证请求, 如果是已认证过只是断开重连, 发送认证重连消息
-			// server会根据重连信息中的src虚拟ip找到对应的client, 并使用这
-			// 个client解密重连认证信息, 解密成功则将此tcp替换client中的原
-			// tcp连接, 解密失败, 则回复认证失败消息, 以快速触发client进行
-			// 完整重新协商认证过程(或者server端沉默, 等client直到超时重新
-			// 协商通信key).
+			// 新连接, server先读取client的认证请求, 如果client未认
+			// 证, 则会发出认证请求, 如果是已认证过只是断开重连, 发送
+			// 认证重连消息server会根据重连信息中的src虚拟ip找到对应
+			// 的client, 并使用这个client解密重连认证信息, 解密成功
+			// 则将此tcp替换client中的原tcp连接, 解密失败, 则回复认
+			// 证失败消息, 以快速触发client进行完整重新协商认证过程
+			// (或者server端沉默, 等client直到超时重新协商通信key).
 			net::co_spawn(m_main_context,
 				on_tcp_handshake(std::move(socket), connection_id),
 					net::detached);
@@ -1185,14 +1184,14 @@ namespace avpn {
 			co_return;
 		}
 
-		// 判断client的tunnel对象是否创建, 如果
-		// 已经创建, 则表示已经握手成功.
+		// 判断client的tunnel对象是否创建, 如果已经创建, 则表示已经
+		// 握手成功.
 		if (!tunnel)
 		{
 			auto server_pubkey = base64_decode(m_config.passphrase_);
 
-			// 创建tunnel对象, 在完成握手后, 进入tunnel
-			// 的tcp loop中循环处理tcp消息.
+			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中
+			// 循环处理tcp消息.
 			tunnel = vpn_tunnel::make(m_main_context,
 				self, m_config, server_pubkey, m_client_key);
 			m_tunnel = tunnel;
@@ -1426,6 +1425,7 @@ namespace avpn {
 				LOG_WARN << "Not found client via tcp: " << src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
+
 				// 规定 src为0 则表示认证失败.
 				// 规定client id原样返回.
 				auto response = make_handshake_reply(
@@ -1436,8 +1436,8 @@ namespace avpn {
 		}
 		else
 		{
-			// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
-			// 请求, 并回复认证信息.
+			// 连接认证请求, 查询是否存在client id, 如果存在, 则使用
+			// 存在的请求, 并回复认证信息.
 			tunnel = co_await async_make_tunnel(client_id, pubkey);
 			BOOST_ASSERT(tunnel && "tunnel must be valid");
 			if (!tunnel)
@@ -1468,8 +1468,7 @@ namespace avpn {
 			params.pushroutes_);
 		co_await tcp_write_packet(stream, response, id);
 
-		// 替换为新的tcp socket, 然后用新的tcp socket
-		// 用于tcp通信.
+		// 替换为新的tcp socket, 然后用新的tcp socket 用于tcp通信.
 		tunnel->tcp_socket(std::move(stream), id);
 		tunnel->start_tunnel(ds, ps);
 
@@ -1518,6 +1517,7 @@ namespace avpn {
 				LOG_WARN << "Not found client via udp: " << src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
+
 				// 规定 src为0 则表示认证失败.
 				// 规定client id原样返回.
 				auto response = make_handshake_reply(
@@ -1529,8 +1529,8 @@ namespace avpn {
 		}
 		else
 		{
-			// 连接认证请求, 查询是否存在client id, 如果存在, 则使用存在的
-			// 请求, 并回复认证信息.
+			// 连接认证请求, 查询是否存在client id, 如果存在, 则使
+			// 用存在的请求, 并回复认证信息.
 			tunnel = co_await async_make_tunnel(client_id, pubkey);
 			BOOST_ASSERT(tunnel && "tunnel must be valid");
 		}
@@ -1595,8 +1595,8 @@ namespace avpn {
 			LOG_WARN << "udp handshake reply: '" << id
 				<< "' detected server reboot!";
 
-			// 如果tunnel指针为空, 则表示重启已经开始, 在这个消息之前,
-			// tunnel指针已经被清了.
+			// 如果tunnel指针为空, 则表示重启已经开始, 在这个消息之
+			// 前, tunnel指针已经被清了.
 			if (!tunnel)
 				co_return;
 
@@ -1618,14 +1618,14 @@ namespace avpn {
 			co_return;
 		}
 
-		// 判断client的tunnel对象是否创建, 如果已经创建, 则表示已经握手成功.
-		// 如果未创建, 则创建tunnel对象.
+		// 判断client的tunnel对象是否创建, 如果已经创建, 则表示已经握
+		// 手成功, 如果未创建, 则创建tunnel对象.
 		if (!tunnel)
 		{
 			auto server_pubkey = base64_decode(m_config.passphrase_);
 
-			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中循环处
-			// 理tcp消息.
+			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中循
+			// 环处理tcp消息.
 			tunnel = vpn_tunnel::make(m_main_context,
 				self, m_config, server_pubkey, m_client_key);
 			BOOST_ASSERT(tunnel);
