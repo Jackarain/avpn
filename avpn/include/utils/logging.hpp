@@ -7,9 +7,6 @@
 
 #pragma once
 #include <version>
-#ifdef __cpp_lib_concepts
-#include <concepts>
-#endif
 #include <codecvt>
 #include <clocale>
 #include <fstream>
@@ -798,24 +795,6 @@ struct auto_init_async_logger
 
 class logger___
 {
-	template <typename, typename = void>
-	struct has_address : std::false_type
-	{};
-
-	template <typename T>
-	struct has_address<T, std::void_t<decltype(std::declval<T>().address())>>
-		: std::is_same<net::ip::address, std::decay_t<decltype(std::declval<T>().address())>>
-	{};
-
-	template <typename, typename = void>
-	struct has_port : std::false_type
-	{};
-
-	template <typename T>
-	struct has_port<T, std::void_t<decltype(std::declval<T>().port())>>
-		: std::is_same<typename net::ip::port_type, std::decay_t<decltype(std::declval<T>().port())>>
-	{};
-
 	// c++11 noncopyable.
 	logger___(const logger___&) = delete;
 	logger___& operator=(const logger___&) = delete;
@@ -982,20 +961,14 @@ public:
 		return *this;
 	}
 
-#ifdef __cpp_lib_concepts
-	template<typename EndpointType>
-	requires requires (EndpointType t)
+	inline logger___& operator<<(const net::ip::tcp::endpoint& v)
 	{
-		{ t.address() } -> std::convertible_to<net::ip::address>;
-		{ t.port() } -> std::convertible_to<boost::uint_least16_t>;
+		if (!logging_flag())
+			return *this;
+		std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+		return *this;
 	}
-#else
-	template<typename EndpointType,
-	typename std::enable_if<
-		has_address<EndpointType>::value
-			&& has_port<EndpointType>::value, EndpointType>::type* = nullptr>
-#endif
-	inline logger___& operator<<(const EndpointType& v)
+	inline logger___& operator<<(const net::ip::udp::endpoint& v)
 	{
 		if (!logging_flag())
 			return *this;
