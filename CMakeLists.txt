@@ -133,10 +133,15 @@ if (MSVC)
 		-DBOOST_USE_WINAPI_VERSION=0x0601
 	)
 
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
-	message(STATUS "Using parallel compiling (/MP)")
-	set(CMAKE_CXX_STACK_SIZE "100000000") #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:100000000")
+	add_compile_options(/utf-8)
+	add_compile_options(/bigobj)
+	add_compile_options(/MP)
+	add_compile_options(/Zc:__cplusplus)
+
 	message(STATUS "Set stack size: 100000000 bytes")
+	add_link_options(/STACK:100000000)
+	#set(CMAKE_CXX_STACK_SIZE "100000000")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
 
 	CHECK_CXX_COMPILER_FLAG(/std:c++20 COMPILER_HAS_STD_CXX20)
 
@@ -149,25 +154,6 @@ if (MSVC)
 		set(CMAKE_CXX_STANDARD_REQUIRED ON)
 		message(STATUS "Set default cxx standard: C++17")
 	endif()
-elseif(WIN32)
-	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-
-	add_definitions(
-		-DWIN32_LEAN_AND_MEAN
-		-D_WIN32_WINNT=0x0601
-		-DNOMINMAX
-		-DUNICODE
-		-D_UNICODE
-		-D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
-	)
-
-	add_definitions(
-		-DBOOST_ALL_STATIC_LINK
-		-DBOOST_THREAD_USE_LIB
-		-DBOOST_FILESYSTEM_STATIC_LINK
-		-DBOOST_USE_WINAPI_VERSION=0x0601
-	)
-	add_compile_options(/utf8)
 endif()
 
 CHECK_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden COMPILER_HAS_VISIBILITY_INLINE_HIDDEN)

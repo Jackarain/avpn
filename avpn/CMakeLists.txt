@@ -12,6 +12,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_L
 set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
 
 file(GLOB avpn_WINDOWS_SRCS
+	include/avpn/windows_apis.hpp
 	include/avpn/tuntap_windows_service.hpp
 	include/avpn/wintun_windows_service.hpp
 )

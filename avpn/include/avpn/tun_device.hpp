@@ -8,11 +8,10 @@
 #pragma once
 
 #if defined(AVPN_WINDOWS)
-#ifdef AVPN_USE_WINTUN
+
 #	include "avpn/wintun_windows_service.hpp"
-#else
 #	include "avpn/tuntap_windows_service.hpp"
-#endif
+
 #elif defined(AVPN_LINUX)
 #	include "avpn/tundev_linux_service.hpp"
 #elif defined(AVPN_APPLE)
