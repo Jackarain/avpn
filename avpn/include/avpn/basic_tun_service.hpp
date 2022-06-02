@@ -28,13 +28,14 @@ namespace avpn {
 	public:
 		using service_type = Service;
 
-		explicit basic_tun_service(boost::asio::io_context& io_context)
+		explicit basic_tun_service(boost::asio::io_context& io_context) noexcept
 			: service_(std::make_unique<service_type>(io_context))
 		{}
 
 		~basic_tun_service()
 		{
-			close();
+			if (service_)
+				close();
 		}
 
 		basic_tun_service(basic_tun_service&& rv)
