@@ -50,6 +50,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <cstring>
+#include <variant>
 
 using std::chrono::steady_clock;
 using time_point = std::chrono::time_point<steady_clock>;
