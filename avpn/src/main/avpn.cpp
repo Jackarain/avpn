@@ -137,7 +137,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
-		LOG_DBG << "Start tun read loop: " << std::this_thread::get_id();
+		LOG_DBG << "Enter tun read loop: " << std::this_thread::get_id();
 
 		while (!m_abort)
 		{
@@ -186,8 +186,8 @@ namespace avpn {
 		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
+		LOG_WARN << "Quit tun loop";
 
-		LOG_WARN << "start_tun_read_loop quit...";
 		co_return;
 	}
 
@@ -198,7 +198,8 @@ namespace avpn {
 		{
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
-				net::buffer(pkt->payload(), pkt->payload_size()), uawaitable[ec]);
+				net::buffer(pkt->payload(),
+					pkt->payload_size()), uawaitable[ec]);
 			co_return;
 		}, net::detached);
 	}
@@ -277,15 +278,14 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 			{
-				// 根据协议中的虚拟ip信息, 找到相应vpn连接
-				// 进行相应数据处理.
+				// 根据协议中的虚拟ip信息, 找到相应vpn连接进行相应
+				// 数据处理.
 
-				// 如果是认证请求, 则根据client的id, 先查
-				// 询client连接池中是否已有相同id存在的请
-				// 求, 如果有则直接使用池中vpn tunnel, 如
-				// 果没有, 则创建新的vpn tunnel, 并加入到
-				// vpn tunnel连接池中, 直到认证完成, 则能
-				// 将其从连接池中移动到已经完成的连接列表.
+				// 如果是认证请求, 则根据client的id, 先查询client
+				// 连接池中是否已有相同id存在的请求, 如果有则直接
+				// 使用池中vpn tunnel, 如果没有, 则创建新的 vpn
+				// tunnel, 并加入到 vpn tunnel连接池中, 直到认证
+				// 完成, 则能将其从连接池中移动到已经完成的连接列表.
 				bool enc = false;
 				uint8_t type = 0;
 				uint32_t src = 0;
@@ -508,6 +508,9 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 
+		LOG_DBG << "Enter avpn_service::tick "
+			<< std::this_thread::get_id();
+
 		// 检查tunnel.
 		auto check_tunnel = [&](time_point& now) mutable
 		{
@@ -676,7 +679,8 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "avpn_service::tick() quit...";
+		LOG_WARN << "Quit avpn_service::tick "
+			<< std::this_thread::get_id();
 		co_return;
 	}
 

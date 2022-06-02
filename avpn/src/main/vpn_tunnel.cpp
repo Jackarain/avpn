@@ -334,7 +334,7 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 		int tick_interval = 0;
 
-		LOG_DBG << "Enter vpn_tunnel tick: " << this
+		LOG_DBG << "Enter vpn_tunnel::tick: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
 		while (!m_abort.value)
@@ -384,7 +384,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "vpn_tunnel::tick() " << this << " quit...";
+		LOG_WARN << "Quit vpn_tunnel::tick " << this;
 		co_return;
 	}
 
