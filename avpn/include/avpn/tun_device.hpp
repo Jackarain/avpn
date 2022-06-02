@@ -58,6 +58,7 @@ namespace avpn {
 		vtun_device(vtun_device&&) = default;
 		~vtun_device() = default;
 
+		vtun_device(const vtun_device&) = delete;
 		vtun_device& operator=(vtun_device const&) = delete;
 		vtun_device& operator=(vtun_device&&) = default;
 

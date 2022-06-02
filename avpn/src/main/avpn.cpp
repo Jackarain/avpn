@@ -47,7 +47,8 @@ namespace avpn {
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
 		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
-		, m_tundev(instantiate_vtun_device(0, m_main_context))
+		, m_tundev(instantiate_vtun_device(
+			config.ifdev_ == "wintun" ? 1 : 0, m_main_context))
 		, m_tick_timer(m_main_context)
 		, m_tun_wait_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
