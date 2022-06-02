@@ -33,6 +33,7 @@ file(GLOB avpn_SRCS
 	include/avpn/basic_tuntap.hpp
 	include/avpn/endpoint_pair.hpp
 	include/avpn/tundev.hpp
+	include/avpn/tun_device.hpp
 	include/avpn/tundev_config.hpp
 	include/avpn/fec_cache.hpp
 	include/avpn/protocol.hpp
