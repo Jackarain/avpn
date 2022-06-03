@@ -462,7 +462,10 @@ namespace avpn {
 					if (self_->m_abort)
 					{
 						ec = net::error::operation_aborted;
-						handler(ec, 0);
+						net::post(self_->get_executor(),
+							[handler = std::move(handler), ec]() mutable {
+								handler(ec, 0);
+							});
 						return;
 					}
 				}
@@ -479,7 +482,10 @@ namespace avpn {
 
 						scoped_exit fallback([&]() mutable
 							{
-								handler(ec, 0);
+								net::post(self->get_executor(),
+									[handler = std::move(handler), ec]() mutable {
+										handler(ec, 0);
+									});
 							});
 
 						if (self->m_abort)
@@ -510,7 +516,11 @@ namespace avpn {
 						// 回调用户.
 						fallback.cancel();
 						ec = {};
-						handler(ec, bytes_transferred);
+
+						net::post(self->get_executor(),
+							[handler = std::move(handler), ec, bytes_transferred]() mutable {
+								handler(ec, bytes_transferred);
+							});
 
 						co_return;
 					}, net::detached);
@@ -522,7 +532,10 @@ namespace avpn {
 					ec = net::error::operation_aborted;
 
 				// 回调用户.
-				handler(ec, bytes_transferred);
+				net::post(self_->get_executor(),
+					[handler = std::move(handler), ec, bytes_transferred]() mutable {
+						handler(ec, bytes_transferred);
+					});
 			}
 
 			wintun_windows_service* self_;
@@ -563,7 +576,10 @@ namespace avpn {
 				if (bytes_transferred < 0 || self_->m_abort)
 				{
 					ec = net::error::operation_aborted;
-					handler(ec, 0);
+					net::post(self_->get_executor(),
+						[handler = std::move(handler), ec]() mutable {
+							handler(ec, 0);
+						});
 					return;
 				}
 
@@ -572,14 +588,17 @@ namespace avpn {
 					// ring buffer已满, 写不进了, 开启协程写入.
 					net::co_spawn(self_->get_executor(),
 						[self = self_, handler = std::move(handler), bufs = std::move(bufs)]
-					() mutable->net::awaitable<void>
+					() mutable -> net::awaitable<void>
 					{
 						auto bytes_transferred = self->write_wintun(bufs);
 						boost::system::error_code ec;
 
 						scoped_exit fallback([&]() mutable
 							{
-								handler(ec, bytes_transferred);
+								net::post(self->get_executor(),
+									[handler = std::move(handler), ec]() mutable {
+									handler(ec, 0);
+								});
 							});
 
 						if (bytes_transferred < 0 || self->m_abort)
@@ -606,13 +625,20 @@ namespace avpn {
 						// 回调用户.
 						fallback.cancel();
 						ec = {};
-						handler(ec, bytes_transferred);
+
+						net::post(self->get_executor(),
+							[handler = std::move(handler), ec, bytes_transferred]() mutable {
+								handler(ec, bytes_transferred);
+							});
 
 						co_return;
 					}, net::detached);
 				}
 
-				handler(ec, bytes_transferred);
+				net::post(self_->get_executor(),
+					[handler = std::move(handler), ec, bytes_transferred]() mutable {
+						handler(ec, bytes_transferred);
+					});
 			}
 
 			wintun_windows_service* self_;
