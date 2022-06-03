@@ -374,7 +374,8 @@ namespace avpn {
 			{
 				// keepalive, 随机使用tcp/udp发送.
 				uint32_t src = m_vaddr.address().to_uint();
-				auto pkt = make_keepalive(src, m_client_id);
+				auto pkt = make_keepalive(src, m_client_id,
+					m_num_recv_packet, m_num_send_packet);
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 				if (std::rand() % 2 == 0)
@@ -556,7 +557,7 @@ namespace avpn {
 			co_await on_vpn_keepalive(src);
 			break;
 		case vpt_keepalive_reply:
-			co_await on_vpn_keepalive_reply();
+			co_await on_vpn_keepalive_reply(std::move(pkt));
 			break;
 
 		case vpt_transfer:
@@ -591,7 +592,7 @@ namespace avpn {
 			co_await on_vpn_keepalive(src);
 			break;
 		case vpt_keepalive_reply:
-			co_await on_vpn_keepalive_reply();
+			co_await on_vpn_keepalive_reply(std::move(pkt));
 			break;
 
 		case vpt_transfer:
@@ -610,7 +611,8 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 		{
 			auto pkt = std::make_shared<vpn_packet>(
-				make_keepalive_reply(src, m_client_id));
+				make_keepalive_reply(src, m_client_id,
+					m_num_recv_packet, m_num_send_packet));
 			tcp_write_pkt(pkt);
 		}
 
@@ -618,9 +620,16 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> vpn_tunnel::on_vpn_keepalive_reply()
+	net::awaitable<void> vpn_tunnel::on_vpn_keepalive_reply(vpn_packet_ptr pkt)
 	{
+		uint32_t src = 0;
+		uint32_t rx = 0;
+		uint32_t tx = 0;
+		std::string id;
+
+		unwrap_keepalive_reply(*pkt, src, id, rx, tx);
 		last_see(steady_clock::now());
+
 		co_return;
 	}
 

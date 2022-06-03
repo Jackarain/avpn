@@ -131,7 +131,7 @@ namespace avpn {
 		// 作为server时, 接收到keepalive消息.
 		net::awaitable<void> on_vpn_keepalive(uint32_t src);
 		// 作为client时, 接收到keepalive_reply消息.
-		net::awaitable<void> on_vpn_keepalive_reply();
+		net::awaitable<void> on_vpn_keepalive_reply(vpn_packet_ptr pkt);
 
 		// 接收到transfer/compress消息.
 		net::awaitable<void> on_vpn_transfer(vpn_packet_ptr pkt);

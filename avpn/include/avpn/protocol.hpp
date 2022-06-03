@@ -100,11 +100,13 @@ namespace avpn {
 	// 协议格式
 	// id_len(8)
 	// id(id_len)
+	// rx(32)
+	// tx(32)
 	vpn_packet make_keepalive(uint32_t src,
-		std::string_view id);
+		std::string_view id, uint32_t rx, uint32_t tx);
 
 	int unwrap_keepalive(vpn_packet& pkt,
-		uint32_t& src, std::string& id);
+		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx);
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -113,11 +115,13 @@ namespace avpn {
 	// 协议格式
 	// id_len(8)
 	// id(id_len)
+	// rx(32)
+	// tx(32)
 	vpn_packet make_keepalive_reply(uint32_t src,
-		std::string_view id);
+		std::string_view id, uint32_t rx, uint32_t tx);
 
 	int unwrap_keepalive_reply(vpn_packet& pkt,
-		uint32_t& src, std::string& id);
+		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx);
 
 
 	//////////////////////////////////////////////////////////////////////////

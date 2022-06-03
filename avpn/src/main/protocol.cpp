@@ -223,13 +223,16 @@ namespace avpn {
 		return bytes;
 	}
 
-	vpn_packet make_keepalive(uint32_t src, std::string_view id)
+	vpn_packet make_keepalive(uint32_t src,
+		std::string_view id, uint32_t rx, uint32_t tx)
 	{
 		auto pkt = make_common_header(false, vpt_keepalive, src);
 
 		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
 		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
+		writer.WriteUInt32(rx);
+		writer.WriteUInt32(tx);
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
@@ -237,7 +240,8 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_keepalive(vpn_packet& pkt, uint32_t& src, std::string& id)
+	int unwrap_keepalive(vpn_packet& pkt,
+		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx)
 	{
 		bool enc;
 		uint8_t type;
@@ -258,18 +262,28 @@ namespace avpn {
 		ret = reader.ReadString((char*)id.data(), length);
 		if (!ret) return -1;
 
+		ret = reader.ReadUInt32(&rx);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt32(&tx);
+		if (!ret) return -1;
+
 		bytes += (int)reader.ByteOffset();
 
 		return bytes;
 	}
 
-	vpn_packet make_keepalive_reply(uint32_t src, std::string_view id)
+	vpn_packet make_keepalive_reply(uint32_t src,
+		std::string_view id, uint32_t rx, uint32_t tx)
 	{
 		auto pkt = make_common_header(false, vpt_keepalive_reply, src);
 
 		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
 		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
+		writer.WriteUInt32(rx);
+		writer.WriteUInt32(tx);
+
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
@@ -277,7 +291,8 @@ namespace avpn {
 		return pkt;
 	}
 
-	int unwrap_keepalive_reply(vpn_packet& pkt, uint32_t& src, std::string& id)
+	int unwrap_keepalive_reply(vpn_packet& pkt,
+		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx)
 	{
 		bool enc;
 		uint8_t type;
@@ -296,6 +311,12 @@ namespace avpn {
 		id.resize(length);
 		BOOST_ASSERT(length <= 32);
 		ret = reader.ReadString((char*)id.data(), length);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt32(&rx);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt32(&tx);
 		if (!ret) return -1;
 
 		bytes += (int)reader.ByteOffset();
