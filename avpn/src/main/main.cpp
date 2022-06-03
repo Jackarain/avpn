@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 
 		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
-		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device.")
+		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
