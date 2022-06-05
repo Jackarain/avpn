@@ -77,6 +77,7 @@ namespace avpn {
 		writer.WriteString(pubkey.data(), pubkey.size());
 		writer.WriteUInt8(ds);
 		writer.WriteUInt8(ps);
+		writer.WriteUInt16(avpn_protocol_version);
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
@@ -119,6 +120,17 @@ namespace avpn {
 
 		ret = reader.ReadUInt8(&ps);
 		if (!ret) return -1;
+
+		uint16_t protocol_version = 0;
+		ret = reader.ReadUInt16(&protocol_version);
+		if (!ret) return -1;
+		if (!protocol_version != avpn_protocol_version)
+		{
+			LOG_WARN << "Version not match"
+				<< ", expect: " << avpn_protocol_version
+				<< ", got: " << protocol_version;
+			return -1;
+		}
 
 		bytes += (int)reader.ByteOffset();
 
