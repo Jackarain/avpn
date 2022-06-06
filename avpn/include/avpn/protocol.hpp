@@ -164,18 +164,4 @@ namespace avpn {
 
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
 		uint32_t& gid, uint8_t& pid, uint8_t& ctype);
-
-	//////////////////////////////////////////////////////////////////////////
-	// 构造错误消息, c <-> s.
-	// 协议格式
-	// error_code(32)
-	// err_msg_len(16)
-	// err_msg(err_msg_len)
-	vpn_packet make_error(uint32_t src,
-		uint32_t error_code,
-		std::string_view msg);
-
-	int unwrap_error(vpn_packet& pkt, uint32_t& src,
-		uint32_t& error_code, std::string& msg);
-
 }
