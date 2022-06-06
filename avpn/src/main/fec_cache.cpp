@@ -131,6 +131,17 @@ namespace avpn
 		make_transfer(pkt, src, gid_, pid_, sv);
 	}
 
+	void fec_encode_group::make_fec_compress_header(
+		vpn_packet& pkt, uint32_t src)
+	{
+		// 构造一个sv.
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
+
+		// 构造transfer_compress数据包.
+		BOOST_ASSERT(pid_ < shards_);
+		make_transfer_compress(pkt, src, gid_, pid_, 1, sv);
+	}
+
 	bool fec_encode_group::encode(vpn_packet_ptr& pkt, uint32_t src/* = 0 */)
 	{
 		pkts_[pid_++] = pkt;

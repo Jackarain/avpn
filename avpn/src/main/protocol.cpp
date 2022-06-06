@@ -469,6 +469,49 @@ namespace avpn {
 		return pkt;
 	}
 
+	void make_transfer_compress(vpn_packet& pkt, uint32_t src,
+		uint32_t gid, uint8_t pid, uint8_t ctype, std::string_view data)
+	{
+		make_common_header(pkt, false, vpt_transfer_compress, src);
+		bitstream writer(pkt.data() + avpn_pkt_header_size,
+			avpn_packet_size - avpn_pkt_header_size);
+
+		bool fallback = false;
+		auto dst_size = ZSTD_compressBound(data.size());
+		dst_size = std::max<size_t>(avpn_static_mtu, dst_size);
+		std::vector<uint8_t> dst(dst_size, 0);
+		dst_size = ZSTD_compress(dst.data(), dst_size,
+			data.data(), data.size(), ZSTD_CLEVEL_DEFAULT);
+		if (ZSTD_isError(dst_size) || dst_size >= data.size())
+			fallback = true;
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
+
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+
+		if (fallback)
+			writer.WriteUInt8(0);
+		else
+			writer.WriteUInt8(ctype);
+
+		writer.WriteUInt8(0);
+
+		if (fallback)
+		{
+			writer.WriteUInt16((uint16_t)data.size());
+			dst_size = data.size();
+		}
+		else
+		{
+			std::memcpy(pkt.payload(), dst.data(), avpn_payload_size);
+		}
+
+		auto bytes = writer.ByteOffset() + dst_size;
+		pkt.resize(avpn_pkt_header_size + bytes);
+	}
+
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
 		uint32_t& gid, uint8_t& pid, uint8_t& ctype)
 	{
@@ -504,16 +547,20 @@ namespace avpn {
 
 		BOOST_ASSERT(length <= surplus);
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
+		size_t rawsize = length;
 
-		vpn_packet tmp;
-		auto raw_size = ZSTD_decompress(tmp.data(),
-			avpn_static_mtu, pkt.payload(), length);
-		if (ZSTD_isError(raw_size))
-			return -1;
-		std::memcpy(pkt.payload(), tmp.data(), raw_size);
-		pkt.payload_size(raw_size);
+		if (ctype != 0)
+		{
+			vpn_packet tmp;
+			rawsize = ZSTD_decompress(tmp.data(),
+				avpn_static_mtu, pkt.payload(), length);
+			if (ZSTD_isError(rawsize))
+				return -1;
+			std::memcpy(pkt.payload(), tmp.data(), rawsize);
+			pkt.payload_size(rawsize);
+		}
 
-		bytes += (int)reader.ByteOffset() + (int)raw_size;
+		bytes += (int)reader.ByteOffset() + (int)rawsize;
 
 		return bytes;
 	}

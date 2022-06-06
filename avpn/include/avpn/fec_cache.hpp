@@ -90,6 +90,9 @@ namespace avpn {
 		// pkt 实际数据, 填充pkt除IP包之外的header.
 		void make_fec_header(vpn_packet& pkt, uint32_t src);
 
+		// 更新pkt的数据包头,并压缩payload部分.
+		void make_fec_compress_header(vpn_packet& pkt, uint32_t src);
+
 		// 编码gop, 如果成功编码则返回true, 这时可以取编码的数据
 		// 发送到网络.
 		bool encode(vpn_packet_ptr& pkt, uint32_t src = 0);

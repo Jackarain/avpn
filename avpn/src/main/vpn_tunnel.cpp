@@ -176,8 +176,14 @@ namespace avpn {
 		auto& params = m_config.tunnel_params_;
 		uint32_t src = 0;
 
+		// 更新pkt数据.
+		if (m_config.tunnel_params_.compress_ == "zstd")
 		{
-			// 更新pkt数据.
+			src = endp.src_.address().to_v4().to_uint();
+			m_feg.make_fec_compress_header(*pkt, src);
+		}
+		else
+		{
 			src = endp.src_.address().to_v4().to_uint();
 			m_feg.make_fec_header(*pkt, src);
 		}
@@ -749,6 +755,10 @@ namespace avpn {
 	net::awaitable<void>
 	vpn_tunnel::on_vpn_transfer_compress(vpn_packet_ptr pkt)
 	{
+		auto service = m_serivce.lock();
+		if (!service)
+			co_return;
+
 		uint32_t src = 0;
 
 		uint32_t gid;
@@ -759,7 +769,98 @@ namespace avpn {
 		if (ret < 0)
 			co_return;
 
-		// TODO: 处理压缩数据包.
+		BOOST_ASSERT(gid > 0);
+		BOOST_ASSERT(pid < (m_data_shards + m_parity_shards));
+
+		// 更新最后可见时间.
+		if (m_identity == Identity::avpn_server)
+			last_see(steady_clock::now());
+
+		auto write_pkt = [this, service](vpn_packet_ptr pkt)
+			mutable -> net::awaitable<void>
+		{
+			auto content = pkt->payload();
+			auto ep = parser_endpoint(content, avpn_payload_size);
+			if (ep.size_ <= 0 || ep.size_ > avpn_payload_size)
+			{
+				m_num_incorrect++;
+				co_return;
+			}
+			auto& dst_addr = ep.dst_;
+
+			auto uint_dst = dst_addr.address().to_v4().to_uint();
+			udp::endpoint uendp(dst_addr.address(), 0);
+
+			if (m_identity == Identity::avpn_server
+				&& same_ipv4_network(m_vaddr, uint_dst))
+			{
+				// 不允许内网互通.
+				if (!m_config.tunnel_params_.c2c_)
+					co_return;
+
+				// 通过avpn service查找对应的tunnel
+				// 然后转发内网数据到这个tunnel.
+				auto dst_tunnel = service->lookup_tunnel(uint_dst);
+				if (dst_tunnel)
+				{
+					// 内网转发.
+					co_await dst_tunnel->tun_forward(pkt, std::move(ep));
+					co_return;
+				}
+			}
+
+			// 转发到tun设备.
+			service->do_tun_write(pkt);
+
+			co_return;
+		};
+
+		auto opt = m_recover.find(gid);
+		if (!opt)
+		{
+			if (pid < m_data_shards)
+				co_await write_pkt(pkt);
+
+			if (m_data_shards == 1)
+				co_return;
+
+			m_recover.update(opt, gid, pid,
+				m_data_shards, m_parity_shards, pkt);
+
+			co_return;
+		}
+
+		auto& gop = *opt;
+		if (gop.expired())
+			co_return;
+
+		// 如果是data shards, 则write到tun设备或转发.
+		if (pid < m_data_shards)
+			co_await write_pkt(pkt);
+
+		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
+		// 已经接收到.
+		if (m_data_shards == 1)
+			co_return;
+
+		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
+		m_recover.update(opt, gid, pid,
+			m_data_shards, m_parity_shards, pkt);
+
+		// 获取fec解码结果并循环发送到tun设备.
+		auto results = std::move(m_recover.results_);
+		if (results.empty())
+			co_return;
+
+		// 更新统计信息.
+		m_num_corrected += (int)results.size();
+
+		for (auto& p : results)
+		{
+			if (!p)
+				continue;
+			co_await write_pkt(p);
+		}
 
 		co_return;
 	}
