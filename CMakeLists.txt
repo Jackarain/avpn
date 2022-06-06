@@ -353,8 +353,13 @@ endif()
 
 add_subdirectory(third_party/fmt)
 
+add_subdirectory(third_party/zstd)
+set(ZSTD_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib)
+set(ZSTD_LIBRARIES zstd)
+
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
+	${ZSTD_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
 )
 
@@ -378,6 +383,7 @@ link_libraries(
 		cryptopp-static
 
 		${ZLIB_LIBRARIES}
+		${ZSTD_LIBRARIES}
 )
 
 if (WIN32)
