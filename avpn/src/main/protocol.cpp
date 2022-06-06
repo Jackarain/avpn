@@ -505,9 +505,15 @@ namespace avpn {
 		BOOST_ASSERT(length <= surplus);
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
 
-		pkt.payload_size(length);
+		vpn_packet tmp;
+		auto raw_size = ZSTD_decompress(tmp.data(),
+			avpn_static_mtu, pkt.payload(), length);
+		if (ZSTD_isError(raw_size))
+			return -1;
+		std::memcpy(pkt.payload(), tmp.data(), raw_size);
+		pkt.payload_size(raw_size);
 
-		bytes += (int)reader.ByteOffset() + length;
+		bytes += (int)reader.ByteOffset() + (int)raw_size;
 
 		return bytes;
 	}
