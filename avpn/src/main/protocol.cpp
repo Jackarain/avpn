@@ -440,7 +440,7 @@ namespace avpn {
 		std::vector<uint8_t> dst(dst_size, 0);
 		auto ret = ZSTD_compress(dst.data(), dst_size,
 			data.data(), data.size(), ZSTD_CLEVEL_DEFAULT);
-		if (ZSTD_isError(ret))
+		if (ZSTD_isError(ret) || dst_size >= data.size())
 			fallback = true;
 
 		writer.WriteUInt32(gid);
@@ -467,25 +467,6 @@ namespace avpn {
 		pkt.resize(pkt.size() + bytes);
 
 		return pkt;
-	}
-
-	void make_transfer_compress(vpn_packet& pkt,
-		uint32_t src, uint32_t gid, uint8_t pid,
-		uint8_t ctype, std::string_view data)
-	{
-		make_common_header(pkt, false, vpt_transfer_compress, src);
-		bitstream writer(pkt.data() + avpn_pkt_header_size,
-			avpn_packet_size - avpn_pkt_header_size);
-
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(pid);
-		writer.WriteUInt8(ctype);
-		writer.WriteUInt8(0);
-
-		writer.WriteUInt16((uint16_t)data.size());
-
-		auto bytes = writer.ByteOffset() + data.size();
-		pkt.resize(avpn_pkt_header_size + bytes);
 	}
 
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,

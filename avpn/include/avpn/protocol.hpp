@@ -159,10 +159,6 @@ namespace avpn {
 		uint32_t gid, uint8_t pid,
 		uint8_t ctype, std::string_view data);
 
-	void make_transfer_compress(vpn_packet& pkt,
-		uint32_t src, uint32_t gid, uint8_t pid,
-		uint8_t ctype, std::string_view data);
-
 	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
 		uint32_t& gid, uint8_t& pid, uint8_t& ctype);
 }
