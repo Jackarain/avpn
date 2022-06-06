@@ -7,6 +7,7 @@
 
 #include "avpn/protocol.hpp"
 #include "utils/io.hpp"
+#include "zstd.h"
 
 #include <algorithm>
 
@@ -124,7 +125,7 @@ namespace avpn {
 		uint16_t protocol_version = 0;
 		ret = reader.ReadUInt16(&protocol_version);
 		if (!ret) return -1;
-		if (!protocol_version != avpn_protocol_version)
+		if (protocol_version != avpn_protocol_version)
 		{
 			LOG_WARN << "Version not match"
 				<< ", expect: " << avpn_protocol_version
@@ -434,13 +435,33 @@ namespace avpn {
 		bitstream writer(pkt.data() + pkt.size(),
 			avpn_packet_size - pkt.size());
 
+		bool fallback = false;
+		auto dst_size = ZSTD_compressBound(data.size());
+		std::vector<uint8_t> dst(dst_size, 0);
+		auto ret = ZSTD_compress(dst.data(), dst_size,
+			data.data(), data.size(), ZSTD_CLEVEL_DEFAULT);
+		if (ZSTD_isError(ret))
+			fallback = true;
+
 		writer.WriteUInt32(gid);
 		writer.WriteUInt8(pid);
-		writer.WriteUInt8(ctype);
+		if (fallback)
+			writer.WriteUInt8(0);
+		else
+			writer.WriteUInt8(ctype);
+
 		writer.WriteUInt8(0);
 
-		writer.WriteUInt16((uint16_t)data.size());
-		writer.WriteString(data.data(), data.size());
+		if (fallback)
+		{
+			writer.WriteUInt16((uint16_t)data.size());
+			writer.WriteString(data.data(), data.size());
+		}
+		else
+		{
+			writer.WriteUInt16((uint16_t)ret);
+			writer.WriteString((char*)dst.data(), ret);
+		}
 
 		auto bytes = writer.ByteOffset();
 		pkt.resize(pkt.size() + bytes);
