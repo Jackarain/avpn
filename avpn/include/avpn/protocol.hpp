@@ -38,6 +38,13 @@ namespace avpn {
 		vpt_error = 7,
 	};
 
+	enum
+	{
+		compress_zstd = 1,
+		compress_lz4,
+		compress_deflate,
+	};
+
 	const static uint16_t avpn_protocol_version = 1;
 
 

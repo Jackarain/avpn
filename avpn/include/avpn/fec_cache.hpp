@@ -90,7 +90,7 @@ namespace avpn {
 		void make_fec_header(vpn_packet& pkt, uint32_t src);
 
 		// 更新pkt的数据包头,并压缩payload部分.
-		void make_fec_compress_header(vpn_packet& pkt, uint32_t src);
+		void make_fec_zstd_header(vpn_packet& pkt, uint32_t src);
 
 		// 编码gop, 如果成功编码则返回true, 这时可以取编码的数据
 		// 发送到网络.

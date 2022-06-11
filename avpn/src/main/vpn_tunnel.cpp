@@ -180,7 +180,7 @@ namespace avpn {
 		if (m_config.tunnel_params_.compress_ == "zstd")
 		{
 			src = endp.src_.address().to_v4().to_uint();
-			m_feg.make_fec_compress_header(*pkt, src);
+			m_feg.make_fec_zstd_header(*pkt, src);
 		}
 		else
 		{
