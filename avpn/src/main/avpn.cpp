@@ -303,10 +303,10 @@ namespace avpn {
 				// 其从连接池中移动到已经完成的连接列表.
 				bool enc = false;
 				uint8_t type = 0;
-				uint32_t src = 0;
+				uint32_t src_vaddr = 0;
 
 				int ret = unwrap_common_header(pkt,
-					enc, type, src);
+					enc, type, src_vaddr);
 				if (!ret)
 					continue;
 
@@ -314,7 +314,7 @@ namespace avpn {
 				if (type == vpt_handshake)
 				{
 					net::co_spawn(m_main_context,
-						on_udp_handshake(remote, std::move(pkt), src),
+						on_udp_handshake(remote, std::move(pkt), src_vaddr),
 							net::detached);
 					continue;
 				}
@@ -322,15 +322,15 @@ namespace avpn {
 				// 根据src寻找对应的client, 找到后转入相应client
 				// 的处理流程中.
 				auto tunnel = co_await net::co_spawn(m_main_context,
-					async_lookup_tunnel(src), net::use_awaitable);
+					async_lookup_tunnel(src_vaddr), net::use_awaitable);
 				if (!tunnel)
 				{
-					net::ip::address_v4 src_addr(src);
+					net::ip::address_v4 src_addr(src_vaddr);
 					LOG_WARN << "Not found client via loop: "
 						<< src_addr.to_string();
 
 					// 若不为同一网络段, 则有可能是错误的数据包, 忽略掉.
-					if (!same_ipv4_network(m_subnet, src))
+					if (!same_ipv4_network(m_subnet, src_vaddr))
 						continue;
 
 					// 没找到src对应的client, 则返回空handshake reply消息.
@@ -362,10 +362,10 @@ namespace avpn {
 			{
 				bool enc = false;
 				uint8_t type = 0;
-				uint32_t src = 0;
+				uint32_t src_vaddr = 0;
 
 				int ret = unwrap_common_header(pkt,
-					enc, type, src);
+					enc, type, src_vaddr);
 				if (!ret)
 					continue;
 
@@ -1135,9 +1135,9 @@ namespace avpn {
 
 		crypto_util::keyexchange ke(m_client_key);
 		auto pubkey = ke.StaticPublicKey();
-		auto src = m_subnet.address().to_uint();
+		auto src_vaddr = m_subnet.address().to_uint();
 
-		auto pkt = make_handshake(src, m_client_id, pubkey,
+		auto pkt = make_handshake(src_vaddr, m_client_id, pubkey,
 			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
 
 		// 发送handshake到server.
@@ -1161,10 +1161,10 @@ namespace avpn {
 		m_push_params.server_ip_ = remote.address().to_string();
 
 		bytes = unwrap_handshake_reply(pkt, id, ds, ps,
-			src, prefix_length, passbyvpn, pushdns, pushroutes);
+			src_vaddr, prefix_length, passbyvpn, pushdns, pushroutes);
 
 		auto tunnel = m_tunnel.lock();
-		if (src == 0)
+		if (src_vaddr == 0)
 		{
 			LOG_WARN << "tcp handshake reply: '" << id
 				<< "' detected server reboot!";
@@ -1219,7 +1219,7 @@ namespace avpn {
 			LOG_DBG << "Negotiated shared key: "
 				<< base64_encode(tunnel->shared_key());
 
-			m_subnet = make_network(src, (unsigned short)prefix_length);
+			m_subnet = make_network(src_vaddr, (unsigned short)prefix_length);
 			tunnel->vnet_addr(m_subnet);
 			tunnel->client_id(m_client_id);
 
@@ -1380,12 +1380,12 @@ namespace avpn {
 	{
 		// 发起UDP握手请求.
 		auto& params = m_config.tunnel_params_;
-		auto src = m_subnet.address().to_uint();
+		auto src_vaddr = m_subnet.address().to_uint();
 
 		crypto_util::keyexchange ke(m_client_key);
 		auto pubkey = ke.StaticPublicKey();
 
-		auto pkt = make_handshake(src, m_client_id, pubkey,
+		auto pkt = make_handshake(src_vaddr, m_client_id, pubkey,
 			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
 
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
@@ -1408,7 +1408,7 @@ namespace avpn {
 
 		auto& params = m_config.tunnel_params_;
 
-		uint32_t src = 0;
+		uint32_t src_vaddr = 0;
 		std::string client_id;
 		std::string pubkey;
 		std::string additional;
@@ -1416,7 +1416,7 @@ namespace avpn {
 		uint8_t ps;
 
 		ret = unwrap_handshake(pkt,
-			src, client_id, pubkey,
+			src_vaddr, client_id, pubkey,
 			ds, ps);
 		if (ret == -1)
 			co_return;
@@ -1432,12 +1432,12 @@ namespace avpn {
 		}
 
 		vpn_tunnel_ptr tunnel;
-		if (src != 0)
+		if (src_vaddr != 0)
 		{
-			tunnel = lookup_tunnel(src);
+			tunnel = lookup_tunnel(src_vaddr);
 			if (!tunnel)
 			{
-				net::ip::address_v4 src_addr(src);
+				net::ip::address_v4 src_addr(src_vaddr);
 				LOG_WARN << "Not found client via tcp: " << src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
@@ -1501,7 +1501,7 @@ namespace avpn {
 
 	net::awaitable<void>
 	avpn_service::on_udp_handshake(
-		udp::endpoint remote, vpn_packet pkt, uint32_t src)
+		udp::endpoint remote, vpn_packet pkt, uint32_t src_vaddr)
 	{
 		uint8_t ds;
 		uint8_t ps;
@@ -1511,7 +1511,7 @@ namespace avpn {
 
 		// 解析client的认证消息.
 		int ret = unwrap_handshake(pkt,
-			src, client_id, pubkey, ds, ps);
+			src_vaddr, client_id, pubkey, ds, ps);
 		if (ret == -1)
 			co_return;
 
@@ -1524,12 +1524,12 @@ namespace avpn {
 		}
 
 		vpn_tunnel_ptr tunnel;
-		if (src != 0)
+		if (src_vaddr != 0)
 		{
-			tunnel = lookup_tunnel(src);
+			tunnel = lookup_tunnel(src_vaddr);
 			if (!tunnel)
 			{
-				net::ip::address_v4 src_addr(src);
+				net::ip::address_v4 src_addr(src_vaddr);
 				LOG_WARN << "Not found client via udp: " << src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
