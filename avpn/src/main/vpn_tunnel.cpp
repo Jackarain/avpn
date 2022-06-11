@@ -174,19 +174,12 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 
 		auto& params = m_config.tunnel_params_;
-		uint32_t src = 0;
 
 		// 更新pkt数据.
 		if (m_config.tunnel_params_.compress_ == "zstd")
-		{
-			src = endp.src_.address().to_v4().to_uint();
-			m_feg.make_fec_zstd_header(*pkt, src);
-		}
+			m_feg.make_fec_zstd_header(*pkt, m_self_vaddr);
 		else
-		{
-			src = endp.src_.address().to_v4().to_uint();
-			m_feg.make_fec_header(*pkt, src);
-		}
+			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
 		// 默认使用udp发送.
 		bool use_tcp_transfer = false;
@@ -235,7 +228,7 @@ namespace avpn {
 		}
 
 		// fec编码, 如果成功编码, 则需要发送编码部分.
-		bool ret = m_feg.encode(pkt, src);
+		bool ret = m_feg.encode(pkt, m_self_vaddr);
 		if (!ret)
 			co_return;
 
@@ -308,6 +301,7 @@ namespace avpn {
 	void vpn_tunnel::vnet_addr(const net::ip::network_v4& vaddr)
 	{
 		m_vaddr = vaddr;
+		m_self_vaddr = vaddr.address().to_uint();
 	}
 
 	udp::endpoint vpn_tunnel::remote_endpoint() const
@@ -379,8 +373,7 @@ namespace avpn {
 			if (tick_interval % keepalive == 0)
 			{
 				// keepalive, 随机使用tcp/udp发送.
-				uint32_t src = m_vaddr.address().to_uint();
-				auto pkt = make_keepalive(src, m_client_id,
+				auto pkt = make_keepalive(m_self_vaddr, m_client_id,
 					m_num_recv_packet, m_num_send_packet);
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 

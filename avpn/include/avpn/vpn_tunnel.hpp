@@ -187,6 +187,7 @@ namespace avpn {
 
 		// 分配的vaddr.
 		net::ip::network_v4 m_vaddr;
+		uint32_t m_self_vaddr;
 
 		// 对方udp的endpoint.
 		udp::endpoint m_remote_endpoint;
