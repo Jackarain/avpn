@@ -169,7 +169,7 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair endp)
+	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair)
 	{
 		[[maybe_unused]] auto self = shared_from_this();
 
