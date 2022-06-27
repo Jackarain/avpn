@@ -81,10 +81,6 @@ namespace avpn {
 		net::awaitable<void>
 		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
 
-		// 通过udp/tcp协议发送数据包.
-		void udp_write_pkt(vpn_packet_ptr& pkt);
-		void tcp_write_pkt(vpn_packet_ptr& pkt);
-
 		// 设置/返回client的id.
 		std::string client_id() const;
 		void client_id(const std::string& id);
@@ -116,6 +112,10 @@ namespace avpn {
 		// 速率计算.
 		void compute_speed(speed_stat& stat, int bytes);
 		void compute_speed(speed_stat& stat, const time_point& now);
+
+		// 通过udp/tcp协议发送数据包.
+		void udp_write_pkt(vpn_packet_ptr& pkt);
+		void tcp_write_pkt(vpn_packet_ptr& pkt);
 
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(

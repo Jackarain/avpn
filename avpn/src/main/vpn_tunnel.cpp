@@ -263,16 +263,6 @@ namespace avpn {
 		co_return;
 	}
 
-	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
-	{
-		auto service = m_serivce.lock();
-		if (!service)
-			return;
-
-		m_num_send_packet++;
-		service->do_udp_write(pkt, m_remote_endpoint);
-	}
-
 	std::string vpn_tunnel::client_id() const
 	{
 		return m_client_id;
@@ -429,6 +419,27 @@ namespace avpn {
 		stat.speeder_count_ = speeder_count;
 	}
 
+	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
+	{
+		auto service = m_serivce.lock();
+		if (!service)
+			return;
+
+		m_num_send_packet++;
+		service->do_udp_write(pkt, m_remote_endpoint);
+	}
+
+	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
+	{
+		auto self = shared_from_this();
+		net::co_spawn(m_io_context,
+			[this, self, pkt]() mutable -> net::awaitable<void>
+			{
+				co_await tcp_write_packet(m_tcp_socket, pkt);
+				co_return;
+			}, net::detached);
+	}
+
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
@@ -522,17 +533,6 @@ namespace avpn {
 		}
 
 		co_return;
-	}
-
-	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
-	{
-		auto self = shared_from_this();
-		net::co_spawn(m_io_context,
-			[this, self, pkt]() mutable -> net::awaitable<void>
-			{
-				co_await tcp_write_packet(m_tcp_socket, pkt);
-				co_return;
-			}, net::detached);
 	}
 
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
