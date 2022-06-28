@@ -758,6 +758,14 @@ namespace avpn {
 		uint8_t pid;
 		uint8_t ctype;
 
+		auto origin_pkt = std::make_shared<vpn_packet>();
+		std::memcpy(origin_pkt->data(), pkt->data(), avpn_packet_size);
+		origin_pkt->gid_ = pkt->gid_;
+		origin_pkt->pid_ = pkt->pid_;
+		origin_pkt->payload_size_ = pkt->payload_size_;
+		origin_pkt->size_ = pkt->size_;
+		origin_pkt->type_ = pkt->type_;
+
 		int ret = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
 		if (ret < 0)
 			co_return;
@@ -818,7 +826,7 @@ namespace avpn {
 				co_return;
 
 			m_recover.update(opt, gid, pid,
-				m_data_shards, m_parity_shards, pkt);
+				m_data_shards, m_parity_shards, origin_pkt);
 
 			co_return;
 		}
@@ -838,7 +846,7 @@ namespace avpn {
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(opt, gid, pid,
-			m_data_shards, m_parity_shards, pkt);
+			m_data_shards, m_parity_shards, origin_pkt);
 
 		// 获取fec解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);
@@ -851,6 +859,9 @@ namespace avpn {
 		for (auto& p : results)
 		{
 			if (!p)
+				continue;
+			int ret = unwrap_transfer_compress(*p, src, gid, pid, ctype);
+			if (ret < 0)
 				continue;
 			co_await write_pkt(p);
 		}
