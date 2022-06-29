@@ -89,9 +89,11 @@ file(GLOB zstd_SRC
     "programs/zstdcli_trace.c"
 )
 
-if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" AND NOT WIN32)
-    enable_language(ASM)
-    list(APPEND zstd_SRC "lib/decompress/huf_decompress_amd64.S")
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" AND NOT WIN32)
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "GNU")
+        enable_language(ASM)
+        list(APPEND zstd_SRC "lib/decompress/huf_decompress_amd64.S")
+    endif()
 endif()
 
 add_library(zstd STATIC ${zstd_SRC})
