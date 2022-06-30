@@ -113,67 +113,69 @@ namespace avpn {
 	}
 
 	inline namespace v2 {
-		template<typename... T>
-		class vtun_device : public boost::variant<T...>
+
+	template<typename... T>
+	class vtun_device : public boost::variant<T...>
+	{
+	public:
+		template <typename S>
+		explicit vtun_device(S device)
+			: boost::variant<T...>(std::move(device))
 		{
-		public:
-			template <typename S>
-			explicit vtun_device(S device)
-				: boost::variant<T...>(std::move(device))
-			{
-				static_assert(std::is_move_constructible<S>::value
-					, "must be move constructible");
-			}
-			vtun_device(vtun_device&&) = default;
-			~vtun_device() = default;
+			static_assert(std::is_move_constructible<S>::value
+				, "must be move constructible");
+		}
+		vtun_device(vtun_device&&) = default;
+		~vtun_device() = default;
 
-			vtun_device(const vtun_device&) = delete;
-			vtun_device& operator=(vtun_device const&) = delete;
-			vtun_device& operator=(vtun_device&&) = default;
+		vtun_device(const vtun_device&) = delete;
+		vtun_device& operator=(vtun_device const&) = delete;
+		vtun_device& operator=(vtun_device&&) = default;
 
-			boost::asio::io_context& get_io_context()
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.get_io_context(); }, *this);
-			}
+		boost::asio::io_context& get_io_context()
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.get_io_context(); }, *this);
+		}
 
-			bool open(const dev_config& cfg)
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.open(cfg); }, *this);
-			}
+		bool open(const dev_config& cfg)
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.open(cfg); }, *this);
+		}
 
-			void close()
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.close(); }, *this);
-			}
+		void close()
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.close(); }, *this);
+		}
 
-			template <typename MutableBufferSequence, typename ReadHandler>
-			BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
-				void(boost::system::error_code, std::size_t))
-				async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.async_read_some(buffers,
-						std::forward<ReadHandler>(handler)); }, *this);
-			}
+		template <typename MutableBufferSequence, typename ReadHandler>
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
+			void(boost::system::error_code, std::size_t))
+			async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.async_read_some(buffers,
+					std::forward<ReadHandler>(handler)); }, *this);
+		}
 
-			template <typename ConstBufferSequence, typename WriteHandler>
-			BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
-				void(boost::system::error_code, std::size_t))
-				async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.async_write_some(buffers,
-						std::forward<WriteHandler>(handler)); }, *this);
-			}
+		template <typename ConstBufferSequence, typename WriteHandler>
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
+			void(boost::system::error_code, std::size_t))
+			async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.async_write_some(buffers,
+					std::forward<WriteHandler>(handler)); }, *this);
+		}
 
-			std::vector<tun_device_info> take_device_list()
-			{
-				return boost::apply_visitor([&](auto& t) mutable
-					{ return t.take_device_list(); }, *this);
-			}
-		};
+		std::vector<tun_device_info> take_device_list()
+		{
+			return boost::apply_visitor([&](auto& t) mutable
+				{ return t.take_device_list(); }, *this);
+		}
+	};
+
 	}
 }
