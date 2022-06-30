@@ -758,16 +758,8 @@ namespace avpn {
 		uint8_t pid;
 		uint8_t ctype;
 
-		auto origin_pkt = std::make_shared<vpn_packet>();
-		std::memcpy(origin_pkt->data(), pkt->data(), avpn_packet_size);
-		origin_pkt->gid_ = pkt->gid_;
-		origin_pkt->pid_ = pkt->pid_;
-		origin_pkt->payload_size_ = pkt->payload_size_;
-		origin_pkt->size_ = pkt->size_;
-		origin_pkt->type_ = pkt->type_;
-
-		int ret = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
-		if (ret < 0)
+		auto dst_ptr = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
+		if (!dst_ptr)
 			co_return;
 
 		BOOST_ASSERT(gid > 0);
@@ -820,13 +812,13 @@ namespace avpn {
 		if (!opt)
 		{
 			if (pid < m_data_shards)
-				co_await write_pkt(pkt);
+				co_await write_pkt(dst_ptr);
 
 			if (m_data_shards == 1)
 				co_return;
 
 			m_recover.update(opt, gid, pid,
-				m_data_shards, m_parity_shards, origin_pkt);
+				m_data_shards, m_parity_shards, pkt);
 
 			co_return;
 		}
@@ -837,7 +829,7 @@ namespace avpn {
 
 		// 如果是data shards, 则write到tun设备或转发.
 		if (pid < m_data_shards)
-			co_await write_pkt(pkt);
+			co_await write_pkt(dst_ptr);
 
 		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
 		// 已经接收到.
@@ -846,7 +838,7 @@ namespace avpn {
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(opt, gid, pid,
-			m_data_shards, m_parity_shards, origin_pkt);
+			m_data_shards, m_parity_shards, pkt);
 
 		// 获取fec解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);
@@ -860,10 +852,10 @@ namespace avpn {
 		{
 			if (!p)
 				continue;
-			int ret = unwrap_transfer_compress(*p, src, gid, pid, ctype);
-			if (ret < 0)
+			auto dst = unwrap_transfer_compress(*p, src, gid, pid, ctype);
+			if (!dst)
 				continue;
-			co_await write_pkt(p);
+			co_await write_pkt(dst);
 		}
 
 		co_return;

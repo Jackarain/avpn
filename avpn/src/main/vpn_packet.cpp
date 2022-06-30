@@ -101,4 +101,33 @@ namespace avpn {
 	{
 		type_ = t;
 	}
+
+	vpn_packet_ptr dup_vpn_packet(const vpn_packet_ptr& p)
+	{
+		auto ret = std::make_shared<vpn_packet>();
+
+		std::memcpy(ret->data(), p->data(), avpn_packet_size);
+		ret->gid_ = p->gid_;
+		ret->pid_ = p->pid_;
+		ret->payload_size_ = p->payload_size_;
+		ret->size_ = p->size_;
+		ret->type_ = p->type_;
+
+		return ret;
+	}
+
+	vpn_packet_ptr dup_vpn_packet(const vpn_packet& p)
+	{
+		auto ret = std::make_shared<vpn_packet>();
+
+		std::memcpy(ret->data(), p.data(), avpn_packet_size);
+		ret->gid_ = p.gid_;
+		ret->pid_ = p.pid_;
+		ret->payload_size_ = p.payload_size_;
+		ret->size_ = p.size_;
+		ret->type_ = p.type_;
+
+		return ret;
+	}
+
 }

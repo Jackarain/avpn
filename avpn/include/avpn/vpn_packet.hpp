@@ -89,4 +89,6 @@ namespace avpn {
 	using vpn_packet_ptr = std::shared_ptr<vpn_packet>;
 	using vpn_packet_weak_ptr = std::weak_ptr<vpn_packet>;
 
+	vpn_packet_ptr dup_vpn_packet(const vpn_packet_ptr& p);
+	vpn_packet_ptr dup_vpn_packet(const vpn_packet& p);
 }

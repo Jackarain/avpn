@@ -512,7 +512,7 @@ namespace avpn {
 		pkt.resize(avpn_pkt_header_size + bytes);
 	}
 
-	int unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
+	vpn_packet_ptr unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
 		uint32_t& gid, uint8_t& pid, uint8_t& ctype)
 	{
 		bool enc;
@@ -520,30 +520,30 @@ namespace avpn {
 
 		auto bytes = unwrap_common_header(pkt, enc, type, src);
 		if (bytes == -1)
-			return -1;
+			return {};
 		if (type != vpt_transfer_compress)
-			return -1;
+			return {};
 		auto surplus = pkt.size() - bytes;
 		bitstream reader(pkt.data() + bytes, surplus);
 
 		auto ret = reader.ReadUInt32(&gid);
-		if (!ret) return -1;
+		if (!ret) return {};
 
 		ret = reader.ReadUInt8(&pid);
-		if (!ret) return -1;
+		if (!ret) return {};
 
 		pkt.gid_ = gid;
 		pkt.pid_ = pid;
 
 		ret = reader.ReadUInt8(&ctype);
-		if (!ret) return -1;
+		if (!ret) return {};
 		uint8_t rsv = 0;
 		ret = reader.ReadUInt8(&rsv);
-		if (!ret) return -1;
+		if (!ret) return {};
 
 		uint16_t length = 0;
 		ret = reader.ReadUInt16(&length);
-		if (!ret) return -1;
+		if (!ret) return {};
 
 		BOOST_ASSERT(length <= surplus);
 		length = std::min<uint16_t>(length, (uint16_t)surplus);
@@ -551,17 +551,15 @@ namespace avpn {
 
 		if (ctype != 0)
 		{
-			vpn_packet tmp;
-			rawsize = ZSTD_decompress(tmp.data(),
+			auto tmp = std::make_shared<vpn_packet>();
+			rawsize = ZSTD_decompress(tmp->data(),
 				avpn_static_mtu, pkt.payload(), length);
 			if (ZSTD_isError(rawsize))
-				return -1;
-			std::memcpy(pkt.payload(), tmp.data(), rawsize);
-			pkt.payload_size(rawsize);
+				return {};
+			tmp->payload_size(rawsize);
+			return tmp;
 		}
 
-		bytes += (int)reader.ByteOffset() + (int)rawsize;
-
-		return bytes;
+		return dup_vpn_packet(pkt);
 	}
 }
