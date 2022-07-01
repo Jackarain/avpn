@@ -106,7 +106,7 @@ namespace avpn {
 	private:
 
 		template<class T>
-		void check_shards(const T& shards, bool nilok = false)
+		void check_shards(const T& shards, [[maybe_unused]] bool nilok = false)
 		{
 			if (shards.size() != (size_t)m_shards)
 				throw std::runtime_error("wrong number of shards");
