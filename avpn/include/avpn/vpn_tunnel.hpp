@@ -102,6 +102,10 @@ namespace avpn {
 		udp::endpoint remote_endpoint() const;
 		void remote_endpoint(const udp::endpoint& endp);
 
+		// 设置/返回tunnel的ipproto.
+		int ipproto() const;
+		void ipproto(int proto);
+
 		// 设置/返回tunnel最后活跃时间.
 		time_point last_see() const;
 		void last_see(const time_point& now);
@@ -162,6 +166,9 @@ namespace avpn {
 
 		// 客户端的client id.
 		std::string m_client_id;
+
+		// 客户端通信协议.
+		int m_ipproto{ -1 };
 
 		// 对方fec编码使用的ds, ps.
 		// 本端解码时需要使用对方的ds,ps来进行fec解码.

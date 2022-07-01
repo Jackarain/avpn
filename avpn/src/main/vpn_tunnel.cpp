@@ -195,12 +195,14 @@ namespace avpn {
 
 		// 默认使用udp发送.
 		bool use_tcp_transfer = false;
+		int ipproto = m_ipproto;
 
 		// 只有以下情况, 将使用tcp发送.
 		// 1. tcp only 状态时.
 		// 2. 作为server时, 远端udp不可用时.
 		// 3. TODO: 混合模式, tcp发送为闲时, 使用tcp发送.
 		if (params.mode_ == 2 ||
+			ipproto != 0 ||
 			(m_remote_endpoint.port() == 0 &&
 				m_identity == Identity::avpn_server))
 		{
@@ -319,6 +321,25 @@ namespace avpn {
 		m_remote_endpoint = endp;
 	}
 
+	int vpn_tunnel::ipproto() const
+	{
+		return m_ipproto;
+	}
+
+	void vpn_tunnel::ipproto(int proto)
+	{
+		if (m_ipproto == -1)
+		{
+			m_ipproto = proto;
+			return;
+		}
+
+		if (m_ipproto == 0 && proto == 2)
+			m_ipproto = 1;
+		if (m_ipproto == 2 && proto == 0)
+			m_ipproto = 1;
+	}
+
 	time_point vpn_tunnel::last_see() const
 	{
 		return m_last_see;
@@ -388,7 +409,8 @@ namespace avpn {
 					m_num_recv_packet, m_num_send_packet);
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
-				if (std::rand() % 2 == 0)
+				if (std::rand() % 2 == 0 &&
+					(m_ipproto == 0 || m_ipproto == 1))
 					udp_write_pkt(ptr);
 				else
 					tcp_write_pkt(ptr);
@@ -489,7 +511,7 @@ namespace avpn {
 
 		{
 			start_len_tag = ntohl(start_len_tag);
-			if ((uint32_t)start_len_tag > (uint32_t)avpn_static_mtu)
+			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
 				LOG_ERR << "tcp_read_packet"
 					<< ", id: " << m_tcp_socket_id
