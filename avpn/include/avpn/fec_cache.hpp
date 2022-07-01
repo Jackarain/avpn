@@ -17,7 +17,14 @@
 #include "avpn/endpoint_pair.hpp"
 #include "avpn/vpn_packet.hpp"
 
+#ifdef __clang__
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wambiguous-reversed-operator"
+#endif
 #include <boost/lockfree/queue.hpp>
+#ifdef __clang__
+#	pragma clang diagnostic pop
+#endif // __clang__
 
 #include <boost/assert.hpp>
 #include <boost/asio/buffer.hpp>
