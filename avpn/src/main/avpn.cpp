@@ -348,7 +348,7 @@ namespace avpn {
 				// 将UDP消息转发到对应的tunnel连接中处理.
 				auto executor = tunnel->get_executor();
 				net::co_spawn(executor,
-					[this, tunnel, ptr, remote]()
+					[tunnel, ptr, remote]()
 					mutable -> net::awaitable<void>
 					{
 						co_await tunnel->udp_forward(ptr, remote);
@@ -494,8 +494,6 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::run_client()
 	{
-		boost::system::error_code ec;
-
 		// 筛选出udp协议的url.
 		co_await make_endpoint("udp");
 
