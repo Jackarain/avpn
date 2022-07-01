@@ -700,8 +700,6 @@ namespace avpn {
 			co_return;
 
 		uint32_t src = 0;
-		std::string_view data;
-
 		uint32_t gid;
 		uint8_t pid;
 
