@@ -342,6 +342,9 @@ namespace avpn {
 					continue;
 				}
 
+				// 更新ipproto.
+				tunnel->ipproto(0);
+
 				// 创建packet指针再通过tun_forward传入协程.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
@@ -1492,7 +1495,7 @@ namespace avpn {
 
 		// 替换为新的tcp socket, 然后用新的tcp socket 用于tcp通信.
 		tunnel->tcp_socket(std::move(stream), id);
-		tunnel->ipproto(1);
+		tunnel->ipproto(2);
 		tunnel->start_tunnel(ds, ps);
 
 		// 开始tunnel的tcp读取消息循环.
@@ -1582,7 +1585,7 @@ namespace avpn {
 
 		// 更新tunnel的远端udp的endpoint.
 		tunnel->remote_endpoint(remote);
-		tunnel->ipproto(1);
+		tunnel->ipproto(0);
 		tunnel->start_tunnel(ds, ps);
 
 		co_return;
