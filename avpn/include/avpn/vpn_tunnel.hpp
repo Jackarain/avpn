@@ -66,6 +66,10 @@ namespace avpn {
 		int64_t upload_rate() const;
 		int64_t download_rate() const;
 
+		// 设置限速.
+		void upload_limit(int limit);
+		void download_limit(int limit);
+
 		// tcp消息循环.
 		net::awaitable<void> tcp_loop();
 
@@ -123,6 +127,10 @@ namespace avpn {
 		net::awaitable<void> tcp_write_packet(
 			tcp::socket& stream, vpn_packet_ptr& pkt);
 
+		// 速率限制.
+		net::awaitable<void> speed_limit(
+			const int& size, bool w = true);
+
 		// 处理tcp/udp协议.
 		net::awaitable<bool> process_tcp_packet(vpn_packet_ptr pkt);
 		net::awaitable<void> process_udp_packet(vpn_packet_ptr pkt);
@@ -171,6 +179,14 @@ namespace avpn {
 		// 上下行速率统计.
 		speed_stat m_down_stat;
 		speed_stat m_upload_stat;
+
+		// 上下行速率限制.
+		int m_upload_limit{ 0 };
+		int m_download_limit{ 0 };
+
+		// 上下行限速桶.
+		int m_ulimit_bucket{ 0 };
+		int m_dlimit_bucket{ 0 };
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;

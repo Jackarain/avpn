@@ -108,6 +108,16 @@ namespace avpn {
 		return m_down_stat.rate_;
 	}
 
+	void vpn_tunnel::upload_limit(int limit)
+	{
+		m_upload_limit = limit;
+	}
+
+	void vpn_tunnel::download_limit(int limit)
+	{
+		m_download_limit = limit;
+	}
+
 	net::awaitable<void> vpn_tunnel::tcp_loop()
 	{
 		[[maybe_unused]] auto self = shared_from_this();
@@ -132,6 +142,8 @@ namespace avpn {
 
 			// 计算下载速率.
 			compute_speed(m_down_stat, pkt.size());
+			// 控制下载速率.
+			co_await speed_limit(pkt.payload_size(), false);
 		}
 
 		std::string suffix;
@@ -258,7 +270,10 @@ namespace avpn {
 			m_remote_endpoint = remote;
 
 		m_num_recv_packet++;
+
 		compute_speed(m_down_stat, pkt->size());
+		co_await speed_limit(pkt->payload_size(), false);
+
 		co_await process_udp_packet(pkt);
 		co_return;
 	}
@@ -338,6 +353,12 @@ namespace avpn {
 				LOG_WARN << "vpn_tunnel::tick, ec: " << ec.message();
 				break;
 			}
+
+			// 更新限制桶大小.
+			if (m_upload_limit > 0)
+				m_ulimit_bucket = m_upload_limit;
+			if (m_download_limit > 0)
+				m_dlimit_bucket = m_download_limit;
 
 			auto now = std::chrono::steady_clock::now();
 
@@ -421,12 +442,20 @@ namespace avpn {
 
 	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
 	{
-		auto service = m_serivce.lock();
-		if (!service)
-			return;
+		auto self = shared_from_this();
+		net::co_spawn(m_io_context,
+			[this, self, pkt]() mutable->net::awaitable<void>
+			{
+				auto service = m_serivce.lock();
+				if (!service)
+					co_return;
 
-		m_num_send_packet++;
-		service->do_udp_write(pkt, m_remote_endpoint);
+				co_await speed_limit(pkt->payload_size(), true);
+				m_num_send_packet++;
+
+				service->do_udp_write(pkt, m_remote_endpoint);
+				co_return;
+			}, net::detached);
 	}
 
 	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
@@ -490,12 +519,18 @@ namespace avpn {
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
 		auto self = shared_from_this();
+
+		// 执行限速算法.
+		co_await speed_limit(pkt->payload_size(), true);
+
+		// 将pkt加入发送队列.
 		bool deque_writing = !m_tcp_deque.empty();
 		m_tcp_deque.push_back(pkt);
 
 		if (deque_writing)
 			co_return;
 
+		// 开始循环发送tcp wirte队列.
 		while (!m_abort && !m_tcp_deque.empty())
 		{
 			pkt = m_tcp_deque.front();
@@ -532,6 +567,31 @@ namespace avpn {
 			m_num_send_packet++;
 		}
 
+		co_return;
+	}
+
+	net::awaitable<void> vpn_tunnel::speed_limit(
+		const int& size, bool w /*= true*/)
+	{
+		int* bucket = nullptr;
+
+		if (w && m_upload_limit > 0)
+			bucket = &m_ulimit_bucket;
+		else if (!w && m_download_limit > 0)
+			bucket = &m_dlimit_bucket;
+		else
+			co_return;
+
+		boost::system::error_code ec;
+		asio_timer waiter(get_executor());
+
+		while (*bucket <= 0 && !m_abort)
+		{
+			waiter.expires_from_now(std::chrono::milliseconds(1));
+			co_await waiter.async_wait(uawaitable[ec]);
+		}
+
+		*bucket -= size;
 		co_return;
 	}
 
