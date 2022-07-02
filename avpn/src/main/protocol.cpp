@@ -505,7 +505,10 @@ namespace avpn {
 		}
 		else
 		{
-			std::memcpy(pkt.payload(), dst.data(), avpn_payload_size);
+			writer.WriteUInt16((uint16_t)dst_size);
+			std::memcpy(pkt.payload(), dst.data(), dst_size);
+			std::memset(pkt.payload() + dst_size,
+				0, avpn_payload_size - dst_size);
 		}
 
 		auto bytes = writer.ByteOffset() + dst_size;
@@ -552,14 +555,14 @@ namespace avpn {
 		if (ctype != 0)
 		{
 			auto tmp = std::make_shared<vpn_packet>();
-			rawsize = ZSTD_decompress(tmp->data(),
+			rawsize = ZSTD_decompress(tmp->payload(),
 				avpn_static_mtu, pkt.payload(), length);
 			if (ZSTD_isError(rawsize))
 				return {};
 			tmp->payload_size(rawsize);
 			return tmp;
 		}
-
+		pkt.payload_size(rawsize);
 		return dup_vpn_packet(pkt);
 	}
 }
