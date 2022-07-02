@@ -409,8 +409,8 @@ namespace avpn {
 					m_num_recv_packet, m_num_send_packet);
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
-				if (std::rand() % 2 == 0 &&
-					(m_ipproto == 0 || m_ipproto == 1))
+				if ((std::rand() % 2 == 0 &&
+					m_ipproto == 1) || m_ipproto == 0)
 					udp_write_pkt(ptr);
 				else
 					tcp_write_pkt(ptr);

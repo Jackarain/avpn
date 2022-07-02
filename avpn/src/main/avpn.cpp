@@ -683,8 +683,11 @@ namespace avpn {
 			{
 				check_client_reset();
 
-				check_client_tcp();
-				check_client_udp();
+				if (!m_server_tcp_endps.empty())
+					check_client_tcp();
+
+				if (!m_server_udp_endps.empty())
+					check_client_udp();
 
 				auto tunnel = m_tunnel.lock();
 				if (!tunnel)
