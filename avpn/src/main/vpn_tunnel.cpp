@@ -202,11 +202,16 @@ namespace avpn {
 		// 2. 作为server时, 远端udp不可用时.
 		// 3. TODO: 混合模式, tcp发送为闲时, 使用tcp发送.
 		if (params.mode_ == 2 ||
-			ipproto != 0 ||
+			ipproto == 2 ||
 			(m_remote_endpoint.port() == 0 &&
 				m_identity == Identity::avpn_server))
 		{
 			// 使用tcp发送至客户端.
+			use_tcp_transfer = true;
+		}
+
+		if ((params.mode_ == 1 || ipproto == 1) && m_tcp_deque.empty())
+		{
 			use_tcp_transfer = true;
 		}
 
@@ -701,7 +706,11 @@ namespace avpn {
 			auto pkt = std::make_shared<vpn_packet>(
 				make_keepalive_reply(src, m_client_id,
 					m_num_recv_packet, m_num_send_packet));
-			tcp_write_pkt(pkt);
+
+			if (m_ipproto == 2 || m_ipproto == 1)
+				tcp_write_pkt(pkt);
+			else
+				udp_write_pkt(pkt);
 		}
 
 		last_see(steady_clock::now());
