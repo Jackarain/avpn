@@ -331,13 +331,20 @@ namespace avpn {
 		if (m_ipproto == -1)
 		{
 			m_ipproto = proto;
+			LOG_DBG << this << ", Update: " << m_ipproto;
 			return;
 		}
 
 		if (m_ipproto == 0 && proto == 2)
+		{
 			m_ipproto = 1;
+			LOG_DBG << this << ", Update: " << m_ipproto;
+		}
 		if (m_ipproto == 2 && proto == 0)
+		{
 			m_ipproto = 1;
+			LOG_DBG << this << ", Update: " << m_ipproto;
+		}
 	}
 
 	time_point vpn_tunnel::last_see() const
