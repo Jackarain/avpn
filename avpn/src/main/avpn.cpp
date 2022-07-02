@@ -1126,6 +1126,9 @@ namespace avpn {
 		// scoped_exit用于退出此函数时将自动重试tcp连接.
 		scoped_exit se([&]() mutable
 			{
+				if (m_server_tcp_endps.empty())
+					return;
+
 				LOG_WARN << "Set tcp reconnect";
 				m_client_tcp_cnt = 1;
 			});
