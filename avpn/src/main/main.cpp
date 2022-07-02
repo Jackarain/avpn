@@ -66,6 +66,7 @@ bool g_avpn_windows_lean_mean = false;
 namespace po = boost::program_options;
 
 #include "avpn/protocol.hpp"
+#include "utils/crypto.hpp"
 
 int platform_init()
 {
@@ -220,6 +221,7 @@ int main(int argc, char** argv)
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
+		("genkey", "Generates a new private key and writes it to stdout.")
 
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
@@ -286,6 +288,13 @@ int main(int argc, char** argv)
 		if (vm.count("help") || argc == 1)
 		{
 			std::cout << desc;
+			return EXIT_SUCCESS;
+		}
+
+		// 生成私钥.
+		if (vm.count("genkey"))
+		{
+			std::cout << base64_encode(crypto_util::ecdh_keygen()) << "\n";
 			return EXIT_SUCCESS;
 		}
 
