@@ -943,7 +943,7 @@ namespace avpn {
 			&& it != upstreams.end(); it++)
 		{
 			auto upstream = *it;
-			util::uri parser;
+			util::uri_view parser;
 
 			if (!parser.parse(upstream))
 				continue;

@@ -109,30 +109,30 @@ namespace util {
 		}
 	}
 
-	class uri
+	class uri_view
 	{
 	public:
-		uri() = default;
+		uri_view() = default;
 
-		uri(const char* s)
+		uri_view(const char* s)
 		{
 			if (!parse(s))
 				throw std::invalid_argument("URI malformed");
 		}
 
-		uri(const std::string& s)
+		uri_view(const std::string& s)
 		{
 			if (!parse(s))
 				throw std::invalid_argument("URI malformed");
 		}
 
-		uri(string_view s)
+		uri_view(string_view s)
 		{
 			if (!parse(s))
 				throw std::invalid_argument("URI malformed");
 		}
 
-		~uri() = default;
+		~uri_view() = default;
 
 		string_view scheme() noexcept
 		{
