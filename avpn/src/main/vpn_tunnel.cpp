@@ -417,8 +417,9 @@ namespace avpn {
 			if (tick_interval % keepalive == 0)
 			{
 				// keepalive, 随机使用tcp/udp发送.
+				uint64_t timestamp = now.time_since_epoch().count();
 				auto pkt = make_keepalive(m_self_vaddr, m_client_id,
-					m_num_recv_packet, m_num_send_packet);
+					m_num_recv_packet, m_num_send_packet, timestamp);
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 				if ((std::rand() % 2 == 0 &&
@@ -726,7 +727,12 @@ namespace avpn {
 		std::string id;
 
 		unwrap_keepalive_reply(*pkt, src, id, rx, tx, timestamp);
-		last_see(steady_clock::now());
+
+		auto now = steady_clock::now();
+		auto rtt = now.time_since_epoch().count() - timestamp;
+		m_rtt = (static_cast<int>(rtt) + m_rtt * 7) / 8;
+
+		last_see(now);
 
 		co_return;
 	}
