@@ -111,10 +111,15 @@ namespace avpn {
 	// rx(32)
 	// tx(32)
 	vpn_packet make_keepalive(uint32_t src,
-		std::string_view id, uint32_t rx, uint32_t tx);
+		std::string_view id,
+		uint32_t rx, uint32_t tx,
+		uint64_t timestamp = 0);
 
 	int unwrap_keepalive(vpn_packet& pkt,
-		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx);
+		uint32_t& src,
+		std::string& id,
+		uint32_t& rx, uint32_t& tx,
+		uint64_t& timestamp);
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -126,10 +131,15 @@ namespace avpn {
 	// rx(32)
 	// tx(32)
 	vpn_packet make_keepalive_reply(uint32_t src,
-		std::string_view id, uint32_t rx, uint32_t tx);
+		std::string_view id,
+		uint32_t rx, uint32_t tx,
+		uint64_t timestamp = 0);
 
 	int unwrap_keepalive_reply(vpn_packet& pkt,
-		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx);
+		uint32_t& src,
+		std::string& id,
+		uint32_t& rx, uint32_t& tx,
+		uint64_t& timestamp);
 
 
 	//////////////////////////////////////////////////////////////////////////

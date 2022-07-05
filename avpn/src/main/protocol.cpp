@@ -237,24 +237,33 @@ namespace avpn {
 	}
 
 	vpn_packet make_keepalive(uint32_t src,
-		std::string_view id, uint32_t rx, uint32_t tx)
+		std::string_view id,
+		uint32_t rx, uint32_t tx,
+		uint64_t timestamp/* = 0 */)
 	{
 		auto pkt = make_common_header(false, vpt_keepalive, src);
+		auto w = pkt.data() + pkt.size();
+		const auto base = w;
 
-		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
-		writer.WriteUInt8((uint8_t)id.size());
-		writer.WriteString(id.data(), id.size());
-		writer.WriteUInt32(rx);
-		writer.WriteUInt32(tx);
+		stream_endian::write_uint8((uint8_t)id.size(), w);
+		stream_endian::write_string(id, w);
 
-		auto bytes = writer.ByteOffset();
+		stream_endian::write_uint32(rx, w);
+		stream_endian::write_uint32(tx, w);
+
+		stream_endian::write_uint64(timestamp, w);
+
+		auto bytes = w - base;
 		pkt.resize(pkt.size() + bytes);
 
 		return pkt;
 	}
 
 	int unwrap_keepalive(vpn_packet& pkt,
-		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx)
+		uint32_t& src,
+		std::string& id,
+		uint32_t& rx, uint32_t& tx,
+		uint64_t& timestamp)
 	{
 		bool enc;
 		uint8_t type;
@@ -264,48 +273,69 @@ namespace avpn {
 			return -1;
 		if (type != vpt_keepalive)
 			return -1;
+
 		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
-		uint8_t length = 0;
+		auto r = pkt.data() + bytes;
+		const auto base = r;
 
-		bool ret = reader.ReadUInt8(&length);
-		if (!ret) return -1;
-		id.resize(length);
+		uint8_t length = stream_endian::read_uint8(r);
+		if (--surplus < 0)
+			return -1;
 		BOOST_ASSERT(length <= 32);
-		ret = reader.ReadString((char*)id.data(), length);
-		if (!ret) return -1;
+		if (length > 32)
+			return -1;
 
-		ret = reader.ReadUInt32(&rx);
-		if (!ret) return -1;
+		id.assign((const char*)r, length);
+		r += length;
+		surplus -= length;
+		if (surplus < 0)
+			return -1;
 
-		ret = reader.ReadUInt32(&tx);
-		if (!ret) return -1;
+		rx = stream_endian::read_uint32(r);
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 
-		bytes += (int)reader.ByteOffset();
+		tx = stream_endian::read_uint32(r);
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 
+		timestamp = stream_endian::read_uint64(r);
+		surplus -= sizeof(uint64_t);
+		if (surplus < 0) return -1;
+
+		bytes = static_cast<int>(r - base);
 		return bytes;
 	}
 
 	vpn_packet make_keepalive_reply(uint32_t src,
-		std::string_view id, uint32_t rx, uint32_t tx)
+		std::string_view id,
+		uint32_t rx, uint32_t tx,
+		uint64_t timestamp/* = 0 */)
 	{
 		auto pkt = make_common_header(false, vpt_keepalive_reply, src);
 
-		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
-		writer.WriteUInt8((uint8_t)id.size());
-		writer.WriteString(id.data(), id.size());
-		writer.WriteUInt32(rx);
-		writer.WriteUInt32(tx);
+		auto w = pkt.data() + pkt.size();
+		const auto base = w;
 
+		stream_endian::write_uint8((uint8_t)id.size(), w);
+		stream_endian::write_string(id, w);
 
-		auto bytes = writer.ByteOffset();
+		stream_endian::write_uint32(rx, w);
+		stream_endian::write_uint32(tx, w);
+
+		stream_endian::write_uint64(timestamp, w);
+
+		auto bytes = w - base;
 		pkt.resize(pkt.size() + bytes);
 
 		return pkt;
 	}
 
 	int unwrap_keepalive_reply(vpn_packet& pkt,
-		uint32_t& src, std::string& id, uint32_t rx, uint32_t tx)
+		uint32_t& src,
+		std::string& id,
+		uint32_t& rx, uint32_t& tx,
+		uint64_t& timestamp)
 	{
 		bool enc;
 		uint8_t type;
@@ -315,25 +345,37 @@ namespace avpn {
 			return -1;
 		if (type != vpt_keepalive_reply)
 			return -1;
+
 		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
-		uint8_t length = 0;
+		auto r = pkt.data() + bytes;
+		const auto base = r;
 
-		bool ret = reader.ReadUInt8(&length);
-		if (!ret) return -1;
-		id.resize(length);
+		uint8_t length = stream_endian::read_uint8(r);
+		if (--surplus < 0)
+			return -1;
 		BOOST_ASSERT(length <= 32);
-		ret = reader.ReadString((char*)id.data(), length);
-		if (!ret) return -1;
+		if (length > 32)
+			return -1;
 
-		ret = reader.ReadUInt32(&rx);
-		if (!ret) return -1;
+		id.assign((const char*)r, length);
+		r += length;
+		surplus -= length;
+		if (surplus < 0)
+			return -1;
 
-		ret = reader.ReadUInt32(&tx);
-		if (!ret) return -1;
+		rx = stream_endian::read_uint32(r);
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 
-		bytes += (int)reader.ByteOffset();
+		tx = stream_endian::read_uint32(r);
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 
+		timestamp = stream_endian::read_uint64(r);
+		surplus -= sizeof(uint64_t);
+		if (surplus < 0) return -1;
+
+		bytes = static_cast<int>(r - base);
 		return bytes;
 	}
 

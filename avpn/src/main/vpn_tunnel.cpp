@@ -722,9 +722,10 @@ namespace avpn {
 		uint32_t src = 0;
 		uint32_t rx = 0;
 		uint32_t tx = 0;
+		uint64_t timestamp = 0;
 		std::string id;
 
-		unwrap_keepalive_reply(*pkt, src, id, rx, tx);
+		unwrap_keepalive_reply(*pkt, src, id, rx, tx, timestamp);
 		last_see(steady_clock::now());
 
 		co_return;
