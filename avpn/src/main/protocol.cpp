@@ -278,30 +278,31 @@ namespace avpn {
 		auto r = pkt.data() + bytes;
 		const auto base = r;
 
-		uint8_t length = stream_endian::read_uint8(r);
-		if (--surplus < 0)
+		surplus -= sizeof(uint8_t);
+		if (surplus < 0)
 			return -1;
+		uint8_t length = stream_endian::read_uint8(r);
 		BOOST_ASSERT(length <= 32);
 		if (length > 32)
 			return -1;
 
-		id.assign((const char*)r, length);
-		r += length;
 		surplus -= length;
 		if (surplus < 0)
 			return -1;
+		id.assign((const char*)r, length);
+		r += length;
 
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 		rx = stream_endian::read_uint32(r);
+
 		surplus -= sizeof(uint32_t);
 		if (surplus < 0) return -1;
-
 		tx = stream_endian::read_uint32(r);
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
 
-		timestamp = stream_endian::read_uint64(r);
 		surplus -= sizeof(uint64_t);
 		if (surplus < 0) return -1;
+		timestamp = stream_endian::read_uint64(r);
 
 		bytes = static_cast<int>(r - base);
 		return bytes;
@@ -350,30 +351,31 @@ namespace avpn {
 		auto r = pkt.data() + bytes;
 		const auto base = r;
 
-		uint8_t length = stream_endian::read_uint8(r);
-		if (--surplus < 0)
+		surplus -= sizeof(uint8_t);
+		if (surplus < 0)
 			return -1;
+		uint8_t length = stream_endian::read_uint8(r);
 		BOOST_ASSERT(length <= 32);
 		if (length > 32)
 			return -1;
 
-		id.assign((const char*)r, length);
-		r += length;
 		surplus -= length;
 		if (surplus < 0)
 			return -1;
+		id.assign((const char*)r, length);
+		r += length;
 
+		surplus -= sizeof(uint32_t);
+		if (surplus < 0) return -1;
 		rx = stream_endian::read_uint32(r);
+
 		surplus -= sizeof(uint32_t);
 		if (surplus < 0) return -1;
-
 		tx = stream_endian::read_uint32(r);
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
 
-		timestamp = stream_endian::read_uint64(r);
 		surplus -= sizeof(uint64_t);
 		if (surplus < 0) return -1;
+		timestamp = stream_endian::read_uint64(r);
 
 		bytes = static_cast<int>(r - base);
 		return bytes;
