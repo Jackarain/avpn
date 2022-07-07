@@ -649,7 +649,7 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_vpn_keepalive(src);
+			co_await on_vpn_keepalive(std::move(pkt));
 			break;
 		case vpt_keepalive_reply:
 			co_await on_vpn_keepalive_reply(std::move(pkt));
@@ -684,7 +684,7 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_vpn_keepalive(src);
+			co_await on_vpn_keepalive(std::move(pkt));
 			break;
 		case vpt_keepalive_reply:
 			co_await on_vpn_keepalive_reply(std::move(pkt));
@@ -701,18 +701,24 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> vpn_tunnel::on_vpn_keepalive(uint32_t src)
+	net::awaitable<void> vpn_tunnel::on_vpn_keepalive(vpn_packet_ptr pkt)
 	{
 		if (m_identity == Identity::avpn_server)
 		{
-			auto pkt = std::make_shared<vpn_packet>(
+			uint32_t src, rx, tx;
+			std::string id;
+			uint64_t timestamp;
+
+			unwrap_keepalive(*pkt, src, id, rx, tx, timestamp);
+
+			auto p = std::make_shared<vpn_packet>(
 				make_keepalive_reply(src, m_client_id,
-					m_num_recv_packet, m_num_send_packet));
+					m_num_recv_packet, m_num_send_packet, timestamp));
 
 			if (m_ipproto == 2 || m_ipproto == 1)
-				tcp_write_pkt(pkt);
+				tcp_write_pkt(p);
 			else
-				udp_write_pkt(pkt);
+				udp_write_pkt(p);
 		}
 
 		last_see(steady_clock::now());

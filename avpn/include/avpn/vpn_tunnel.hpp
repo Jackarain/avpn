@@ -140,7 +140,7 @@ namespace avpn {
 		net::awaitable<void> process_udp_packet(vpn_packet_ptr pkt);
 
 		// 作为server时, 接收到keepalive消息.
-		net::awaitable<void> on_vpn_keepalive(uint32_t src);
+		net::awaitable<void> on_vpn_keepalive(vpn_packet_ptr pkt);
 		// 作为client时, 接收到keepalive_reply消息.
 		net::awaitable<void> on_vpn_keepalive_reply(vpn_packet_ptr pkt);
 
