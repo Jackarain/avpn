@@ -731,6 +731,8 @@ namespace avpn {
 
 		auto now = steady_clock::now();
 		auto rtt = now.time_since_epoch().count() - timestamp;
+		if (m_rtt == 0)
+			m_rtt = rtt;
 		m_rtt = (static_cast<int>(rtt) + m_rtt * 7) / 8;
 
 		last_see(now);
