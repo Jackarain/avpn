@@ -407,7 +407,8 @@ namespace avpn {
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
-					<< ", U: " << m_upload_stat.rate_;
+					<< ", U: " << m_upload_stat.rate_
+					<< ", RTT: " << m_rtt;
 			}
 
 			if (m_identity == Identity::avpn_server)
