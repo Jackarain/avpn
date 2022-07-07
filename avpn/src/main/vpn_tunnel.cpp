@@ -402,13 +402,16 @@ namespace avpn {
 			// 输出统计信息.
 			if (++tick_interval % 10 == 0)
 			{
+				auto duration = std::chrono::nanoseconds(m_rtt);
+				auto t = std::chrono::duration_cast
+					<std::chrono::milliseconds>(duration);
 				LOG_INFO << this << ", CORR: " << m_num_corrected
 					<< ", WNG: " << m_num_incorrect
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
 					<< ", U: " << m_upload_stat.rate_
-					<< ", RTT: " << m_rtt;
+					<< ", RTT: " << t.count();
 			}
 
 			if (m_identity == Identity::avpn_server)
