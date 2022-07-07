@@ -412,7 +412,7 @@ namespace avpn {
 					<< ", D: " << m_down_stat.rate_
 					<< ", U: " << m_upload_stat.rate_
 					<< ", RTT: " << t.count()
-					<< ", rtt: " << m_rtt;
+					<< "ms";
 			}
 
 			if (m_identity == Identity::avpn_server)
