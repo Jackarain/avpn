@@ -411,7 +411,8 @@ namespace avpn {
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
 					<< ", U: " << m_upload_stat.rate_
-					<< ", RTT: " << t.count();
+					<< ", RTT: " << t.count()
+					<< ", rtt: " << m_rtt;
 			}
 
 			if (m_identity == Identity::avpn_server)
@@ -746,9 +747,9 @@ namespace avpn {
 			duration >= std::chrono::nanoseconds(0))
 		{
 			if (m_rtt == 0)
-				m_rtt = static_cast<int>(rtt);
+				m_rtt = static_cast<int64_t>(rtt);
 
-			m_rtt = (static_cast<int>(rtt) + m_rtt * 7) / 8;
+			m_rtt = (static_cast<int64_t>(rtt) + m_rtt * 7) / 8;
 		}
 
 		last_see(now);

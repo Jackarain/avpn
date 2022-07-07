@@ -196,7 +196,7 @@ namespace avpn {
 		int m_dlimit_bucket{ 0 };
 
 		// rtt估值.
-		int m_rtt{ 0 };
+		int64_t m_rtt{ 0 };
 
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;
