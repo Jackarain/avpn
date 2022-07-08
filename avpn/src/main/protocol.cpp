@@ -609,4 +609,56 @@ namespace avpn {
 		pkt.payload_size(rawsize);
 		return dup_vpn_packet(pkt);
 	}
+
+	vpn_packet make_transfer_ack(uint32_t src, uint32_t gid, uint8_t pid)
+	{
+		auto pkt = make_common_header(
+			false, vpt_transfer_ack, src);
+
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
+
+		writer.WriteUInt32(gid);
+		writer.WriteUInt8(pid);
+		writer.WriteUInt16(0);
+		writer.WriteUInt8(0);
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwrap_transfer_ack(vpn_packet& pkt,
+		uint32_t& src, uint32_t& gid, uint8_t& pid)
+	{
+		bool enc;
+		uint8_t type;
+
+		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
+		if (type != vpt_transfer_ack)
+			return -1;
+
+		auto surplus = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, surplus);
+
+		auto ret = reader.ReadUInt32(&gid);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&pid);
+		if (!ret) return -1;
+
+		pkt.gid_ = gid;
+		pkt.pid_ = pid;
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
 }

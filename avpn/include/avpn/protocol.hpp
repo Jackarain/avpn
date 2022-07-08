@@ -35,7 +35,9 @@ namespace avpn {
 		vpt_transfer = 5,
 		vpt_transfer_compress = 6,
 
-		vpt_error = 7,
+		vpt_transfer_ack = 7,
+
+		vpt_error = 8,
 	};
 
 	enum
@@ -182,4 +184,20 @@ namespace avpn {
 
 	vpn_packet_ptr unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
 		uint32_t& gid, uint8_t& pid, uint8_t& ctype);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// ack消息, s <-> c.
+	// 协议格式
+	// gid(32)
+	// pid(8)
+	// rsv(16)
+	// rsv(8)
+
+	vpn_packet make_transfer_ack(uint32_t src,
+		uint32_t gid, uint8_t pid);
+
+	int unwrap_transfer_ack(vpn_packet& pkt,
+		uint32_t& src, uint32_t& gid, uint8_t& pid);
 }
