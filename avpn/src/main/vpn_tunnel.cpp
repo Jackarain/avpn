@@ -423,18 +423,11 @@ namespace avpn {
 		auto& params = m_config.tunnel_params_;
 		int ipproto = m_ipproto;
 
-		if (params.mode_ == 2 ||
-			ipproto == 2 ||
-			(m_remote_endpoint.port() == 0 &&
-				m_identity == Identity::avpn_server))
-		{
-			// 使用tcp发送至客户端.
+		if (m_remote_endpoint.port() == 0 &&
+			m_identity == Identity::avpn_server)
 			return true;
-		}
 
-		if ((params.mode_ == 1 ||
-			ipproto == 1) &&
-			m_tcp_deque.empty())
+		if (params.mode_ == 2 || ipproto == 2)
 			return true;
 
 		return false;
