@@ -750,7 +750,7 @@ namespace avpn {
 			if (m_rtt == 0)
 				m_rtt = static_cast<int64_t>(rtt);
 
-			m_rtt = (static_cast<int64_t>(rtt) + m_rtt * 7) / 8;
+			m_rtt = (static_cast<int64_t>(rtt) * 7 + m_rtt) / 8;
 		}
 
 		last_see(now);
