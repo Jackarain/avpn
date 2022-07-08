@@ -337,7 +337,7 @@ namespace avpn
 		return &it->second;
 	}
 
-	void fec_recover::update(fec_decode_group* opt,
+	bool fec_recover::update(fec_decode_group* opt,
 		uint32_t gid, uint16_t pid,
 		int ds, int ps, vpn_packet_ptr& pkt)
 	{
@@ -346,16 +346,16 @@ namespace avpn
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, pkt);
 			groups_.emplace(gid, std::move(gop));
-			return;
+			return false;
 		}
 
 		auto& gop = *opt;
 		if (gop.expired())
-			return;
+			return false;
 
 		gop.update(gid, pid, pkt);
 		if (!gop.available())
-			return;
+			return false;
 
 		scoped_exit se([this, &gop, &gid]() mutable
 			{
@@ -375,11 +375,11 @@ namespace avpn
 
 		auto lost_pkts = gop.lost();
 		if (lost_pkts.empty())
-			return;
+			return true;
 
 		// gop解码.
 		if (!gop.decode())
-			return;
+			return false;
 
 		// 解码后将丢失的pkt放入result容器中.
 		for (auto& index : lost_pkts)
@@ -391,6 +391,8 @@ namespace avpn
 
 			results_.emplace_back(std::move(p));
 		}
+
+		return false;
 	}
 
 	int64_t fec_recover::garbage_clean()

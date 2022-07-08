@@ -193,30 +193,9 @@ namespace avpn {
 		else
 			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
-		// 默认使用udp发送.
-		bool use_tcp_transfer = false;
-		int ipproto = m_ipproto;
-
-		// 只有以下情况, 将使用tcp发送.
-		// 1. tcp only 状态时.
-		// 2. 作为server时, 远端udp不可用时.
-		// 3. TODO: 混合模式, tcp发送为闲时, 使用tcp发送.
-		if (params.mode_ == 2 ||
-			ipproto == 2 ||
-			(m_remote_endpoint.port() == 0 &&
-				m_identity == Identity::avpn_server))
-		{
-			// 使用tcp发送至客户端.
-			use_tcp_transfer = true;
-		}
-
-		if ((params.mode_ == 1 || ipproto == 1) && m_tcp_deque.empty())
-		{
-			use_tcp_transfer = true;
-		}
-
 		// 通过udp或tcp发送pkt.
-		if (use_tcp_transfer)
+		bool use_tcp = use_tcp_transfer();
+		if (use_tcp)
 			co_await tcp_write_packet(m_tcp_socket, pkt);
 		else
 			udp_write_pkt(pkt);
@@ -256,7 +235,7 @@ namespace avpn {
 		{
 			pkt = m_feg.pkts_[i];
 
-			if (use_tcp_transfer)
+			if (use_tcp)
 				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
 				udp_write_pkt(pkt);
@@ -437,6 +416,28 @@ namespace avpn {
 
 		LOG_WARN << "Quit vpn_tunnel::tick " << this;
 		co_return;
+	}
+
+	bool vpn_tunnel::use_tcp_transfer() const
+	{
+		auto& params = m_config.tunnel_params_;
+		int ipproto = m_ipproto;
+
+		if (params.mode_ == 2 ||
+			ipproto == 2 ||
+			(m_remote_endpoint.port() == 0 &&
+				m_identity == Identity::avpn_server))
+		{
+			// 使用tcp发送至客户端.
+			return true;
+		}
+
+		if ((params.mode_ == 1 ||
+			ipproto == 1) &&
+			m_tcp_deque.empty())
+			return true;
+
+		return false;
 	}
 
 	void vpn_tunnel::compute_speed(speed_stat& stat, int bytes)
@@ -847,8 +848,23 @@ namespace avpn {
 			co_return;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
-		m_recover.update(opt, gid, pid,
+		bool whole = m_recover.update(opt, gid, pid,
 			m_data_shards, m_parity_shards, pkt);
+
+		// 完整接收, 发送ack消息.
+		if (whole)
+		{
+			auto ack = make_transfer_ack(src, gid);
+			auto ptr = std::make_shared<vpn_packet>(std::move(ack));
+
+			// 通过udp或tcp发送pkt.
+			if (use_tcp_transfer())
+				co_await tcp_write_packet(m_tcp_socket, pkt);
+			else
+				udp_write_pkt(pkt);
+
+			co_return;
+		}
 
 		// 获取fec解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);

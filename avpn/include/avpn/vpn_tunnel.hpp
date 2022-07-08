@@ -116,6 +116,7 @@ namespace avpn {
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
+		bool use_tcp_transfer() const;
 
 		// 速率计算.
 		void compute_speed(speed_stat& stat, int bytes);

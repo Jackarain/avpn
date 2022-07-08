@@ -196,8 +196,8 @@ namespace avpn {
 	// rsv(8)
 
 	vpn_packet make_transfer_ack(uint32_t src,
-		uint32_t gid, uint8_t pid);
+		uint32_t gid);
 
 	int unwrap_transfer_ack(vpn_packet& pkt,
-		uint32_t& src, uint32_t& gid, uint8_t& pid);
+		uint32_t& src, uint32_t& gid);
 }

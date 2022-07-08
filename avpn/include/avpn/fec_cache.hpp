@@ -176,7 +176,7 @@ namespace avpn {
 		void reset();
 
 		fec_decode_group* find(uint32_t gid);
-		void update(fec_decode_group* opt,
+		bool update(fec_decode_group* opt,
 			uint32_t gid, uint16_t pid,
 			int ds, int ps, vpn_packet_ptr& pkt);
 
