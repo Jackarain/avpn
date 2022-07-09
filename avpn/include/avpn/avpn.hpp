@@ -25,6 +25,12 @@ namespace avpn {
 		avpn_client = 1
 	};
 
+	enum class Proto {
+		avpn_unknown = -1,
+		avpn_udp = 0,
+		avpn_mix = 1,
+		avpn_tcp = 2,
+	};
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -45,7 +51,7 @@ namespace avpn {
 
 		// 可以指定不同的连接模式
 		// 具体值为: 0为udp only, 1为udp/tcp混合, 2为tcp only.
-		int mode_;
+		Proto mode_;
 
 		// 压缩选项, 指定压缩算法
 		// 可以指定的压缩算法: deflate, lz4, zstd.

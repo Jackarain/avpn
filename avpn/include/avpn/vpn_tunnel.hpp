@@ -103,8 +103,8 @@ namespace avpn {
 		void remote_endpoint(const udp::endpoint& endp);
 
 		// 设置/返回tunnel的ipproto.
-		int ipproto() const;
-		void ipproto(int proto);
+		Proto ipproto() const;
+		void ipproto(Proto proto);
 
 		// 设置/返回tunnel最后活跃时间.
 		time_point last_see() const;
@@ -116,7 +116,7 @@ namespace avpn {
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
-		bool use_tcp_transfer() const;
+		Proto cherry_pick() const;
 
 		// 速率计算.
 		void compute_speed(speed_stat& stat, int bytes);
@@ -169,7 +169,7 @@ namespace avpn {
 		std::string m_client_id;
 
 		// 客户端通信协议.
-		int m_ipproto{ -1 };
+		Proto m_ipproto{ Proto::avpn_unknown };
 
 		// 对方fec编码使用的ds, ps.
 		// 本端解码时需要使用对方的ds,ps来进行fec解码.

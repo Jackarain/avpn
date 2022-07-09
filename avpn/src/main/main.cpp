@@ -363,7 +363,7 @@ int main(int argc, char** argv)
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
-	params.mode_ = mode;
+	params.mode_ = static_cast<avpn::Proto>(mode);
 	params.compress_ = compress;
 	params.keepalive_ = keepalive;
 	if (!pushdns.empty())

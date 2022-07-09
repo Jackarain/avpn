@@ -194,8 +194,8 @@ namespace avpn {
 			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
 		// 通过udp或tcp发送pkt.
-		bool use_tcp = use_tcp_transfer();
-		if (use_tcp)
+		auto pick = cherry_pick();
+		if (pick == Proto::avpn_tcp)
 			co_await tcp_write_packet(m_tcp_socket, pkt);
 		else
 			udp_write_pkt(pkt);
@@ -235,7 +235,7 @@ namespace avpn {
 		{
 			pkt = m_feg.pkts_[i];
 
-			if (use_tcp)
+			if (pick == Proto::avpn_tcp)
 				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
 				udp_write_pkt(pkt);
@@ -305,29 +305,29 @@ namespace avpn {
 		m_remote_endpoint = endp;
 	}
 
-	int vpn_tunnel::ipproto() const
+	Proto vpn_tunnel::ipproto() const
 	{
 		return m_ipproto;
 	}
 
-	void vpn_tunnel::ipproto(int proto)
+	void vpn_tunnel::ipproto(Proto proto)
 	{
-		if (m_ipproto == -1)
+		if (m_ipproto == Proto::avpn_unknown)
 		{
 			m_ipproto = proto;
-			LOG_DBG << this << ", Update: " << m_ipproto;
+			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
 			return;
 		}
 
-		if (m_ipproto == 0 && proto == 2)
+		if (m_ipproto == Proto::avpn_udp && proto == Proto::avpn_tcp)
 		{
-			m_ipproto = 1;
-			LOG_DBG << this << ", Update: " << m_ipproto;
+			m_ipproto = Proto::avpn_mix;
+			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
 		}
-		if (m_ipproto == 2 && proto == 0)
+		if (m_ipproto == Proto::avpn_tcp && proto == Proto::avpn_udp)
 		{
-			m_ipproto = 1;
-			LOG_DBG << this << ", Update: " << m_ipproto;
+			m_ipproto = Proto::avpn_mix;;
+			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
 		}
 	}
 
@@ -407,7 +407,8 @@ namespace avpn {
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 				if ((std::rand() % 2 == 0 &&
-					m_ipproto == 1) || m_ipproto == 0)
+					m_ipproto == Proto::avpn_mix) ||
+					m_ipproto == Proto::avpn_udp)
 					udp_write_pkt(ptr);
 				else
 					tcp_write_pkt(ptr);
@@ -418,19 +419,20 @@ namespace avpn {
 		co_return;
 	}
 
-	bool vpn_tunnel::use_tcp_transfer() const
+	Proto vpn_tunnel::cherry_pick() const
 	{
 		auto& params = m_config.tunnel_params_;
-		int ipproto = m_ipproto;
+		auto ipproto = m_ipproto;
 
 		if (m_remote_endpoint.port() == 0 &&
 			m_identity == Identity::avpn_server)
-			return true;
+			return Proto::avpn_tcp;
 
-		if (params.mode_ == 2 || ipproto == 2)
-			return true;
+		if (params.mode_ == Proto::avpn_tcp ||
+			ipproto == Proto::avpn_mix)
+			return Proto::avpn_tcp;
 
-		return false;
+		return Proto::avpn_udp;
 	}
 
 	void vpn_tunnel::compute_speed(speed_stat& stat, int bytes)
@@ -713,7 +715,8 @@ namespace avpn {
 				make_keepalive_reply(src, m_client_id,
 					m_num_recv_packet, m_num_send_packet, timestamp));
 
-			if (m_ipproto == 2 || m_ipproto == 1)
+			if (m_ipproto == Proto::avpn_tcp ||
+				m_ipproto == Proto::avpn_mix)
 				tcp_write_pkt(p);
 			else
 				udp_write_pkt(p);
@@ -851,7 +854,7 @@ namespace avpn {
 			auto ptr = std::make_shared<vpn_packet>(std::move(ack));
 
 			// 通过udp或tcp发送pkt.
-			if (use_tcp_transfer())
+			if (cherry_pick() == Proto::avpn_tcp)
 				co_await tcp_write_packet(m_tcp_socket, pkt);
 			else
 				udp_write_pkt(pkt);

@@ -343,7 +343,7 @@ namespace avpn {
 				}
 
 				// 更新ipproto.
-				tunnel->ipproto(0);
+				tunnel->ipproto(Proto::avpn_udp);
 
 				// 创建packet指针再通过tun_forward传入协程.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
@@ -1222,7 +1222,7 @@ namespace avpn {
 			if (!m_server_udp_endps.empty())
 			{
 				tunnel->remote_endpoint(m_server_udp_endps.front());
-				tunnel->ipproto(0);
+				tunnel->ipproto(Proto::avpn_udp);
 			}
 
 			LOG_DBG << "Handshake by tcp, make tunnel: " << tunnel.get()
@@ -1251,7 +1251,7 @@ namespace avpn {
 		tunnel->tcp_socket(std::move(stream), 0);
 
 		// 设置ipproto.
-		tunnel->ipproto(2);
+		tunnel->ipproto(Proto::avpn_tcp);
 
 		// 启动tunnel.
 		tunnel->start_tunnel(ds, ps);
@@ -1501,7 +1501,7 @@ namespace avpn {
 
 		// 替换为新的tcp socket, 然后用新的tcp socket 用于tcp通信.
 		tunnel->tcp_socket(std::move(stream), id);
-		tunnel->ipproto(2);
+		tunnel->ipproto(Proto::avpn_tcp);
 		tunnel->start_tunnel(ds, ps);
 
 		// 开始tunnel的tcp读取消息循环.
@@ -1591,7 +1591,7 @@ namespace avpn {
 
 		// 更新tunnel的远端udp的endpoint.
 		tunnel->remote_endpoint(remote);
-		tunnel->ipproto(0);
+		tunnel->ipproto(Proto::avpn_udp);
 		tunnel->start_tunnel(ds, ps);
 
 		co_return;
@@ -1684,7 +1684,7 @@ namespace avpn {
 		m_client_reset_flag &= ~vpn_restart_busy;
 
 		// 更新tunnel的远端udp的endpoint.
-		tunnel->ipproto(0);
+		tunnel->ipproto(Proto::avpn_udp);
 		tunnel->remote_endpoint(remote);
 		tunnel->start_tunnel(ds, ps);
 
