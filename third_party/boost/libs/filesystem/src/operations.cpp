@@ -38,12 +38,18 @@
 #endif
 #include <cerrno>
 
+// Default to POSIX under Emscripten
+// If BOOST_FILESYSTEM_EMSCRIPTEN_USE_WASI is set, use WASI instead
+#if defined(__wasm) && (!defined(__EMSCRIPTEN__) || defined(BOOST_FILESYSTEM_EMSCRIPTEN_USE_WASI))
+#define BOOST_FILESYSTEM_USE_WASI
+#endif
+
 #ifdef BOOST_POSIX_API
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(__wasm)
+#if defined(BOOST_FILESYSTEM_USE_WASI)
 // WASI does not have statfs or statvfs.
 #elif !defined(__APPLE__) && \
     (!defined(__OpenBSD__) || BOOST_OS_BSD_OPEN >= BOOST_VERSION_NUMBER(4, 4, 0)) && \
@@ -1252,7 +1258,13 @@ namespace {
 
 inline bool is_reparse_point_a_symlink(path const& p)
 {
-    handle_wrapper h(create_file_handle(p, 0u, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
+    handle_wrapper h(create_file_handle(
+        p,
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
     if (BOOST_UNLIKELY(h.handle == INVALID_HANDLE_VALUE))
         return false;
 
@@ -1278,9 +1290,8 @@ inline std::size_t get_full_path_name(path const& src, std::size_t len, wchar_t*
     return static_cast< std::size_t >(::GetFullPathNameW(src.c_str(), static_cast< DWORD >(len), buf, p));
 }
 
-inline fs::file_status process_status_failure(path const& p, error_code* ec)
+inline fs::file_status process_status_failure(DWORD errval, path const& p, error_code* ec)
 {
-    DWORD errval = ::GetLastError();
     if (ec)                                    // always report errval, even though some
         ec->assign(errval, system_category()); // errval values are not status_errors
 
@@ -1297,6 +1308,11 @@ inline fs::file_status process_status_failure(path const& p, error_code* ec)
         BOOST_FILESYSTEM_THROW(filesystem_error("boost::filesystem::status", p, error_code(errval, system_category())));
 
     return fs::file_status(fs::status_error);
+}
+
+inline fs::file_status process_status_failure(path const& p, error_code* ec)
+{
+    return process_status_failure(::GetLastError(), p, ec);
 }
 
 //! remove() implementation for Windows XP and older
@@ -1357,8 +1373,13 @@ bool remove_nt5_impl(path const& p, DWORD attrs, error_code* ec)
 //! remove() implementation for Windows Vista and newer
 bool remove_nt6_impl(path const& p, remove_impl_type impl, error_code* ec)
 {
-    handle_wrapper h(create_file_handle(p, DELETE | FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-        NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
+    handle_wrapper h(create_file_handle(
+        p,
+        DELETE | FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
     DWORD err;
     if (BOOST_UNLIKELY(h.handle == INVALID_HANDLE_VALUE))
     {
@@ -2205,7 +2226,7 @@ bool copy_file(path const& from, path const& to, unsigned int options, error_cod
     }
 
     mode_t to_mode = from_mode;
-#if !defined(__wasm)
+#if !defined(BOOST_FILESYSTEM_USE_WASI)
     // Enable writing for the newly created files. Having write permission set is important e.g. for NFS,
     // which checks the file permission on the server, even if the client's file descriptor supports writing.
     to_mode |= S_IWUSR;
@@ -2324,7 +2345,7 @@ bool copy_file(path const& from, path const& to, unsigned int options, error_cod
     if (BOOST_UNLIKELY(err != 0))
         goto fail; // err already contains the error code
 
-#if !defined(__wasm)
+#if !defined(BOOST_FILESYSTEM_USE_WASI)
     // If we created a new file with an explicitly added S_IWUSR permission,
     // we may need to update its mode bits to match the source file.
     if (to_mode != from_mode)
@@ -2373,7 +2394,7 @@ bool copy_file(path const& from, path const& to, unsigned int options, error_cod
         // Create handle_wrappers here so that CloseHandle calls don't clobber error code returned by GetLastError
         handle_wrapper hw_from, hw_to;
 
-        hw_from.handle = create_file_handle(from.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
+        hw_from.handle = create_file_handle(from.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
 
         FILETIME lwt_from;
         if (hw_from.handle == INVALID_HANDLE_VALUE)
@@ -2384,15 +2405,15 @@ bool copy_file(path const& from, path const& to, unsigned int options, error_cod
             return false;
         }
 
-        if (!::GetFileTime(hw_from.handle, 0, 0, &lwt_from))
+        if (!::GetFileTime(hw_from.handle, NULL, NULL, &lwt_from))
             goto fail_last_error;
 
-        hw_to.handle = create_file_handle(to.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
+        hw_to.handle = create_file_handle(to.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS);
 
         if (hw_to.handle != INVALID_HANDLE_VALUE)
         {
             FILETIME lwt_to;
-            if (!::GetFileTime(hw_to.handle, 0, 0, &lwt_to))
+            if (!::GetFileTime(hw_to.handle, NULL, NULL, &lwt_to))
                 goto fail_last_error;
 
             ULONGLONG tfrom = (static_cast< ULONGLONG >(lwt_from.dwHighDateTime) << 32) | static_cast< ULONGLONG >(lwt_from.dwLowDateTime);
@@ -2760,7 +2781,7 @@ void create_symlink(path const& to, path const& from, error_code* ec)
 BOOST_FILESYSTEM_DECL
 path current_path(error_code* ec)
 {
-#if defined(UNDER_CE) || defined(__wasm)
+#if defined(UNDER_CE) || defined(BOOST_FILESYSTEM_USE_WASI)
     // Windows CE has no current directory, so everything's relative to the root of the directory tree.
     // WASI also does not support current path.
     emit_error(BOOST_ERROR_NOT_SUPPORTED, ec, "boost::filesystem::current_path");
@@ -2830,7 +2851,7 @@ path current_path(error_code* ec)
 BOOST_FILESYSTEM_DECL
 void current_path(path const& p, system::error_code* ec)
 {
-#if defined(UNDER_CE) || defined(__wasm)
+#if defined(UNDER_CE) || defined(BOOST_FILESYSTEM_USE_WASI)
     emit_error(BOOST_ERROR_NOT_SUPPORTED, p, ec, "boost::filesystem::current_path");
 #else
     error(!BOOST_SET_CURRENT_DIRECTORY(p.c_str()) ? BOOST_ERRNO : 0, p, ec, "boost::filesystem::current_path");
@@ -2894,23 +2915,21 @@ bool equivalent(path const& p1, path const& p2, system::error_code* ec)
     // been retrieved.
 
     // p2 is done first, so any error reported is for p1
-    handle_wrapper h2(
-        create_file_handle(
-            p2.c_str(),
-            0u,
-            FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper h2(create_file_handle(
+        p2.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
-    handle_wrapper h1(
-        create_file_handle(
-            p1.c_str(),
-            0u,
-            FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper h1(create_file_handle(
+        p1.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
     if (BOOST_UNLIKELY(h1.handle == INVALID_HANDLE_VALUE || h2.handle == INVALID_HANDLE_VALUE))
     {
@@ -3044,8 +3063,13 @@ uintmax_t hard_link_count(path const& p, system::error_code* ec)
 
 #else // defined(BOOST_POSIX_API)
 
-    handle_wrapper h(
-        create_file_handle(p.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper h(create_file_handle(
+        p.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
     if (BOOST_UNLIKELY(h.handle == INVALID_HANDLE_VALUE))
     {
@@ -3166,8 +3190,13 @@ std::time_t creation_time(path const& p, system::error_code* ec)
 
 #else // defined(BOOST_POSIX_API)
 
-    handle_wrapper hw(
-        create_file_handle(p.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper hw(create_file_handle(
+        p.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
     if (BOOST_UNLIKELY(hw.handle == INVALID_HANDLE_VALUE))
     {
@@ -3219,8 +3248,13 @@ std::time_t last_write_time(path const& p, system::error_code* ec)
 
 #else // defined(BOOST_POSIX_API)
 
-    handle_wrapper hw(
-        create_file_handle(p.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper hw(create_file_handle(
+        p.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
     if (BOOST_UNLIKELY(hw.handle == INVALID_HANDLE_VALUE))
     {
@@ -3281,8 +3315,13 @@ void last_write_time(path const& p, const std::time_t new_time, system::error_co
 
 #else // defined(BOOST_POSIX_API)
 
-    handle_wrapper hw(
-        create_file_handle(p.c_str(), FILE_WRITE_ATTRIBUTES, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS));
+    handle_wrapper hw(create_file_handle(
+        p.c_str(),
+        FILE_WRITE_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS));
 
     if (BOOST_UNLIKELY(hw.handle == INVALID_HANDLE_VALUE))
     {
@@ -3294,7 +3333,7 @@ void last_write_time(path const& p, const std::time_t new_time, system::error_co
     FILETIME lwt;
     to_FILETIME(new_time, lwt);
 
-    if (BOOST_UNLIKELY(!::SetFileTime(hw.handle, 0, 0, &lwt)))
+    if (BOOST_UNLIKELY(!::SetFileTime(hw.handle, NULL, NULL, &lwt)))
         goto fail;
 
 #endif // defined(BOOST_POSIX_API)
@@ -3316,7 +3355,7 @@ void permissions(path const& p, perms prms, system::error_code* ec)
     if ((prms & add_perms) && (prms & remove_perms)) // precondition failed
         return;
 
-#if defined(__wasm)
+#if defined(BOOST_FILESYSTEM_USE_WASI)
     emit_error(BOOST_ERROR_NOT_SUPPORTED, p, ec, "boost::filesystem::permissions");
 #elif defined(BOOST_POSIX_API)
     error_code local_ec;
@@ -3445,8 +3484,13 @@ path read_symlink(path const& p, system::error_code* ec)
 
 #else
 
-    handle_wrapper h(
-        create_file_handle(p.c_str(), 0u, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
+    handle_wrapper h(create_file_handle(
+        p.c_str(),
+        FILE_READ_ATTRIBUTES,
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
 
     DWORD error;
     if (BOOST_UNLIKELY(h.handle == INVALID_HANDLE_VALUE))
@@ -3460,7 +3504,7 @@ path read_symlink(path const& p, system::error_code* ec)
 
     boost::scoped_ptr< reparse_data_buffer_with_storage > buf(new reparse_data_buffer_with_storage);
     DWORD sz = 0u;
-    if (BOOST_UNLIKELY(!::DeviceIoControl(h.handle, FSCTL_GET_REPARSE_POINT, 0, 0, buf.get(), sizeof(*buf), &sz, 0)))
+    if (BOOST_UNLIKELY(!::DeviceIoControl(h.handle, FSCTL_GET_REPARSE_POINT, NULL, 0, buf.get(), sizeof(*buf), &sz, NULL)))
     {
         error = ::GetLastError();
         goto return_error;
@@ -3575,7 +3619,7 @@ space_info space(path const& p, error_code* ec)
     if (ec)
         ec->clear();
 
-#if defined(__wasm)
+#if defined(BOOST_FILESYSTEM_USE_WASI)
 
     emit_error(BOOST_ERROR_NOT_SUPPORTED, p, ec, "boost::filesystem::space");
 
@@ -3711,14 +3755,13 @@ file_status status(path const& p, error_code* ec)
     if (st.type() == symlink_file)
     {
         // Resolve the symlink
-        handle_wrapper h(
-            create_file_handle(
-                p.c_str(),
-                0u, // dwDesiredAccess; attributes only
-                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                NULL, // lpSecurityAttributes
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS));
+        handle_wrapper h(create_file_handle(
+            p.c_str(),
+            FILE_READ_ATTRIBUTES, // dwDesiredAccess; attributes only
+            FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+            NULL, // lpSecurityAttributes
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS));
 
         if (h.handle == INVALID_HANDLE_VALUE)
         {
@@ -3733,12 +3776,20 @@ file_status status(path const& p, error_code* ec)
             file_attribute_tag_info info;
             BOOL res = get_file_information_by_handle_ex(h.handle, file_attribute_tag_info_class, &info, sizeof(info));
             if (BOOST_UNLIKELY(!res))
-                goto return_status_failure;
+            {
+                // See the comment in symlink_status
+                DWORD err = ::GetLastError();
+                if (err == ERROR_INVALID_PARAMETER || err == ERROR_NOT_SUPPORTED)
+                    goto use_get_file_information_by_handle;
+
+                return process_status_failure(err, p, ec);
+            }
 
             attrs = info.FileAttributes;
         }
         else
         {
+        use_get_file_information_by_handle:
             BY_HANDLE_FILE_INFORMATION info;
             BOOL res = ::GetFileInformationByHandle(h.handle, &info);
             if (BOOST_UNLIKELY(!res))
@@ -3814,52 +3865,79 @@ file_status symlink_status(path const& p, error_code* ec)
 
 #else // defined(BOOST_POSIX_API)
 
-    handle_wrapper h(
-        create_file_handle(
-            p.c_str(),
-            0u, // dwDesiredAccess; attributes only
-            FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL, // lpSecurityAttributes
-            OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
-
-    if (h.handle == INVALID_HANDLE_VALUE)
-    {
-    return_status_failure:
-        return process_status_failure(p, ec);
-    }
+    handle_wrapper h(create_file_handle(
+        p.c_str(),
+        FILE_READ_ATTRIBUTES, // dwDesiredAccess; attributes only
+        FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+        NULL, // lpSecurityAttributes
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT));
 
     DWORD attrs;
-    fs::perms permissions;
-    GetFileInformationByHandleEx_t* get_file_information_by_handle_ex = filesystem::detail::atomic_load_relaxed(get_file_information_by_handle_ex_api);
-    if (BOOST_LIKELY(get_file_information_by_handle_ex != NULL))
+    if (h.handle == INVALID_HANDLE_VALUE)
     {
-        file_attribute_tag_info info;
-        BOOL res = get_file_information_by_handle_ex(h.handle, file_attribute_tag_info_class, &info, sizeof(info));
-        if (BOOST_UNLIKELY(!res))
-            goto return_status_failure;
+        // For some system files and folders like "System Volume Information" CreateFileW fails
+        // with ERROR_ACCESS_DENIED. GetFileAttributesW succeeds for such files, so try that.
+        // Though this will only help if the file is not a reparse point (symlink or not).
+        DWORD err = ::GetLastError();
+        if (err == ERROR_ACCESS_DENIED)
+        {
+            attrs = ::GetFileAttributesW(p.c_str());
+            if (attrs != INVALID_FILE_ATTRIBUTES)
+            {
+                if ((attrs & FILE_ATTRIBUTE_REPARSE_POINT) == 0u)
+                    goto done;
+            }
+            else
+            {
+                err = ::GetLastError();
+            }
+        }
 
-        attrs = info.FileAttributes;
-        permissions = make_permissions(p, attrs);
-
-        if (attrs & FILE_ATTRIBUTE_REPARSE_POINT)
-            return is_reparse_point_tag_a_symlink(info.ReparseTag) ? fs::file_status(fs::symlink_file, permissions) : fs::file_status(fs::reparse_file, permissions);
-    }
-    else
-    {
-        BY_HANDLE_FILE_INFORMATION info;
-        BOOL res = ::GetFileInformationByHandle(h.handle, &info);
-        if (BOOST_UNLIKELY(!res))
-            goto return_status_failure;
-
-        attrs = info.dwFileAttributes;
-        permissions = make_permissions(p, attrs);
-
-        if (attrs & FILE_ATTRIBUTE_REPARSE_POINT)
-            return is_reparse_point_a_symlink_ioctl(h.handle) ? fs::file_status(fs::symlink_file, permissions) : fs::file_status(fs::reparse_file, permissions);
+        return process_status_failure(err, p, ec);
     }
 
-    return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? fs::file_status(fs::directory_file, permissions) : fs::file_status(fs::regular_file, permissions);
+    {
+        GetFileInformationByHandleEx_t* get_file_information_by_handle_ex = filesystem::detail::atomic_load_relaxed(get_file_information_by_handle_ex_api);
+        if (BOOST_LIKELY(get_file_information_by_handle_ex != NULL))
+        {
+            file_attribute_tag_info info;
+            BOOL res = get_file_information_by_handle_ex(h.handle, file_attribute_tag_info_class, &info, sizeof(info));
+            if (BOOST_UNLIKELY(!res))
+            {
+                // On FAT/exFAT filesystems requesting FILE_ATTRIBUTE_TAG_INFO returns ERROR_INVALID_PARAMETER.
+                // Presumably, this is because these filesystems don't support reparse points, so ReparseTag
+                // cannot be returned. Also check ERROR_NOT_SUPPORTED for good measure. Fall back to the legacy
+                // code path in this case.
+                DWORD err = ::GetLastError();
+                if (err == ERROR_INVALID_PARAMETER || err == ERROR_NOT_SUPPORTED)
+                    goto use_get_file_information_by_handle;
+
+                return process_status_failure(err, p, ec);
+            }
+
+            attrs = info.FileAttributes;
+
+            if (attrs & FILE_ATTRIBUTE_REPARSE_POINT)
+                return fs::file_status(is_reparse_point_tag_a_symlink(info.ReparseTag) ? fs::symlink_file : fs::reparse_file, make_permissions(p, attrs));
+        }
+        else
+        {
+        use_get_file_information_by_handle:
+            BY_HANDLE_FILE_INFORMATION info;
+            BOOL res = ::GetFileInformationByHandle(h.handle, &info);
+            if (BOOST_UNLIKELY(!res))
+                return process_status_failure(p, ec);
+
+            attrs = info.dwFileAttributes;
+
+            if (attrs & FILE_ATTRIBUTE_REPARSE_POINT)
+                return fs::file_status(is_reparse_point_a_symlink_ioctl(h.handle) ? fs::symlink_file : fs::reparse_file, make_permissions(p, attrs));
+        }
+    }
+
+done:
+    return fs::file_status((attrs & FILE_ATTRIBUTE_DIRECTORY) ? fs::directory_file : fs::regular_file, make_permissions(p, attrs));
 
 #endif // defined(BOOST_POSIX_API)
 }

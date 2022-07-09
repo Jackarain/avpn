@@ -6,20 +6,20 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
+#include <boost/locale/generator.hpp>
 #if defined(__FreeBSD__)
 #include <xlocale.h>
 #endif
+#include <clocale>
+#include <cstring>
 #include <locale>
-#include <locale.h>
-#include <string.h>
 #include <wchar.h>
 #include <string>
 #include <stdexcept>
 #include <ios>
 #include <vector>
-#include <boost/locale/generator.hpp>
-#include "../shared/mo_hash.hpp"
 
+#include "../shared/mo_hash.hpp"
 #include "all_generator.hpp"
 
 namespace boost {
@@ -58,15 +58,13 @@ class collator : public std::collate<CharType> {
 public:
     typedef CharType char_type;
     typedef std::basic_string<char_type> string_type;
-    collator(boost::shared_ptr<locale_t> l,size_t refs = 0) : 
+    collator(boost::shared_ptr<locale_t> l,size_t refs = 0) :
         std::collate<CharType>(refs),
         lc_(l)
     {
     }
-    virtual ~collator()
-    {
-    }
-    virtual int do_compare(char_type const *lb,char_type const *le,char_type const *rb,char_type const *re) const
+
+    int do_compare(char_type const *lb,char_type const *le,char_type const *rb,char_type const *re) const BOOST_OVERRIDE
     {
         string_type left(lb,le-lb);
         string_type right(rb,re-rb);
@@ -77,14 +75,14 @@ public:
             return 1;
         return 0;
     }
-    virtual long do_hash(char_type const *b,char_type const *e) const
+    long do_hash(char_type const *b,char_type const *e) const BOOST_OVERRIDE
     {
         string_type s(do_transform(b,e));
         char const *begin = reinterpret_cast<char const *>(s.c_str());
         char const *end = begin + s.size() * sizeof(char_type);
         return gnu_gettext::pj_winberger_hash_function(begin,end);
     }
-    virtual string_type do_transform(char_type const *b,char_type const *e) const
+    string_type do_transform(char_type const *b,char_type const *e) const BOOST_OVERRIDE
     {
         string_type s(b,e-b);
         std::vector<char_type> buf((e-b)*2+1);
@@ -116,7 +114,7 @@ std::locale create_collate( std::locale const &in,
 
 
 } // impl_std
-} // locale 
+} // locale
 } //boost
 
 

@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <limits>
 #include <ctime>
+#include <stdexcept>
 
 #include "lcid.hpp"
 
@@ -39,7 +40,7 @@
 namespace boost {
 namespace locale {
 namespace impl_win {
-    
+
     struct numeric_info {
         std::wstring thousands_sep;
         std::wstring decimal_point;
@@ -65,14 +66,14 @@ namespace impl_win {
         return flags;
     }
 
-    
-  
-    #ifdef BOOST_LOCALE_WINDOWS_2000_API 
-    
+
+
+    #ifdef BOOST_LOCALE_WINDOWS_2000_API
+
     class winlocale{
     public:
-        winlocale() : 
-            lcid(0) 
+        winlocale() :
+            lcid(0)
         {
         }
 
@@ -80,9 +81,9 @@ namespace impl_win {
         {
             lcid = locale_to_lcid(name);
         }
-        
+
         unsigned lcid;
-        
+
         bool is_c() const
         {
             return lcid == 0;
@@ -95,7 +96,7 @@ namespace impl_win {
     /// Number Format
     ///
     ////////////////////////////////////////////////////////////////////////
-    
+
     inline numeric_info wcsnumformat_l(winlocale const &l)
     {
         numeric_info res;
@@ -110,9 +111,9 @@ namespace impl_win {
         static const int de_size = 4;
         static const int gr_size = 10;
 
-        wchar_t th[th_size]={0}; 
+        wchar_t th[th_size]={0};
         wchar_t de[de_size]={0};
-        wchar_t gr[gr_size]={0}; 
+        wchar_t gr[gr_size]={0};
 
         if( GetLocaleInfoW(lcid,LOCALE_STHOUSAND,th,th_size)==0
             || GetLocaleInfoW(lcid,LOCALE_SDECIMAL ,de,de_size)==0
@@ -146,11 +147,15 @@ namespace impl_win {
     inline std::wstring win_map_string_l(unsigned flags,wchar_t const *begin,wchar_t const *end,winlocale const &l)
     {
         std::wstring res;
-        int len = LCMapStringW(l.lcid,flags,begin,end-begin,0,0);
+        if(end - begin > std::numeric_limits<int>::max())
+            throw std::length_error("String to long for int type");
+        int len = LCMapStringW(l.lcid,flags,begin, static_cast<int>(end-begin),0,0);
         if(len == 0)
             return res;
+        if(len == std::numeric_limits<int>::max())
+            throw std::length_error("String to long for int type");
         std::vector<wchar_t> buf(len+1);
-        int l2 = LCMapStringW(l.lcid,flags,begin,end-begin,&buf.front(),buf.size());
+        int l2 = LCMapStringW(l.lcid,flags,begin,static_cast<int>(end-begin),&buf.front(),static_cast<int>(buf.size()));
         res.assign(&buf.front(),l2);
         return res;
     }
@@ -167,7 +172,9 @@ namespace impl_win {
                             wchar_t const *rb,wchar_t const *re,
                             winlocale const &l)
     {
-        return CompareStringW(l.lcid,collation_level_to_flag(level),lb,le-lb,rb,re-rb) - 2;
+        if(le - lb > std::numeric_limits<int>::max() || re - rb > std::numeric_limits<int>::max())
+            throw std::length_error("String to long for int type");
+        return CompareStringW(l.lcid,collation_level_to_flag(level),lb,static_cast<int>(le-lb),rb,static_cast<int>(re-rb)) - 2;
     }
 
 
@@ -196,21 +203,21 @@ namespace impl_win {
     ///
     ////////////////////////////////////////////////////////////////////////
 
-    
+
     inline std::wstring wcs_format_date_l(wchar_t const *format,SYSTEMTIME const *tm,winlocale const &l)
     {
         int len = GetDateFormatW(l.lcid,0,tm,format,0,0);
         std::vector<wchar_t> buf(len+1);
         GetDateFormatW(l.lcid,0,tm,format,&buf.front(),len);
-        return &buf.front(); 
+        return &buf.front();
     }
-    
+
     inline std::wstring wcs_format_time_l(wchar_t const *format,SYSTEMTIME const *tm,winlocale const &l)
     {
         int len = GetTimeFormatW(l.lcid,0,tm,format,0,0);
         std::vector<wchar_t> buf(len+1);
         GetTimeFormatW(l.lcid,0,tm,format,&buf.front(),len);
-        return &buf.front(); 
+        return &buf.front();
     }
 
     inline std::wstring wcsfold(wchar_t const *begin,wchar_t const *end)
@@ -242,11 +249,15 @@ namespace impl_win {
             flags = MAP_PRECOMPOSED;
         }
 
-        int len = FoldStringW(flags,begin,end-begin,0,0);
+        if(end - begin > std::numeric_limits<int>::max())
+            throw std::length_error("String to long for int type");
+        int len = FoldStringW(flags,begin,static_cast<int>(end-begin),0,0);
         if(len == 0)
             return std::wstring();
+        if(len == std::numeric_limits<int>::max())
+            throw std::length_error("String to long for int type");
         std::vector<wchar_t> v(len+1);
-        len = FoldStringW(flags,begin,end-begin,&v.front(),len+1);
+        len = FoldStringW(flags,begin,static_cast<int>(end-begin),&v.front(),len+1);
         return std::wstring(&v.front(),len);
     }
 
@@ -273,13 +284,13 @@ namespace impl_win {
     inline std::wstring wcsftime_l(char c,std::tm const *tm,winlocale const &l)
     {
         SYSTEMTIME wtm=SYSTEMTIME();
-        wtm.wYear = tm->tm_year + 1900;
-        wtm.wMonth = tm->tm_mon+1;
-        wtm.wDayOfWeek = tm->tm_wday;
-        wtm.wDay = tm->tm_mday;
-        wtm.wHour = tm->tm_hour;
-        wtm.wMinute = tm->tm_min;
-        wtm.wSecond = tm->tm_sec;
+        wtm.wYear = static_cast<WORD>(tm->tm_year + 1900);
+        wtm.wMonth = static_cast<WORD>(tm->tm_mon+1);
+        wtm.wDayOfWeek = static_cast<WORD>(tm->tm_wday);
+        wtm.wDay = static_cast<WORD>(tm->tm_mday);
+        wtm.wHour = static_cast<WORD>(tm->tm_hour);
+        wtm.wMinute = static_cast<WORD>(tm->tm_min);
+        wtm.wSecond = static_cast<WORD>(tm->tm_sec);
         switch(c) {
         case 'a': // Abbr Weekday
             return wcs_format_date_l(L"ddd",&wtm,l);
@@ -329,9 +340,9 @@ namespace impl_win {
             return wcs_format_time_l(L"HH:mm:ss",&wtm,l);
 /*          case 'u': // weekday 1,7 1=Monday
         case 'U': // week number of year [00,53] Sunday first
-        case 'V': // week number of year [01,53] Moday first
+        case 'V': // week number of year [01,53] Monday first
         case 'w': // weekday 0,7 0=Sunday
-        case 'W': // week number of year [00,53] Moday first, */
+        case 'W': // week number of year [00,53] Monday first, */
         case 'x': // Date
             return wcs_format_date_l(0,&wtm,l);
         case 'X': // Time

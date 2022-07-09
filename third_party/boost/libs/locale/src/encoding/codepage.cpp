@@ -6,12 +6,17 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
-#include <boost/config.hpp>
+#include <boost/locale/config.hpp>
+#include <boost/locale/encoding.hpp>
+#include <boost/locale/hold_ptr.hpp>
+#include <cstring>
+#include <memory>
+#include <string>
 
+#include "conv.hpp"
 #if defined(BOOST_WINDOWS) || defined(__CYGWIN__)
 #define BOOST_LOCALE_WITH_WCONV
 #endif
-
 #ifdef BOOST_LOCALE_WITH_ICONV
 #include "iconv_codepage.ipp"
 #endif
@@ -22,18 +27,12 @@
 #include "wconv_codepage.ipp"
 #endif
 
-#include <boost/locale/encoding.hpp>
-#include <boost/locale/hold_ptr.hpp>
-
-#include <string>
-#include <cstring>
-#include <memory>
 
 namespace boost {
     namespace locale {
         namespace conv {
             namespace impl {
-                
+
                 std::string convert_between(char const *begin,
                                             char const *end,
                                             char const *to_charset,
@@ -126,12 +125,12 @@ namespace boost {
                     }
                     return charset;
                 }
-                
 
-            } // impl 
+
+            } // impl
 
             using namespace impl;
-            
+
             std::string between(char const *begin,char const *end,
                                 std::string const &to_charset,std::string const &from_charset,method_type how)
             {

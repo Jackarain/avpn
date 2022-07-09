@@ -9,7 +9,8 @@
 #define BOOST_LOCALE_IMPL_STD_ALL_GENERATOR_HPP
 
 #include <boost/locale/generator.hpp>
-#include <vector>
+#include <locale>
+#include <string>
 
 namespace boost {
     namespace locale {
@@ -44,7 +45,7 @@ namespace boost {
             std::locale create_codecvt( std::locale const &in,
                                         std::string const &locale_name,
                                         character_facet_type type,
-                                        utf8_support utf = utf8_none); 
+                                        utf8_support utf = utf8_none);
 
         }
     }

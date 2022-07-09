@@ -8,20 +8,19 @@
 #ifndef BOOST_LOCALE_ENCODING_ERRORS_HPP_INCLUDED
 #define BOOST_LOCALE_ENCODING_ERRORS_HPP_INCLUDED
 
-#include <boost/locale/definitions.hpp>
+#include <boost/locale/config.hpp>
+#include <stdexcept>
+
 #ifdef BOOST_MSVC
 #  pragma warning(push)
 #  pragma warning(disable : 4275 4251 4231 4660)
 #endif
-#include <stdexcept>
-
-
 
 namespace boost {
     namespace locale {
         namespace conv {
             ///
-            /// \addtogroup codepage 
+            /// \addtogroup codepage
             ///
             /// @{
 
@@ -32,7 +31,7 @@ namespace boost {
             public:
                 conversion_error() : std::runtime_error("Conversion failed") {}
             };
-            
+
             ///
             /// \brief This exception is thrown in case of use of unsupported
             /// or invalid character set
@@ -41,12 +40,12 @@ namespace boost {
             public:
 
                 /// Create an error for charset \a charset
-                invalid_charset_error(std::string charset) : 
+                invalid_charset_error(std::string charset) :
                     std::runtime_error("Invalid or unsupported charset:" + charset)
                 {
                 }
             };
-            
+
 
             ///
             /// enum that defines conversion policy

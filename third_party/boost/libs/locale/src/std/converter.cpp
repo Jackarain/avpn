@@ -7,40 +7,37 @@
 //
 #define BOOST_LOCALE_SOURCE
 
-#include <boost/config.hpp>
+#include <boost/locale/config.hpp>
+#include <boost/locale/conversion.hpp>
+#include <boost/locale/encoding.hpp>
+#include <boost/locale/generator.hpp>
+#include <locale>
+#include <stdexcept>
+#include <vector>
+
+#include "all_generator.hpp"
+
 #ifdef BOOST_MSVC
 #  pragma warning(disable : 4996)
 #endif
-
-#include <locale>
-#include <stdexcept>
-#include <boost/locale/generator.hpp>
-#include <boost/locale/conversion.hpp>
-#include <boost/locale/encoding.hpp>
-#include <vector>
-
-
-
-#include "all_generator.hpp"
 
 namespace boost {
 namespace locale {
 namespace impl_std {
 
-
 template<typename CharType>
-class std_converter : public converter<CharType> 
+class std_converter : public converter<CharType>
 {
 public:
     typedef CharType char_type;
     typedef std::basic_string<char_type> string_type;
     typedef std::ctype<char_type> ctype_type;
-    std_converter(std::locale const &base,size_t refs = 0) : 
+    std_converter(std::locale const &base,size_t refs = 0) :
         converter<CharType>(refs),
         base_(base)
     {
     }
-    virtual string_type convert(converter_base::conversion_type how,char_type const *begin,char_type const *end,int /*flags*/ = 0) const 
+    string_type convert(converter_base::conversion_type how,char_type const *begin,char_type const *end,int /*flags*/ = 0) const BOOST_OVERRIDE
     {
         switch(how) {
         case converter_base::upper_case:
@@ -70,12 +67,12 @@ class utf8_converter : public converter<char> {
 public:
     typedef std::ctype<char> ctype_type;
     typedef std::ctype<wchar_t> wctype_type;
-    utf8_converter(std::locale const &base,size_t refs = 0) : 
+    utf8_converter(std::locale const &base,size_t refs = 0) :
         converter<char>(refs),
         base_(base)
     {
     }
-    virtual std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int /*flags*/ = 0) const 
+    std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int /*flags*/ = 0) const BOOST_OVERRIDE
     {
         switch(how) {
         case upper_case:
@@ -108,7 +105,7 @@ std::locale create_convert( std::locale const &in,
                             utf8_support utf)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             {
                 if(utf == utf8_native_with_wide || utf == utf8_from_wide) {
                     std::locale base(std::locale::classic(),new std::ctype_byname<wchar_t>(locale_name.c_str()));
@@ -143,6 +140,6 @@ std::locale create_convert( std::locale const &in,
 
 
 } // namespace impl_std
-} // locale 
+} // locale
 } // boost
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

@@ -75,6 +75,12 @@ public:
 # pragma warning( disable: 4996 )
 #endif
 
+#if ( defined(_MSC_VER) && _MSC_VER < 1900 ) || ( defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR) )
+# define BOOST_ASSERT_SNPRINTF(buffer, format, arg) std::sprintf(buffer, format, arg)
+#else
+# define BOOST_ASSERT_SNPRINTF(buffer, format, arg) std::snprintf(buffer, sizeof(buffer)/sizeof(buffer[0]), format, arg)
+#endif
+
     std::string to_string() const
     {
         unsigned long ln = line();
@@ -88,14 +94,14 @@ public:
 
         char buffer[ 16 ];
 
-        std::sprintf( buffer, ":%lu", ln );
+        BOOST_ASSERT_SNPRINTF( buffer, ":%lu", ln );
         r += buffer;
 
         unsigned long co = column();
 
         if( co )
         {
-            std::sprintf( buffer, ":%lu", co );
+            BOOST_ASSERT_SNPRINTF( buffer, ":%lu", co );
             r += buffer;
         }
 
@@ -111,10 +117,21 @@ public:
         return r;
     }
 
+#undef BOOST_ASSERT_SNPRINTF
+
 #if defined(BOOST_MSVC)
 # pragma warning( pop )
 #endif
 
+    inline friend bool operator==( source_location const& s1, source_location const& s2 ) BOOST_NOEXCEPT
+    {
+        return std::strcmp( s1.file_, s2.file_ ) == 0 && std::strcmp( s1.function_, s2.function_ ) == 0 && s1.line_ == s2.line_ && s1.column_ == s2.column_;
+    }
+
+    inline friend bool operator!=( source_location const& s1, source_location const& s2 ) BOOST_NOEXCEPT
+    {
+        return !( s1 == s2 );
+    }
 };
 
 template<class E, class T> std::basic_ostream<E, T> & operator<<( std::basic_ostream<E, T> & os, source_location const & loc )

@@ -10,7 +10,7 @@
 #include <iostream>
 int main()
 {
-        std::cout << "ICU is not build... Skipping" << std::endl;
+        std::cout << "ICU is not build... Skipping\n";
 }
 #else
 
@@ -22,6 +22,7 @@ int main()
 #include "test_locale_tools.hpp"
 #include <list>
 #include <unicode/uversion.h>
+#include <vector>
 
 // Debugging code
 
@@ -33,7 +34,7 @@ void print_str(std::basic_string<Char> const &/*s*/)
 template<>
 void print_str<char>(std::basic_string<char> const &s)
 {
-    std::cout << "[" << s <<"]" << std::endl;
+    std::cout << "[" << s << "]\n";
 }
 
 
@@ -49,7 +50,7 @@ void test_word_container(Iterator begin,Iterator end,
     )
 {
     for(int sm=(bt == lb::word ? 31 : 3 ) ;sm>=0;sm--) {
-        unsigned mask = 
+        unsigned mask =
               ((sm & 1 ) != 0) * 0xF
             + ((sm & 2 ) != 0) * 0xF0
             + ((sm & 4 ) != 0) * 0xF00
@@ -95,7 +96,7 @@ void test_word_container(Iterator begin,Iterator end,
 
             map.rule(mask);
 
-            {        
+            {
                 unsigned i=0;
                 iter_type p;
                 map.full_select(false);
@@ -103,7 +104,7 @@ void test_word_container(Iterator begin,Iterator end,
                     TEST(p->str()==chunks[i]);
                     TEST(p->rule() == unsigned(masks[i]));
                 }
-                
+
                 TEST(chunks.size() == i);
                 for(;;) {
                     if(p==map.begin()) {
@@ -135,7 +136,7 @@ void test_word_container(Iterator begin,Iterator end,
                 }
 
                 TEST(chunks.size() == i);
-                
+
                 for(;;) {
                     if(p==map.begin()) {
                         TEST(i==0);
@@ -151,7 +152,7 @@ void test_word_container(Iterator begin,Iterator end,
                         TEST(p->rule() == unsigned(masks[i]));
                     }
                 }
-                
+
                 for(i=0,p=map.end();i<chunks.size();i++){
                     --p;
                     unsigned index = chunks.size() - i - 1;
@@ -160,8 +161,8 @@ void test_word_container(Iterator begin,Iterator end,
                 }
                 TEST(p==map.begin());
             }
-            
-            {            
+
+            {
                 iter_type p;
                 unsigned chunk_ptr=0;
                 unsigned i=0;
@@ -180,7 +181,7 @@ void test_word_container(Iterator begin,Iterator end,
                     }
                 }
             }
-            {            
+            {
                 iter_type p;
                 unsigned chunk_ptr=0;
                 unsigned i=0;
@@ -207,7 +208,7 @@ void test_word_container(Iterator begin,Iterator end,
             typedef typename lb::boundary_point_index<Iterator>::iterator iter_type;
 
             map.rule(mask);
-        
+
             unsigned i=0;
             iter_type p;
             for(p=map.begin();p!=map.end();++p,i++) {
@@ -231,7 +232,7 @@ void test_word_container(Iterator begin,Iterator end,
                 if(iters.at(iters_ptr)==optr)
                     iters_ptr++;
             }
-        
+
         } // break iterator tests
 
         { // copy test
@@ -347,8 +348,8 @@ void run_word(std::string *original,int *none,int *num,int *word,int *kana,int *
         pos.push_back(test_string.size());
         masks.push_back(
               ( none ? none[i]*15 : 0)
-            | ( num  ? ((num[i]*15)  << 4) : 0) 
-            | ( word ? ((word[i]*15) << 8) : 0) 
+            | ( num  ? ((num[i]*15)  << 4) : 0)
+            | ( word ? ((word[i]*15) << 8) : 0)
             | ( kana ? ((kana[i]*15) << 12) : 0)
             | ( ideo ? ((ideo[i]*15) << 16) : 0)
         );
@@ -378,14 +379,14 @@ void test_boundaries(std::string *all,int *first,int *second,lb::boundary_type t
     run_word<char>(all,first,second,0,0,0,g("he_IL.UTF-8"),t);
     std::cout << " char CP1255" << std::endl;
     run_word<char>(all,first,second,0,0,0,g("he_IL.cp1255"),t);
-    std::cout << " wchar_t"<<std::endl;
+    std::cout << " wchar_t" << std::endl;
     run_word<wchar_t>(all,first,second,0,0,0,g("he_IL.UTF-8"),t);
     #ifdef BOOST_LOCALE_ENABLE_CHAR16_T
-    std::cout << " char16_t"<<std::endl;
+    std::cout << " char16_t" << std::endl;
     run_word<char16_t>(all,first,second,0,0,0,g("he_IL.UTF-8"),t);
     #endif
     #ifdef BOOST_LOCALE_ENABLE_CHAR32_T
-    std::cout << " char32_t"<<std::endl;
+    std::cout << " char32_t" << std::endl;
     run_word<char32_t>(all,first,second,0,0,0,g("he_IL.UTF-8"),t);
     #endif
 
@@ -401,11 +402,11 @@ void word_boundary()
     int         num1[]={ 1,   0,      0,  0,         1,   0,      0 ,        0 ,         0};
     int        word1[]={ 0,   0,      1,  0,         1,   0,      0 ,        0 ,         0};
 #if U_ICU_VERSION_MAJOR_NUM >= 50
-    int        kana1[]={ 0,   0,      0,  0,         0,   0,      0,         0 ,         0}; 
-    int        ideo1[]={ 0,   0,      0,  0,         0,   0,      1,         1 ,         1}; 
+    int        kana1[]={ 0,   0,      0,  0,         0,   0,      0,         0 ,         0};
+    int        ideo1[]={ 0,   0,      0,  0,         0,   0,      1,         1 ,         1};
 #else
-    int        kana1[]={ 0,   0,      0,  0,         0,   0,      0,         1 ,         1}; 
-    int        ideo1[]={ 0,   0,      0,  0,         0,   0,      1,         0 ,         0}; 
+    int        kana1[]={ 0,   0,      0,  0,         0,   0,      0,         1 ,         1};
+    int        ideo1[]={ 0,   0,      0,  0,         0,   0,      1,         0 ,         0};
 #endif
 
 
@@ -426,24 +427,24 @@ void word_boundary()
     run_word<char>(all2,zero,zero,zero,zero,zero,g("ja_JP.Shift-JIS"));
     run_word<char>(all3,none3,zero,word3,zero,zero,g("ja_JP.Shift-JIS"));
 
-    std::cout << " wchar_t"<<std::endl;
+    std::cout << " wchar_t" << std::endl;
     run_word<wchar_t>(all1,none1,num1,word1,kana1,ideo1,g("ja_JP.UTF-8"));
     run_word<wchar_t>(all2,zero,zero,zero,zero,zero,g("en_US.UTF-8"));
     run_word<wchar_t>(all3,none3,zero,word3,zero,zero,g("en_US.UTF-8"));
 
     #ifdef BOOST_LOCALE_ENABLE_CHAR16_T
-    std::cout << " char16_t"<<std::endl;
+    std::cout << " char16_t" << std::endl;
     run_word<char16_t>(all1,none1,num1,word1,kana1,ideo1,g("ja_JP.UTF-8"));
     run_word<char16_t>(all2,zero,zero,zero,zero,zero,g("en_US.UTF-8"));
     run_word<char16_t>(all3,none3,zero,word3,zero,zero,g("en_US.UTF-8"));
-    #endif 
+    #endif
 
     #ifdef BOOST_LOCALE_ENABLE_CHAR32_T
-    std::cout << " char32_t"<<std::endl;
+    std::cout << " char32_t" << std::endl;
     run_word<char32_t>(all1,none1,num1,word1,kana1,ideo1,g("ja_JP.UTF-8"));
     run_word<char32_t>(all2,zero,zero,zero,zero,zero,g("en_US.UTF-8"));
     run_word<char32_t>(all3,none3,zero,word3,zero,zero,g("en_US.UTF-8"));
-    #endif 
+    #endif
 }
 void test_op_one_side(std::string const &sl,std::string const &sr,int val)
 {
@@ -464,7 +465,7 @@ void test_op_one_side(std::string const &sl,std::string const &sr,int val)
     TEST( (l< sr.c_str()) == (val<0));
     TEST( (l>=sr.c_str()) == (val>=0));
     TEST( (l> sr.c_str()) == (val>0));
-    
+
     TEST( (sl.c_str()==r) == (val==0));
     TEST( (sl.c_str()!=r) == (val!=0));
     TEST( (sl.c_str()<=r) == (val<=0));
@@ -480,7 +481,7 @@ void test_op_one_side(std::string const &sl,std::string const &sr,int val)
     TEST( (l< sr) == (val<0));
     TEST( (l>=sr) == (val>=0));
     TEST( (l> sr) == (val>0));
-    
+
     TEST( (sl==r) == (val==0));
     TEST( (sl!=r) == (val!=0));
     TEST( (sl<=r) == (val<=0));
@@ -510,28 +511,21 @@ void segment_operator()
     test_op("aa","ab",-1);
 }
 
-int main()
+void test_main(int /*argc*/, char** /*argv*/)
 {
-    try {
-        std::cout << "Testing segment operators" << std::endl;
-        segment_operator();
-        std::cout << "Testing word boundary" << std::endl;
-        word_boundary();
-        std::cout << "Testing character boundary" << std::endl;
-        test_boundaries(character,nones,0,lb::character);
-        std::cout << "Testing sentence boundary" << std::endl;
-        test_boundaries(sentence1,sentence1a,sentence1b,lb::sentence);
-        std::cout << "Testing line boundary" << std::endl;
-        test_boundaries(line1,line1a,line1b,lb::line);
-    }
-    catch(std::exception const &e) {
-        std::cerr << "Failed " << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-    FINALIZE();
+    std::cout << "Testing segment operators" << std::endl;
+    segment_operator();
+    std::cout << "Testing word boundary" << std::endl;
+    word_boundary();
+    std::cout << "Testing character boundary" << std::endl;
+    test_boundaries(character,nones,0,lb::character);
+    std::cout << "Testing sentence boundary" << std::endl;
+    test_boundaries(sentence1,sentence1a,sentence1b,lb::sentence);
+    std::cout << "Testing line boundary" << std::endl;
+    test_boundaries(line1,line1a,line1b,lb::line);
 }
 
 #endif // NOICU
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 
-// boostinspect:noascii 
+// boostinspect:noascii

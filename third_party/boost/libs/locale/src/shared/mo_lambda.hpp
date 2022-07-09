@@ -14,25 +14,23 @@ namespace boost {
     namespace locale {
         namespace gnu_gettext {
             namespace lambda {
-                
+
                 struct plural {
 
                     virtual int operator()(int n) const = 0;
                     virtual plural *clone() const = 0;
-                    virtual ~plural()
-                    {
-                    }
+                    virtual ~plural() {}
                 };
 
                 typedef boost::shared_ptr<plural> plural_ptr;
 
                 plural_ptr compile(char const *c_expression);
 
-            } // lambda 
+            } // lambda
         } // gnu_gettext
-     } // locale 
+     } // locale
 } // boost
 
 #endif
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 
+// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 

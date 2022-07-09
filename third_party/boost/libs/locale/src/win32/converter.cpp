@@ -7,13 +7,12 @@
 //
 #define BOOST_LOCALE_SOURCE
 
-#include <locale>
-#include <stdexcept>
 #include <boost/locale/generator.hpp>
 #include <boost/locale/conversion.hpp>
 #include <boost/locale/encoding.hpp>
-#include <vector>
-#include <string.h>
+#include <cstring>
+#include <locale>
+#include <stdexcept>
 #include "api.hpp"
 #include "all_generator.hpp"
 
@@ -21,15 +20,15 @@ namespace boost {
 namespace locale {
 namespace impl_win {
 
-class utf16_converter : public converter<wchar_t> 
+class utf16_converter : public converter<wchar_t>
 {
 public:
-    utf16_converter(winlocale const &lc,size_t refs = 0) : 
+    utf16_converter(winlocale const &lc,size_t refs = 0) :
         converter<wchar_t>(refs),
         lc_(lc)
     {
     }
-    virtual std::wstring convert(converter_base::conversion_type how,wchar_t const *begin,wchar_t const *end,int flags = 0) const 
+    std::wstring convert(converter_base::conversion_type how,wchar_t const *begin,wchar_t const *end,int flags = 0) const BOOST_OVERRIDE
     {
         switch(how) {
         case converter_base::upper_case:
@@ -50,12 +49,12 @@ private:
 
 class utf8_converter : public converter<char> {
 public:
-    utf8_converter(winlocale const &lc,size_t refs = 0) : 
+    utf8_converter(winlocale const &lc,size_t refs = 0) :
         converter<char>(refs),
         lc_(lc)
     {
     }
-    virtual std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int flags = 0) const 
+    std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int flags = 0) const BOOST_OVERRIDE
     {
         std::wstring tmp = conv::to_utf<wchar_t>(begin,end,"UTF-8");
         wchar_t const *wb=tmp.c_str();
@@ -90,7 +89,7 @@ std::locale create_convert( std::locale const &in,
                             character_facet_type type)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             return std::locale(in,new utf8_converter(lc));
         case wchar_t_facet:
             return std::locale(in,new utf16_converter(lc));
@@ -101,6 +100,6 @@ std::locale create_convert( std::locale const &in,
 
 
 } // namespace impl_win32
-} // locale 
+} // locale
 } // boost
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

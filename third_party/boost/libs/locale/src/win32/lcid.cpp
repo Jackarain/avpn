@@ -6,20 +6,19 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
-#include "lcid.hpp"
-#include <string.h>
-#include <string>
-#include <sstream>
-#include <map>
-
-#include "../util/locale_data.hpp"
-
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>
 
+#include "lcid.hpp"
+#include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
+#include <map>
+#include <sstream>
+#include <string.h>
+#include <string>
+#include <windows.h>
+#include "../util/locale_data.hpp"
 
 namespace boost {
 namespace locale {
@@ -37,8 +36,8 @@ boost::mutex &lcid_table_mutex()
 
 table_type &real_lcid_table()
 {
-    static table_type table;
-    return table;
+    static table_type real_table;
+    return real_table;
 }
 
 BOOL CALLBACK proc(char *s)
@@ -54,7 +53,7 @@ BOOL CALLBACK proc(char *s)
         if(ss.fail() || !ss.eof()) {
             return FALSE;
         }
-            
+
         char iso_639_lang[16];
         char iso_3166_country[16];
         if(GetLocaleInfoA(lcid,LOCALE_SISO639LANGNAME,iso_639_lang,sizeof(iso_639_lang))==0)
@@ -99,7 +98,7 @@ unsigned locale_to_lcid(std::string const &locale_name)
 {
     if(locale_name.empty()) {
         return LOCALE_USER_DEFAULT;
-    } 
+    }
     boost::locale::util::locale_data d;
     d.parse(locale_name);
     std::string id = d.language;
@@ -113,7 +112,7 @@ unsigned locale_to_lcid(std::string const &locale_name)
 
     table_type const &tbl = get_ready_lcid_table();
     table_type::const_iterator p = tbl.find(id);
-    
+
     unsigned lcid = 0;
     if(p!=tbl.end())
         lcid = p->second;

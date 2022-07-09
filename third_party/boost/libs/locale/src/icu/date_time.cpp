@@ -6,31 +6,27 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
-#include <boost/locale/date_time_facet.hpp>
 #include <boost/locale/date_time.hpp>
+#include <boost/locale/date_time_facet.hpp>
 #include <boost/locale/formatting.hpp>
 #include <boost/locale/hold_ptr.hpp>
-#include "all_generator.hpp"
-
 #include <boost/thread.hpp>
+#include <cmath>
+#include <iostream>
+#include <memory>
 #include <unicode/calendar.h>
 #include <unicode/gregocal.h>
 #include <unicode/utypes.h>
 
-#include <memory>
-#include <math.h>
-
+#include "all_generator.hpp"
 #include "cdata.hpp"
-#include "uconv.hpp"
 #include "time_zone.hpp"
-
-#include <iostream>
-
+#include "uconv.hpp"
 
 namespace boost {
 namespace locale {
 namespace impl_icu {
-    
+
     static void check_and_throw_dt(UErrorCode &e)
     {
         if(U_FAILURE(e)) {
@@ -68,7 +64,7 @@ namespace impl_icu {
 
     class calendar_impl : public abstract_calendar {
     public:
-        
+
         calendar_impl(cdata const &dat)
         {
             UErrorCode err=U_ZERO_ERROR;
@@ -86,17 +82,17 @@ namespace impl_icu {
             encoding_ = other.encoding_;
         }
 
-        calendar_impl *clone() const
+        calendar_impl *clone() const BOOST_OVERRIDE
         {
             return new calendar_impl(*this);
         }
 
-        void set_value(period::marks::period_mark p,int value)
+        void set_value(period::marks::period_mark p,int value) BOOST_OVERRIDE
         {
             calendar_->set(to_icu(p),int32_t(value));
         }
 
-        int get_value(period::marks::period_mark p,value_type type) const
+        int get_value(period::marks::period_mark p,value_type type) const BOOST_OVERRIDE
         {
             UErrorCode err=U_ZERO_ERROR;
             int v=0;
@@ -135,14 +131,14 @@ namespace impl_icu {
             return v;
         }
 
-        virtual void set_time(posix_time const &p)
+        void set_time(posix_time const &p) BOOST_OVERRIDE
         {
             double utime = p.seconds * 1000.0 + p.nanoseconds / 1000000.0;
             UErrorCode code=U_ZERO_ERROR;
             calendar_->setTime(utime,code);
             check_and_throw_dt(code);
         }
-        virtual void normalize()
+        void normalize() BOOST_OVERRIDE
         {
             // Can't call complete() explicitly (protected)
             // calling get wich calls complete
@@ -150,9 +146,9 @@ namespace impl_icu {
             calendar_->get(UCAL_YEAR,code);
             check_and_throw_dt(code);
         }
-        virtual posix_time get_time() const
+        posix_time get_time() const BOOST_OVERRIDE
         {
-            
+
             UErrorCode code=U_ZERO_ERROR;
             double rtime = 0;
             {
@@ -169,7 +165,7 @@ namespace impl_icu {
                 res.nanoseconds = 999999999;
             return res;
         }
-        virtual void set_option(calendar_option_type opt,int /*v*/) 
+        void set_option(calendar_option_type opt,int /*v*/) BOOST_OVERRIDE
         {
             switch(opt) {
             case is_gregorian:
@@ -180,7 +176,7 @@ namespace impl_icu {
                 ;
             }
         }
-        virtual int get_option(calendar_option_type opt) const
+        int get_option(calendar_option_type opt) const BOOST_OVERRIDE
         {
             switch(opt) {
             case is_gregorian:
@@ -197,7 +193,7 @@ namespace impl_icu {
                 return 0;
             }
         }
-        virtual void adjust_value(period::marks::period_mark p,update_type u,int difference)
+        void adjust_value(period::marks::period_mark p,update_type u,int difference) BOOST_OVERRIDE
         {
             UErrorCode err=U_ZERO_ERROR;
             switch(u) {
@@ -210,14 +206,14 @@ namespace impl_icu {
             }
             check_and_throw_dt(err);
         }
-        virtual int difference(abstract_calendar const *other_ptr,period::marks::period_mark p) const
+        int difference(abstract_calendar const *other_ptr,period::marks::period_mark p) const BOOST_OVERRIDE
         {
             UErrorCode err=U_ZERO_ERROR;
             double other_time = 0;
             //
             // fieldDifference has side effect of moving calendar (WTF?)
             // So we clone it for performing this operation
-            // 
+            //
             hold_ptr<icu::Calendar> self(calendar_->clone());
 
             calendar_impl const *other_cal=dynamic_cast<calendar_impl const *>(other_ptr);
@@ -236,18 +232,18 @@ namespace impl_icu {
             check_and_throw_dt(err);
             return diff;
         }
-        virtual void set_timezone(std::string const &tz)
+        void set_timezone(std::string const &tz) BOOST_OVERRIDE
         {
             calendar_->adoptTimeZone(get_time_zone(tz));
         }
-        virtual std::string get_timezone() const 
+        std::string get_timezone() const BOOST_OVERRIDE
         {
             icu::UnicodeString tz;
             calendar_->getTimeZone().getID(tz);
             icu_std_converter<char> cvt(encoding_);
             return cvt.std(tz);
         }
-        virtual bool same(abstract_calendar const *other) const 
+        bool same(abstract_calendar const *other) const BOOST_OVERRIDE
         {
             calendar_impl const *oc=dynamic_cast<calendar_impl const *>(other);
             if(!oc)
@@ -261,22 +257,22 @@ namespace impl_icu {
         std::string encoding_;
         hold_ptr<icu::Calendar> calendar_;
     };
-    
+
     class icu_calendar_facet : public calendar_facet  {
     public:
-        icu_calendar_facet(cdata const &d,size_t refs = 0) : 
+        icu_calendar_facet(cdata const &d,size_t refs = 0) :
             calendar_facet(refs),
             data_(d)
         {
         }
-        virtual abstract_calendar *create_calendar() const
+        abstract_calendar *create_calendar() const BOOST_OVERRIDE
         {
             return new calendar_impl(data_);
         }
     private:
         cdata data_;
     };
-    
+
     std::locale create_calendar(std::locale const &in,cdata const &d)
     {
         return std::locale(in,new icu_calendar_facet(d));

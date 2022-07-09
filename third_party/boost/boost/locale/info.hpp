@@ -7,14 +7,15 @@
 //
 #ifndef BOOST_LOCALE_INFO_HPP_INCLUDED
 #define BOOST_LOCALE_INFO_HPP_INCLUDED
+
 #include <boost/locale/config.hpp>
+#include <locale>
+#include <string>
+
 #ifdef BOOST_MSVC
 #  pragma warning(push)
 #  pragma warning(disable : 4275 4251 4231 4660)
 #endif
-#include <locale>
-#include <string>
-
 
 namespace boost {
     namespace locale {
@@ -27,7 +28,9 @@ namespace boost {
         class BOOST_LOCALE_DECL info : public std::locale::facet
         {
         public:
-            static std::locale::id id; ///< This member uniquely defines this facet, required by STL 
+            ~info();
+
+            static std::locale::id id; ///< This member uniquely defines this facet, required by STL
 
             ///
             /// String information about the locale
@@ -47,17 +50,17 @@ namespace boost {
                 utf8_property       ///< Non zero value if uses UTF-8 encoding
             };
 
-          
+
             ///
             /// Standard facet's constructor
-            /// 
+            ///
             info(size_t refs = 0) : std::locale::facet(refs)
             {
             }
             ///
             /// Get language name
             ///
-            std::string language() const 
+            std::string language() const
             {
                 return get_string_property(language_property);
             }
@@ -98,7 +101,7 @@ namespace boost {
             {
                 return get_integer_property(utf8_property) != 0;
             }
-            
+
 #if defined (__SUNPRO_CC) && defined (_RWSTD_VER)
             std::locale::id& __get_id (void) const { return id; }
 #endif

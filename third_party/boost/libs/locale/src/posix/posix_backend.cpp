@@ -6,34 +6,34 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
-#if defined(__FreeBSD__)
-#include <xlocale.h>
-#endif
+#include "posix_backend.hpp"
 #include <boost/locale/localization_backend.hpp>
 #include <boost/locale/gnu_gettext.hpp>
 #include <boost/locale/info.hpp>
-#include "all_generator.hpp"
-#include "posix_backend.hpp"
-
-#include "../util/locale_data.hpp"
-#include "../util/gregorian.hpp"
 #include <boost/locale/util.hpp>
 #include <algorithm>
 #include <iterator>
-
 #include <langinfo.h>
+#include <vector>
+#if defined(__FreeBSD__)
+#include <xlocale.h>
+#endif
+
+#include "all_generator.hpp"
+#include "../util/gregorian.hpp"
+#include "../util/locale_data.hpp"
 
 namespace boost {
 namespace locale {
-namespace impl_posix { 
-    
+namespace impl_posix {
+
     class posix_localization_backend : public localization_backend {
     public:
-        posix_localization_backend() : 
+        posix_localization_backend() :
             invalid_(true)
         {
         }
-        posix_localization_backend(posix_localization_backend const &other) : 
+        posix_localization_backend(posix_localization_backend const &other) :
             localization_backend(),
             paths_(other.paths_),
             domains_(other.domains_),
@@ -41,12 +41,12 @@ namespace impl_posix {
             invalid_(true)
         {
         }
-        virtual posix_localization_backend *clone() const
+        posix_localization_backend *clone() const BOOST_OVERRIDE
         {
             return new posix_localization_backend(*this);
         }
 
-        void set_option(std::string const &name,std::string const &value) 
+        void set_option(std::string const &name,std::string const &value) BOOST_OVERRIDE
         {
             invalid_ = true;
             if(name=="locale")
@@ -57,7 +57,7 @@ namespace impl_posix {
                 domains_.push_back(value);
 
         }
-        void clear_options()
+        void clear_options() BOOST_OVERRIDE
         {
             invalid_ = true;
             locale_id_.clear();
@@ -80,18 +80,18 @@ namespace impl_posix {
             real_id_ = locale_id_;
             if(real_id_.empty())
                 real_id_ = util::get_system_locale();
-            
+
             locale_t tmp = newlocale(LC_ALL_MASK,real_id_.c_str(),0);
-            
+
             if(!tmp) {
                 tmp=newlocale(LC_ALL_MASK,"C",0);
             }
             if(!tmp) {
                 throw std::runtime_error("newlocale failed");
             }
-            
+
             locale_t *tmp_p = 0;
-            
+
             try {
                 tmp_p = new locale_t();
             }
@@ -99,14 +99,14 @@ namespace impl_posix {
                 freelocale(tmp);
                 throw;
             }
-            
+
             *tmp_p = tmp;
             lc_ = boost::shared_ptr<locale_t>(tmp_p,free_locale_by_ptr);
         }
-        
-        virtual std::locale install(std::locale const &base,
-                                    locale_category_type category,
-                                    character_facet_type type = nochar_facet)
+
+        std::locale install(std::locale const &base,
+                            locale_category_type category,
+                            character_facet_type type = nochar_facet) BOOST_OVERRIDE
         {
             prepare_data();
 
@@ -172,7 +172,7 @@ namespace impl_posix {
         bool invalid_;
         boost::shared_ptr<locale_t> lc_;
     };
-    
+
     localization_backend *create_localization_backend()
     {
         return new posix_localization_backend();
@@ -181,4 +181,4 @@ namespace impl_posix {
 }  // impl posix
 }  // locale
 }  // boost
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 
+// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

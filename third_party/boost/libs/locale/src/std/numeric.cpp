@@ -6,14 +6,14 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
-#include <locale>
-#include <string>
-#include <ios>
+#include <boost/locale/encoding.hpp>
 #include <boost/locale/formatting.hpp>
 #include <boost/locale/generator.hpp>
-#include <boost/locale/encoding.hpp>
+#include <cstdlib>
+#include <ios>
+#include <locale>
 #include <sstream>
-#include <stdlib.h>
+#include <string>
 
 #include "../util/numeric.hpp"
 #include "all_generator.hpp"
@@ -25,14 +25,14 @@ namespace impl_std {
 template<typename CharType>
 class time_put_from_base : public std::time_put<CharType> {
 public:
-    time_put_from_base(std::locale const &base, size_t refs = 0) : 
+    time_put_from_base(std::locale const &base, size_t refs = 0) :
         std::time_put<CharType>(refs),
         base_(base)
     {
     }
     typedef typename std::time_put<CharType>::iter_type iter_type;
 
-    virtual iter_type do_put(iter_type out,std::ios_base &/*ios*/,CharType fill,std::tm const *tm,char format,char modifier) const
+    iter_type do_put(iter_type out,std::ios_base &/*ios*/,CharType fill,std::tm const *tm,char format,char modifier) const BOOST_OVERRIDE
     {
         std::basic_stringstream<CharType> ss;
         ss.imbue(base_);
@@ -44,12 +44,12 @@ private:
 
 class utf8_time_put_from_wide : public std::time_put<char> {
 public:
-    utf8_time_put_from_wide(std::locale const &base, size_t refs = 0) : 
+    utf8_time_put_from_wide(std::locale const &base, size_t refs = 0) :
         std::time_put<char>(refs),
         base_(base)
     {
     }
-    virtual iter_type do_put(iter_type out,std::ios_base &/*ios*/,char fill,std::tm const *tm,char format,char modifier = 0) const
+    iter_type do_put(iter_type out,std::ios_base &/*ios*/,char fill,std::tm const *tm,char format,char modifier = 0) const BOOST_OVERRIDE
     {
         std::basic_ostringstream<wchar_t> wtmps;
         wtmps.imbue(base_);
@@ -71,14 +71,14 @@ public:
     {
         typedef std::numpunct<wchar_t> wfacet_type;
         wfacet_type const &wfacet = std::use_facet<wfacet_type>(base);
-        
+
         truename_ = conv::from_utf<wchar_t>(wfacet.truename(),"UTF-8");
         falsename_ = conv::from_utf<wchar_t>(wfacet.falsename(),"UTF-8");
-        
+
         wchar_t tmp_decimal_point = wfacet.decimal_point();
         wchar_t tmp_thousands_sep = wfacet.thousands_sep();
         std::string tmp_grouping = wfacet.grouping();
-        
+
         if( 32 <= tmp_thousands_sep && tmp_thousands_sep <=126 &&
             32 <= tmp_decimal_point && tmp_decimal_point <=126)
         {
@@ -105,23 +105,23 @@ public:
         }
     }
 
-    virtual char do_decimal_point() const
+    char do_decimal_point() const BOOST_OVERRIDE
     {
         return decimal_point_;
     }
-    virtual char do_thousands_sep() const
+    char do_thousands_sep() const BOOST_OVERRIDE
     {
         return thousands_sep_;
     }
-    virtual std::string do_grouping() const
+    std::string do_grouping() const BOOST_OVERRIDE
     {
         return grouping_;
     }
-    virtual std::string do_truename() const
+    std::string do_truename() const BOOST_OVERRIDE
     {
         return truename_;
     }
-    virtual std::string do_falsename() const
+    std::string do_falsename() const BOOST_OVERRIDE
     {
         return falsename_;
     }
@@ -131,7 +131,7 @@ private:
     char thousands_sep_;
     char decimal_point_;
     std::string grouping_;
-    
+
 };
 
 template<bool Intl>
@@ -178,45 +178,45 @@ public:
         }
     }
 
-    virtual char do_decimal_point() const
+    char do_decimal_point() const BOOST_OVERRIDE
     {
         return decimal_point_;
     }
 
-    virtual char do_thousands_sep() const
+    char do_thousands_sep() const BOOST_OVERRIDE
     {
         return thousands_sep_;
     }
 
-    virtual std::string do_grouping() const
+    std::string do_grouping() const BOOST_OVERRIDE
     {
         return grouping_;
     }
 
-    virtual std::string do_curr_symbol() const
+    std::string do_curr_symbol() const BOOST_OVERRIDE
     {
         return curr_symbol_;
     }
-    virtual std::string do_positive_sign () const
+    std::string do_positive_sign () const BOOST_OVERRIDE
     {
         return positive_sign_;
     }
-    virtual std::string do_negative_sign() const
+    std::string do_negative_sign() const BOOST_OVERRIDE
     {
         return negative_sign_;
     }
 
-    virtual int do_frac_digits() const
+    int do_frac_digits() const BOOST_OVERRIDE
     {
         return frac_digits_;
     }
 
-    virtual std::money_base::pattern do_pos_format() const
+    std::money_base::pattern do_pos_format() const BOOST_OVERRIDE
     {
         return pos_format_;
     }
 
-    virtual std::money_base::pattern do_neg_format() const
+    std::money_base::pattern do_neg_format() const BOOST_OVERRIDE
     {
         return neg_format_;
     }
@@ -230,7 +230,7 @@ private:
     std::string negative_sign_;
     int frac_digits_;
     std::money_base::pattern pos_format_,neg_format_;
-    
+
 };
 
 class utf8_numpunct : public std::numpunct_byname<char> {
@@ -240,7 +240,7 @@ public:
         std::numpunct_byname<char>(name,refs)
     {
     }
-    virtual char do_thousands_sep() const
+    char do_thousands_sep() const BOOST_OVERRIDE
     {
         unsigned char bs = base_type::do_thousands_sep();
         if(bs > 127)
@@ -251,7 +251,7 @@ public:
         else
             return bs;
     }
-    virtual std::string do_grouping() const
+    std::string do_grouping() const BOOST_OVERRIDE
     {
         unsigned char bs = base_type::do_thousands_sep();
         if(bs > 127 && bs != 0xA0)
@@ -268,7 +268,7 @@ public:
         std::moneypunct_byname<char,Intl>(name,refs)
     {
     }
-    virtual char do_thousands_sep() const
+    char do_thousands_sep() const BOOST_OVERRIDE
     {
         unsigned char bs = base_type::do_thousands_sep();
         if(bs > 127)
@@ -279,7 +279,7 @@ public:
         else
             return bs;
     }
-    virtual std::string do_grouping() const
+    std::string do_grouping() const BOOST_OVERRIDE
     {
         unsigned char bs = base_type::do_thousands_sep();
         if(bs > 127 && bs != 0xA0)
@@ -315,11 +315,11 @@ std::locale create_formatting(  std::locale const &in,
                                 utf8_support utf)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             {
                 if(utf == utf8_from_wide ) {
                     std::locale base = std::locale(locale_name.c_str());
-                    
+
                     std::locale tmp = std::locale(in,new utf8_time_put_from_wide(base));
                     tmp = std::locale(tmp,new utf8_numpunct_from_wide(base));
                     tmp = std::locale(tmp,new utf8_moneypunct_from_wide<true>(base));
@@ -388,7 +388,7 @@ std::locale create_parsing( std::locale const &in,
             {
                 if(utf == utf8_from_wide ) {
                     std::locale base = std::locale::classic();
-                    
+
                     base = std::locale(base,new std::numpunct_byname<wchar_t>(locale_name.c_str()));
                     base = std::locale(base,new std::moneypunct_byname<wchar_t,true>(locale_name.c_str()));
                     base = std::locale(base,new std::moneypunct_byname<wchar_t,false>(locale_name.c_str()));
@@ -412,7 +412,7 @@ std::locale create_parsing( std::locale const &in,
                     tmp = std::locale(tmp,new utf8_moneypunct_from_wide<false>(base));
                     return std::locale(tmp,new util::base_num_parse<char>());
                 }
-                else 
+                else
                 {
                     std::locale tmp = create_basic_parsing<char>(in,locale_name);
                     tmp = std::locale(in,new util::base_num_parse<char>());
@@ -448,7 +448,7 @@ std::locale create_parsing( std::locale const &in,
 
 
 } // impl_std
-} // locale 
+} // locale
 } //boost
 
 

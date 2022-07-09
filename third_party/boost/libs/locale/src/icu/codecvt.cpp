@@ -16,24 +16,23 @@
 #include <boost/locale/util.hpp>
 #include <boost/locale/hold_ptr.hpp>
 #include "codecvt.hpp"
+#include "icu_util.hpp"
 
 #ifdef BOOST_MSVC
-#  pragma warning(disable : 4244) // loose data 
+#  pragma warning(disable : 4244) // loose data
 #endif
 
-#include "icu_util.hpp"
-#include <vector>
 namespace boost {
 namespace locale {
 namespace impl_icu {
     class uconv_converter : public util::base_converter {
     public:
-       
+
         uconv_converter(std::string const &encoding) :
             encoding_(encoding)
         {
             UErrorCode err=U_ZERO_ERROR;
-            
+
             // No need to check err each time, this
             // is how ICU works.
             cvt_ = ucnv_open(encoding.c_str(),&err);
@@ -45,26 +44,26 @@ namespace impl_icu {
                     ucnv_close(cvt_);
                 throw conv::invalid_charset_error(encoding);
             }
-            
+
             max_len_ = ucnv_getMaxCharSize(cvt_);
         }
-        
-        virtual ~uconv_converter()
+
+        ~uconv_converter()
         {
             ucnv_close(cvt_);
         }
 
-        virtual bool is_thread_safe() const
+        bool is_thread_safe() const BOOST_OVERRIDE
         {
             return false;
         }
 
-        virtual uconv_converter *clone() const
+        uconv_converter *clone() const BOOST_OVERRIDE
         {
             return new uconv_converter(encoding_);
         }
 
-        uint32_t to_unicode(char const *&begin,char const *end)
+        uint32_t to_unicode(char const *&begin,char const *end) BOOST_OVERRIDE
         {
             UErrorCode err=U_ZERO_ERROR;
             char const *tmp = begin;
@@ -81,12 +80,12 @@ namespace impl_icu {
             return c;
         }
 
-        uint32_t from_unicode(uint32_t u,char *begin,char const *end)
+        uint32_t from_unicode(uint32_t u,char *begin,char const *end) BOOST_OVERRIDE
         {
             UChar code_point[2]={0};
             int len;
             if(u<=0xFFFF) {
-                if(0xD800 <=u && u<= 0xDFFF) // No surragates
+                if(0xD800 <=u && u<= 0xDFFF) // No surrogates
                     return illegal;
                 code_point[0]=u;
                 len=1;
@@ -107,7 +106,7 @@ namespace impl_icu {
             return olen;
         }
 
-        virtual int max_len() const
+        int max_len() const BOOST_OVERRIDE
         {
             return max_len_;
         }
@@ -117,7 +116,7 @@ namespace impl_icu {
         UConverter *cvt_;
         int max_len_;
     };
-    
+
     util::base_converter *create_uconv_converter(std::string const &encoding)
     {
         hold_ptr<util::base_converter> cvt;
@@ -153,7 +152,7 @@ namespace impl_icu {
     }
 
 } // impl_icu
-} // locale 
+} // locale
 } // boost
 
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

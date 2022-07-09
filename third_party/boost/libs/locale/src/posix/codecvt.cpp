@@ -6,19 +6,18 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #define BOOST_LOCALE_SOURCE
+#include "codecvt.hpp"
 #include <boost/locale/encoding.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/locale/hold_ptr.hpp>
-#include "../encoding/conv.hpp"
 #include <boost/locale/util.hpp>
-#include "all_generator.hpp"
-
-#include <errno.h>
+#include <boost/shared_ptr.hpp>
 #include <algorithm>
+#include <cerrno>
 #include <stdexcept>
 #include <vector>
-#include "codecvt.hpp"
 
+#include "all_generator.hpp"
+#include "../encoding/conv.hpp"
 #ifdef BOOST_LOCALE_WITH_ICONV
 #include "../util/iconv.hpp"
 #endif
@@ -30,7 +29,7 @@ namespace impl_posix {
 #ifdef BOOST_LOCALE_WITH_ICONV
     class mb2_iconv_converter : public util::base_converter {
     public:
-       
+
         mb2_iconv_converter(std::string const &encoding) :
             encoding_(encoding),
             to_utf_((iconv_t)(-1)),
@@ -56,7 +55,7 @@ namespace impl_posix {
                         first_byte_table.push_back(obuf[0]);
                         continue;
                     }
-                    
+
                     // Test if this is illegal first byte or incomplete
                     in = ibuf;
                     insize = 1;
@@ -64,8 +63,8 @@ namespace impl_posix {
                     outsize = 8;
                     call_iconv(d,0,0,0,0);
                     size_t res = call_iconv(d,&in,&insize,&out,&outsize);
-                    
-                    // Now if this single byte starts a sequence we add incomplete 
+
+                    // Now if this single byte starts a sequence we add incomplete
                     // to know to ask that we need two bytes, othewise it may only be
                     // illegal
 
@@ -95,31 +94,30 @@ namespace impl_posix {
             from_utf_((iconv_t)(-1))
         {
         }
-        
-        virtual ~mb2_iconv_converter()
+
+        ~mb2_iconv_converter()
         {
             if(to_utf_ != (iconv_t)(-1))
                 iconv_close(to_utf_);
             if(from_utf_ != (iconv_t)(-1))
                 iconv_close(from_utf_);
-
         }
 
-        virtual bool is_thread_safe() const
+        bool is_thread_safe() const BOOST_OVERRIDE
         {
             return false;
         }
 
-        virtual mb2_iconv_converter *clone() const
+        mb2_iconv_converter *clone() const BOOST_OVERRIDE
         {
             return new mb2_iconv_converter(*this);
         }
 
-        uint32_t to_unicode(char const *&begin,char const *end)
+        uint32_t to_unicode(char const *&begin,char const *end) BOOST_OVERRIDE
         {
             if(begin == end)
                 return incomplete;
-            
+
             unsigned char seq0 = *begin;
             uint32_t index = (*first_byte_table_)[seq0];
             if(index == illegal)
@@ -130,7 +128,7 @@ namespace impl_posix {
             }
             else if(begin+1 == end)
                 return incomplete;
-            
+
             open(to_utf_,utf32_encoding(),encoding_.c_str());
 
             // maybe illegal or may be double byte
@@ -149,7 +147,7 @@ namespace impl_posix {
             return illegal;
         }
 
-        uint32_t from_unicode(uint32_t cp,char *begin,char const *end)
+        uint32_t from_unicode(uint32_t cp,char *begin,char const *end) BOOST_OVERRIDE
         {
             if(cp == 0) {
                 if(begin!=end) {
@@ -200,7 +198,7 @@ namespace impl_posix {
                 return "UTF-32BE";
         }
 
-        virtual int max_len() const
+        int max_len() const BOOST_OVERRIDE
         {
             return 2;
         }
@@ -246,7 +244,7 @@ namespace impl_posix {
     }
 
 } // impl_posix
-} // locale 
+} // locale
 } // boost
 
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

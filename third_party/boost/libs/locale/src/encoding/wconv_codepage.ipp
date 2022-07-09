@@ -9,25 +9,25 @@
 #ifndef BOOST_LOCALE_IMPL_WCONV_CODEPAGE_HPP
 #define BOOST_LOCALE_IMPL_WCONV_CODEPAGE_HPP
 
-
 #include <boost/locale/encoding.hpp>
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
+#include <limits>
 #include <string>
-#include "conv.hpp"
-
+#include <vector>
 #ifndef NOMINMAX
 # define NOMINMAX
 #endif
 #include <windows.h>
-#include <vector>
 
+#include "conv.hpp"
 
 namespace boost {
 namespace locale {
 namespace conv {
 namespace impl {
-    
+
     struct windows_encoding {
         char const *name;
         unsigned codepage;
@@ -115,18 +115,21 @@ namespace impl {
             if(len == 2 && begin+1==end)
                 return;
             n = MultiByteToWideChar(codepage,MB_ERR_INVALID_CHARS,begin,len,wide_buf,4);
-            for(int i=0;i<n;i++) 
+            for(int i=0;i<n;i++)
                 buf.push_back(wide_buf[i]);
             begin+=len;
         }
     }
 
-    
+
     void multibyte_to_wide(int codepage,char const *begin,char const *end,bool do_skip,std::vector<wchar_t> &buf)
     {
         if(begin==end)
             return;
-        int n = MultiByteToWideChar(codepage,MB_ERR_INVALID_CHARS,begin,end-begin,0,0);
+        const std::ptrdiff_t num_chars = end-begin;
+        if(num_chars > std::numeric_limits<int>::max())
+            throw conversion_error();
+        int n = MultiByteToWideChar(codepage,MB_ERR_INVALID_CHARS,begin,static_cast<int>(num_chars),0,0);
         if(n == 0) {
             if(do_skip) {
                 multibyte_to_wide_one_by_one(codepage,begin,end,buf);
@@ -135,8 +138,8 @@ namespace impl {
             throw conversion_error();
         }
 
-        buf.resize(n,0);
-        if(MultiByteToWideChar(codepage,MB_ERR_INVALID_CHARS,begin,end-begin,&buf.front(),buf.size())==0)
+        buf.resize(n);
+        if(MultiByteToWideChar(codepage,MB_ERR_INVALID_CHARS,begin,static_cast<int>(num_chars),&buf.front(),n)==0)
             throw conversion_error();
     }
 
@@ -148,20 +151,23 @@ namespace impl {
         BOOL *substitute_ptr = codepage == 65001 || codepage == 65000 ? 0 : &substitute;
         char subst_char = 0;
         char *subst_char_ptr = codepage == 65001 || codepage == 65000 ? 0 : &subst_char;
-        
-        int n = WideCharToMultiByte(codepage,0,begin,end-begin,0,0,subst_char_ptr,substitute_ptr);
+
+        const std::ptrdiff_t num_chars = end - begin;
+        if(num_chars > std::numeric_limits<int>::max())
+            throw conversion_error();
+        int n = WideCharToMultiByte(codepage,0,begin,static_cast<int>(num_chars),0,0,subst_char_ptr,substitute_ptr);
         buf.resize(n);
-        
-        if(WideCharToMultiByte(codepage,0,begin,end-begin,&buf[0],n,subst_char_ptr,substitute_ptr)==0)
+
+        if(WideCharToMultiByte(codepage,0,begin,static_cast<int>(num_chars),&buf[0],n,subst_char_ptr,substitute_ptr)==0)
             throw conversion_error();
         if(substitute) {
-            if(do_skip) 
+            if(do_skip)
                 remove_substitutions(buf);
-            else 
+            else
                 throw conversion_error();
         }
     }
-    
+
     void wide_to_multibyte(int codepage,wchar_t const *begin,wchar_t const *end,bool do_skip,std::vector<char> &buf)
     {
         if(begin==end)
@@ -180,12 +186,12 @@ namespace impl {
                 b=e+1;
                 e=std::find(b,end,L'0');
             }
-            else 
+            else
                 break;
         }
     }
 
-    
+
     int encoding_to_windows_codepage(char const *ccharset)
     {
         std::string charset = normalize_encoding(ccharset);
@@ -210,11 +216,11 @@ namespace impl {
             }
         }
         return -1;
-        
+
     }
 
     template<typename CharType>
-    bool validate_utf16(CharType const *str,unsigned len)
+    bool validate_utf16(CharType const *str,size_t len)
     {
         CharType const *begin = str;
         CharType const *end = str+len;
@@ -227,10 +233,10 @@ namespace impl {
     }
 
     template<typename CharType,typename OutChar>
-    void clean_invalid_utf16(CharType const *str,unsigned len,std::vector<OutChar> &out)
+    void clean_invalid_utf16(CharType const *str,size_t len,std::vector<OutChar> &out)
     {
         out.reserve(len);
-        for(unsigned i=0;i<len;i++) {
+        for(size_t i=0;i<len;i++) {
             uint16_t c = static_cast<uint16_t>(str[i]);
 
             if(0xD800 <= c && c<= 0xDBFF) {
@@ -253,13 +259,13 @@ namespace impl {
 
     class wconv_between : public converter_between {
     public:
-        wconv_between() : 
+        wconv_between() :
             how_(skip),
             to_code_page_ (-1),
             from_code_page_ ( -1)
         {
         }
-        bool open(char const *to_charset,char const *from_charset,method_type how)
+        bool open(char const *to_charset,char const *from_charset,method_type how) BOOST_OVERRIDE
         {
             how_ = how;
             to_code_page_ = encoding_to_windows_codepage(to_charset);
@@ -268,18 +274,18 @@ namespace impl {
                 return false;
             return true;
         }
-        virtual std::string convert(char const *begin,char const *end)
+        std::string convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
             if(to_code_page_ == 65001 && from_code_page_ == 65001)
                 return utf_to_utf<char>(begin,end,how_);
 
             std::string res;
-            
+
             std::vector<wchar_t> tmp;   // buffer for mb2w
             std::wstring tmps;          // buffer for utf_to_utf
             wchar_t const *wbegin=0;
             wchar_t const *wend=0;
-            
+
             if(from_code_page_ == 65001) {
                 tmps = utf_to_utf<wchar_t>(begin,end,how_);
                 if(tmps.empty())
@@ -294,7 +300,7 @@ namespace impl {
                 wbegin = &tmp[0];
                 wend = wbegin + tmp.size();
             }
-            
+
             if(to_code_page_ == 65001) {
                 return utf_to_utf<char>(wbegin,wend,how_);
             }
@@ -311,60 +317,64 @@ namespace impl {
         int to_code_page_;
         int from_code_page_;
     };
-    
-    template<typename CharType,int size = sizeof(CharType) >
+
+    template<typename CharType, int size = sizeof(CharType) >
     class wconv_to_utf;
 
-    template<typename CharType,int size = sizeof(CharType) >
+    template<typename CharType, int size = sizeof(CharType) >
     class wconv_from_utf;
 
     template<>
-    class wconv_to_utf<char,1> : public  converter_to_utf<char> , public wconv_between {
+    class wconv_to_utf<char, 1> : public converter_to_utf<char> {
     public:
-        virtual bool open(char const *cs,method_type how) 
+        bool open(char const *cs,method_type how) BOOST_OVERRIDE
         {
-            return wconv_between::open("UTF-8",cs,how);
+            return cvt.open("UTF-8",cs,how);
         }
-        virtual std::string convert(char const *begin,char const *end)
+        std::string convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
-            return wconv_between::convert(begin,end);
+            return cvt.convert(begin,end);
         }
+    private:
+      wconv_between cvt;
     };
-    
+
     template<>
-    class wconv_from_utf<char,1> : public  converter_from_utf<char> , public wconv_between {
+    class wconv_from_utf<char, 1> : public converter_from_utf<char> {
     public:
-        virtual bool open(char const *cs,method_type how) 
+        bool open(char const *cs,method_type how) BOOST_OVERRIDE
         {
-            return wconv_between::open(cs,"UTF-8",how);
+            return cvt.open(cs,"UTF-8",how);
         }
-        virtual std::string convert(char const *begin,char const *end)
+        std::string convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
-            return wconv_between::convert(begin,end);
+            return cvt.convert(begin,end);
         }
+    private:
+      wconv_between cvt;
     };
-    
+
     template<typename CharType>
-    class wconv_to_utf<CharType,2> : public converter_to_utf<CharType> {
+    class wconv_to_utf<CharType, 2> : public converter_to_utf<CharType> {
     public:
         typedef CharType char_type;
 
         typedef std::basic_string<char_type> string_type;
 
-        wconv_to_utf() : 
+        wconv_to_utf() :
             how_(skip),
             code_page_(-1)
         {
         }
 
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             how_ = how;
             code_page_ = encoding_to_windows_codepage(charset);
             return code_page_ != -1;
         }
 
-        virtual string_type convert(char const *begin,char const *end) 
+        string_type convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
             if(code_page_ == 65001) {
                 return utf_to_utf<char_type>(begin,end,how_);
@@ -381,28 +391,28 @@ namespace impl {
         method_type how_;
         int code_page_;
     };
-  
+
     template<typename CharType>
-    class wconv_from_utf<CharType,2> : public converter_from_utf<CharType> {
+    class wconv_from_utf<CharType, 2> : public converter_from_utf<CharType> {
     public:
         typedef CharType char_type;
 
         typedef std::basic_string<char_type> string_type;
 
-        wconv_from_utf() : 
+        wconv_from_utf() :
             how_(skip),
             code_page_(-1)
         {
         }
 
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             how_ = how;
             code_page_ = encoding_to_windows_codepage(charset);
             return code_page_ != -1;
         }
 
-        virtual std::string convert(CharType const *begin,CharType const *end) 
+        std::string convert(CharType const *begin,CharType const *end) BOOST_OVERRIDE
         {
             if(code_page_ == 65001) {
                 return utf_to_utf<char>(begin,end,how_);
@@ -453,20 +463,20 @@ namespace impl {
 
         typedef std::basic_string<char_type> string_type;
 
-        wconv_to_utf() : 
+        wconv_to_utf() :
             how_(skip),
             code_page_(-1)
         {
         }
 
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             how_ = how;
             code_page_ = encoding_to_windows_codepage(charset);
             return code_page_ != -1;
         }
 
-        virtual string_type convert(char const *begin,char const *end) 
+        string_type convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
             if(code_page_ == 65001) {
                 return utf_to_utf<char_type>(begin,end,how_);
@@ -483,7 +493,7 @@ namespace impl {
         method_type how_;
         int code_page_;
     };
-  
+
     template<typename CharType>
     class wconv_from_utf<CharType,4> : public converter_from_utf<CharType> {
     public:
@@ -491,20 +501,20 @@ namespace impl {
 
         typedef std::basic_string<char_type> string_type;
 
-        wconv_from_utf() : 
+        wconv_from_utf() :
             how_(skip),
             code_page_(-1)
         {
         }
 
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             how_ = how;
             code_page_ = encoding_to_windows_codepage(charset);
             return code_page_ != -1;
         }
 
-        virtual std::string convert(CharType const *begin,CharType const *end) 
+        std::string convert(CharType const *begin,CharType const *end) BOOST_OVERRIDE
         {
             if(code_page_ == 65001) {
                 return utf_to_utf<char>(begin,end,how_);
@@ -532,7 +542,7 @@ namespace impl {
 
 } // impl
 } // conv
-} // locale 
+} // locale
 } // boost
 
 #endif

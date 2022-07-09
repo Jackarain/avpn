@@ -25,7 +25,7 @@ namespace impl_icu {
 namespace details {
     template<typename V,int n=std::numeric_limits<V>::digits,bool integer=std::numeric_limits<V>::is_integer>
     struct cast_traits;
-    
+
     template<typename v>
     struct cast_traits<v,7,true> {
         typedef int32_t cast_type;
@@ -71,7 +71,7 @@ namespace details {
                 bool Int=std::numeric_limits<V>::is_integer,
                 bool Big=(sizeof(V) >= 8)
             >
-    struct use_parent_traits 
+    struct use_parent_traits
     {
         static bool use(V /*v*/) { return false; }
     };
@@ -118,38 +118,38 @@ public:
     typedef formatter<CharType> formatter_type;
     typedef hold_ptr<formatter_type> formatter_ptr;
 
-    num_format(cdata const &d,size_t refs = 0) : 
+    num_format(cdata const &d,size_t refs = 0) :
         std::num_put<CharType>(refs),
         loc_(d.locale),
         enc_(d.encoding)
     {
     }
-protected: 
-    
+protected:
 
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, long val) const
+
+    iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, long val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, unsigned long val) const
+    iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, unsigned long val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, double val) const
+    iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, double val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, long double val) const
+    iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, long double val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
-    
-    #ifndef BOOST_NO_LONG_LONG 
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, long long val) const
+
+    #ifndef BOOST_NO_LONG_LONG
+    iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, long long val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
-    virtual iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, unsigned long long val) const
+    iter_type do_put (iter_type out, std::ios_base &ios, char_type fill, unsigned long long val) const BOOST_OVERRIDE
     {
         return do_real_put(out,ios,fill,val);
     }
@@ -168,18 +168,18 @@ private:
 
         formatter_ptr formatter(formatter_type::create(ios,loc_,enc_));
 
-        if(formatter.get() == 0) 
+        if(formatter.get() == 0)
             return std::num_put<char_type>::do_put(out,ios,fill,val);
-        
+
         size_t code_points;
         typedef typename details::cast_traits<ValueType>::cast_type cast_type;
         string_type const &str = formatter->format(static_cast<cast_type>(val),code_points);
         std::streamsize on_left=0,on_right = 0,points = code_points;
         if(points < ios.width()) {
             std::streamsize n = ios.width() - points;
-            
+
             std::ios_base::fmtflags flags = ios.flags() & std::ios_base::adjustfield;
-            
+
             //
             // We do not really know internal point, so we assume that it does not
             // exist. So according to the standard field should be right aligned
@@ -212,13 +212,13 @@ template<typename CharType>
 class num_parse : public std::num_get<CharType>, protected num_base
 {
 public:
-    num_parse(cdata const &d,size_t refs = 0) : 
+    num_parse(cdata const &d,size_t refs = 0) :
         std::num_get<CharType>(refs),
         loc_(d.locale),
         enc_(d.encoding)
     {
     }
-protected: 
+protected:
     typedef typename std::num_get<CharType>::iter_type iter_type;
     typedef std::basic_string<CharType> string_type;
     typedef CharType char_type;
@@ -226,48 +226,48 @@ protected:
     typedef hold_ptr<formatter_type> formatter_ptr;
     typedef std::basic_istream<CharType> stream_type;
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned short &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned short &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned int &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned int &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned long &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned long &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,float &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,float &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,double &val) const
+    iter_type do_get(iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,double &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long double &val) const
+    iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long double &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    #ifndef BOOST_NO_LONG_LONG 
-    virtual iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long long &val) const
+    #ifndef BOOST_NO_LONG_LONG
+    iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,long long &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
 
-    virtual iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned long long &val) const
+    iter_type do_get (iter_type in, iter_type end, std::ios_base &ios,std::ios_base::iostate &err,unsigned long long &val) const BOOST_OVERRIDE
     {
         return do_real_get(in,end,ios,err,val);
     }
@@ -275,7 +275,7 @@ protected:
     #endif
 
 private:
-    
+
 
     //
     // This is not really an efficient solution, but it works
@@ -333,7 +333,7 @@ private:
         typedef std::numeric_limits<CastedType> casted_limits;
         if(v < 0 && value_limits::is_signed == false)
             return false;
-        
+
         static const CastedType max_val = value_limits::max();
 
         if(sizeof(CastedType) > sizeof(ValueType) && v > max_val)
@@ -348,7 +348,7 @@ private:
         }
         return true;
     }
-    
+
     icu::Locale loc_;
     std::string enc_;
 
@@ -360,7 +360,7 @@ std::locale install_formatting_facets(std::locale const &in,cdata const &cd)
 {
     std::locale tmp=std::locale(in,new num_format<CharType>(cd));
     if(!std::has_facet<icu_formatters_cache>(in)) {
-        tmp=std::locale(tmp,new icu_formatters_cache(cd.locale)); 
+        tmp=std::locale(tmp,new icu_formatters_cache(cd.locale));
     }
     return tmp;
 }
@@ -370,7 +370,7 @@ std::locale install_parsing_facets(std::locale const &in,cdata const &cd)
 {
     std::locale tmp=std::locale(in,new num_parse<CharType>(cd));
     if(!std::has_facet<icu_formatters_cache>(in)) {
-        tmp=std::locale(tmp,new icu_formatters_cache(cd.locale)); 
+        tmp=std::locale(tmp,new icu_formatters_cache(cd.locale));
     }
     return tmp;
 }
@@ -418,7 +418,7 @@ std::locale create_parsing(std::locale const &in,cdata const &cd,character_facet
 
 } // impl_icu
 
-} // locale 
+} // locale
 } //boost
 
 

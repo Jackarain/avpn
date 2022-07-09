@@ -8,15 +8,12 @@
 #ifndef BOOST_LOCALE_IMPL_UCONV_CODEPAGE_HPP
 #define BOOST_LOCALE_IMPL_UCONV_CODEPAGE_HPP
 #include <boost/locale/encoding.hpp>
+#include <boost/locale/hold_ptr.hpp>
+#include <unicode/ucnv.h>
+#include <unicode/ucnv_err.h>
 #include "conv.hpp"
 #include "../icu/icu_util.hpp"
 #include "../icu/uconv.hpp"
-#include <unicode/ucnv.h>
-#include <unicode/ucnv_err.h>
-#include <vector>
-#include <memory>
-
-#include <boost/locale/hold_ptr.hpp>
 
 namespace boost {
 namespace locale {
@@ -29,7 +26,7 @@ namespace impl {
 
         typedef std::basic_string<char_type> string_type;
 
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             close();
             try {
@@ -48,7 +45,7 @@ namespace impl {
             cvt_to_.reset();
         }
 
-        virtual string_type convert(char const *begin,char const *end) 
+        string_type convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
             try {
                 return cvt_to_->std(cvt_from_->icu_checked(begin,end));
@@ -67,13 +64,13 @@ namespace impl {
         hold_ptr<to_type> cvt_to_;
 
     };
-  
-  
+
+
     template<typename CharType>
     class uconv_from_utf : public converter_from_utf<CharType> {
     public:
         typedef CharType char_type;
-        virtual bool open(char const *charset,method_type how)
+        bool open(char const *charset,method_type how) BOOST_OVERRIDE
         {
             close();
             try {
@@ -92,7 +89,7 @@ namespace impl {
             cvt_to_.reset();
         }
 
-        virtual std::string convert(CharType const *begin,CharType const *end) 
+        std::string convert(CharType const *begin,CharType const *end) BOOST_OVERRIDE
         {
             try {
                 return cvt_to_->std(cvt_from_->icu_checked(begin,end));
@@ -114,7 +111,7 @@ namespace impl {
 
     class uconv_between : public converter_between {
     public:
-        virtual bool open(char const *to_charset,char const *from_charset,method_type how)
+        bool open(char const *to_charset,char const *from_charset,method_type how) BOOST_OVERRIDE
         {
             close();
             try {
@@ -133,7 +130,7 @@ namespace impl {
             cvt_to_.reset();
         }
 
-        virtual std::string convert(char const *begin,char const *end) 
+        std::string convert(char const *begin,char const *end) BOOST_OVERRIDE
         {
             try {
                 return cvt_to_->std(cvt_from_->icu(begin,end));
@@ -156,7 +153,7 @@ namespace impl {
 
 } // impl
 } // conv
-} // locale 
+} // locale
 } // boost
 
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

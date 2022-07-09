@@ -10,7 +10,7 @@
 #include <boost/locale/formatting.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
-#include <math.h>
+#include <cmath>
 
 namespace boost {
 namespace locale {
@@ -51,7 +51,7 @@ calendar::calendar(std::ios_base &ios) :
     impl_(std::use_facet<calendar_facet>(locale_).create_calendar())
 {
     impl_->set_timezone(tz_);
-    
+
 }
 
 calendar::calendar() :
@@ -72,7 +72,7 @@ calendar::calendar(calendar const &other) :
 {
 }
 
-calendar const &calendar::operator = (calendar const &other) 
+calendar const &calendar::operator = (calendar const &other)
 {
     if(this !=&other) {
         impl_.reset(other.impl_->clone());
@@ -244,36 +244,36 @@ date_time date_time::operator-(date_time_period const &v) const
 date_time date_time::operator<<(date_time_period const &v) const
 {
     date_time tmp(*this);
-    tmp<<=v;
+    tmp <<= v;
     return tmp;
 }
 
 date_time date_time::operator>>(date_time_period const &v) const
 {
     date_time tmp(*this);
-    tmp>>=v;
+    tmp >>= v;
     return tmp;
 }
 
-date_time const &date_time::operator+=(date_time_period const &v) 
+date_time const &date_time::operator+=(date_time_period const &v)
 {
     impl_->adjust_value(v.type.mark(),abstract_calendar::move,v.value);
     return *this;
 }
 
-date_time const &date_time::operator-=(date_time_period const &v) 
+date_time const &date_time::operator-=(date_time_period const &v)
 {
     impl_->adjust_value(v.type.mark(),abstract_calendar::move,-v.value);
     return *this;
 }
 
-date_time const &date_time::operator<<=(date_time_period const &v) 
+date_time const &date_time::operator<<=(date_time_period const &v)
 {
     impl_->adjust_value(v.type.mark(),abstract_calendar::roll,v.value);
     return *this;
 }
 
-date_time const &date_time::operator>>=(date_time_period const &v) 
+date_time const &date_time::operator>>=(date_time_period const &v)
 {
     impl_->adjust_value(v.type.mark(),abstract_calendar::roll,-v.value);
     return *this;
@@ -297,18 +297,18 @@ date_time date_time::operator-(date_time_period_set const &v) const
 date_time date_time::operator<<(date_time_period_set const &v) const
 {
     date_time tmp(*this);
-    tmp<<=v;
+    tmp <<= v;
     return tmp;
 }
 
 date_time date_time::operator>>(date_time_period_set const &v) const
 {
     date_time tmp(*this);
-    tmp>>=v;
+    tmp >>= v;
     return tmp;
 }
 
-date_time const &date_time::operator+=(date_time_period_set const &v) 
+date_time const &date_time::operator+=(date_time_period_set const &v)
 {
     for(unsigned i=0;i<v.size();i++) {
         *this+=v[i];
@@ -316,7 +316,7 @@ date_time const &date_time::operator+=(date_time_period_set const &v)
     return *this;
 }
 
-date_time const &date_time::operator-=(date_time_period_set const &v) 
+date_time const &date_time::operator-=(date_time_period_set const &v)
 {
     for(unsigned i=0;i<v.size();i++) {
         *this-=v[i];
@@ -324,18 +324,18 @@ date_time const &date_time::operator-=(date_time_period_set const &v)
     return *this;
 }
 
-date_time const &date_time::operator<<=(date_time_period_set const &v) 
+date_time const &date_time::operator<<=(date_time_period_set const &v)
 {
     for(unsigned i=0;i<v.size();i++) {
-        *this<<=v[i];
+        *this <<= v[i];
     }
     return *this;
 }
 
-date_time const &date_time::operator>>=(date_time_period_set const &v) 
+date_time const &date_time::operator>>=(date_time_period_set const &v)
 {
     for(unsigned i=0;i<v.size();i++) {
-        *this>>=v[i];
+        *this >>= v[i];
     }
     return *this;
 }

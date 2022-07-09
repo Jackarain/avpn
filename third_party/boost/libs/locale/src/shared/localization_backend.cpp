@@ -7,10 +7,10 @@
 //
 #define BOOST_LOCALE_SOURCE
 #include <boost/locale/localization_backend.hpp>
+#include <boost/locale/hold_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/locale/hold_ptr.hpp>
 #include <vector>
 
 #ifdef BOOST_LOCALE_WITH_ICU
@@ -44,7 +44,7 @@ namespace boost {
                     all_backends_.push_back(v);
                 }
             }
-            impl() : 
+            impl() :
                 default_backends_(32,-1)
             {
             }
@@ -64,7 +64,7 @@ namespace boost {
                     for(unsigned i=0;i<default_backends_.size();i++)
                         default_backends_[i]=0;
                 }
-                else { 
+                else {
                     for(unsigned i=0;i<all_backends_.size();i++)
                         if(all_backends_[i].first == name)
                             return;
@@ -116,25 +116,25 @@ namespace boost {
                         backends_[i].reset(backends[i]->clone());
                     }
                 }
-                virtual actual_backend *clone() const 
+                actual_backend *clone() const BOOST_OVERRIDE
                 {
                     return new actual_backend(backends_,index_);
                 }
-                virtual void set_option(std::string const &name,std::string const &value)
+                void set_option(std::string const &name,std::string const &value) BOOST_OVERRIDE
                 {
                     for(unsigned i=0;i<backends_.size();i++)
                         backends_[i]->set_option(name,value);
                 }
-                virtual void clear_options()
+                void clear_options() BOOST_OVERRIDE
                 {
                     for(unsigned i=0;i<backends_.size();i++)
                         backends_[i]->clear_options();
                 }
-                virtual std::locale install(std::locale const &l,locale_category_type category,character_facet_type type = nochar_facet)
+                std::locale install(std::locale const &l,locale_category_type category,character_facet_type type = nochar_facet) BOOST_OVERRIDE
                 {
                     int id;
                     unsigned v;
-                    for(v=1,id=0;v!=0;v<<=1,id++) {
+                    for(v=1,id=0;v!=0;v <<= 1,id++) {
                         if(category == v)
                             break;
                     }
@@ -142,7 +142,7 @@ namespace boost {
                         return l;
                     if(unsigned(id) >= index_.size())
                         return l;
-                    if(index_[id]==-1) 
+                    if(index_[id]==-1)
                         return l;
                     return backends_[index_[id]]->install(l,category,type);
                 }
@@ -158,7 +158,7 @@ namespace boost {
 
 
 
-        localization_backend_manager::localization_backend_manager() : 
+        localization_backend_manager::localization_backend_manager() :
             pimpl_(new impl())
         {
         }
@@ -181,7 +181,7 @@ namespace boost {
         }
 
 
-        #if !defined(BOOST_LOCALE_HIDE_AUTO_PTR) && !defined(BOOST_NO_AUTO_PTR)
+        #if BOOST_LOCALE_USE_AUTO_PTR
         std::auto_ptr<localization_backend> localization_backend_manager::get() const
         {
             std::auto_ptr<localization_backend> r(pimpl_->create());
@@ -241,7 +241,7 @@ namespace boost {
             }
 
             struct init {
-                init() { 
+                init() {
                     localization_backend_manager mgr;
                     #ifdef BOOST_LOCALE_WITH_ICU
                     mgr.adopt_backend("icu",impl_icu::create_localization_backend());
@@ -254,7 +254,7 @@ namespace boost {
                     #ifndef BOOST_LOCALE_NO_WINAPI_BACKEND
                     mgr.adopt_backend("winapi",impl_win::create_localization_backend());
                     #endif
-                    
+
                     #ifndef BOOST_LOCALE_NO_STD_BACKEND
                     mgr.adopt_backend("std",impl_std::create_localization_backend());
                     #endif
@@ -282,4 +282,4 @@ namespace boost {
 
     } // locale
 } // boost
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 
+// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

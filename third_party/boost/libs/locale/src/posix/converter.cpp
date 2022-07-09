@@ -7,20 +7,20 @@
 //
 #define BOOST_LOCALE_SOURCE
 
-#if defined(__FreeBSD__)
-#include <xlocale.h>
-#endif
-#include <locale>
-#include <stdexcept>
 #include <boost/locale/generator.hpp>
 #include <boost/locale/conversion.hpp>
 #include <boost/locale/encoding.hpp>
 #include <boost/shared_ptr.hpp>
-#include <vector>
-#include <string.h>
-#include <wctype.h>
-#include <ctype.h>
+#include <cctype>
+#include <cstring>
 #include <langinfo.h>
+#include <locale>
+#include <stdexcept>
+#include <wctype.h>
+#if defined(__FreeBSD__)
+#include <xlocale.h>
+#endif
+
 #include "all_generator.hpp"
 
 namespace boost {
@@ -56,18 +56,18 @@ struct case_traits<wchar_t> {
 
 
 template<typename CharType>
-class std_converter : public converter<CharType> 
+class std_converter : public converter<CharType>
 {
 public:
     typedef CharType char_type;
     typedef std::basic_string<char_type> string_type;
     typedef std::ctype<char_type> ctype_type;
-    std_converter(boost::shared_ptr<locale_t> lc,size_t refs = 0) : 
+    std_converter(boost::shared_ptr<locale_t> lc,size_t refs = 0) :
         converter<CharType>(refs),
         lc_(lc)
     {
     }
-    virtual string_type convert(converter_base::conversion_type how,char_type const *begin,char_type const *end,int /*flags*/ = 0) const 
+    string_type convert(converter_base::conversion_type how,char_type const *begin,char_type const *end,int /*flags*/ = 0) const BOOST_OVERRIDE
     {
         switch(how) {
         case converter_base::upper_case:
@@ -99,12 +99,12 @@ private:
 
 class utf8_converter : public converter<char> {
 public:
-    utf8_converter(boost::shared_ptr<locale_t> lc,size_t refs = 0) : 
+    utf8_converter(boost::shared_ptr<locale_t> lc,size_t refs = 0) :
         converter<char>(refs),
         lc_(lc)
     {
     }
-    virtual std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int /*flags*/ = 0) const 
+    std::string convert(converter_base::conversion_type how,char const *begin,char const *end,int /*flags*/ = 0) const BOOST_OVERRIDE
     {
         switch(how) {
         case upper_case:
@@ -116,7 +116,7 @@ public:
                     wres+=towupper_l(tmp[i],*lc_);
                 return conv::from_utf<wchar_t>(wres,"UTF-8");
             }
-            
+
         case lower_case:
         case case_folding:
             {
@@ -140,7 +140,7 @@ std::locale create_convert( std::locale const &in,
                             character_facet_type type)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             {
                 std::string encoding = nl_langinfo_l(CODESET,*lc);
                 for(unsigned i=0;i<encoding.size();i++)
@@ -160,6 +160,6 @@ std::locale create_convert( std::locale const &in,
 
 
 } // namespace impl_std
-} // locale 
+} // locale
 } // boost
 // vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

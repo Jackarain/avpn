@@ -9,11 +9,9 @@
 #define BOOST_LOCALE_IMPL_ICONV_CODEPAGE_HPP
 
 #include <boost/locale/encoding.hpp>
+#include <cerrno>
 #include "../util/iconv.hpp"
-#include <errno.h>
 #include "conv.hpp"
-#include <assert.h>
-#include <vector>
 
 namespace boost {
 namespace locale {
@@ -22,8 +20,8 @@ namespace impl {
 
 class iconverter_base {
 public:
-    
-    iconverter_base() : 
+
+    iconverter_base() :
     cvt_((iconv_t)(-1))
     {
     }
@@ -47,12 +45,12 @@ public:
         how_ = how;
         return cvt_ != (iconv_t)(-1);
     }
-    
+
     template<typename OutChar,typename InChar>
     std::basic_string<OutChar> real_convert(InChar const *ubegin,InChar const *uend)
     {
         std::basic_string<OutChar> sresult;
-        
+
         sresult.reserve(uend - ubegin);
 
         OutChar result[64];
@@ -60,20 +58,20 @@ public:
         char *out_start   = reinterpret_cast<char *>(&result[0]);
         char const *begin = reinterpret_cast<char const *>(ubegin);
         char const *end   = reinterpret_cast<char const *>(uend);
-        
+
         enum { normal , unshifting , done } state = normal;
 
         while(state!=done) {
 
             size_t in_left = end - begin;
             size_t out_left = sizeof(result);
-            
+
             char *out_ptr = out_start;
             size_t res = 0;
             if(in_left == 0)
                 state = unshifting;
 
-            if(state == normal) 
+            if(state == normal)
                 res = conv(&begin,&in_left,&out_ptr,&out_left);
             else
                 res = conv(0,0,&out_ptr,&out_left);
@@ -81,7 +79,7 @@ public:
             int err = errno;
 
             size_t output_count = (out_ptr - out_start) / sizeof(OutChar);
-            
+
             if(res!=0 && res!=(size_t)(-1)) {
                     if(how_ == stop) {
                         throw conversion_error();
@@ -133,7 +131,7 @@ private:
             cvt_ = (iconv_t)(-1);
         }
     }
-    
+
     iconv_t cvt_;
 
     method_type how_;
@@ -147,16 +145,15 @@ public:
 
     typedef CharType char_type;
 
-    virtual bool open(char const *charset,method_type how)
+    bool open(char const *charset,method_type how) BOOST_OVERRIDE
     {
         return self_.do_open(charset,utf_name<CharType>(),how);
     }
 
-    virtual std::string convert(char_type const *ubegin,char_type const *uend)
+    std::string convert(char_type const *ubegin,char_type const *uend) BOOST_OVERRIDE
     {
         return self_.template real_convert<char,char_type>(ubegin,uend);
     }
-    virtual ~iconv_from_utf() {}
 private:
     iconverter_base self_;
 };
@@ -164,15 +161,14 @@ private:
 class iconv_between:  public converter_between
 {
 public:
-    virtual bool open(char const *to_charset,char const *from_charset,method_type how)
+    bool open(char const *to_charset,char const *from_charset,method_type how) BOOST_OVERRIDE
     {
         return self_.do_open(to_charset,from_charset,how);
     }
-    virtual std::string convert(char const *begin,char const *end)
+    std::string convert(char const *begin,char const *end) BOOST_OVERRIDE
     {
         return self_.real_convert<char,char>(begin,end);
     }
-    virtual ~iconv_between() {}
 private:
     iconverter_base self_;
 
@@ -186,16 +182,15 @@ public:
     typedef CharType char_type;
     typedef std::basic_string<char_type> string_type;
 
-    virtual bool open(char const *charset,method_type how)
+    bool open(char const *charset,method_type how) BOOST_OVERRIDE
     {
         return self_.do_open(utf_name<CharType>(),charset,how);
     }
 
-    virtual string_type convert(char const *begin,char const *end)
+    string_type convert(char const *begin,char const *end) BOOST_OVERRIDE
     {
         return self_.template real_convert<char_type,char>(begin,end);
     }
-    virtual ~iconv_to_utf() {}
 private:
     iconverter_base self_;
 };
@@ -204,7 +199,7 @@ private:
 
 } // impl
 } // conv
-} // locale 
+} // locale
 } // boost
 
 

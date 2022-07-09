@@ -9,27 +9,30 @@
 #if defined(__FreeBSD__)
 #include <xlocale.h>
 #endif
-#include <locale>
-#include <string>
-#include <ios>
+#include <boost/locale/encoding.hpp>
 #include <boost/locale/formatting.hpp>
 #include <boost/locale/generator.hpp>
-#include <boost/locale/encoding.hpp>
+#include <boost/predef/os.h>
 #include <boost/shared_ptr.hpp>
-#include <sstream>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <wctype.h>
-#include <ctype.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <ios>
 #include <langinfo.h>
+#include <locale>
 #include <monetary.h>
-#include <errno.h>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <wctype.h>
+
 #include "../util/numeric.hpp"
 #include "all_generator.hpp"
 
 
-#if defined(__linux) || defined(__APPLE__)
+#if BOOST_OS_LINUX || defined(__APPLE__)
 #define BOOST_LOCALE_HAVE_WCSFTIME_L
 #endif
 
@@ -45,22 +48,22 @@ public:
     typedef std::basic_string<CharType> string_type;
     typedef CharType char_type;
 
-    num_format(boost::shared_ptr<locale_t> lc,size_t refs = 0) : 
+    num_format(boost::shared_ptr<locale_t> lc,size_t refs = 0) :
         util::base_num_format<CharType>(refs),
         lc_(lc)
     {
     }
-protected: 
+protected:
 
-    virtual iter_type do_format_currency(bool intl,iter_type out,std::ios_base &/*ios*/,char_type /*fill*/,long double val) const
+    iter_type do_format_currency(bool intl,iter_type out,std::ios_base &/*ios*/,char_type /*fill*/,long double val) const BOOST_OVERRIDE
     {
         char buf[4]={};
         char const *format = intl ? "%i" : "%n";
         errno=0;
         ssize_t n = strfmon_l(buf,sizeof(buf),*lc_,format,static_cast<double>(val));
-        if(n >= 0) 
+        if(n >= 0)
             return write_it(out,buf,n);
-        
+
         for(std::vector<char> tmp(sizeof(buf)*2);tmp.size() <= 4098;tmp.resize(tmp.size()*2)) {
             n = strfmon_l(&tmp.front(),tmp.size(),*lc_,format,static_cast<double>(val));
             if(n >= 0)
@@ -75,7 +78,7 @@ protected:
             *out++ = *ptr++;
         return out;
     }
-    
+
     std::ostreambuf_iterator<wchar_t> write_it(std::ostreambuf_iterator<wchar_t> out,char const *ptr,size_t n) const
     {
         std::wstring tmp = conv::to_utf<wchar_t>(ptr,ptr+n,nl_langinfo_l(CODESET,*lc_));
@@ -149,19 +152,16 @@ struct ftime_traits<wchar_t> {
 template<typename CharType>
 class time_put_posix : public std::time_put<CharType> {
 public:
-    time_put_posix(boost::shared_ptr<locale_t> lc, size_t refs = 0) : 
+    time_put_posix(boost::shared_ptr<locale_t> lc, size_t refs = 0) :
         std::time_put<CharType>(refs),
         lc_(lc)
-    {
-    }
-    virtual ~time_put_posix()
     {
     }
     typedef typename std::time_put<CharType>::iter_type iter_type;
     typedef CharType char_type;
     typedef std::basic_string<char_type> string_type;
 
-    virtual iter_type do_put(iter_type out,std::ios_base &/*ios*/,CharType /*fill*/,std::tm const *tm,char format,char modifier) const
+    iter_type do_put(iter_type out,std::ios_base &/*ios*/,CharType /*fill*/,std::tm const *tm,char format,char modifier) const BOOST_OVERRIDE
     {
         char_type fmt[4] = { '%' , modifier != 0 ? modifier : format , modifier == 0 ? '\0' : format };
         string_type res = ftime_traits<char_type>::ftime(fmt,tm,*lc_);
@@ -182,11 +182,11 @@ template<>
 class ctype_posix<char> : public std::ctype<char> {
 public:
 
-    ctype_posix(boost::shared_ptr<locale_t> lc) 
+    ctype_posix(boost::shared_ptr<locale_t> lc)
     {
         lc_ = lc;
     }
-   
+
     bool do_is(mask m,char c) const
     {
         if((m & space) && isspace_l(c,*lc_))
@@ -280,11 +280,11 @@ private:
 template<>
 class ctype_posix<wchar_t> : public std::ctype<wchar_t> {
 public:
-    ctype_posix(boost::shared_ptr<locale_t> lc) 
+    ctype_posix(boost::shared_ptr<locale_t> lc)
     {
         lc_ = lc;
     }
-   
+
     bool do_is(mask m,wchar_t c) const
     {
         if((m & space) && iswspace_l(c,*lc_))
@@ -382,11 +382,11 @@ struct basic_numpunct {
     std::string grouping;
     std::string thousands_sep;
     std::string decimal_point;
-    basic_numpunct() : 
+    basic_numpunct() :
         decimal_point(".")
     {
     }
-    basic_numpunct(locale_t lc) 
+    basic_numpunct(locale_t lc)
     {
     #if defined(__APPLE__) || defined(__FreeBSD__)
         lconv *cv = localeconv_l(lc);
@@ -407,7 +407,7 @@ template<typename CharType>
 class num_punct_posix : public std::numpunct<CharType> {
 public:
     typedef std::basic_string<CharType> string_type;
-    num_punct_posix(locale_t lc,size_t refs = 0) : 
+    num_punct_posix(locale_t lc,size_t refs = 0) :
         std::numpunct<CharType>(refs)
     {
         basic_numpunct np(lc);
@@ -427,24 +427,24 @@ public:
     {
         s2=conv::to_utf<wchar_t>(s1,nl_langinfo_l(CODESET,lc));
     }
-    virtual CharType do_decimal_point() const
+    CharType do_decimal_point() const BOOST_OVERRIDE
     {
         return *decimal_point_.c_str();
     }
-    virtual CharType do_thousands_sep() const
+    CharType do_thousands_sep() const BOOST_OVERRIDE
     {
         return *thousands_sep_.c_str();
     }
-    virtual std::string do_grouping() const
+    std::string do_grouping() const BOOST_OVERRIDE
     {
         return grouping_;
     }
-    virtual string_type do_truename() const
+    string_type do_truename() const BOOST_OVERRIDE
     {
         static const char t[]="true";
         return string_type(t,t+sizeof(t)-1);
     }
-    virtual string_type do_falsename() const
+    string_type do_falsename() const BOOST_OVERRIDE
     {
         static const char t[]="false";
         return string_type(t,t+sizeof(t)-1);
@@ -480,7 +480,7 @@ std::locale create_formatting(  std::locale const &in,
                                 character_facet_type type)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             return create_formatting_impl<char>(in,lc);
         case wchar_t_facet:
             return create_formatting_impl<wchar_t>(in,lc);
@@ -494,7 +494,7 @@ std::locale create_parsing( std::locale const &in,
                             character_facet_type type)
 {
         switch(type) {
-        case char_facet: 
+        case char_facet:
             return create_parsing_impl<char>(in,lc);
         case wchar_t_facet:
             return create_parsing_impl<wchar_t>(in,lc);
@@ -506,7 +506,7 @@ std::locale create_parsing( std::locale const &in,
 
 
 } // impl_std
-} // locale 
+} // locale
 } //boost
 
 

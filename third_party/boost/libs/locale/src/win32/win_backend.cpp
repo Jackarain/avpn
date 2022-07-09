@@ -17,31 +17,32 @@
 #include "api.hpp"
 #include <algorithm>
 #include <iterator>
+#include <vector>
 
 namespace boost {
 namespace locale {
-namespace impl_win { 
-    
+namespace impl_win {
+
     class winapi_localization_backend : public localization_backend {
     public:
-        winapi_localization_backend() : 
+        winapi_localization_backend() :
             invalid_(true)
         {
         }
         winapi_localization_backend(winapi_localization_backend const &other) :
-            localization_backend(), 
+            localization_backend(),
             paths_(other.paths_),
             domains_(other.domains_),
             locale_id_(other.locale_id_),
             invalid_(true)
         {
         }
-        virtual winapi_localization_backend *clone() const
+        winapi_localization_backend *clone() const BOOST_OVERRIDE
         {
             return new winapi_localization_backend(*this);
         }
 
-        void set_option(std::string const &name,std::string const &value) 
+        void set_option(std::string const &name,std::string const &value)
         {
             invalid_ = true;
             if(name=="locale")
@@ -76,14 +77,14 @@ namespace impl_win {
             util::locale_data d;
             d.parse(real_id_);
             if(!d.utf8) {
-                lc_ = winlocale(); 
+                lc_ = winlocale();
                 // Make it C as non-UTF8 locales are not supported
             }
         }
-        
-        virtual std::locale install(std::locale const &base,
+
+        std::locale install(std::locale const &base,
                                     locale_category_type category,
-                                    character_facet_type type = nochar_facet)
+                                    character_facet_type type = nochar_facet) BOOST_OVERRIDE
         {
             prepare_data();
 
@@ -141,7 +142,7 @@ namespace impl_win {
         bool invalid_;
         winlocale lc_;
     };
-    
+
     localization_backend *create_localization_backend()
     {
         return new winapi_localization_backend();
@@ -150,4 +151,4 @@ namespace impl_win {
 }  // impl win
 }  // locale
 }  // boost
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 
+// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

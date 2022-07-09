@@ -6,8 +6,8 @@
 //  http://www.boost.org/LICENSE_1_0.txt)
 //
 #include "mo_lambda.hpp"
-#include <string.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 namespace boost {
 namespace locale {
@@ -16,19 +16,19 @@ namespace lambda {
 
 namespace { // anon
     struct identity : public plural {
-        virtual int operator()(int n) const 
+        int operator()(int n) const BOOST_OVERRIDE
         {
             return n;
         };
-        virtual identity *clone() const
+        identity *clone() const BOOST_OVERRIDE
         {
             return new identity();
         }
     };
 
-    struct unary : public plural 
+    struct unary : public plural
     {
-        unary(plural_ptr ptr) : 
+        unary(plural_ptr ptr) :
             op1(ptr)
         {
         }
@@ -37,7 +37,7 @@ namespace { // anon
     };
 
 
-    struct binary : public plural 
+    struct binary : public plural
     {
         binary(plural_ptr p1,plural_ptr p2) :
             op1(p1),
@@ -50,15 +50,15 @@ namespace { // anon
 
     struct number : public plural
     {
-        number(int v) : 
+        number(int v) :
             val(v)
         {
         }
-        virtual int operator()(int /*n*/) const 
+        int operator()(int /*n*/) const BOOST_OVERRIDE
         {
             return val;
         }
-        virtual number *clone() const
+        number *clone() const BOOST_OVERRIDE
         {
             return new number(val);
         }
@@ -72,11 +72,11 @@ namespace { // anon
         name(plural_ptr op) : unary(op)             \
         {                                           \
         };                                          \
-        virtual int operator()(int n) const         \
+        int operator()(int n) const BOOST_OVERRIDE  \
         {                                           \
             return oper (*op1)(n);                  \
         }                                           \
-        virtual name *clone() const                 \
+        name *clone() const BOOST_OVERRIDE          \
         {                                           \
             plural_ptr op1_copy(op1->clone());      \
             return new name(op1_copy);              \
@@ -91,11 +91,11 @@ namespace { // anon
         {                                           \
         }                                           \
                                                     \
-        virtual int operator()(int n) const         \
+        int operator()(int n) const BOOST_OVERRIDE \
         {                                           \
             return (*op1)(n) oper (*op2)(n);        \
         }                                           \
-        virtual name *clone() const                 \
+        name *clone() const BOOST_OVERRIDE          \
         {                                           \
             plural_ptr op1_copy(op1->clone());      \
             plural_ptr op2_copy(op2->clone());      \
@@ -109,13 +109,13 @@ namespace { // anon
             binary(p1,p2)                           \
         {                                           \
         }                                           \
-        virtual int operator()(int n) const         \
+        int operator()(int n) const BOOST_OVERRIDE  \
         {                                           \
             int v1=(*op1)(n);                       \
             int v2=(*op2)(n);                       \
             return v2==0 ? 0 : v1 oper v2;          \
         }                                           \
-        virtual name *clone() const                 \
+        name *clone() const BOOST_OVERRIDE          \
         {                                           \
             plural_ptr op1_copy(op1->clone());      \
             plural_ptr op2_copy(op2->clone());      \
@@ -174,17 +174,17 @@ namespace { // anon
              op3(p3)
         {
         }
-        virtual int operator()(int n) const
+        int operator()(int n) const BOOST_OVERRIDE
         {
             return (*op1)(n) ? (*op2)(n) : (*op3)(n);
         }
-        virtual conditional *clone() const                 
-        {                                           
-            plural_ptr op1_copy(op1->clone());      
-            plural_ptr op2_copy(op2->clone());      
-            plural_ptr op3_copy(op3->clone());      
-            return new conditional(op1_copy,op2_copy,op3_copy);     
-        }                                           
+        conditional *clone() const BOOST_OVERRIDE
+        {
+            plural_ptr op1_copy(op1->clone());
+            plural_ptr op2_copy(op2->clone());
+            plural_ptr op3_copy(op3->clone());
+            return new conditional(op1_copy,op2_copy,op3_copy);
+        }
     private:
         plural_ptr op1,op2,op3;
     };
@@ -247,18 +247,18 @@ namespace { // anon
         }
     private:
         char const *text;
-        int pos;
+        size_t pos;
         int next_tocken;
         int int_value;
         bool is_blank(char c)
         {
             return c==' ' || c=='\r' || c=='\n' || c=='\t';
         }
-        bool isdigit(char c) 
+        bool isdigit(char c)
         {
-            return '0'<=c && c<='9'; 
+            return '0'<=c && c<='9';
         }
-        void step() 
+        void step()
         {
             while(text[pos] && is_blank(text[pos])) pos++;
             char const *ptr=text+pos;
@@ -339,14 +339,14 @@ namespace { // anon
             static int level_unary[]={3,'-','!','~'};
             if(is_in(t.next(),level_unary)) {
                 int op=t.get();
-                if((op1=un_expr()).get()==0) 
+                if((op1=un_expr()).get()==0)
                     return plural_ptr();
                 switch(op) {
-                case '-': 
+                case '-':
                     return plural_ptr(new minus(op1));
-                case '!': 
+                case '!':
                     return plural_ptr(new l_not(op1));
-                case '~': 
+                case '~':
                     return plural_ptr(new bin_not(op1));
                 default:
                     return plural_ptr();
@@ -407,5 +407,5 @@ plural_ptr compile(char const *str)
 } // locale
 } // boost
 
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4 
+// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 
