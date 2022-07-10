@@ -171,6 +171,16 @@ namespace avpn
 
 				// Update fec header.
 				make_fec_header(*ptr, src);
+
+#if 0
+				{
+					auto fn = std::format("./dataout/u{:08d}.{}",
+						ptr->gid_, ptr->pid_);
+					std::span<uint8_t> data{ ptr->payload(), avpn_payload_size };
+					fileop::write(fn, data);
+				}
+#endif
+
 			}
 
 			return true;

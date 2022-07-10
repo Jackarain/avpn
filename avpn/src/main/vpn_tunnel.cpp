@@ -229,7 +229,14 @@ namespace avpn {
 		// 循环发送已编码部分.
 		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
 		{
-			auto& p = m_feg.pkts_[i];
+			auto p = m_feg.pkts_[i];
+
+#if 0
+			auto fn = std::format("./dataout/s{:08d}.{}",
+				p->gid_, p->pid_);
+			std::span<uint8_t> data{ p->payload(), avpn_payload_size };
+			fileop::write(fn, data);
+#endif
 
 			// 发送到对方.
 			co_await internal_write_pkt(p);
@@ -819,10 +826,13 @@ namespace avpn {
 		BOOST_ASSERT(pid < shards);
 
 #if 0
-		auto fn = std::format("./dataout/r{:08d}.{}",
-			pkt->gid_, pkt->pid_);
-		std::span<uint8_t> data{ pkt->payload(), avpn_payload_size };
-		fileop::write(fn, data);
+		if (m_identity == Identity::avpn_client)
+		{
+			auto fn = std::format("./dataout/r{:08d}.{}",
+				pkt->gid_, pkt->pid_);
+			std::span<uint8_t> data{ pkt->payload(), avpn_payload_size };
+			fileop::write(fn, data);
+		}
 #endif
 
 		// 更新最后可见时间.
