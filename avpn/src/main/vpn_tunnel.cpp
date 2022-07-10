@@ -417,7 +417,6 @@ namespace avpn {
 
 	Proto vpn_tunnel::cherry_pick() const
 	{
-#if 0
 		auto& params = m_config.tunnel_params_;
 		auto ipproto = m_ipproto;
 
@@ -430,7 +429,6 @@ namespace avpn {
 			m_tcp_deque.empty() &&
 			std::rand() % 2 == 0)
 			return Proto::avpn_tcp;
-#endif
 
 		return Proto::avpn_udp;
 	}
