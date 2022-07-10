@@ -89,9 +89,6 @@ namespace fileop {
 	template<class T>
 	std::streamsize write(const std::streambuf& buf, T const& val)
 	{
-		using details::create_parent_directories;
-		create_parent_directories(file);
-
 		using details::write;
 		return write(buf, val);
 	}
