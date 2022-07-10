@@ -126,6 +126,8 @@ namespace avpn {
 		void udp_write_pkt(vpn_packet_ptr& pkt);
 		void tcp_write_pkt(vpn_packet_ptr& pkt);
 
+		net::awaitable<void> internal_write_pkt(vpn_packet_ptr pkt);
+
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(
 			tcp::socket& stream, vpn_packet& pkt);

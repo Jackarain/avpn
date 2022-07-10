@@ -193,12 +193,8 @@ namespace avpn {
 		else
 			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
-		// 通过udp或tcp发送pkt.
-		auto pick = cherry_pick();
-		if (pick == Proto::avpn_tcp)
-			co_await tcp_write_packet(m_tcp_socket, pkt);
-		else
-			udp_write_pkt(pkt);
+		// 发送pkt到对方.
+		co_await internal_write_pkt(pkt);
 
 		// 计算上行速率.
 		compute_speed(m_upload_stat, pkt->size());
@@ -233,15 +229,13 @@ namespace avpn {
 		// 循环发送已编码部分.
 		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
 		{
-			pkt = m_feg.pkts_[i];
+			auto& p = m_feg.pkts_[i];
 
-			if (pick == Proto::avpn_tcp)
-				co_await tcp_write_packet(m_tcp_socket, pkt);
-			else
-				udp_write_pkt(pkt);
+			// 发送到对方.
+			co_await internal_write_pkt(p);
 
 			// 计算上行速率.
-			compute_speed(m_upload_stat, pkt->size());
+			compute_speed(m_upload_stat, p->size());
 		}
 
 		co_return;
@@ -529,6 +523,18 @@ namespace avpn {
 			}, net::detached);
 	}
 
+	net::awaitable<void> vpn_tunnel::internal_write_pkt(vpn_packet_ptr pkt)
+	{
+		auto pick = cherry_pick();
+
+		if (pick == Proto::avpn_tcp)
+			co_await tcp_write_packet(m_tcp_socket, pkt);
+		else
+			udp_write_pkt(pkt);
+
+		co_return;
+	}
+
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
@@ -792,6 +798,7 @@ namespace avpn {
 		uint32_t src = 0;
 		uint32_t gid = 0;
 		uint8_t pid = 0;
+		auto flag = pkt->flag_;
 
 		int ret = unwrap_transfer(*pkt, src, gid, pid);
 		if (ret < 0)
@@ -823,6 +830,10 @@ namespace avpn {
 			if (!endp)
 			{
 				m_num_incorrect++;
+				LOG_ERR << this << ", incorrect pkt"
+					<< ", gid: " << pkt->gid_
+					<< ", pid: " << pkt->pid_
+					<< ", flag: " << pkt->flag_;
 				co_return;
 			}
 
@@ -895,11 +906,7 @@ namespace avpn {
 			auto ptr = std::make_shared<vpn_packet>(std::move(ack));
 
 			// 通过udp或tcp发送pkt.
-			if (cherry_pick() == Proto::avpn_tcp)
-				co_await tcp_write_packet(m_tcp_socket, ptr);
-			else
-				udp_write_pkt(ptr);
-
+			co_await internal_write_pkt(ptr);
 			co_return;
 		}
 
@@ -916,6 +923,7 @@ namespace avpn {
 			if (!p)
 				continue;
 
+			p->flag_ = flag + 10;
 			co_await write_pkt(p);
 		}
 
