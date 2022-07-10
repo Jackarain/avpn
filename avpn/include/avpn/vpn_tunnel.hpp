@@ -182,6 +182,9 @@ namespace avpn {
 		uint8_t m_peer_ds{ 0 };
 		uint8_t m_peer_ps{ 0 };
 
+		uint32_t m_current_gid{ 1 };
+		uint8_t m_current_pid{ 0 };
+
 		// fec纠错相关统计信息.
 		int m_num_corrected{ 0 };
 		int m_num_incorrect{ 0 };

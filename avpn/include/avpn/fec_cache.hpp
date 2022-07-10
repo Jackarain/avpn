@@ -110,8 +110,7 @@ namespace avpn {
 		int ds_{ 0 };
 		int ps_{ 0 };
 		int shards_{ 0 };
-		uint32_t gid_{ 1 };
-		uint8_t pid_{ 0 };
+		int64_t index_{ 0 };
 		std::vector<vpn_packet_ptr> pkts_;
 		static std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};

@@ -110,15 +110,13 @@ namespace avpn
 		: ds_(pg.ds_)
 		, ps_(pg.ps_)
 		, shards_(ds_ + ps_)
-		, gid_(pg.gid_)
-		, pid_(pg.pid_)
+		, index_(pg.index_)
 		, pkts_(std::move(pg.pkts_))
 	{
 		pg.ds_ = 0;
 		pg.ps_ = 0;
 		pg.shards_ = 0;
-		pg.gid_ = 1;
-		pg.pid_ = 0;
+		pg.index_ = 0;
 	}
 
 	void fec_encode_group::make_fec_header(vpn_packet& pkt, uint32_t src)
@@ -127,8 +125,12 @@ namespace avpn
 		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 
 		// 构造transfer数据包.
-		BOOST_ASSERT(pid_ < shards_);
-		make_transfer(pkt, src, gid_, pid_, sv);
+		uint32_t gid = static_cast<uint32_t>((index_ / shards_) + 1);
+		uint8_t pid = static_cast<uint8_t>(index_ % shards_);
+
+		index_++;
+
+		make_transfer(pkt, src, gid, pid, sv);
 	}
 
 	void fec_encode_group::make_fec_zstd_header(
@@ -138,36 +140,38 @@ namespace avpn
 		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 
 		// 构造transfer_compress数据包.
-		BOOST_ASSERT(pid_ < shards_);
-		make_transfer_compress(pkt, src, gid_, pid_, compress_zstd, sv);
+		uint32_t gid = static_cast<uint32_t>((index_ / shards_) + 1);
+		uint8_t pid = static_cast<uint8_t>(index_ % shards_);
+
+		index_++;
+
+		make_transfer_compress(pkt, src, gid, pid, compress_zstd, sv);
 	}
 
 	bool fec_encode_group::encode(vpn_packet_ptr& pkt, uint32_t src/* = 0 */)
 	{
-		pkts_[pid_++] = pkt;
+		auto pid = pkt->pid_;
+		pkts_[pid] = pkt;
 
-		if (pid_ == ds_)
+		if (pid + 1 == ds_)
 		{
 			// 立即编码.
 			if (!do_encode())
 				return false;
 
 			// 编码完后填充协议头.
-			for (; pid_ < shards_; pid_++)
+			for (pid++; pid < shards_; pid++)
 			{
-				auto& ptr = pkts_[pid_];
+				auto& ptr = pkts_[pid];
 				if (!ptr)
 					continue;
 
 				ptr->resize(avpn_packet_size);
 				ptr->payload_size(avpn_payload_size);
 
+				// Update fec header.
 				make_fec_header(*ptr, src);
 			}
-
-			// gop id自增, 开始下一组fec编码.
-			gid_++;
-			pid_ = 0;
 
 			return true;
 		}
@@ -199,6 +203,14 @@ namespace avpn
 		// fec编码.
 		try {
 			fec_enc.encode(pkts_);
+
+			for (auto& p : pkts_)
+			{
+				auto fn = std::format("./dataout/e{:08d}.{}",
+					p->gid_, p->pid_);
+				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
+				fileop::write(fn, data);
+			}
 		}
 		catch (const std::exception& e) {
 			LOG_WARN << "fec encode exception: " << e.what();
@@ -304,6 +316,17 @@ namespace avpn
 
 		// fec解码.
 		try {
+			for (auto& p : pkts_)
+			{
+				if (!p)
+					continue;
+
+				auto fn = std::format("./dataout/d{:08d}.{}",
+					p->gid_, p->pid_);
+				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
+				fileop::write(fn, data);
+			}
+
 			fec_dec.decode(pkts_);
 		}
 		catch (const std::exception& e) {
