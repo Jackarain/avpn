@@ -779,13 +779,14 @@ namespace avpn {
 		auto write_pkt = [this, service](vpn_packet_ptr pkt)
 			mutable -> net::awaitable<void>
 		{
-			auto content = pkt->payload();
-			auto ep = parser_endpoint(content, avpn_payload_size);
-			if (ep.size_ <= 0 || ep.size_ > avpn_payload_size)
+			auto endp = check_packet(pkt->payload(), avpn_payload_size);
+			if (!endp)
 			{
 				m_num_incorrect++;
 				co_return;
 			}
+
+			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
@@ -874,6 +875,7 @@ namespace avpn {
 		{
 			if (!p)
 				continue;
+
 			co_await write_pkt(p);
 		}
 
@@ -907,13 +909,14 @@ namespace avpn {
 		auto write_pkt = [this, service](vpn_packet_ptr pkt)
 			mutable -> net::awaitable<void>
 		{
-			auto content = pkt->payload();
-			auto ep = parser_endpoint(content, avpn_payload_size);
-			if (ep.size_ <= 0 || ep.size_ > avpn_payload_size)
+			auto endp = check_packet(pkt->payload(), avpn_payload_size);
+			if (!endp)
 			{
 				m_num_incorrect++;
 				co_return;
 			}
+
+			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
@@ -994,6 +997,19 @@ namespace avpn {
 		}
 
 		co_return;
+	}
+
+	std::optional<endpoint_pair>
+	vpn_tunnel::check_packet(const uint8_t* data, int size)
+	{
+		auto ep = parser_endpoint(data, size);
+		if (ep.size_ <= 0 ||
+			ep.size_ > avpn_payload_size)
+		{
+			return {};
+		}
+
+		return ep;
 	}
 
 }

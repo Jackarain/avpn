@@ -149,6 +149,10 @@ namespace avpn {
 		net::awaitable<void> on_vpn_transfer(vpn_packet_ptr pkt);
 		net::awaitable<void> on_vpn_transfer_compress(vpn_packet_ptr pkt);
 
+		// 检查packet.
+		std::optional<endpoint_pair>
+		check_packet(const uint8_t* data, int size);
+
 	private:
 		// 用于当前tunnel业务调度.
 		net::io_context& m_io_context;
