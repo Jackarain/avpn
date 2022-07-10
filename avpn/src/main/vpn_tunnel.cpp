@@ -194,7 +194,12 @@ namespace avpn {
 			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
 		// 发送pkt到对方.
-		co_await internal_write_pkt(pkt);
+		net::co_spawn(m_io_context,
+			[this, self, pkt]() mutable->net::awaitable<void>
+			{
+				co_await internal_write_pkt(pkt);
+				co_return;
+			}, net::detached);
 
 		// 计算上行速率.
 		compute_speed(m_upload_stat, pkt->size());
