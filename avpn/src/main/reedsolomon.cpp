@@ -1175,12 +1175,9 @@ namespace avpn {
 			}
 
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
-				if (!shards[i])
-				{
-					shards[i] = std::make_shared<vpn_packet>();
-					shards[i]->gid_ = gid;
-					shards[i]->pid_ = (uint8_t)i;
-				}
+				shards[i] = std::make_shared<vpn_packet>();
+				shards[i]->gid_ = gid;
+				shards[i]->pid_ = (uint8_t)i;
 				auto data = shards[i]->payload();
 				outputs.push_back(std::span<uint8_t>(data, avpn_payload_size));
 			}
