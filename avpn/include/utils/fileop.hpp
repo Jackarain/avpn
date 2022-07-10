@@ -16,7 +16,7 @@
 
 namespace fileop {
 	namespace details {
-		inline void create_parent_directories(std::filesystem::path const& p)
+		inline void create_parent_directories(const std::filesystem::path& p)
 		{
 			std::error_code ec;
 			auto e = std::filesystem::exists(p, ec);
@@ -103,9 +103,6 @@ namespace fileop {
 	template<class T>
 	std::streamsize write(const std::fstream& file, T const& val)
 	{
-		using details::create_parent_directories;
-		create_parent_directories(file);
-
 		using details::write;
 		return write(*file.rdbuf(), val);
 	}
