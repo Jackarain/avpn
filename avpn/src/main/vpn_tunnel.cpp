@@ -193,26 +193,6 @@ namespace avpn {
 		else
 			m_feg.make_fec_header(*pkt, m_self_vaddr);
 
-		auto cgid = m_current_gid;
-		auto cpid = m_current_pid;
-
-		if (pkt->gid_ != cgid)
-		{
-			BOOST_ASSERT(pkt->gid_ == cgid);
-		}
-
-		if (pkt->pid_ != cpid)
-		{
-			BOOST_ASSERT(pkt->pid_ == cpid);
-		}
-
-		m_current_pid++;
-		if (m_current_pid >= params.data_shards_)
-		{
-			m_current_gid++;
-			m_current_pid = 0;
-		}
-
 		// 发送pkt到对方.
 		co_await internal_write_pkt(pkt);
 
@@ -838,10 +818,12 @@ namespace avpn {
 		BOOST_ASSERT(gid > 0);
 		BOOST_ASSERT(pid < shards);
 
+#if 0
 		auto fn = std::format("./dataout/r{:08d}.{}",
 			pkt->gid_, pkt->pid_);
 		std::span<uint8_t> data{ pkt->payload(), avpn_payload_size };
 		fileop::write(fn, data);
+#endif
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)

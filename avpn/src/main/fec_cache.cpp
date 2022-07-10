@@ -204,6 +204,7 @@ namespace avpn
 		try {
 			fec_enc.encode(pkts_);
 
+#if 0
 			for (auto& p : pkts_)
 			{
 				auto fn = std::format("./dataout/e{:08d}.{}",
@@ -211,6 +212,7 @@ namespace avpn
 				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
 				fileop::write(fn, data);
 			}
+#endif
 		}
 		catch (const std::exception& e) {
 			LOG_WARN << "fec encode exception: " << e.what();
@@ -316,6 +318,7 @@ namespace avpn
 
 		// fec解码.
 		try {
+#if 0
 			for (auto& p : pkts_)
 			{
 				if (!p)
@@ -326,6 +329,7 @@ namespace avpn
 				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
 				fileop::write(fn, data);
 			}
+#endif
 
 			fec_dec.decode(pkts_);
 		}
