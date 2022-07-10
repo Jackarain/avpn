@@ -16,6 +16,22 @@
 
 namespace fileop {
 	namespace details {
+		void create_parent_directories(std::filesystem::path const& p)
+		{
+			std::error_code ec;
+			auto e = std::filesystem::exists(p, ec);
+			if (ec)
+				return;
+			if (!e)
+			{
+				if (!p.parent_path().empty())
+				{
+					std::filesystem::create_directories(
+						p.parent_path(), ec);
+				}
+			}
+		}
+
 		template<class T>
 		std::streamsize write(std::streambuf& buf, const T& val) {
 			static_assert(std::is_standard_layout<T>{}, "data is not standard layout");
@@ -73,6 +89,9 @@ namespace fileop {
 	template<class T>
 	std::streamsize write(const std::streambuf& buf, T const& val)
 	{
+		using details::create_parent_directories;
+		create_parent_directories(file);
+
 		using details::write;
 		return write(buf, val);
 	}
@@ -87,6 +106,9 @@ namespace fileop {
 	template<class T>
 	std::streamsize write(const std::fstream& file, T const& val)
 	{
+		using details::create_parent_directories;
+		create_parent_directories(file);
+
 		using details::write;
 		return write(*file.rdbuf(), val);
 	}
@@ -105,7 +127,13 @@ namespace fileop {
 	template<class T>
 	std::streamsize write(const std::filesystem::path& file, T const& val)
 	{
-		std::fstream f(file, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+		using details::create_parent_directories;
+		create_parent_directories(file);
+
+		std::fstream f(file, std::ios_base::binary |
+			std::ios_base::out |
+			std::ios_base::trunc);
+
 		using details::write;
 		return write(*f.rdbuf(), val);
 	}
