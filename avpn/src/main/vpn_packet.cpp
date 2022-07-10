@@ -28,9 +28,11 @@ namespace avpn {
 		, gid_(p.gid_)
 		, pid_(p.pid_)
 		, type_(p.type_)
+		, flag_(p.flag_)
 	{
 		p.size_ = 0;
 		p.payload_size_ = 0;
+		p.flag_ = -1;
 	}
 
 	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
@@ -41,11 +43,13 @@ namespace avpn {
 		gid_ = p.gid_;
 		pid_ = p.pid_;
 		type_ = p.type_;
+		flag_ = p.flag_;
 
 		p.size_ = 0;
 		p.payload_size_ = 0;
 		p.gid_ = 0;
 		p.pid_ = 0;
+		p.flag_ = -1;
 
 		return *this;
 	}
@@ -112,6 +116,7 @@ namespace avpn {
 		ret->payload_size_ = p->payload_size_;
 		ret->size_ = p->size_;
 		ret->type_ = p->type_;
+		ret->flag_ = p->flag_;
 
 		return ret;
 	}
@@ -126,6 +131,7 @@ namespace avpn {
 		ret->payload_size_ = p.payload_size_;
 		ret->size_ = p.size_;
 		ret->type_ = p.type_;
+		ret->flag_ = p.flag_;
 
 		return ret;
 	}

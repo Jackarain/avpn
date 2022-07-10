@@ -84,6 +84,7 @@ namespace avpn {
 		uint8_t pid_{ 0 };
 
 		vpn_packet_t type_;
+		int flag_{ -1 };
 	};
 
 	using vpn_packet_ptr = std::shared_ptr<vpn_packet>;

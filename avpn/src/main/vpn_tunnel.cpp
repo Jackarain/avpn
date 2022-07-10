@@ -57,8 +57,8 @@ namespace avpn {
 			<< ", ds: " << ds
 			<< ", ps : " << ps;
 
-		m_data_shards = ds;
-		m_parity_shards = ps;
+		m_peer_ds = ds;
+		m_peer_ps = ps;
 
 		m_abort = false;
 
@@ -478,6 +478,18 @@ namespace avpn {
 
 	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
 	{
+#if 0
+		const auto& params = m_config.tunnel_params_;
+		auto shards = params.data_shards_ + params.parity_shards_;
+		if (pkt->pid_ >= shards)
+		{
+			LOG_ERR << this << ", udp write pkt"
+				<< ", gid: " << pkt->gid_
+				<< ", pid: " << pkt->pid_
+				<< ", shards: " << shards;
+		}
+#endif
+
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable->net::awaitable<void>
@@ -496,6 +508,18 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
 	{
+#if 0
+		const auto& params = m_config.tunnel_params_;
+		auto shards = params.data_shards_ + params.parity_shards_;
+		if (pkt->pid_ >= shards)
+		{
+			LOG_ERR << this << ", tcp write pkt"
+				<< ", gid: " << pkt->gid_
+				<< ", pid: " << pkt->pid_
+				<< ", shards: " << shards;
+		}
+#endif
+
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable -> net::awaitable<void>
@@ -656,9 +680,11 @@ namespace avpn {
 			break;
 
 		case vpt_transfer:
+			pkt->flag_ = 2;
 			co_await on_vpn_transfer(std::move(pkt));
 			break;
 		case vpt_transfer_compress:
+			pkt->flag_ = 2;
 			co_await on_vpn_transfer_compress(std::move(pkt));
 			break;
 		}
@@ -691,9 +717,11 @@ namespace avpn {
 			break;
 
 		case vpt_transfer:
+			pkt->flag_ = 0;
 			co_await on_vpn_transfer(std::move(pkt));
 			break;
 		case vpt_transfer_compress:
+			pkt->flag_ = 0;
 			co_await on_vpn_transfer_compress(std::move(pkt));
 			break;
 		}
@@ -762,15 +790,27 @@ namespace avpn {
 			co_return;
 
 		uint32_t src = 0;
-		uint32_t gid;
-		uint8_t pid;
+		uint32_t gid = 0;
+		uint8_t pid = 0;
 
 		int ret = unwrap_transfer(*pkt, src, gid, pid);
 		if (ret < 0)
 			co_return;
 
+		auto shards = m_peer_ds + m_peer_ps;
+		if (pid > shards)
+		{
+			LOG_ERR << this << ", transfer pkt"
+				<< ", proto: " << pkt->flag_
+				<< ", gid: " << gid
+				<< ", pid: " << pid
+				<< ", shards: " << shards;
+			m_num_incorrect++;
+			co_return;
+		}
+
 		BOOST_ASSERT(gid > 0);
-		BOOST_ASSERT(pid < (m_data_shards + m_parity_shards));
+		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps));
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
@@ -819,14 +859,14 @@ namespace avpn {
 		auto opt = m_recover.find(gid);
 		if (!opt)
 		{
-			if (pid < m_data_shards)
+			if (pid < m_peer_ds)
 				co_await write_pkt(pkt);
 
-			if (m_data_shards == 1)
+			if (m_peer_ds == 1)
 				co_return;
 
 			m_recover.update(opt, gid, pid,
-				m_data_shards, m_parity_shards, pkt);
+				m_peer_ds, m_peer_ps, pkt);
 
 			co_return;
 		}
@@ -836,17 +876,17 @@ namespace avpn {
 			co_return;
 
 		// 如果是data shards, 则write到tun设备或转发.
-		if (pid < m_data_shards)
+		if (pid < m_peer_ds)
 			co_await write_pkt(pkt);
 
 		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
 		// 已经接收到.
-		if (m_data_shards == 1)
+		if (m_peer_ds == 1)
 			co_return;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		bool whole = m_recover.update(opt, gid, pid,
-			m_data_shards, m_parity_shards, pkt);
+			m_peer_ds, m_peer_ps, pkt);
 
 		// 完整接收, 发送ack消息.
 		if (whole)
@@ -856,9 +896,9 @@ namespace avpn {
 
 			// 通过udp或tcp发送pkt.
 			if (cherry_pick() == Proto::avpn_tcp)
-				co_await tcp_write_packet(m_tcp_socket, pkt);
+				co_await tcp_write_packet(m_tcp_socket, ptr);
 			else
-				udp_write_pkt(pkt);
+				udp_write_pkt(ptr);
 
 			co_return;
 		}
@@ -900,7 +940,7 @@ namespace avpn {
 			co_return;
 
 		BOOST_ASSERT(gid > 0);
-		BOOST_ASSERT(pid < (m_data_shards + m_parity_shards));
+		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps));
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
@@ -949,14 +989,14 @@ namespace avpn {
 		auto opt = m_recover.find(gid);
 		if (!opt)
 		{
-			if (pid < m_data_shards)
+			if (pid < m_peer_ds)
 				co_await write_pkt(dst_ptr);
 
-			if (m_data_shards == 1)
+			if (m_peer_ds == 1)
 				co_return;
 
 			m_recover.update(opt, gid, pid,
-				m_data_shards, m_parity_shards, pkt);
+				m_peer_ds, m_peer_ps, pkt);
 
 			co_return;
 		}
@@ -966,17 +1006,17 @@ namespace avpn {
 			co_return;
 
 		// 如果是data shards, 则write到tun设备或转发.
-		if (pid < m_data_shards)
+		if (pid < m_peer_ds)
 			co_await write_pkt(dst_ptr);
 
 		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
 		// 已经接收到.
-		if (m_data_shards == 1)
+		if (m_peer_ds == 1)
 			co_return;
 
 		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
 		m_recover.update(opt, gid, pid,
-			m_data_shards, m_parity_shards, pkt);
+			m_peer_ds, m_peer_ps, pkt);
 
 		// 获取fec解码结果并循环发送到tun设备.
 		auto results = std::move(m_recover.results_);

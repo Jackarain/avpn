@@ -177,8 +177,8 @@ namespace avpn {
 
 		// 对方fec编码使用的ds, ps.
 		// 本端解码时需要使用对方的ds,ps来进行fec解码.
-		uint8_t m_data_shards{ 0 };
-		uint8_t m_parity_shards{ 0 };
+		uint8_t m_peer_ds{ 0 };
+		uint8_t m_peer_ps{ 0 };
 
 		// fec纠错相关统计信息.
 		int m_num_corrected{ 0 };
