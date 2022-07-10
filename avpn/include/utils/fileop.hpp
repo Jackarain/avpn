@@ -16,7 +16,7 @@
 
 namespace fileop {
 	namespace details {
-		void create_parent_directories(std::filesystem::path const& p)
+		inline void create_parent_directories(std::filesystem::path const& p)
 		{
 			std::error_code ec;
 			auto e = std::filesystem::exists(p, ec);
