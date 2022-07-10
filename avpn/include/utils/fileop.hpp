@@ -12,6 +12,7 @@
 #include <vector>
 #include <string_view>
 #include <filesystem>
+#include <span>
 
 namespace fileop {
 	namespace details {
@@ -33,6 +34,10 @@ namespace fileop {
 			std::streamsize bytes = val.size();
 			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
 		}
+		inline std::streamsize write(std::streambuf& buf, const std::span<uint8_t>& val) {
+			std::streamsize bytes = val.size();
+			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
+		}
 
 		template<class T>
 		std::streamsize read(std::streambuf& buf, T& val) {
@@ -49,6 +54,10 @@ namespace fileop {
 			return buf.sgetn(reinterpret_cast<char*>(val.data()), bytes);
 		}
 		inline std::streamsize read(std::streambuf& buf, std::string_view& val) {
+			std::streamsize bytes = val.size();
+			return buf.sgetn((char*)(val.data()), bytes);
+		}
+		inline std::streamsize read(std::streambuf& buf, std::span<uint8_t>& val) {
 			std::streamsize bytes = val.size();
 			return buf.sgetn((char*)(val.data()), bytes);
 		}
