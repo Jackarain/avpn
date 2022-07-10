@@ -410,6 +410,7 @@ namespace avpn {
 
 	Proto vpn_tunnel::cherry_pick() const
 	{
+#if 0
 		auto& params = m_config.tunnel_params_;
 		auto ipproto = m_ipproto;
 
@@ -422,6 +423,7 @@ namespace avpn {
 			m_tcp_deque.empty() &&
 			std::rand() % 2 == 0)
 			return Proto::avpn_tcp;
+#endif
 
 		return Proto::avpn_udp;
 	}
@@ -802,7 +804,7 @@ namespace avpn {
 			co_return;
 
 		auto shards = m_peer_ds + m_peer_ps;
-		if (pid > shards)
+		if (pid >= shards)
 		{
 			LOG_ERR << this << ", transfer pkt"
 				<< ", proto: " << pkt->flag_
@@ -814,7 +816,7 @@ namespace avpn {
 		}
 
 		BOOST_ASSERT(gid > 0);
-		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps));
+		BOOST_ASSERT(pid < shards);
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
