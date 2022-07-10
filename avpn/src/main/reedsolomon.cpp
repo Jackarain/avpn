@@ -1164,9 +1164,23 @@ namespace avpn {
 		void reedsolomon::encode(std::vector<vpn_packet_ptr>& shards)
 		{
 			std::vector<std::span<uint8_t>> outputs;
+			int gid = 0;
+			for (const auto& shard : shards)
+			{
+				if (shard)
+				{
+					gid = shard->gid_;
+					break;
+				}
+			}
+
 			for (size_t i = (size_t)m_data_shards; i < (size_t)m_shards; i++) {
 				if (!shards[i])
+				{
 					shards[i] = std::make_shared<vpn_packet>();
+					shards[i]->gid_ = gid;
+					shards[i]->pid_ = (uint8_t)i;
+				}
 				auto data = shards[i]->payload();
 				outputs.push_back(std::span<uint8_t>(data, avpn_payload_size));
 			}
