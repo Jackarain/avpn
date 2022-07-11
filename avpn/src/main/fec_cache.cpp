@@ -171,16 +171,6 @@ namespace avpn
 
 				// Update fec header.
 				make_fec_header(*ptr, src);
-
-#if 0
-				{
-					auto fn = std::format("./dataout/u{:08d}.{}",
-						ptr->gid_, ptr->pid_);
-					std::span<uint8_t> data{ ptr->payload(), avpn_payload_size };
-					fileop::write(fn, data);
-				}
-#endif
-
 			}
 
 			return true;
@@ -213,16 +203,6 @@ namespace avpn
 		// fec编码.
 		try {
 			fec_enc.encode(pkts_);
-
-#if 0
-			for (auto& p : pkts_)
-			{
-				auto fn = std::format("./dataout/e{:08d}.{}",
-					p->gid_, p->pid_);
-				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
-				fileop::write(fn, data);
-			}
-#endif
 		}
 		catch (const std::exception& e) {
 			LOG_WARN << "fec encode exception: " << e.what();
@@ -328,19 +308,6 @@ namespace avpn
 
 		// fec解码.
 		try {
-#if 0
-			for (auto& p : pkts_)
-			{
-				if (!p)
-					continue;
-
-				auto fn = std::format("./dataout/d{:08d}.{}",
-					p->gid_, p->pid_);
-				std::span<uint8_t> data{ p->payload(), avpn_payload_size };
-				fileop::write(fn, data);
-			}
-#endif
-
 			fec_dec.decode(pkts_);
 		}
 		catch (const std::exception& e) {

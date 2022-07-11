@@ -236,13 +236,6 @@ namespace avpn {
 		{
 			auto p = m_feg.pkts_[i];
 
-#if 0
-			auto fn = std::format("./dataout/s{:08d}.{}",
-				p->gid_, p->pid_);
-			std::span<uint8_t> data{ p->payload(), avpn_payload_size };
-			fileop::write(fn, data);
-#endif
-
 			// 发送到对方.
 			co_await internal_write_pkt(p);
 
@@ -481,18 +474,6 @@ namespace avpn {
 
 	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
 	{
-#if 0
-		const auto& params = m_config.tunnel_params_;
-		auto shards = params.data_shards_ + params.parity_shards_;
-		if (pkt->pid_ >= shards)
-		{
-			LOG_ERR << this << ", udp write pkt"
-				<< ", gid: " << pkt->gid_
-				<< ", pid: " << pkt->pid_
-				<< ", shards: " << shards;
-		}
-#endif
-
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable->net::awaitable<void>
@@ -511,18 +492,6 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
 	{
-#if 0
-		const auto& params = m_config.tunnel_params_;
-		auto shards = params.data_shards_ + params.parity_shards_;
-		if (pkt->pid_ >= shards)
-		{
-			LOG_ERR << this << ", tcp write pkt"
-				<< ", gid: " << pkt->gid_
-				<< ", pid: " << pkt->pid_
-				<< ", shards: " << shards;
-		}
-#endif
-
 		auto self = shared_from_this();
 		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable -> net::awaitable<void>
@@ -827,16 +796,6 @@ namespace avpn {
 
 		BOOST_ASSERT(gid > 0);
 		BOOST_ASSERT(pid < shards);
-
-#if 0
-		if (m_identity == Identity::avpn_client)
-		{
-			auto fn = std::format("./dataout/r{:08d}.{}",
-				pkt->gid_, pkt->pid_);
-			std::span<uint8_t> data{ pkt->payload(), avpn_payload_size };
-			fileop::write(fn, data);
-		}
-#endif
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
