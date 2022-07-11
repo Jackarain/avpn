@@ -12,6 +12,7 @@
 #include "avpn/vpn_client_table.hpp"
 #include "avpn/endpoint_pair.hpp"
 
+#include "utils/acl.hpp"
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
 
@@ -354,6 +355,9 @@ namespace avpn {
 		// 作为server时, 虚拟 IP 分配器.
 		net::ip::address_v4_range m_ip_assigner;
 		net::ip::address_v4_range::iterator m_ip_iterator;
+
+		// 访问控制路由表, 命中的ip则转入tun2socks协议.
+		acl_util::lpm_table m_routes;
 
 		// 服务停止标志.
 		bool m_abort{ false };
