@@ -194,7 +194,15 @@ namespace avpn {
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-				do_client_tun_read(std::move(pkt), std::move(endp));
+				if (m_routes.lookup(endp.dst_.address()))
+				{
+					// TODO: 通过tun2socks模式转发.
+				}
+				else
+				{
+					do_client_tun_read(std::move(pkt), std::move(endp));
+				}
+
 				continue;
 			}
 		}
