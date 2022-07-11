@@ -321,19 +321,19 @@ namespace avpn {
 		if (m_ipproto == Proto::avpn_unknown)
 		{
 			m_ipproto = proto;
-			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
+			LOG_DBG << this << ", Ipproto update: " << static_cast<int>(m_ipproto);
 			return;
 		}
 
 		if (m_ipproto == Proto::avpn_udp && proto == Proto::avpn_tcp)
 		{
 			m_ipproto = Proto::avpn_mix;
-			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
+			LOG_DBG << this << ", Ipproto update: " << static_cast<int>(m_ipproto);
 		}
 		if (m_ipproto == Proto::avpn_tcp && proto == Proto::avpn_udp)
 		{
 			m_ipproto = Proto::avpn_mix;;
-			LOG_DBG << this << ", Update: " << static_cast<int>(m_ipproto);
+			LOG_DBG << this << ", Ipproto update: " << static_cast<int>(m_ipproto);
 		}
 	}
 
