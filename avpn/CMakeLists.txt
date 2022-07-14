@@ -40,6 +40,7 @@ file(GLOB avpn_SRCS
 	include/avpn/protocol.hpp
 	include/avpn/vpn_client_table.hpp
 	include/avpn/vpn_packet.hpp
+	include/avpn/vpn_conntrack.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp
@@ -55,6 +56,7 @@ file(GLOB avpn_SRCS
 	src/main/protocol.cpp
 	src/main/vpn_client_table.cpp
 	src/main/vpn_packet.cpp
+	src/main/vpn_conntrack.cpp
 )
 
 if (WIN32)
