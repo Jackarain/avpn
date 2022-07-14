@@ -16,6 +16,7 @@
 #include "avpn/fec_cache.hpp"
 #include "avpn/vpn_tunnel.hpp"
 #include "avpn/avpn.hpp"
+#include "avpn/vpn_conntrack.hpp"
 #include "avpn/protocol.hpp"
 
 #include <chrono>
@@ -79,7 +80,11 @@ namespace avpn {
 
 		// 客户端启动客户端通信通道.
 		if (m_config.identity_ == Identity::avpn_client)
+		{
+			auto self = shared_from_this();
+			m_conntrack = std::make_shared<vpn_conntrack>(m_main_context, self);
 			run_as_client();
+		}
 
 		// 服务器则将启动服务器通信通道.
 		if (m_config.identity_ == Identity::avpn_server)
