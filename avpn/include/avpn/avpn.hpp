@@ -142,6 +142,9 @@ namespace avpn {
 	using vtun_device_type = vtun_device<tun_device>;
 #endif
 
+	class vpn_conntrack;
+	using vpn_conntrack_ptr = std::shared_ptr<vpn_conntrack>;
+
 	class avpn_service : public std::enable_shared_from_this<avpn_service>
 	{
 		// c++11 noncopyable.
@@ -341,6 +344,9 @@ namespace avpn {
 		// 所有client连接将保存到这个容器, 这个容器不管理client的生命
 		// 期, 在client的生命期后, 需要从该容器手工清除.
 		vpn_client_table m_clients;
+
+		// 作为tun2socks的client时, 连接跟踪.
+		vpn_conntrack_ptr m_conntrack;
 
 		int64_t m_upload_speed{ 0 };
 		int64_t m_down_speed{ 0 };
