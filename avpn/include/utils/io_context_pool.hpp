@@ -8,7 +8,10 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include <boost/asio.hpp>
+
+namespace net = boost::asio;
 
 namespace util {
 
