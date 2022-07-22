@@ -20,4 +20,17 @@ namespace avpn {
 	{
 	}
 
+	void vpn_conntrack::forward_ip(vpn_packet pkt, const endpoint_pair& endp)
+	{
+		boost::ignore_unused(pkt);
+		lookup_stream(endp);
+	}
+
+
+	vpn_tcp_stream* vpn_conntrack::lookup_stream(const endpoint_pair& endp)
+	{
+		boost::ignore_unused(endp);
+		return nullptr;
+	}
+
 }

@@ -10,6 +10,9 @@
 
 namespace avpn {
 
+	class vpn_tcp_stream
+	{};
+
 	class vpn_conntrack
 	{
 		// c++11 noncopyable.
@@ -18,6 +21,11 @@ namespace avpn {
 	public:
 		vpn_conntrack(net::io_context& ioc, std::weak_ptr<avpn_service> service);
 		~vpn_conntrack();
+
+		void forward_ip(vpn_packet pkt, const endpoint_pair& endp);
+
+	private:
+		vpn_tcp_stream* lookup_stream(const endpoint_pair& endp);
 
 	private:
 		// 用于当前vpn_conntrack业务调度.
