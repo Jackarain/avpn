@@ -208,7 +208,6 @@ namespace avpn {
 					auto& conntrack = *m_conntrack;
 					conntrack.forward_ip(std::move(pkt), endp);
 				}
-
 				else
 				{
 					do_client_tun_read(std::move(pkt), std::move(endp));
