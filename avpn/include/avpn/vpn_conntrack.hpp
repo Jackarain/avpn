@@ -17,9 +17,11 @@ namespace avpn {
 		vpn_conntrack(const vpn_conntrack&) = delete;
 		vpn_conntrack& operator=(const vpn_conntrack&) = delete;
 	public:
-		vpn_conntrack(net::io_context& ioc, std::weak_ptr<avpn_service> service);
+		vpn_conntrack(net::io_context& ioc,
+			std::weak_ptr<avpn_service> service);
 		~vpn_conntrack();
 
+		// 转发ip包到对应的tcp状态机.
 		void forward_ip(vpn_packet pkt, const endpoint_pair& endp);
 
 	private:
@@ -31,6 +33,9 @@ namespace avpn {
 
 		// service 对象引用.
 		std::weak_ptr<avpn_service> m_serivce;
+
+		// tcp stream backlog.
+		std::vector<vpn_tcp_stream> m_backlog;
 
 		// tcp conntrack.
 		std::unordered_map<endpoint_pair, vpn_tcp_stream> m_conntrack;

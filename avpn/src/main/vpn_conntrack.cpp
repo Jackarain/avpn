@@ -23,7 +23,15 @@ namespace avpn {
 	void vpn_conntrack::forward_ip(vpn_packet pkt, const endpoint_pair& endp)
 	{
 		boost::ignore_unused(pkt);
-		lookup_stream(endp);
+		auto stream = lookup_stream(endp);
+		if (!stream)
+		{
+			// 1, start connect to target.
+			// 2, accept tcp.
+			// 3, splice data.
+		}
+
+		// splice data.
 	}
 
 
