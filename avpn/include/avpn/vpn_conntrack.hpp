@@ -6,12 +6,10 @@
 //
 
 #include "avpn/avpn.hpp"
+#include "avpn/vpn_tcp_stream.hpp"
 
 
 namespace avpn {
-
-	class vpn_tcp_stream
-	{};
 
 	class vpn_conntrack
 	{
@@ -33,6 +31,9 @@ namespace avpn {
 
 		// service 对象引用.
 		std::weak_ptr<avpn_service> m_serivce;
+
+		// tcp conntrack.
+		std::unordered_map<endpoint_pair, vpn_tcp_stream> m_conntrack;
 	};
 
 }
