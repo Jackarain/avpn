@@ -10,8 +10,10 @@
 
 #include <cinttypes>
 
-#if defined(AVPN_LINUX)
+#if defined(AVPN_LINUX) || defined(AVPN_APPLE)
 #include <arpa/inet.h> // ntohl etc...
+#elif defined(AVPN_ANDROID)
+#include <sys/endian.h>
 #elif defined(AVPN_WINDOWS)
 #include <winsock.h> // ntohl etc...
 #endif
