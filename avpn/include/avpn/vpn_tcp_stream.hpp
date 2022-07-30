@@ -75,9 +75,16 @@ namespace avpn {
 		// c++11 noncopyable.
 		vpn_tcp_stream(const vpn_tcp_stream&) = delete;
 		vpn_tcp_stream& operator=(const vpn_tcp_stream&) = delete;
+
 	public:
 		vpn_tcp_stream(net::io_context& ioc);
 		~vpn_tcp_stream();
+
+		// 设置tcp accept回调.
+		void set_accept_handler(accept_handler h);
+
+		// 设置tcp连接断开回调.
+		void set_closed_handler(closed_handler h);
 
 	private:
 		// 用于当前vpn_conntrack业务调度.
@@ -99,6 +106,6 @@ namespace avpn {
 		tsm m_tsm;
 
 		// 中止tcp状态机.
-		bool m_abort;
+		bool m_abort{ false };
 	};
 }

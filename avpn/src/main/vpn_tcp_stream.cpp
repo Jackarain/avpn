@@ -18,4 +18,13 @@ namespace avpn {
 	{
 	}
 
+	void vpn_tcp_stream::set_accept_handler(accept_handler h)
+	{
+		m_accept_handler = h;
+	}
+
+	void vpn_tcp_stream::set_closed_handler(closed_handler h)
+	{
+		m_closed_handler = h;
+	}
 }

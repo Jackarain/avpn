@@ -11,7 +11,7 @@
 
 namespace avpn {
 
-	using vpn_tcp_stream_ptr = std::shared_ptr<vpn_tcp_stream>;
+	using tcp_stream_ptr = std::shared_ptr<vpn_tcp_stream>;
 
 	class vpn_conntrack
 	{
@@ -27,7 +27,19 @@ namespace avpn {
 		void forward_ip(vpn_packet pkt, const endpoint_pair& endp);
 
 	private:
+		// 预创建tcp stream.
+		tcp_stream_ptr make_tcp_stream();
+
+		// 根据endpoint_pair查找stream对象.
 		vpn_tcp_stream* lookup_stream(const endpoint_pair& endp);
+
+		// 发起tcp连接请求时, 实际向外发起连接.
+		void handle_accept(tcp_stream_ptr stream,
+			const boost::system::error_code& ec);
+
+		// tcp连接关闭时, 响应关闭连接.
+		void handle_closed(tcp_stream_ptr stream,
+			const boost::system::error_code& ec);
 
 	private:
 		// 用于当前vpn_conntrack业务调度.
@@ -37,10 +49,10 @@ namespace avpn {
 		std::weak_ptr<avpn_service> m_serivce;
 
 		// tcp stream backlog.
-		std::vector<vpn_tcp_stream_ptr> m_backlog;
+		std::vector<tcp_stream_ptr> m_backlog;
 
 		// tcp conntrack.
-		std::unordered_map<endpoint_pair, vpn_tcp_stream_ptr> m_conntrack;
+		std::unordered_map<endpoint_pair, tcp_stream_ptr> m_conntrack;
 	};
 
 }
