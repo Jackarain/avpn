@@ -37,8 +37,10 @@ namespace avpn {
 
 	vpn_tcp_stream* vpn_conntrack::lookup_stream(const endpoint_pair& endp)
 	{
-		boost::ignore_unused(endp);
-		return nullptr;
+		auto it = m_conntrack.find(endp);
+		if (it == m_conntrack.end())
+			return nullptr;
+		return it->second.get();
 	}
 
 }
