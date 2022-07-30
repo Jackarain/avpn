@@ -11,6 +11,8 @@
 
 namespace avpn {
 
+	using vpn_tcp_stream_ptr = std::shared_ptr<vpn_tcp_stream>;
+
 	class vpn_conntrack
 	{
 		// c++11 noncopyable.
@@ -35,10 +37,10 @@ namespace avpn {
 		std::weak_ptr<avpn_service> m_serivce;
 
 		// tcp stream backlog.
-		std::vector<vpn_tcp_stream> m_backlog;
+		std::vector<vpn_tcp_stream_ptr> m_backlog;
 
 		// tcp conntrack.
-		std::unordered_map<endpoint_pair, vpn_tcp_stream> m_conntrack;
+		std::unordered_map<endpoint_pair, vpn_tcp_stream_ptr> m_conntrack;
 	};
 
 }

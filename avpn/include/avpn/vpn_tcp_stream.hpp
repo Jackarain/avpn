@@ -15,7 +15,8 @@ namespace avpn {
 	using closed_handler =
 		std::function<void(const boost::system::error_code&)>;
 
-	class vpn_tcp_stream
+	class vpn_tcp_stream :
+		public std::enable_shared_from_this<vpn_tcp_stream>
 	{
 		enum tcp_state
 		{
