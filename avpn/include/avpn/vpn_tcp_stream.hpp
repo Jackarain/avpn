@@ -86,6 +86,9 @@ namespace avpn {
 		// 设置tcp连接断开回调.
 		void set_closed_handler(closed_handler h);
 
+		// 处理tcp协议.
+		void process_tcp_stack(const uint8_t* buf, int len);
+
 	private:
 		// 用于当前vpn_conntrack业务调度.
 		net::io_context& m_io_context;
