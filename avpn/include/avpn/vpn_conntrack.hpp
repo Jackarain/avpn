@@ -27,6 +27,9 @@ namespace avpn {
 		void forward_ip(vpn_packet pkt, const endpoint_pair& endp);
 
 	private:
+		// 预创建backlog用于接受tcp连接.
+		void prebuilt_backlog();
+
 		// 预创建tcp stream.
 		tcp_stream_ptr make_tcp_stream();
 

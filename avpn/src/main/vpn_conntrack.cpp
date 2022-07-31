@@ -14,6 +14,7 @@ namespace avpn {
 		: m_io_context(ioc)
 		, m_serivce(service)
 	{
+		prebuilt_backlog();
 	}
 
 	vpn_conntrack::~vpn_conntrack()
@@ -33,6 +34,14 @@ namespace avpn {
 		}
 
 		// splice data.
+	}
+
+	void vpn_conntrack::prebuilt_backlog()
+	{
+		for (auto i = 0; i < 40; i++)
+		{
+			m_backlog.emplace_back(make_tcp_stream());
+		}
 	}
 
 	tcp_stream_ptr vpn_conntrack::make_tcp_stream()
