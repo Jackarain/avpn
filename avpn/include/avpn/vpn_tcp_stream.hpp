@@ -53,7 +53,7 @@ namespace avpn {
 		struct tsm	// tcp state machine
 		{
 			tsm()
-				: state_(ts_invalid)
+				: state_(tcp_state::ts_invalid)
 				, seq_(0)
 				, ack_(0)
 				, win_(0)

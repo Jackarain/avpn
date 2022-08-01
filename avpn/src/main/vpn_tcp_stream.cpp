@@ -82,9 +82,6 @@ namespace avpn {
 
 		p = p + ihl;
 
-		// uint16_t src_port = (*(uint16_t*)(p + 0));
-		// uint16_t dst_port = (*(uint16_t*)(p + 2));
-
 		// 下面开始执行tcp状态机, 总体参考下面实现, 稍作修改的地方几个就是这里初始状态设置
 		// 为ts_invalid, 而不是closed, 因为这里我需要判断一个tcp stream对象是已经closed
 		// 的, 还是新开的等待连接的对象, 另外执行到time_wait时, 按标准需要等待2MSL个时间
@@ -145,6 +142,7 @@ namespace avpn {
 		tcp_flags flags;
 		flags.data = *(p + 13);
 		uint16_t ws = ntohs(*(uint16_t*)(p + 14));
+		// 不检查chksum, 本机检查chksum意义不大.
 		// uint32_t chksum = ntohl(*(uint32_t*)(p + 16));
 		auto payload_len = total - (20 + offset);
 
@@ -187,7 +185,6 @@ namespace avpn {
 
 		// 记录当前seq.
 		m_tsm.seq_ = seq;
-
 
 		switch (m_tsm.state_)
 		{
