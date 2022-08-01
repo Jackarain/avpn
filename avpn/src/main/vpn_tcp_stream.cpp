@@ -20,7 +20,6 @@ namespace avpn {
 	{
 	}
 
-
 	std::string vpn_tcp_stream::tcp_state_string(tcp_state s) const
 	{
 		switch (s)
@@ -67,10 +66,17 @@ namespace avpn {
 	}
 
 	void vpn_tcp_stream::process_tcp_stack(
-		const uint8_t* buf, int len, const endpoint_pair& endp)
+		vpn_packet pkt, endpoint_pair endp)
 	{
-		boost::ignore_unused(len);
+		net::co_spawn(m_io_context,
+			tcp_stack(std::move(pkt), std::move(endp)), net::detached);
+	}
+
+	net::awaitable<void> vpn_tcp_stream::tcp_stack(
+		vpn_packet pkt, endpoint_pair endp)
+	{
 		auto self = shared_from_this();
+		auto buf = pkt.payload();
 
 		const uint8_t* p = buf;
 		auto last_state = m_tsm.state_;
@@ -80,7 +86,7 @@ namespace avpn {
 		uint8_t type = *(uint8_t*)(p + 9);
 
 		if (type != ip_tcp) // only tcp
-			return;
+			co_return;
 
 		p = p + ihl;
 
@@ -151,7 +157,7 @@ namespace avpn {
 		if (flags.flag.syn && m_tsm.state_ != tcp_state::ts_invalid)
 		{
 			LOG_WARN << "tcp stack: " << endp << " unexpected syn, skip it!";
-			return;
+			co_return;
 		}
 
 		m_tsm.win_ = ws;
@@ -171,7 +177,7 @@ namespace avpn {
 				<< " -> flags.flag.rst";
 
 			do_close();
-			return;
+			co_return;
 		}
 
 		bool keep_alive = false;
@@ -182,7 +188,7 @@ namespace avpn {
 				<< " " << tcp_state_string(last_state)
 				<< " tcp keep alive, skip it";
 			keep_alive = true;
-			return;
+			co_return;
 		}
 
 		// 记录当前seq.
@@ -201,7 +207,7 @@ namespace avpn {
 				<< tcp_state_string(m_tsm.state_)
 				<< " case ts_listen/ts_time_wait/ts_closed";
 			reset();
-			return;
+			co_return;
 		}
 		break;
 		case tcp_state::ts_invalid:	// 初始状态, 如果不是syn, 则是个错误的数据包, 这里跳过.
@@ -215,7 +221,7 @@ namespace avpn {
 					m_accept_handler = {};
 				}
 				reset();
-				return;
+				co_return;
 			}
 
 			m_tsm.state_ = tcp_state::ts_syn_rcvd;	// 更新状态为syn接收到的状态.
@@ -229,7 +235,7 @@ namespace avpn {
 				m_accept_handler(ec);
 				m_accept_handler = {};
 			}
-			return;	// 直接返回, 由用户层确认是否接受连接回复syn ack.
+			co_return;	// 直接返回, 由用户层确认是否接受连接回复syn ack.
 		}
 		break;
 		case tcp_state::ts_syn_rcvd:
@@ -237,14 +243,14 @@ namespace avpn {
 			if (!flags.flag.syn)
 			{
 				reset();
-				return;
+				co_return;
 			}
 
 			m_tsm.state_ = tcp_state::ts_syn_rcvd;	// 更新状态为syn接收到的状态.
 			LOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> retransmission tcp_state::ts_syn_rcvd";
-			return;
+			co_return;
 		}
 		break;
 		case tcp_state::ts_syn_sent: // 这个状态只表示被动回复syn, 而不是主动syn请求.
@@ -254,7 +260,7 @@ namespace avpn {
 			if (!flags.flag.ack)
 			{
 				reset();
-				return;
+				co_return;
 			}
 			else
 			{
@@ -277,7 +283,7 @@ namespace avpn {
 
 			// 连接状态中, 只是一个ack包而已, 不用对ack包再ack.
 			if (payload_len == 0 && !flags.flag.fin)
-				return;
+				co_return;
 		}
 		break;
 		case tcp_state::ts_fin_wait_1:		// 表示主动关闭.
@@ -312,7 +318,7 @@ namespace avpn {
 				else
 				{
 					reset();
-					return;
+					co_return;
 				}
 			}
 
@@ -324,7 +330,7 @@ namespace avpn {
 					<< " -> tcp_state::ts_fin_wait_2";
 
 				m_tsm.state_ = tcp_state::ts_fin_wait_2;
-				return;
+				co_return;
 			}
 		}
 		break;
@@ -333,7 +339,7 @@ namespace avpn {
 			if (!flags.flag.fin)	// 只期望收到fin, 除非有数据, 否则都跳过.
 			{
 				if (payload_len <= 0)
-					return;
+					co_return;
 			}
 
 			// 收到fin, 发回ack, 并关闭这个连接, 进入2MSL状态.
@@ -354,12 +360,12 @@ namespace avpn {
 			// 等待自己发出fin给本地, 这时收到的ack, 只是最后部分半开状态的向
 			// 本地发出数据, 本地回复的ack而已, 所以在这里, 只需要简单的跳过.
 			if (flags.flag.ack)
-				return;
+				co_return;
 
 			// 统统跳过, 在自己发没出fin之前, 所有除对数据的ack之外, 全是错误的
 			// 数据, 这里可以直接rst掉这个连接.
 			reset();
-			return;
+			co_return;
 		}
 		break;
 		case tcp_state::ts_last_ack:
@@ -367,7 +373,7 @@ namespace avpn {
 		{
 			if (!flags.flag.ack)
 			{
-				return;
+				co_return;
 			}
 
 			// 如果是close_wait, 则表示收到是last ack, 关闭这个连接.
@@ -378,12 +384,47 @@ namespace avpn {
 
 			m_tsm.state_ = tcp_state::ts_closed;
 			do_close();
-			return;
+			co_return;
 		}
 		break;
 		}
 
+		// 发送tcp payload部分通过socks连接.
+		// 发送完成后, 回复ack给本地连接.
+		// auto payload = buf + 20 + offset;
+		// payload_len;
 
+		co_return;
+#if 0
+		// save tcp payload.
+		if (payload_len > 0 && !keep_alive)
+		{
+			auto payload = buf + 20 + offset;
+			auto target = boost::asio::buffer_cast<void*>(
+				m_tcp_recv_buffer.prepare(payload_len));
+			std::memcpy(target, payload, payload_len);
+			m_tcp_recv_buffer.commit(payload_len);
+		}
+
+		int ack = m_tsm.seq_ + payload_len;
+		if (payload_len == 0)
+			ack += 1;
+
+		// 回写ack.
+		ip_buffer buffer(40, m_endp_reserve);
+		auto ip = buffer.data();
+		auto tcp = ip + 20;
+
+		flags.data = 0;
+		flags.flag.ack = 1;
+
+		m_tsm.lack_ = ack;
+
+		make_tcp_header(tcp, 20, buffer.endp_, m_tsm.lseq_, m_tsm.lack_, flags.data);
+
+		// 回调写回ack数据.
+		m_write_ip_handler(buffer);
+#endif
 	}
 
 }

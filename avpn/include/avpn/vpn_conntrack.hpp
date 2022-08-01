@@ -24,7 +24,7 @@ namespace avpn {
 		~vpn_conntrack();
 
 		// 转发ip包到对应的tcp状态机.
-		void forward_ip(vpn_packet pkt, const endpoint_pair& endp);
+		void forward_ip(vpn_packet pkt, endpoint_pair endp);
 
 	private:
 		// 预创建backlog用于接受tcp连接.

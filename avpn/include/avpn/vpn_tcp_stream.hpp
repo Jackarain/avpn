@@ -98,7 +98,11 @@ namespace avpn {
 
 		// 处理tcp协议.
 		void process_tcp_stack(
-			const uint8_t* buf, int len, const endpoint_pair& endp);
+			vpn_packet pkt, endpoint_pair endp);
+
+		// 处理tcp协程.
+		net::awaitable<void> tcp_stack(
+			vpn_packet pkt, endpoint_pair endp);
 
 	private:
 		// 用于当前vpn_conntrack业务调度.

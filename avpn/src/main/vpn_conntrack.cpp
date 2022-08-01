@@ -21,7 +21,7 @@ namespace avpn {
 	{
 	}
 
-	void vpn_conntrack::forward_ip(vpn_packet pkt, const endpoint_pair& endp)
+	void vpn_conntrack::forward_ip(vpn_packet pkt, endpoint_pair endp)
 	{
 		boost::ignore_unused(pkt);
 		auto stream = lookup_stream(endp);
@@ -34,7 +34,7 @@ namespace avpn {
 		}
 
 		// splice data.
-		stream->process_tcp_stack(pkt.payload(), pkt.payload_size(), endp);
+		stream->process_tcp_stack(std::move(pkt), std::move(endp));
 	}
 
 	void vpn_conntrack::prebuilt_backlog()

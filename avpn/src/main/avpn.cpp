@@ -206,7 +206,7 @@ namespace avpn {
 						continue;
 
 					auto& conntrack = *m_conntrack;
-					conntrack.forward_ip(std::move(pkt), endp);
+					conntrack.forward_ip(std::move(pkt), std::move(endp));
 				}
 				else
 				{
