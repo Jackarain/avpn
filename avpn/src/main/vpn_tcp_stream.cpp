@@ -9,8 +9,10 @@
 
 namespace avpn {
 
-	vpn_tcp_stream::vpn_tcp_stream(net::io_context& ioc)
+	vpn_tcp_stream::vpn_tcp_stream(net::io_context& ioc,
+		std::weak_ptr<avpn_service> service)
 		: m_io_context(ioc)
+		, m_serivce(service)
 	{
 	}
 

@@ -77,7 +77,8 @@ namespace avpn {
 		vpn_tcp_stream& operator=(const vpn_tcp_stream&) = delete;
 
 	public:
-		vpn_tcp_stream(net::io_context& ioc);
+		vpn_tcp_stream(net::io_context& ioc,
+			std::weak_ptr<avpn_service> service);
 		~vpn_tcp_stream();
 
 		// 状态机状态输出为字符串.
@@ -102,6 +103,9 @@ namespace avpn {
 	private:
 		// 用于当前vpn_conntrack业务调度.
 		net::io_context& m_io_context;
+
+		//  service 对象引用.
+		std::weak_ptr<avpn_service> m_serivce;
 
 		// 发起tcp连接接受状态.
 		accept_handler m_accept_handler;

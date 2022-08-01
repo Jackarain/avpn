@@ -47,7 +47,7 @@ namespace avpn {
 
 	tcp_stream_ptr vpn_conntrack::make_tcp_stream()
 	{
-		auto stream = std::make_shared<vpn_tcp_stream>(m_io_context);
+		auto stream = std::make_shared<vpn_tcp_stream>(m_io_context, m_serivce);
 
 		stream->set_accept_handler(std::bind(&vpn_conntrack::handle_accept,
 			this, stream, std::placeholders::_1));
