@@ -18,7 +18,7 @@ namespace avpn {
 	class vpn_tcp_stream :
 		public std::enable_shared_from_this<vpn_tcp_stream>
 	{
-		enum tcp_state
+		enum class tcp_state
 		{
 			ts_invalid = -1,
 			ts_closed = 0,

@@ -25,18 +25,18 @@ namespace avpn {
 	{
 		switch (s)
 		{
-		case ts_invalid: return "ts_invalid";
-		case ts_closed: return "ts_closed";
-		case ts_listen: return "ts_listen";
-		case ts_syn_sent: return "ts_syn_sent";
-		case ts_syn_rcvd: return "ts_syn_rcvd";
-		case ts_established: return "ts_established";
-		case ts_fin_wait_1: return "ts_fin_wait_1";
-		case ts_fin_wait_2: return "ts_fin_wait_2";
-		case ts_close_wait: return "ts_close_wait";
-		case ts_closing: return "ts_closing";
-		case ts_last_ack: return "ts_last_ack";
-		case ts_time_wait: return "ts_time_wait";
+		case tcp_state::ts_invalid: return "ts_invalid";
+		case tcp_state::ts_closed: return "ts_closed";
+		case tcp_state::ts_listen: return "ts_listen";
+		case tcp_state::ts_syn_sent: return "ts_syn_sent";
+		case tcp_state::ts_syn_rcvd: return "ts_syn_rcvd";
+		case tcp_state::ts_established: return "ts_established";
+		case tcp_state::ts_fin_wait_1: return "ts_fin_wait_1";
+		case tcp_state::ts_fin_wait_2: return "ts_fin_wait_2";
+		case tcp_state::ts_close_wait: return "ts_close_wait";
+		case tcp_state::ts_closing: return "ts_closing";
+		case tcp_state::ts_last_ack: return "ts_last_ack";
+		case tcp_state::ts_time_wait: return "ts_time_wait";
 		}
 		return "error tcp state";
 	}
@@ -148,7 +148,7 @@ namespace avpn {
 		// uint32_t chksum = ntohl(*(uint32_t*)(p + 16));
 		auto payload_len = total - (20 + offset);
 
-		if (flags.flag.syn && m_tsm.state_ != ts_invalid)
+		if (flags.flag.syn && m_tsm.state_ != tcp_state::ts_invalid)
 		{
 			LOG_WARN << "tcp stack: " << endp << " unexpected syn, skip it!";
 			return;
