@@ -80,14 +80,24 @@ namespace avpn {
 		vpn_tcp_stream(net::io_context& ioc);
 		~vpn_tcp_stream();
 
+		// 状态机状态输出为字符串.
+		std::string tcp_state_string(tcp_state s) const;
+
 		// 设置tcp accept回调.
 		void set_accept_handler(accept_handler h);
 
 		// 设置tcp连接断开回调.
 		void set_closed_handler(closed_handler h);
 
+		// 关闭tcp连接.
+		void do_close();
+
+		// 强制reset连接.
+		void reset();
+
 		// 处理tcp协议.
-		void process_tcp_stack(const uint8_t* buf, int len);
+		void process_tcp_stack(
+			const uint8_t* buf, int len, const endpoint_pair& endp);
 
 	private:
 		// 用于当前vpn_conntrack业务调度.

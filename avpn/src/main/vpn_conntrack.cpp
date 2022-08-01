@@ -34,7 +34,7 @@ namespace avpn {
 		}
 
 		// splice data.
-		stream->process_tcp_stack(pkt.payload(), pkt.payload_size());
+		stream->process_tcp_stack(pkt.payload(), pkt.payload_size(), endp);
 	}
 
 	void vpn_conntrack::prebuilt_backlog()
