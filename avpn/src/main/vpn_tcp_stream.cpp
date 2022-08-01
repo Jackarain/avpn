@@ -270,6 +270,7 @@ namespace avpn {
 					<< " -> tcp_state::ts_established";
 			}
 		}
+		[[fallthrough]];
 		case tcp_state::ts_established:
 		{
 			// 收到客户端fin, 被动关闭, 发送ack置状态为close_wait, 等待last ack.
