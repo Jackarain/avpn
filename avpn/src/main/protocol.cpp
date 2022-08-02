@@ -71,7 +71,9 @@ namespace avpn {
 	{
 		auto pkt = make_common_header(false, vpt_handshake, src);
 
-		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
+
 		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());
 		writer.WriteUInt8((uint8_t)pubkey.size());
@@ -138,7 +140,66 @@ namespace avpn {
 		return bytes;
 	}
 
-	avpn::vpn_packet make_handshake_reply(std::string_view id,
+	vpn_packet make_tun2socks(
+		std::string_view target, uint16_t port,
+		std::string_view pubkey)
+	{
+		auto pkt = make_common_header(false, vpt_tun2socks, 0);
+
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
+
+		writer.WriteUInt8((uint8_t)target.size());
+		writer.WriteString(target.data(), target.size());
+		writer.WriteUInt16(port);
+		writer.WriteUInt8((uint8_t)pubkey.size());
+		writer.WriteString(pubkey.data(), pubkey.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwarp_tun2socks(vpn_packet& pkt,
+		std::string& target, uint16_t& port,
+		std::string& pubkey)
+	{
+		bool enc;
+		uint8_t type;
+		uint32_t src;
+
+		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
+		if (type != vpt_tun2socks)
+			return -1;
+
+		auto surplus = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, surplus);
+		uint8_t length = 0;
+
+		bool ret = reader.ReadUInt8(&length);
+		if (!ret) return -1;
+		target.resize(length);
+		ret = reader.ReadString((char*)target.data(), length);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt16(&port);
+		if (!ret) return -1;
+
+		ret = reader.ReadUInt8(&length);
+		if (!ret) return -1;
+		pubkey.resize(length);
+		ret = reader.ReadString((char*)pubkey.data(), length);
+		if (!ret) return -1;
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
+	vpn_packet make_handshake_reply(std::string_view id,
 		uint8_t ds, uint8_t ps,
 		uint32_t addr, uint8_t prefix_length,
 		bool passbyvpn, uint32_t pushdns,
@@ -385,7 +446,8 @@ namespace avpn {
 		uint32_t gid, uint8_t pid, std::string_view data)
 	{
 		auto pkt = make_common_header(false, vpt_transfer, src);
-		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
 
 		pkt.gid_ = gid;
 		pkt.pid_ = pid;

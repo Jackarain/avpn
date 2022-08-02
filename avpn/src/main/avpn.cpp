@@ -1439,6 +1439,20 @@ namespace avpn {
 		if (ret == -1)
 			co_return;
 
+		bool enc;
+		uint8_t type;
+		uint32_t src;
+
+		ret = unwrap_common_header(pkt, enc, type, src);
+		if (ret == -1)
+			co_return;
+
+		if (type == vpt_tun2socks)
+		{
+			// 通过tun2socks协议.
+			co_return;
+		}
+
 		auto& params = m_config.tunnel_params_;
 
 		uint32_t src_vaddr = 0;

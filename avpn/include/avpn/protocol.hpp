@@ -27,17 +27,19 @@ namespace avpn {
 
 	enum {
 		vpt_handshake = 1,
-		vpt_handshake_reply = 2,
+		vpt_handshake_reply,
 
-		vpt_keepalive = 3,
-		vpt_keepalive_reply = 4,
+		vpt_tun2socks,
 
-		vpt_transfer = 5,
-		vpt_transfer_compress = 6,
+		vpt_keepalive,
+		vpt_keepalive_reply,
 
-		vpt_transfer_ack = 7,
+		vpt_transfer,
+		vpt_transfer_compress,
 
-		vpt_error = 8,
+		vpt_transfer_ack,
+
+		vpt_error,
 	};
 
 	enum
@@ -77,6 +79,25 @@ namespace avpn {
 		uint32_t& src, std::string& id, std::string& pubkey,
 		uint8_t& ds, uint8_t& ps);
 
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// 构造tun2socks协议.
+	// 协议格式
+	// target_len(8)
+	// target(target_len)
+	// port(16)
+	// pubkey_len(8)
+	// pubkey(pubkey_len)
+	vpn_packet make_tun2socks(
+		std::string_view target, uint16_t port,
+		std::string_view pubkey);
+
+	int unwarp_tun2socks(vpn_packet& pkt,
+		std::string& target, uint16_t& port,
+		std::string& pubkey);
+
+
 	//////////////////////////////////////////////////////////////////////////
 
 	// 构造握手认证回复消息, s -> c.
@@ -103,6 +124,7 @@ namespace avpn {
 		uint32_t& addr, uint8_t& prefix_length,
 		bool& passbyvpn, uint32_t& pushdns,
 		std::vector<std::string>& routes);
+
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -163,6 +185,7 @@ namespace avpn {
 
 	int unwrap_transfer(vpn_packet& pkt,
 		uint32_t& src, uint32_t& gid, uint8_t& pid);
+
 
 	//////////////////////////////////////////////////////////////////////////
 
