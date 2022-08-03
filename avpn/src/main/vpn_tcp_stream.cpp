@@ -13,6 +13,7 @@ namespace avpn {
 		std::weak_ptr<avpn_service> service)
 		: m_io_context(ioc)
 		, m_serivce(service)
+		, m_socket(m_io_context)
 	{
 	}
 
@@ -165,10 +166,10 @@ namespace avpn {
 		// 收到rst强制中断.
 		if (flags.flag.rst)
 		{
-			if (m_tsm.state_ == tcp_state::ts_invalid && m_accept_handler)
+			if (m_tsm.state_ == tcp_state::ts_invalid && m_closed_handler)
 			{
-				m_accept_handler(boost::asio::error::network_reset);
-				m_accept_handler = {};
+				m_closed_handler(boost::asio::error::network_reset);
+				m_closed_handler = {};
 			}
 
 			m_tsm.state_ = tcp_state::ts_closed;
@@ -212,13 +213,12 @@ namespace avpn {
 		break;
 		case tcp_state::ts_invalid:	// 初始状态, 如果不是syn, 则是个错误的数据包, 这里跳过.
 		{
-			boost::system::error_code ec;
 			if (!flags.flag.syn)
 			{
-				if (m_accept_handler)
+				if (m_closed_handler)
 				{
-					m_accept_handler(boost::asio::error::network_reset);
-					m_accept_handler = {};
+					m_closed_handler(boost::asio::error::network_reset);
+					m_closed_handler = {};
 				}
 				reset();
 				co_return;
@@ -232,7 +232,7 @@ namespace avpn {
 			// 通知用户层接收到连接.
 			if (m_accept_handler)
 			{
-				m_accept_handler(ec);
+				m_accept_handler({});
 				m_accept_handler = {};
 			}
 			co_return;	// 直接返回, 由用户层确认是否接受连接回复syn ack.

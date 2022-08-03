@@ -126,6 +126,9 @@ namespace avpn {
 		// 当前tcp连接状态.
 		tsm m_tsm;
 
+		// tcp转发连接.
+		tcp::socket m_socket;
+
 		// 中止tcp状态机.
 		bool m_abort{ false };
 	};
