@@ -104,6 +104,12 @@ namespace avpn {
 		net::awaitable<void> tcp_stack(
 			vpn_packet pkt, endpoint_pair endp);
 
+		// tcp socket read and write.
+		net::awaitable<int> tcp_read_packet(
+			tcp::socket& stream, vpn_packet& pkt, size_t id);
+		net::awaitable<void> tcp_write_packet(
+			tcp::socket& stream, vpn_packet& pkt, size_t id);
+
 	private:
 		// 用于当前vpn_conntrack业务调度.
 		net::io_context& m_io_context;
