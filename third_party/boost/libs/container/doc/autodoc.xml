@@ -3997,7 +3997,7 @@
 <typedef name="is_always_equal"><purpose>A integral constant of type bool with value true. </purpose><type>implementation_defined</type></typedef>
 <method-group name="public member functions">
 <method name="allocate"><type>pointer</type><parameter name="count"><paramtype>size_type</paramtype></parameter><description><para>Allocates memory for an array of count elements. Throws <classname alt="boost::container::bad_alloc">bad_alloc</classname> if there is no enough memory </para></description></method>
-<method name="deallocate" cv="noexcept"><type>void</type><parameter name="ptr"><paramtype>pointer</paramtype></parameter><parameter name=""><paramtype>size_type</paramtype></parameter><description><para>Deallocates previously allocated memory. Never throws </para></description></method>
+<method name="deallocate" cv="noexcept"><type>void</type><parameter name="ptr"><paramtype>pointer</paramtype></parameter><parameter name="n"><paramtype>size_type</paramtype></parameter><description><para>Deallocates previously allocated memory. Never throws </para></description></method>
 <method name="max_size" cv="const noexcept"><type>size_type</type><description><para>Returns the maximum number of elements that could be allocated. Never throws </para></description></method>
 </method-group>
 <constructor cv="noexcept"><description><para>Default constructor Never throws </para></description></constructor>
@@ -7332,9 +7332,9 @@ If the maximum capacity() to be used is limited, a user can try to use 8-bit, 16
 <class name="small_vector"><template>
       <template-type-parameter name="T"><purpose><para>The type of object that is stored in the <classname alt="boost::container::small_vector">small_vector</classname> </para></purpose></template-type-parameter>
       <template-nontype-parameter name="N"><type>std::size_t</type><purpose><para>The number of preallocated elements stored inside <classname alt="boost::container::small_vector">small_vector</classname>. It shall be less than Allocator::max_size(); </para></purpose></template-nontype-parameter>
-      <template-type-parameter name="Allocator"><default>void</default><purpose><para>The allocator used for memory management when the number of elements exceeds N. Use void for the default allocator |tparam Options A type produced from <computeroutput><classname alt="boost::container::small_vector_options">boost::container::small_vector_options</classname></computeroutput>. </para></purpose></template-type-parameter>
-      <template-type-parameter name="Options"><default>void</default></template-type-parameter>
-    </template><inherit access="public">boost::container::small_vector_base&lt; T, Allocator, Options &gt;</inherit><description><para><classname alt="boost::container::small_vector">small_vector</classname> is a vector-like container optimized for the case when it contains few elements. It contains some preallocated elements in-place, which can avoid the use of dynamic storage allocation when the actual number of elements is below that preallocated threshold.</para><para><computeroutput><classname alt="boost::container::small_vector">small_vector</classname>&lt;T, N, Allocator, Options&gt;</computeroutput> is convertible to <computeroutput><classname alt="boost::container::small_vector_base">small_vector_base</classname>&lt;T, Allocator, Options&gt;</computeroutput> that is independent from the preallocated element capacity, so client code does not need to be templated on that N argument.</para><para>All <computeroutput><classname alt="boost::container::vector">boost::container::vector</classname></computeroutput> member functions are inherited. See <computeroutput>vector</computeroutput> documentation for details.</para><para>
+      <template-type-parameter name="Allocator"><default>void</default><purpose><para>The allocator used for memory management when the number of elements exceeds N. Use void for the default allocator </para></purpose></template-type-parameter>
+      <template-type-parameter name="Options"><default>void</default><purpose><para>A type produced from <computeroutput><classname alt="boost::container::small_vector_options">boost::container::small_vector_options</classname></computeroutput>. </para></purpose></template-type-parameter>
+    </template><inherit access="public">boost::container::small_vector_base&lt; T, Allocator, Options &gt;</inherit><description><para><classname alt="boost::container::small_vector">small_vector</classname> is a vector-like container optimized for the case when it contains few elements. It contains some preallocated elements in-place, which can avoid the use of dynamic storage allocation when the actual number of elements is below that preallocated threshold.</para><para><computeroutput><classname alt="boost::container::small_vector">small_vector</classname>&lt;T, N, Allocator, Options&gt;</computeroutput> is convertible to <computeroutput><classname alt="boost::container::small_vector_base">small_vector_base</classname>&lt;T, Allocator, Options&gt;</computeroutput> that is independent from the preallocated element capacity, so client code does not need to be templated on that N argument.</para><para>All <computeroutput><classname alt="boost::container::vector">boost::container::vector</classname></computeroutput> member functions are inherited. See <computeroutput>vector</computeroutput> documentation for details.</para><para>Any change to the capacity of the vector, including decreasing its size such as with the shrink_to_fit method, will cause the vector to permanently switch to dynamically allocated storage.</para><para>
 </para></description><method-group name="public member functions">
 <method name="swap"><type>void</type><parameter name="other"><paramtype><classname>small_vector</classname> &amp;</paramtype></parameter></method>
 </method-group>
@@ -7365,7 +7365,7 @@ If the maximum capacity() to be used is limited, a user can try to use 8-bit, 16
 <copy-assignment><type><classname>small_vector</classname> &amp;</type><parameter name="other"><paramtype><classname>base_type</classname> &amp;&amp;</paramtype></parameter></copy-assignment>
 </class><class name="small_vector_allocator"><template>
       <template-type-parameter name="T"/>
-      <template-type-parameter name="VoidAllocator"><default>void</default></template-type-parameter>
+      <template-type-parameter name="VoidAlloc"><default>void</default></template-type-parameter>
       <template-type-parameter name="Options"><default>void</default></template-type-parameter>
     </template><inherit access="public">allocator_traits::template portable_rebind_alloc&lt; T &gt;::type</inherit><description><para>A non-standard allocator used to implement <computeroutput><classname alt="boost::container::small_vector">small_vector</classname></computeroutput>. Users should never use it directly. It is described here for documentation purposes.</para><para>This allocator inherits from a standard-conforming allocator and forwards member functions to the standard allocator except when internal storage is being used as memory source.</para><para>This allocator is a "partially_propagable" allocator and defines <computeroutput>is_partially_propagable</computeroutput> as true_type.</para><para>A partially propagable allocator means that not all storage allocatod by an instance of <computeroutput><classname alt="boost::container::small_vector_allocator">small_vector_allocator</classname></computeroutput> can be deallocated by another instance of this type, even if both instances compare equal or an instance is propagated to another one using the copy/move constructor or assignment. The storage that can never be propagated is identified by <computeroutput>storage_is_unpropagable(p)</computeroutput>.</para><para><computeroutput><classname alt="boost::container::vector">boost::container::vector</classname></computeroutput> supports partially propagable allocators fallbacking to deep copy/swap/move operations when internal storage is being used to store vector elements.</para><para><computeroutput><classname alt="boost::container::small_vector_allocator">small_vector_allocator</classname></computeroutput> assumes that will be instantiated as <computeroutput><classname alt="boost::container::vector">boost::container::vector</classname>&lt; T, <classname alt="boost::container::small_vector_allocator">small_vector_allocator</classname>&lt;T, Allocator&gt; &gt;</computeroutput> and internal storage can be obtained downcasting that vector to <computeroutput><classname alt="boost::container::small_vector_base">small_vector_base</classname>&lt;T&gt;</computeroutput>. </para></description><struct name="rebind"><template>
       <template-type-parameter name="T2"/>
@@ -7423,7 +7423,7 @@ If the maximum capacity() to be used is limited, a user can try to use 8-bit, 16
 </method-group>
 </class><class name="small_vector_base"><template>
       <template-type-parameter name="T"/>
-      <template-type-parameter name="SecondaryAllocator"/>
+      <template-type-parameter name="SecAlloc"/>
       <template-type-parameter name="Options"/>
     </template><inherit access="public">boost::container::vector&lt; T, A, Options &gt;</inherit><description><para>This class consists of common code from all small_vector&lt;T, N&gt; types that don't depend on the "N" template parameter. This class is non-copyable and non-destructible, so this class typically used as reference argument to functions that read or write small vectors. Since <computeroutput><classname alt="boost::container::small_vector">small_vector</classname>&lt;T, N&gt;</computeroutput> derives from <computeroutput><classname alt="boost::container::small_vector_base">small_vector_base</classname>&lt;T&gt;</computeroutput>, the conversion to <computeroutput><classname alt="boost::container::small_vector_base">small_vector_base</classname></computeroutput> is implicit </para><programlisting>//Clients can pass any small_vector&lt;Foo, N&gt;.
 void read_any_small_vector_of_foo(const small_vector_base&lt;Foo&gt; &amp;in_parameter);
@@ -7440,16 +7440,15 @@ void some_function()
    modify_any_small_vector_of_foo(myvector); // Modifies myvector
 
 }
-</programlisting><para>All <computeroutput>boost::container:vector</computeroutput> member functions are inherited. See <computeroutput>vector</computeroutput> documentation for details. </para></description><typedef name="secondary_allocator_t"><type>real_allocator&lt; T, SecondaryAllocator &gt;::type</type></typedef>
+</programlisting><para>All <computeroutput>boost::container:vector</computeroutput> member functions are inherited. See <computeroutput>vector</computeroutput> documentation for details. </para></description><typedef name="secondary_allocator_t"><type>real_allocator&lt; T, SecAlloc &gt;::type</type></typedef>
 <typedef name="void_allocator_t"><type><classname>allocator_traits</classname>&lt; secondary_allocator_t &gt;::template portable_rebind_alloc&lt; void &gt;::type</type></typedef>
 <typedef name="options_t"><type><classname>dtl::get_small_vector_opt</classname>&lt; Options &gt;::type</type></typedef>
-<typedef name="base_type"><type><classname>dtl::vector_for_small_vector</classname>&lt; T, SecondaryAllocator, Options &gt;::type</type></typedef>
+<typedef name="base_type"><type><classname>dtl::vector_for_small_vector</classname>&lt; T, SecAlloc, Options &gt;::type</type></typedef>
 <typedef name="pointer"><type><classname>allocator_traits</classname>&lt; secondary_allocator_t &gt;::pointer</type></typedef>
 <typedef name="const_pointer"><type><classname>allocator_traits</classname>&lt; secondary_allocator_t &gt;::const_pointer</type></typedef>
 <typedef name="void_pointer"><type><classname>allocator_traits</classname>&lt; secondary_allocator_t &gt;::void_pointer</type></typedef>
 <typedef name="const_void_pointer"><type><classname>allocator_traits</classname>&lt; secondary_allocator_t &gt;::const_void_pointer</type></typedef>
 <typedef name="allocator_type"><type><classname>small_vector_allocator</classname>&lt; T, void_allocator_t, Options &gt;</type></typedef>
-<typedef name="storage_type"><type>dtl::aligned_storage&lt; sizeof(T), final_alignment &gt;::type</type></typedef>
 <method-group name="private member functions">
 <method name="internal_storage" cv="const noexcept"><type>const_pointer</type></method>
 <method name="internal_storage" cv="noexcept"><type>pointer</type></method>
@@ -7467,7 +7466,18 @@ void some_function()
 </method-group>
 <copy-assignment><type><classname>small_vector_base</classname> &amp;</type><parameter name="other"><paramtype>const <classname>small_vector_base</classname> &amp;</paramtype></parameter></copy-assignment>
 <copy-assignment><type><classname>small_vector_base</classname> &amp;</type><parameter name="other"><paramtype><classname>small_vector_base</classname> &amp;&amp;</paramtype></parameter></copy-assignment>
-</class><namespace name="dtl">
+</class><struct name="small_vector_storage"><template>
+      <template-type-parameter name="T"/>
+      <template-nontype-parameter name="N"><type>std::size_t</type></template-nontype-parameter>
+      <template-nontype-parameter name="Alignment"><type>std::size_t</type></template-nontype-parameter>
+    </template><typedef name="storage_type"><type>dtl::aligned_storage&lt; sizeof(T) *N, Alignment &gt;::type</type></typedef>
+<data-member name="m_storage"><type>storage_type</type></data-member>
+<data-member name="sms_size" specifiers="static"><type>const std::size_t</type></data-member>
+</struct><struct-specialization name="small_vector_storage"><template>
+      <template-type-parameter name="T"/>
+      <template-nontype-parameter name="Alignment"><type>std::size_t</type></template-nontype-parameter>
+    </template><specialization><template-arg>T</template-arg><template-arg>0u</template-arg><template-arg>Alignment</template-arg></specialization><data-member name="sms_size" specifiers="static"><type>const std::size_t</type></data-member>
+</struct-specialization><namespace name="dtl">
 <struct name="get_small_vector_opt"><template>
       <template-type-parameter name="Options"/>
     </template><typedef name="type"><type>Options</type></typedef>
@@ -7481,9 +7491,9 @@ void some_function()
     </template><specialization><template-arg>void</template-arg></specialization><typedef name="type"><type>void</type></typedef>
 </struct-specialization><struct name="vector_for_small_vector"><template>
       <template-type-parameter name="T"/>
-      <template-type-parameter name="SecondaryAllocator"/>
+      <template-type-parameter name="SecAlloc"/>
       <template-type-parameter name="Options"/>
-    </template><typedef name="type"><type><classname>vector</classname>&lt; T, <classname>small_vector_allocator</classname>&lt; T, typename <classname>allocator_traits</classname>&lt; typename real_allocator&lt; T, SecondaryAllocator &gt;::<classname>type</classname> &gt;::template portable_rebind_alloc&lt; void &gt;::<classname>type</classname>, Options &gt;, typename <classname>dtl::get_vopt_from_svopt</classname>&lt; Options &gt;::<classname>type</classname> &gt;</type></typedef>
+    </template><typedef name="type"><type><classname>vector</classname>&lt; T, <classname>small_vector_allocator</classname>&lt; T, typename <classname>allocator_traits</classname>&lt; typename real_allocator&lt; T, SecAlloc &gt;::<classname>type</classname> &gt;::template portable_rebind_alloc&lt; void &gt;::<classname>type</classname>, Options &gt;, typename <classname>dtl::get_vopt_from_svopt</classname>&lt; Options &gt;::<classname>type</classname> &gt;</type></typedef>
 </struct></namespace>
 
 

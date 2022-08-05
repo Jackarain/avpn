@@ -1,10 +1,9 @@
 //
-//  Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
 //
-//  Distributed under the Boost Software License, Version 1.0. (See
-//  accompanying file LICENSE_1_0.txt or copy at
-//  http://www.boost.org/LICENSE_1_0.txt)
-//
+// Distributed under the Boost Software License, Version 1.0.
+// https://www.boost.org/LICENSE_1_0.txt
+
 #ifndef BOOST_LOCALE_CONFIG_HPP_INCLUDED
 #define BOOST_LOCALE_CONFIG_HPP_INCLUDED
 
@@ -68,7 +67,7 @@
         BOOST_PRAGMA_MESSAGE("CAUTION: Define BOOST_LOCALE_DISABLE_DEPRECATED_03_WARNING to suppress this message.")
 #endif
 
-#ifdef BOOST_MSVC
+#ifdef _MSC_VER
 // Denote a constant condition, e.g. for if(sizeof(...
 #define BOOST_LOCALE_START_CONST_CONDITION __pragma(warning(push)) __pragma(warning(disable : 4127))
 #define BOOST_LOCALE_END_CONST_CONDITION __pragma(warning(pop))
@@ -78,5 +77,4 @@
 #endif
 
 #endif // boost/locale/config.hpp
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 

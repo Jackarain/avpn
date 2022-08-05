@@ -1,10 +1,8 @@
 //
-//  Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
 //
-//  Distributed under the Boost Software License, Version 1.0. (See
-//  accompanying file LICENSE_1_0.txt or copy at
-//  http://www.boost.org/LICENSE_1_0.txt)
-//
+// Distributed under the Boost Software License, Version 1.0.
+// https://www.boost.org/LICENSE_1_0.txt
 
 #ifndef BOOST_LOCALE_WITH_ICU
 #include <iostream>
@@ -42,7 +40,7 @@ namespace lb = boost::locale::boundary;
 
 template<typename Char,typename Iterator>
 void test_word_container(Iterator begin,Iterator end,
-    std::vector<int> const &ipos,
+    std::vector<size_t> const &ipos,
     std::vector<int> const &imasks,
     std::vector<std::basic_string<Char> > const &ichunks,
     std::locale l,
@@ -57,7 +55,8 @@ void test_word_container(Iterator begin,Iterator end,
             + ((sm & 8 ) != 0) * 0xF000
             + ((sm & 16) != 0) * 0xF0000;
 
-        std::vector<int> masks,pos;
+        std::vector<int> masks;
+        std::vector<size_t> pos;
         std::vector<unsigned> bmasks;
         std::basic_string<Char> empty_chunk;
 
@@ -119,7 +118,7 @@ void test_word_container(Iterator begin,Iterator end,
                 }
                 for(i=0,p=map.end();i<chunks.size();i++){
                     --p;
-                    unsigned index = chunks.size() - i - 1;
+                    size_t index = chunks.size() - i - 1;
                     TEST(p->str()==chunks[index]);
                     TEST(p->rule() == unsigned(masks[index]));
                 }
@@ -155,7 +154,7 @@ void test_word_container(Iterator begin,Iterator end,
 
                 for(i=0,p=map.end();i<chunks.size();i++){
                     --p;
-                    unsigned index = chunks.size() - i - 1;
+                    size_t index = chunks.size() - i - 1u;
                     TEST(p->str()==fchunks[index]);
                     TEST(p->rule() == unsigned(masks[index]));
                 }
@@ -338,7 +337,7 @@ void test_word_container(Iterator begin,Iterator end,
 template<typename Char>
 void run_word(std::string *original,int *none,int *num,int *word,int *kana,int *ideo,std::locale l,lb::boundary_type b=lb::word)
 {
-    std::vector<int> pos;
+    std::vector<size_t> pos;
     std::vector<std::basic_string<Char> > chunks;
     std::vector<int> masks;
     std::basic_string<Char> test_string;
@@ -526,6 +525,5 @@ void test_main(int /*argc*/, char** /*argv*/)
 }
 
 #endif // NOICU
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 
 // boostinspect:noascii

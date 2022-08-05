@@ -1,10 +1,9 @@
 #
 # Copyright 2011 Artyom Beilis
+# Copyright 2022 Alexander Grund
 #
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or copy at
-# http://www.boost.org/LICENSE_1_0.txt.
-
+# https://www.boost.org/LICENSE_1_0.txt
 
 project : requirements
     <library>/boost/locale//boost_locale
@@ -14,6 +13,7 @@ project : requirements
     <toolset>gcc-11:<warnings-as-errors>on
     <toolset>clang:<cxxflags>"-Wno-long-long -Wno-error=deprecated-declarations"
     <toolset>clang-5:<warnings-as-errors>on
+    <include>.
     # Make sure we get all defines we need
     # Otherwise we would have problem knowing
     # what backends are actually in use
@@ -53,6 +53,3 @@ test-suite "boost_locale_test" :
     [ run test_std_convert.cpp ]
     [ run test_std_formatting.cpp ]
     ;
-
-# vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
-

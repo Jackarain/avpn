@@ -1,13 +1,12 @@
 //
-//  Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
 //
-//  Distributed under the Boost Software License, Version 1.0. (See
-//  accompanying file LICENSE_1_0.txt or copy at
-//  http://www.boost.org/LICENSE_1_0.txt)
-//
+// Distributed under the Boost Software License, Version 1.0.
+// https://www.boost.org/LICENSE_1_0.txt
 
 #ifndef BOOST_LOCALE_TEST_H
 #define BOOST_LOCALE_TEST_H
+
 #include <boost/locale/config.hpp>
 #include <stdexcept>
 #include <sstream>
@@ -25,27 +24,35 @@ int test_counter=0;
 
 
 #define THROW_IF_TOO_BIG(X)                                                     \
-do {                                                                            \
     if((X) > BOOST_LOCALE_ERROR_LIMIT)                                          \
-        throw std::runtime_error("Error limits reached, stopping unit test");   \
-}while(0)
+        throw std::runtime_error("Error limits reached, stopping unit test")
 
-#define TEST(X)                                                         \
-    do {                                                                \
-        test_counter++;                                                 \
-        if(X) break;                                                    \
+#define TEST(X)                                                           \
+    do {                                                                  \
+        test_counter++;                                                   \
+        if(X) break;                                                      \
         std::cerr << "Error in line:" << __LINE__ << " "#X  << std::endl; \
-        THROW_IF_TOO_BIG(error_counter++);                              \
-    }while(0)
-#endif
+        THROW_IF_TOO_BIG(error_counter++);                                \
+        BOOST_LOCALE_START_CONST_CONDITION                                \
+    }while(0) BOOST_LOCALE_END_CONST_CONDITION
 
-#define TEST_THROWS(X,E)                                                \
-    do {                                                                \
-        test_counter++;                                                 \
-        try { X; } catch(E const &/*e*/ ) {break;} catch(...){}         \
+#define TEST_REQUIRE(X)                                                   \
+    do {                                                                  \
+        test_counter++;                                                   \
+        if(X) break;                                                      \
         std::cerr << "Error in line:" << __LINE__ << " "#X  << std::endl; \
-        THROW_IF_TOO_BIG(error_counter++);                              \
-    }while(0)
+        throw std::runtime_error("Critical test " #X " failed");          \
+        BOOST_LOCALE_START_CONST_CONDITION                                \
+    }while(0) BOOST_LOCALE_END_CONST_CONDITION
+
+#define TEST_THROWS(X,E)                                                  \
+    do {                                                                  \
+        test_counter++;                                                   \
+        try { X; } catch(E const &/*e*/ ) {break;} catch(...){}           \
+        std::cerr << "Error in line:" << __LINE__ << " "#X  << std::endl; \
+        THROW_IF_TOO_BIG(error_counter++);                                \
+        BOOST_LOCALE_START_CONST_CONDITION                                \
+    }while(0) BOOST_LOCALE_END_CONST_CONDITION
 
 void test_main(int argc, char **argv);
 
@@ -64,7 +71,7 @@ int main(int argc,char **argv) {
     }
     std::cout << " " << std::fixed << std::setprecision(1)
               << std::setw(5) << 100.0 * passed / test_counter <<
-              "% of tests completed sucsessefully\n";
+              "% of tests completed successfully\n";
     return error_counter == 0 ? EXIT_SUCCESS : EXIT_FAILURE ;
 }
 
@@ -127,5 +134,4 @@ BOOST_LOCALE_END_CONST_CONDITION
     return out;
 }
 
-
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+#endif
