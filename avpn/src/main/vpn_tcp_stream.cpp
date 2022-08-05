@@ -6,6 +6,7 @@
 //
 
 #include "avpn/vpn_tcp_stream.hpp"
+#include "utils/uawaitable.hpp"
 
 namespace avpn {
 
