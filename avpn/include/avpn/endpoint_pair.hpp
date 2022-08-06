@@ -106,6 +106,15 @@ namespace avpn {
 			endp.id_ = 0;
 		}
 
+		endpoint_pair(const endpoint_pair& endp)
+			: src_(endp.src_)
+			, dst_(endp.dst_)
+			, type_(endp.type_)
+			, size_(endp.size_)
+			, id_(endp.id_)
+		{
+		}
+
 		bool empty() const
 		{
 			return type_ < 0;
