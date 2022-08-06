@@ -27,14 +27,11 @@ namespace avpn {
 		void forward_ip(vpn_packet pkt, endpoint_pair endp);
 
 	private:
-		// 预创建backlog用于接受tcp连接.
-		void prebuilt_backlog();
-
 		// 预创建tcp stream.
 		tcp_stream_ptr make_tcp_stream();
 
 		// 根据endpoint_pair查找stream对象.
-		vpn_tcp_stream* lookup_stream(const endpoint_pair& endp);
+		tcp_stream_ptr lookup_stream(const endpoint_pair& endp);
 
 		// 发起tcp连接请求时, 实际向外发起连接.
 		void handle_accept(tcp_stream_ptr stream,
@@ -50,9 +47,6 @@ namespace avpn {
 
 		// service 对象引用.
 		std::weak_ptr<avpn_service> m_serivce;
-
-		// tcp stream backlog.
-		std::vector<tcp_stream_ptr> m_backlog;
 
 		// tcp conntrack.
 		std::unordered_map<endpoint_pair, tcp_stream_ptr> m_conntrack;

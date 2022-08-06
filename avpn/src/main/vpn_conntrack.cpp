@@ -14,7 +14,6 @@ namespace avpn {
 		: m_io_context(ioc)
 		, m_serivce(service)
 	{
-		prebuilt_backlog();
 	}
 
 	vpn_conntrack::~vpn_conntrack()
@@ -23,26 +22,14 @@ namespace avpn {
 
 	void vpn_conntrack::forward_ip(vpn_packet pkt, endpoint_pair endp)
 	{
-		boost::ignore_unused(pkt);
 		auto stream = lookup_stream(endp);
 		if (!stream)
 		{
-
-			// 1, start connect to target.
-			// 2, accept tcp.
-			// 3, splice data.
+			stream = make_tcp_stream();
+			m_conntrack[endp] = stream;
 		}
 
-		// splice data.
 		stream->process_tcp_stack(std::move(pkt), std::move(endp));
-	}
-
-	void vpn_conntrack::prebuilt_backlog()
-	{
-		for (auto i = 0; i < 40; i++)
-		{
-			m_backlog.emplace_back(make_tcp_stream());
-		}
 	}
 
 	tcp_stream_ptr vpn_conntrack::make_tcp_stream()
@@ -57,12 +44,12 @@ namespace avpn {
 		return stream;
 	}
 
-	vpn_tcp_stream* vpn_conntrack::lookup_stream(const endpoint_pair& endp)
+	tcp_stream_ptr vpn_conntrack::lookup_stream(const endpoint_pair& endp)
 	{
 		auto it = m_conntrack.find(endp);
 		if (it == m_conntrack.end())
 			return nullptr;
-		return it->second.get();
+		return it->second;
 	}
 
 	void vpn_conntrack::handle_accept(
