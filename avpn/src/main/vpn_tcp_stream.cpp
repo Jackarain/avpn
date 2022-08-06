@@ -233,6 +233,9 @@ namespace avpn {
 			// 通知用户层接收到连接.
 			if (m_accept_handler)
 			{
+				auto ret = co_await connect_server();
+				if (!ret)
+					m_closed_handler({});
 				m_accept_handler({});
 				m_accept_handler = {};
 			}
@@ -499,6 +502,17 @@ namespace avpn {
 		}
 
 		co_return;
+	}
+
+	net::awaitable<bool> vpn_tcp_stream::connect_server()
+	{
+		auto service = m_serivce.lock();
+		if (!service)
+			co_return false;
+
+		auto server_endps = service->server_endpoint();
+
+		co_return false;
 	}
 
 }

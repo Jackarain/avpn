@@ -110,6 +110,9 @@ namespace avpn {
 		net::awaitable<void> tcp_write_packet(
 			tcp::socket& stream, vpn_packet& pkt, size_t id);
 
+		// 连接到服务器.
+		net::awaitable<bool> connect_server();
+
 	private:
 		// 用于当前vpn_conntrack业务调度.
 		net::io_context& m_io_context;
