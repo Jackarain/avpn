@@ -155,6 +155,11 @@ namespace avpn {
 		return m_down_speed;
 	}
 
+	std::vector<tcp::endpoint> avpn_service::server_endpoint() const
+	{
+		return m_server_tcp_endps;
+	}
+
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
@@ -199,7 +204,8 @@ namespace avpn {
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-				if (m_routes.lookup(endp.dst_.address()))
+				if (m_routes.lookup(endp.dst_.address())
+					== (acl_util::lpm_tag)0xa)
 				{
 					// TODO: 通过tun2socks模式转发.
 					if (!m_conntrack)

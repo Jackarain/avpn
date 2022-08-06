@@ -175,6 +175,9 @@ namespace avpn {
 		int64_t upload_rate() const;
 		int64_t download_rate() const;
 
+		// server endpoint.
+		std::vector<tcp::endpoint> server_endpoint() const;
+
 	private:
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
