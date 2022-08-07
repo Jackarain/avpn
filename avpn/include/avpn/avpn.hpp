@@ -178,6 +178,12 @@ namespace avpn {
 		// server endpoint.
 		std::vector<tcp::endpoint> server_endpoint() const;
 
+		// client key.
+		std::string client_key() const;
+
+		// service config.
+		const service_config& config() const;
+
 	private:
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();

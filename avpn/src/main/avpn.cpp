@@ -160,6 +160,16 @@ namespace avpn {
 		return m_server_tcp_endps;
 	}
 
+	std::string avpn_service::client_key() const
+	{
+		return m_client_key;
+	}
+
+	const avpn::service_config& avpn_service::config() const
+	{
+		return m_config;
+	}
+
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
