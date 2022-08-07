@@ -566,9 +566,7 @@ namespace avpn {
 		if (!service)
 			co_return false;
 
-		const auto& config = service->config();
 		auto key = service->client_key();
-
 		crypto_util::keyexchange ke(key);
 		auto pubkey = ke.StaticPublicKey();
 		auto target = endp.dst_.address().to_string();
