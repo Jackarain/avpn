@@ -567,7 +567,6 @@ namespace avpn {
 			co_return false;
 
 		const auto& config = service->config();
-		const auto& params = config.tunnel_params_;
 		auto key = service->client_key();
 
 		crypto_util::keyexchange ke(key);
@@ -585,7 +584,7 @@ namespace avpn {
 		if (bytes == -1)
 			co_return false;
 
-
+		co_return false;
 	}
 
 }
