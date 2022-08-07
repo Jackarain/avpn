@@ -6,7 +6,10 @@
 //
 
 #include "avpn/vpn_tcp_stream.hpp"
+#include "avpn/protocol.hpp"
+
 #include "utils/uawaitable.hpp"
+#include "utils/crypto.hpp"
 
 namespace avpn {
 
@@ -235,7 +238,18 @@ namespace avpn {
 			{
 				auto ret = co_await connect_server();
 				if (!ret)
+				{
+					if (!m_closed_handler)
+					{
+						m_accept_handler = {};
+						co_return;
+					}
+
 					m_closed_handler({});
+					m_closed_handler = {};
+					co_return;
+				}
+
 				m_accept_handler({});
 				m_accept_handler = {};
 			}
@@ -510,9 +524,68 @@ namespace avpn {
 		if (!service)
 			co_return false;
 
+		boost::system::error_code ec;
 		auto server_endps = service->server_endpoint();
+		auto& stream = m_socket;
+
+		for (auto it = server_endps.begin();
+			it != server_endps.end() && !m_abort; it++)
+		{
+			const auto& endp = *it;
+			stream.close(ec);
+
+			co_await stream.async_connect(endp,
+				net::redirect_error(
+					net::bind_cancellation_slot(
+						m_cancel_sig.slot(), net::use_awaitable), ec));
+			if (m_abort)
+			{
+				LOG_ERR << "connect_server, stream async_connect abort";
+				co_return false;
+			}
+			if (ec)
+			{
+				LOG_ERR << "connect_server, stream async_connect: " << ec.message();
+				continue;
+			}
+
+			net::ip::tcp::no_delay option(true);
+			stream.set_option(option, ec);
+			if (ec)
+				co_return false;
+
+			co_return true;
+		}
 
 		co_return false;
+	}
+
+	net::awaitable<bool> vpn_tcp_stream::handshake(const endpoint_pair& endp)
+	{
+		auto service = m_serivce.lock();
+		if (!service)
+			co_return false;
+
+		const auto& config = service->config();
+		const auto& params = config.tunnel_params_;
+		auto key = service->client_key();
+
+		crypto_util::keyexchange ke(key);
+		auto pubkey = ke.StaticPublicKey();
+		auto target = endp.dst_.address().to_string();
+
+		auto pkt = make_tun2socks(target, endp.dst_.port(), pubkey);
+		auto& stream = m_socket;
+
+		// 发送handshake到server.
+		co_await tcp_write_packet(stream, pkt, 0);
+
+		// 就地等待server回复.
+		auto bytes = co_await tcp_read_packet(stream, pkt, 0);
+		if (bytes == -1)
+			co_return false;
+
+
 	}
 
 }

@@ -113,6 +113,9 @@ namespace avpn {
 		// 连接到服务器.
 		net::awaitable<bool> connect_server();
 
+		// 握手.
+		net::awaitable<bool> handshake(const endpoint_pair& endp);
+
 	private:
 		// 用于当前vpn_conntrack业务调度.
 		net::io_context& m_io_context;
@@ -137,6 +140,9 @@ namespace avpn {
 
 		// tcp转发连接.
 		tcp::socket m_socket;
+
+		// 专门用于退出时取消asio_util::async_connect.
+		net::cancellation_signal m_cancel_sig;
 
 		// 中止tcp状态机.
 		bool m_abort{ false };
