@@ -237,7 +237,7 @@ namespace avpn {
 		if (!ret) return -1;
 
 		uint8_t length = 0;
-		bool ret = reader.ReadUInt8(&length);
+		ret = reader.ReadUInt8(&length);
 		if (!ret) return -1;
 		reason.resize(length);
 		ret = reader.ReadString((char*)reason.data(), length);
