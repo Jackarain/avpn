@@ -1074,6 +1074,35 @@ namespace avpn {
 			if (error)
 				continue;
 
+			// 检查协议.
+			auto fd = socket.native_handle();
+			uint8_t detect[5] = { 0 };
+
+#if defined(WIN32) || defined(__APPLE__)
+			auto ret = recv(fd, (char*)detect, sizeof(detect),
+				MSG_PEEK);
+#else
+			auto ret = recv(fd, (void*)detect, sizeof(detect),
+				MSG_PEEK | MSG_NOSIGNAL | MSG_DONTWAIT);
+#endif
+			if (ret <= 0)
+			{
+				LOG_WARN << "start_tcp_listen, peek message return: " << ret;
+				continue;
+			}
+
+			// socks4/5 protocol.
+			if (detect[0] == 0x05 || detect[0] == 0x04)
+			{
+#if 0
+				auto new_session = std::make_shared<socks::socks_session>(
+					std::move(socket), connection_id, self);
+				m_socks_clients[connection_id] = new_session;
+
+				new_session->start(m_config.socks_opt_.bind_addr_);
+#endif
+			}
+
 			// 新连接, server先读取client的认证请求, 如果client未认
 			// 证, 则会发出认证请求, 如果是已认证过只是断开重连, 发送
 			// 认证重连消息server会根据重连信息中的src虚拟ip找到对应

@@ -16,8 +16,14 @@
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
 
+#include "socks/socks_server.hpp"
+
+
 
 namespace avpn {
+
+	using namespace util;
+	using namespace socks;
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -121,12 +127,13 @@ namespace avpn {
 
 		// vpn隧道相关参数.
 		avpn::tunnel_params tunnel_params_;
+
+		// socks server options.
+		socks_server_option socks_opt_;
 	};
 
 
 	//////////////////////////////////////////////////////////////////////////
-
-	using namespace util;
 
 	class vpn_tunnel;
 
@@ -329,6 +336,9 @@ namespace avpn {
 
 		// 作为server时, 用于tcp的服务器acceptor.
 		std::vector<tcp::acceptor> m_tcp_acceptors;
+
+		// socks clients连接表.
+		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
 
 		// udp socket集合.
 		// 作为server时, m_udp_sockets初始化为几个用于监听client的
