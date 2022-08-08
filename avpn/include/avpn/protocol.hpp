@@ -30,6 +30,7 @@ namespace avpn {
 		vpt_handshake_reply,
 
 		vpt_tun2socks,
+		vpt_tun2socks_reply,
 
 		vpt_keepalive,
 		vpt_keepalive_reply,
@@ -96,6 +97,20 @@ namespace avpn {
 	int unwarp_tun2socks(vpn_packet& pkt,
 		std::string& target, uint16_t& port,
 		std::string& pubkey);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	// 构造tun2socks_reply协议.
+	// 协议格式
+	// status(8)
+	// reason_len(8)
+	// reason(reason_len)
+	vpn_packet make_tun2socks_reply(
+		uint8_t status, std::string_view reason);
+
+	int unwarp_tun2socks_reply(vpn_packet& pkt,
+		uint8_t& status, std::string& reason);
 
 
 	//////////////////////////////////////////////////////////////////////////

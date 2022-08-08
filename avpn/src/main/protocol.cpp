@@ -199,6 +199,55 @@ namespace avpn {
 		return bytes;
 	}
 
+	vpn_packet make_tun2socks_reply(
+		uint8_t status, std::string_view reason)
+	{
+		auto pkt = make_common_header(false, vpt_tun2socks_reply, 0);
+
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
+
+		writer.WriteUInt8(status);
+		writer.WriteUInt8((uint8_t)reason.size());
+		writer.WriteString(reason.data(), reason.size());
+
+		auto bytes = writer.ByteOffset();
+		pkt.resize(pkt.size() + bytes);
+
+		return pkt;
+	}
+
+	int unwarp_tun2socks_reply(vpn_packet& pkt,
+		uint8_t& status, std::string& reason)
+	{
+		bool enc;
+		uint8_t type;
+		uint32_t src;
+
+		auto bytes = unwrap_common_header(pkt, enc, type, src);
+		if (bytes == -1)
+			return -1;
+		if (type != vpt_tun2socks_reply)
+			return -1;
+
+		auto surplus = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, surplus);
+
+		bool ret = reader.ReadUInt8(&status);
+		if (!ret) return -1;
+
+		uint8_t length = 0;
+		bool ret = reader.ReadUInt8(&length);
+		if (!ret) return -1;
+		reason.resize(length);
+		ret = reader.ReadString((char*)reason.data(), length);
+		if (!ret) return -1;
+
+		bytes += (int)reader.ByteOffset();
+
+		return bytes;
+	}
+
 	vpn_packet make_handshake_reply(std::string_view id,
 		uint8_t ds, uint8_t ps,
 		uint32_t addr, uint8_t prefix_length,
