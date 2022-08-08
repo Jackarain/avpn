@@ -8,6 +8,8 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#pragma once
+
 #include <memory>
 #include <string>
 #include <array>
@@ -25,7 +27,15 @@ namespace socks {
 	using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
 
-	class socks_server;
+	class socks_server_base {
+	public:
+		virtual ~socks_server_base() {}
+		virtual void remove_client(size_t id) = 0;
+		virtual bool do_auth(const std::string& userid,
+			const std::string& passwd, int version) = 0;
+		virtual bool auth_require() = 0;
+	};
+
 	class socks_session
 		: public std::enable_shared_from_this<socks_session>
 	{
@@ -33,7 +43,7 @@ namespace socks {
 		socks_session& operator=(const socks_session&) = delete;
 
 	public:
-		socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server> server);
+		socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server_base> server);
 		~socks_session();
 
 	public:
@@ -52,7 +62,7 @@ namespace socks {
 		tcp::socket m_remote_socket;
 		size_t m_connection_id;
 		std::array<char, 2048> m_local_buffer{};
-		std::weak_ptr<socks_server> m_socks_server;
+		std::weak_ptr<socks_server_base> m_socks_server;
 		std::string m_bind_addr;
 		bool m_abort{ false };
 	};
@@ -72,7 +82,8 @@ namespace socks {
 	};
 
 	class socks_server
-		: public std::enable_shared_from_this<socks_server>
+		: public socks_server_base
+		, public std::enable_shared_from_this<socks_server>
 	{
 		socks_server(const socks_server&) = delete;
 		socks_server& operator=(const socks_server&) = delete;
@@ -82,17 +93,17 @@ namespace socks {
 	public:
 		socks_server(net::io_context& ioc,
 			const tcp::endpoint& endp, socks_server_option opt = {});
-		~socks_server() = default;
+		virtual ~socks_server() = default;
 
 	public:
 		void open();
 		void close();
 
 	private:
-		void remove_client(size_t id);
-		bool do_auth(const std::string& userid,
-			const std::string& passwd, int version = 5);
-		bool auth_require();
+		virtual void remove_client(size_t id) override;
+		virtual bool do_auth(const std::string& userid,
+			const std::string& passwd, int version) override;
+		virtual bool auth_require() override;
 
 	private:
 		net::awaitable<void> start_socks_listen(tcp::acceptor& a);

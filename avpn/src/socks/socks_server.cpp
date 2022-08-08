@@ -48,7 +48,7 @@ namespace socks {
 	using detail::write;
 	using detail::read;
 
-	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server> server)
+	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server_base> server)
 		: m_local_socket(std::move(socket))
 		, m_remote_socket(m_local_socket.get_executor())
 		, m_connection_id(id)
@@ -459,6 +459,7 @@ namespace socks {
 				write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, p);
 				write<uint8_t>(static_cast<int8_t>(domain.size()), p);
 				std::copy(domain.begin(), domain.end(), p);
+				p += domain.size();
 				write<uint16_t>(port, p);
 			}
 			else
@@ -468,9 +469,10 @@ namespace socks {
 				write<uint16_t>(0, p);
 			}
 
+			auto len = p - m_local_buffer.data();
 			bytes = co_await net::async_write(m_local_socket,
-				net::buffer(m_local_buffer, 10),
-					net::transfer_exactly(10),
+				net::buffer(m_local_buffer, len),
+					net::transfer_exactly(len),
 						uawaitable[ec]);
 			if (ec)
 			{
@@ -756,7 +758,7 @@ namespace socks {
 
 		if (server)
 		{
-			verify_passed = server->do_auth(uname, passwd);
+			verify_passed = server->do_auth(uname, passwd, auth_version);
 			server.reset();
 		}
 
@@ -873,7 +875,7 @@ namespace socks {
 
 	bool socks_server::auth_require()
 	{
-		if (m_option.usrdid_.empty())
+		if (!m_option.usrdid_.empty())
 			return true;
 
 		return false;
