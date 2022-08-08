@@ -1068,6 +1068,12 @@ namespace avpn {
 
 			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
 
+			// 等待读取事件.
+			co_await socket.async_wait(
+				tcp::socket::wait_read, uawaitable[error]);
+			if (error)
+				continue;
+
 			// 新连接, server先读取client的认证请求, 如果client未认
 			// 证, 则会发出认证请求, 如果是已认证过只是断开重连, 发送
 			// 认证重连消息server会根据重连信息中的src虚拟ip找到对应
