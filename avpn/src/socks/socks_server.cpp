@@ -548,6 +548,7 @@ namespace socks {
 
 	net::awaitable<void> socks_session::socks_connect_v4()
 	{
+		auto self = shared_from_this();
 		char* p = m_local_buffer.data();
 
 		[[maybe_unused]] auto socks_version = read<int8_t>(p);
