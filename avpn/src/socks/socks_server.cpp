@@ -48,7 +48,8 @@ namespace socks {
 	using detail::write;
 	using detail::read;
 
-	socks_session::socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server_base> server)
+	socks_session::socks_session(tcp::socket&& socket,
+		size_t id, std::weak_ptr<socks_server_base> server)
 		: m_local_socket(std::move(socket))
 		, m_remote_socket(m_local_socket.get_executor())
 		, m_connection_id(id)
@@ -114,13 +115,18 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "socks id: " << m_connection_id << ", read socks version: " << ec.message();
+			LOG_ERR << "socks id: " << m_connection_id
+				<< ", read socks version: " << ec.message();
 			co_return;
 		}
 		BOOST_ASSERT(bytes == 2);
 
 		char* p = m_local_buffer.data();
 		int socks_version = read<uint8_t>(p);
+
+		LOG_DBG << "socks id: " << m_connection_id
+			<< ", socks version: " << socks_version;
+
 		if (socks_version == SOCKS_VERSION_5)
 		{
 			co_await socks_connect_v5();
@@ -144,7 +150,8 @@ namespace socks {
 		int nmethods = read<int8_t>(p);
 		if (nmethods <= 0 || nmethods > 255)
 		{
-			LOG_ERR << "socks id: " << m_connection_id << ", unsupported method : " << nmethods;
+			LOG_ERR << "socks id: " << m_connection_id
+				<< ", unsupported method : " << nmethods;
 			co_return;
 		}
 
@@ -162,7 +169,8 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "socks id: " << m_connection_id << ", read socks methods: " << ec.message();
+			LOG_ERR << "socks id: " << m_connection_id
+				<< ", read socks methods: " << ec.message();
 			co_return;
 		}
 
@@ -229,13 +237,15 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", write server method error : " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", write server method error : " << ec.message();
 			co_return;
 		}
 
 		if (method == SOCKS5_AUTH_UNACCEPTABLE)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", no acceptable methods for server";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", no acceptable methods for server";
 			co_return;
 		}
 
@@ -259,7 +269,8 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read client request error: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read client request error: " << ec.message();
 			co_return;
 		}
 
@@ -267,7 +278,8 @@ namespace socks {
 		auto ver = read<int8_t>(p);
 		if (ver != SOCKS_VERSION_5)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", socks requests, invalid protocol: " << ver;
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", socks requests, invalid protocol: " << ver;
 			co_return;
 		}
 
@@ -303,7 +315,8 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read client request dst.addr error: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read client request dst.addr error: " << ec.message();
 			co_return;
 		}
 
@@ -311,7 +324,8 @@ namespace socks {
 		if (ec)
 			m_bind_addr.clear();
 
-		auto check_condition = [this, bind_interface](const boost::system::error_code&,
+		auto check_condition = [this, bind_interface](
+			const boost::system::error_code&,
 			tcp::socket& stream, auto&) mutable
 		{
 			if (m_bind_addr.empty())
@@ -344,17 +358,22 @@ namespace socks {
 			dst_endpoint.address(net::ip::address_v4(read<uint32_t>(p)));
 			dst_endpoint.port(read<uint16_t>(p));
 
-			LOG_DBG << "socks id: " << m_connection_id << ", " << m_local_socket.remote_endpoint() << " use ipv4: "
-				<< dst_endpoint;
+			LOG_DBG << "socks id: " << m_connection_id
+				<< ", " << m_local_socket.remote_endpoint()
+				<< " use ipv4: " << dst_endpoint;
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
+				co_await asio_util::async_connect(remote_socket,
+					target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
-						m_connection_id, dst_endpoint.address().to_string(), port, ec.message());
+						m_connection_id,
+						dst_endpoint.address().to_string(),
+						port,
+						ec.message());
 				}
 			}
 		}
@@ -363,7 +382,8 @@ namespace socks {
 			for (size_t i = 0; i < bytes - 2; i++)
 				domain.push_back(read<int8_t>(p));
 			port = read<uint16_t>(p);
-			LOG_DBG << "socks id: " << m_connection_id << ", " << m_local_socket.remote_endpoint()
+			LOG_DBG << "socks id: " << m_connection_id
+				<< ", " << m_local_socket.remote_endpoint()
 				<< " use domain: " << domain << ":" << port;
 
 			if (command == SOCKS_CMD_CONNECT)
@@ -379,7 +399,8 @@ namespace socks {
 					dst_endpoint = endpoint;
 
 					auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-					co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
+					co_await asio_util::async_connect(
+						remote_socket, target, check_condition, uawaitable[ec]);
 					if (!ec)
 					{
 						connected = true;
@@ -411,11 +432,15 @@ namespace socks {
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(remote_socket, target, check_condition, uawaitable[ec]);
+				co_await asio_util::async_connect(
+					remote_socket, target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
-						m_connection_id, dst_endpoint.address().to_string(), port, ec.message());
+						m_connection_id,
+						dst_endpoint.address().to_string(),
+						port,
+						ec.message());
 				}
 			}
 		}
@@ -480,7 +505,8 @@ namespace socks {
 						uawaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id << ", write server response error: " << ec.message();
+				LOG_WARN << "socks id: " << m_connection_id
+					<< ", write server response error: " << ec.message();
 				co_return;
 			}
 
@@ -488,7 +514,8 @@ namespace socks {
 				co_return;
 		}
 
-		LOG_DBG << "socks id: " << m_connection_id << ", connected start transfer";
+		LOG_DBG << "socks id: " << m_connection_id
+			<< ", connected start transfer";
 
 		// 发起数据传输协程.
 		if (command == SOCKS_CMD_CONNECT)
@@ -499,11 +526,13 @@ namespace socks {
 					transfer(remote_socket, m_local_socket)
 				);
 
-			LOG_DBG << "socks id: " << m_connection_id << ", transfer completed";
+			LOG_DBG << "socks id: " << m_connection_id
+				<< ", transfer completed";
 		}
 		else
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", SOCKS_CMD_BIND and SOCKS5_CMD_UDP is unsupported";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", SOCKS_CMD_BIND and SOCKS5_CMD_UDP is unsupported";
 		}
 
 		co_return;
@@ -531,7 +560,8 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read socks4 dst: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read socks4 dst: " << ec.message();
 			co_return;
 		}
 
@@ -553,7 +583,8 @@ namespace socks {
 			sbuf, '\0', uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read socks4 userid: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read socks4 userid: " << ec.message();
 			co_return;
 		}
 
@@ -572,7 +603,11 @@ namespace socks {
 		if (server)
 		{
 			verify_passed = server->do_auth(userid, "", SOCKS_VERSION_4);
-			server.reset();
+			if (verify_passed)
+				LOG_DBG << "socks id: " << m_connection_id << ", auth passed";
+			else
+				LOG_WARN << "socks id: " << m_connection_id << ", auth no pass";
+			server = {};
 		}
 
 		if (!verify_passed)
@@ -597,11 +632,13 @@ namespace socks {
 						uawaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id << ", write socks4 no allow: " << ec.message();
+				LOG_WARN << "socks id: " << m_connection_id
+					<< ", write socks4 no allow: " << ec.message();
 				co_return;
 			}
 
-			LOG_WARN << "socks id: " << m_connection_id << ", socks4 " << userid << " auth fail";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", socks4 " << userid << " auth fail";
 			co_return;
 		}
 
@@ -610,11 +647,15 @@ namespace socks {
 		if (command == SOCKS_CMD_CONNECT)
 		{
 			auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-			co_await asio_util::async_connect(remote_socket, target, uawaitable[ec]);
+			co_await asio_util::async_connect(
+				remote_socket, target, uawaitable[ec]);
 			if (ec)
 			{
 				LOG_WFMT("id: {}, connect to target {}:{} error: {}",
-					m_connection_id, dst_endpoint.address().to_string(), port, ec.message());
+					m_connection_id,
+					dst_endpoint.address().to_string(),
+					port,
+					ec.message());
 				error_code = SOCKS4_CANNOT_CONNECT_TARGET_SERVER;
 			}
 		}
@@ -644,7 +685,8 @@ namespace socks {
 					uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", write socks4 response: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", write socks4 response: " << ec.message();
 			co_return;
 		}
 
@@ -687,13 +729,15 @@ namespace socks {
 		int auth_version = read<int8_t>(p);
 		if (auth_version != 1)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", socks negotiation, unsupported socks5 protocol";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", socks negotiation, unsupported socks5 protocol";
 			co_return false;
 		}
 		int name_length = read<uint8_t>(p);
 		if (name_length <= 0 || name_length > 255)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", socks negotiation, invalid name length";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", socks negotiation, invalid name length";
 			co_return false;
 		}
 		name_length += 1;
@@ -711,7 +755,8 @@ namespace socks {
 			uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read client username error: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read client username error: " << ec.message();
 			co_return false;
 		}
 
@@ -724,7 +769,8 @@ namespace socks {
 		int passwd_len = read<uint8_t>(p);
 		if (passwd_len <= 0 || passwd_len > 255)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", socks negotiation, invalid passwd length";
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", socks negotiation, invalid passwd length";
 			co_return false;
 		}
 
@@ -741,7 +787,8 @@ namespace socks {
 			uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", read client passwd error: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", read client passwd error: " << ec.message();
 			co_return false;
 		}
 
@@ -789,7 +836,8 @@ namespace socks {
 			uawaitable[ec]);
 		if (ec)
 		{
-			LOG_WARN << "socks id: " << m_connection_id << ", server write status error: " << ec.message();
+			LOG_WARN << "socks id: " << m_connection_id
+				<< ", server write status error: " << ec.message();
 			co_return false;
 		}
 
