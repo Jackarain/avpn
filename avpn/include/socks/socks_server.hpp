@@ -91,7 +91,7 @@ namespace socks {
 		friend class socks_session;
 
 	public:
-		socks_server(net::io_context& ioc,
+		socks_server(net::any_io_executor& executor,
 			const tcp::endpoint& endp, socks_server_option opt = {});
 		virtual ~socks_server() = default;
 
@@ -109,7 +109,7 @@ namespace socks {
 		net::awaitable<void> start_socks_listen(tcp::acceptor& a);
 
 	private:
-		net::io_context& m_io_context;
+		net::any_io_executor m_executor;
 		tcp::acceptor m_acceptor;
 		socks_server_option m_option;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_clients;
