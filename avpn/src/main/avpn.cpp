@@ -19,6 +19,8 @@
 #include "avpn/vpn_conntrack.hpp"
 #include "avpn/protocol.hpp"
 
+#include "socks/socks_enums.hpp"
+
 #include <chrono>
 #include <iomanip>
 
@@ -68,6 +70,36 @@ namespace avpn {
 	{
 		// TODO: 退出时删除所有添加的路由.
 		LOG_DBG << "avpn_service::~avpn_service()";
+	}
+
+	void avpn_service::remove_client(size_t id)
+	{
+		m_socks_clients.erase(id);
+	}
+
+	bool avpn_service::do_auth(const std::string& userid,
+		const std::string& passwd, int version)
+	{
+		auto& option = m_config.socks_opt_;
+		if (option.usrdid_.empty())
+			return true;
+
+		if (userid == option.usrdid_
+			&& (passwd == option.passwd_ ||
+				version == socks::SOCKS_VERSION_4))
+			return true;
+
+		return false;
+	}
+
+	bool avpn_service::auth_require()
+	{
+		auto& option = m_config.socks_opt_;
+
+		if (!option.usrdid_.empty())
+			return true;
+
+		return false;
 	}
 
 	void avpn_service::start()
@@ -1094,13 +1126,13 @@ namespace avpn {
 			// socks4/5 protocol.
 			if (detect[0] == 0x05 || detect[0] == 0x04)
 			{
-#if 0
-				auto new_session = std::make_shared<socks::socks_session>(
-					std::move(socket), connection_id, self);
+				auto new_session =
+					std::make_shared<socks::socks_session>(
+						std::move(socket), connection_id, self);
 				m_socks_clients[connection_id] = new_session;
 
 				new_session->start(m_config.socks_opt_.bind_addr_);
-#endif
+				continue;
 			}
 
 			// 新连接, server先读取client的认证请求, 如果client未认

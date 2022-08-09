@@ -152,7 +152,9 @@ namespace avpn {
 	class vpn_conntrack;
 	using vpn_conntrack_ptr = std::shared_ptr<vpn_conntrack>;
 
-	class avpn_service : public std::enable_shared_from_this<avpn_service>
+	class avpn_service
+		: public socks_server_base
+		, public std::enable_shared_from_this<avpn_service>
 	{
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
@@ -171,7 +173,12 @@ namespace avpn {
 		// 以避免误用.
 		static std::shared_ptr<avpn_service>
 			make_avpn_service(io_context_pool&, avpn::service_config);
-		~avpn_service();
+		virtual ~avpn_service();
+
+		virtual void remove_client(size_t id) override;
+		virtual bool do_auth(const std::string& userid,
+			const std::string& passwd, int version) override;
+		virtual bool auth_require() override;
 
 	public:
 		// 启动和停止vpn服务.
