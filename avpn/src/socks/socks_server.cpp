@@ -696,8 +696,33 @@ namespace socks {
 				}
 			}
 
+			auto bind_interface = ip::address::from_string(m_bind_addr, ec);
+			if (ec)
+				m_bind_addr.clear();
+
+			auto check_condition = [this, bind_interface](
+				const boost::system::error_code&,
+				tcp::socket& stream, auto&) mutable
+			{
+				if (m_bind_addr.empty())
+					return true;
+
+				tcp::endpoint bind_endpoint(bind_interface, 0);
+				boost::system::error_code err;
+
+				stream.open(bind_endpoint.protocol(), err);
+				if (err)
+					return false;
+
+				stream.bind(bind_endpoint, err);
+				if (err)
+					return false;
+
+				return true;
+			};
+
 			co_await asio_util::async_connect(
-				remote_socket, target, uawaitable[ec]);
+				remote_socket, target, check_condition, uawaitable[ec]);
 			if (ec)
 			{
 				LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
