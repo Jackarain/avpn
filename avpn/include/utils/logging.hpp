@@ -967,14 +967,20 @@ public:
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+		if (v.address().is_v6())
+			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
+		else
+			std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
 		return *this;
 	}
 	inline logger___& operator<<(const net::ip::udp::endpoint& v)
 	{
 		if (!logging_flag())
 			return *this;
-		std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+		if (v.address().is_v6())
+			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
+		else
+			std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
 		return *this;
 	}
 
