@@ -58,8 +58,6 @@ namespace socks {
 
 	socks_session::~socks_session()
 	{
-		LOG_WARN << "socks_session::~socks_session(): " << m_connection_id;
-
 		auto server = m_socks_server.lock();
 		if (!server)
 			return;
