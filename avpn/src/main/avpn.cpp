@@ -162,6 +162,15 @@ namespace avpn {
 					continue;
 				client->close_tunnel();
 			}
+
+			auto& clients = m_socks_clients;
+			for (auto& c : clients)
+			{
+				auto client = c.second.lock();
+				if (!client)
+					continue;
+				client->close();
+			}
 		}
 
 		// TODO: 退出时删除路由.
