@@ -392,6 +392,14 @@ namespace socks {
 
 				auto target_endpoints = co_await resolver.async_resolve(
 					domain, std::to_string(port), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_WARN << "socks id: " << m_connection_id
+						<< ", resolve: " << domain
+						<< ", error: " << ec.message();
+					co_return;
+				}
+
 				bool connected = false;
 
 				for (auto endpoint : target_endpoints)
@@ -572,6 +580,11 @@ namespace socks {
 		dst_endpoint.port(port);
 		dst_endpoint.address(net::ip::address_v4(read<uint32_t>(p)));
 
+		bool socks4a = false;
+		auto tmp = dst_endpoint.address().to_v4().to_uint() ^ 0x000000ff;
+		if (0xff > tmp)
+			socks4a = true;
+
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
 		//  | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
 		//  +----+----+----+----+----+----+----+----+----+----+....+----+
@@ -594,7 +607,26 @@ namespace socks {
 			userid.resize(bytes - 1);
 			sbuf.sgetn(&userid[0], bytes - 1);
 		}
-		sbuf.commit(1);
+		sbuf.consume(1); // consume `null`
+
+		std::string hostname;
+		if (socks4a)
+		{
+			bytes = co_await net::async_read_until(m_local_socket,
+				sbuf, '\0', uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WARN << "socks id: " << m_connection_id
+					<< ", read socks4a hostname: " << ec.message();
+				co_return;
+			}
+
+			if (bytes > 1)
+			{
+				hostname.resize(bytes - 1);
+				sbuf.sgetn(&hostname[0], bytes - 1);
+			}
+		}
 
 		// 用户认证逻辑.
 		bool verify_passed = false;
@@ -647,6 +679,23 @@ namespace socks {
 		if (command == SOCKS_CMD_CONNECT)
 		{
 			auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
+
+			if (socks4a)
+			{
+				auto executor = co_await net::this_coro::executor;
+				tcp::resolver resolver{ executor };
+
+				target = co_await resolver.async_resolve(
+					hostname, std::to_string(dst_endpoint.port()), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_WARN << "socks id: " << m_connection_id
+						<< ", resolve: " << hostname
+						<< ", error: " << ec.message();
+					co_return;
+				}
+			}
+
 			co_await asio_util::async_connect(
 				remote_socket, target, uawaitable[ec]);
 			if (ec)
