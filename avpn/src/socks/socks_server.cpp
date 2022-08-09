@@ -369,7 +369,7 @@ namespace socks {
 					target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
+					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
 						m_connection_id,
 						dst_endpoint.address().to_string(),
 						port,
@@ -418,7 +418,7 @@ namespace socks {
 
 				if (!connected)
 				{
-					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
+					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
 						m_connection_id, domain, port, ec.message());
 				}
 			}
@@ -444,7 +444,7 @@ namespace socks {
 					remote_socket, target, check_condition, uawaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("id: {}, connect to target {}:{} error: {}",
+					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
 						m_connection_id,
 						dst_endpoint.address().to_string(),
 						port,
@@ -700,7 +700,7 @@ namespace socks {
 				remote_socket, target, uawaitable[ec]);
 			if (ec)
 			{
-				LOG_WFMT("id: {}, connect to target {}:{} error: {}",
+				LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
 					m_connection_id,
 					dst_endpoint.address().to_string(),
 					port,
@@ -711,7 +711,7 @@ namespace socks {
 		else
 		{
 			error_code = SOCKS4_REQUEST_REJECTED_OR_FAILED;
-			LOG_WFMT("id: {}, unsupported command for socks4", m_connection_id);
+			LOG_WFMT("socks id: {}, unsupported command for socks4", m_connection_id);
 		}
 
 		//  +----+----+----+----+----+----+----+----+
