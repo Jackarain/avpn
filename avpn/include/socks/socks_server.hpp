@@ -43,7 +43,8 @@ namespace socks {
 		socks_session& operator=(const socks_session&) = delete;
 
 	public:
-		socks_session(tcp::socket&& socket, size_t id, std::weak_ptr<socks_server_base> server);
+		socks_session(tcp::socket&& socket,
+			size_t id, std::weak_ptr<socks_server_base> server);
 		~socks_session();
 
 	public:
