@@ -58,6 +58,8 @@ namespace socks {
 
 	socks_session::~socks_session()
 	{
+		LOG_WARN << "socks_session::~socks_session(): " << m_connection_id;
+
 		auto server = m_socks_server.lock();
 		if (!server)
 			return;
@@ -68,9 +70,13 @@ namespace socks {
 	void socks_session::start(std::string bind_addr)
 	{
 		m_bind_addr = bind_addr;
+		auto self = shared_from_this();
 
 		net::co_spawn(m_local_socket.get_executor(),
-			start_socks_proxy(), net::detached);
+			[self, this] () -> net::awaitable<void>
+			{
+				co_await start_socks_proxy();
+			}, net::detached);
 	}
 
 	void socks_session::close()

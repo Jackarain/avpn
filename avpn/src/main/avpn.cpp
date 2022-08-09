@@ -1104,7 +1104,10 @@ namespace avpn {
 			co_await socket.async_wait(
 				tcp::socket::wait_read, uawaitable[error]);
 			if (error)
+			{
+				LOG_WARN << "socket.async_wait error: " << error.message();
 				continue;
+			}
 
 			// 检查协议.
 			auto fd = socket.native_handle();
@@ -1126,6 +1129,9 @@ namespace avpn {
 			// socks4/5 protocol.
 			if (detect[0] == 0x05 || detect[0] == 0x04)
 			{
+				LOG_DBG << "socks protocol: " << detect[0]
+					<< ", connection id: " << connection_id;
+
 				auto new_session =
 					std::make_shared<socks::socks_session>(
 						std::move(socket), connection_id, self);
