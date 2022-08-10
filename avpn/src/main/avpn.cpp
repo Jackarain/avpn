@@ -113,7 +113,8 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		m_cancel_sig.emit(net::cancellation_type::all);
+		if (m_cancel_sig.slot().is_connected())
+			m_cancel_sig.emit(net::cancellation_type::all);
 
 		for (auto& a : m_tcp_acceptors)
 			a.cancel(ignore_ec);
@@ -1170,7 +1171,7 @@ namespace avpn {
 						std::move(socket), connection_id, self);
 				m_socks_clients[connection_id] = new_session;
 
-				new_session->start(m_config.socks_opt_.bind_addr_);
+				new_session->start();
 				continue;
 			}
 
