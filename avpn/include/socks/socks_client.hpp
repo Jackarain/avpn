@@ -28,6 +28,12 @@ namespace socks {
 	using net::ip::tcp;
 	using net::ip::udp;
 
+	enum {
+		socks5_version = 5,
+		socks4_version = 4,
+		socks4a_version = 41,
+	};
+
 	struct socks_client_option
 	{
 		// socks server

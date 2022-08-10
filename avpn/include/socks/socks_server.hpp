@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "utils/url_parser.hpp"
+
 #include <memory>
 #include <string>
 #include <array>
@@ -34,6 +36,9 @@ namespace socks {
 
 		std::string bind_addr_;
 
+		// 多层代理模式, 下一个代理服务器.
+		// 例如: socks5://user:passwd@proxy.server.com:1080
+		// 默认使用hostname模式, dns解析在远程执行.
 		std::string next_proxy_;
 	};
 
@@ -56,7 +61,7 @@ namespace socks {
 		~socks_session();
 
 	public:
-		void start(std::string bind_addr);
+		void start();
 		void close();
 
 	private:
@@ -66,13 +71,18 @@ namespace socks {
 		net::awaitable<bool> socks_auth();
 		net::awaitable<void> transfer(tcp::socket& from, tcp::socket& to);
 
+		net::awaitable<void> connect_host(
+			std::string target_host, uint16_t target_port,
+			boost::system::error_code& ec, bool resolve = false);
+
 	private:
 		tcp::socket m_local_socket;
 		tcp::socket m_remote_socket;
 		size_t m_connection_id;
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server_base> m_socks_server;
-		std::string m_bind_addr;
+		socks_server_option m_option;
+		std::unique_ptr<util::uri_view> m_next_proxy;
 		bool m_abort{ false };
 	};
 

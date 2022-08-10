@@ -9,6 +9,7 @@
 //
 
 #include "socks/socks_server.hpp"
+#include "socks/socks_client.hpp"
 #include "socks/socks_enums.hpp"
 
 #include "utils/uawaitable.hpp"
@@ -66,9 +67,30 @@ namespace socks {
 		server->remove_client(m_connection_id);
 	}
 
-	void socks_session::start(std::string bind_addr)
+	void socks_session::start()
 	{
-		m_bind_addr = bind_addr;
+		auto server = m_socks_server.lock();
+		if (!server)
+			return;
+
+		m_option = server->option();
+
+		if (!m_option.next_proxy_.empty())
+		{
+			try
+			{
+				m_next_proxy =
+					std::make_unique<util::uri_view>(m_option.next_proxy_);
+			}
+			catch (const std::exception& e)
+			{
+				LOG_ERR << "socks id: " << m_connection_id
+					<< ", params next_proxy error: " << m_option.next_proxy_
+					<< ", exception: " << e.what();
+				return;
+			}
+		}
+
 		auto self = shared_from_this();
 
 		net::co_spawn(m_local_socket.get_executor(),
@@ -321,31 +343,6 @@ namespace socks {
 			co_return;
 		}
 
-		auto bind_interface = ip::address::from_string(m_bind_addr, ec);
-		if (ec)
-			m_bind_addr.clear();
-
-		auto check_condition = [this, bind_interface](
-			const boost::system::error_code&,
-			tcp::socket& stream, auto&) mutable
-		{
-			if (m_bind_addr.empty())
-				return true;
-
-			tcp::endpoint bind_endpoint(bind_interface, 0);
-			boost::system::error_code err;
-
-			stream.open(bind_endpoint.protocol(), err);
-			if (err)
-				return false;
-
-			stream.bind(bind_endpoint, err);
-			if (err)
-				return false;
-
-			return true;
-		};
-
 		tcp::endpoint dst_endpoint;
 		std::string domain;
 		uint16_t port = 0;
@@ -365,17 +362,8 @@ namespace socks {
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
-				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(remote_socket,
-					target, check_condition, uawaitable[ec]);
-				if (ec)
-				{
-					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
-						m_connection_id,
-						dst_endpoint.address().to_string(),
-						port,
-						ec.message());
-				}
+				co_await connect_host(dst_endpoint.address().to_string(),
+					dst_endpoint.port(), ec);
 			}
 		}
 		else if (atyp == SOCKS5_ATYP_DOMAINNAME)
@@ -389,39 +377,7 @@ namespace socks {
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
-				tcp::resolver resolver{ executor };
-
-				auto target_endpoints = co_await resolver.async_resolve(
-					domain, std::to_string(port), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_WARN << "socks id: " << m_connection_id
-						<< ", resolve: " << domain
-						<< ", error: " << ec.message();
-					co_return;
-				}
-
-				bool connected = false;
-
-				for (auto endpoint : target_endpoints)
-				{
-					dst_endpoint = endpoint;
-
-					auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-					co_await asio_util::async_connect(
-						remote_socket, target, check_condition, uawaitable[ec]);
-					if (!ec)
-					{
-						connected = true;
-						break;
-					}
-				}
-
-				if (!connected)
-				{
-					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
-						m_connection_id, domain, port, ec.message());
-				}
+				co_await connect_host(domain, port, ec, true);
 			}
 		}
 		else if (atyp == SOCKS5_ATYP_IPV6)
@@ -440,17 +396,10 @@ namespace socks {
 
 			if (command == SOCKS_CMD_CONNECT)
 			{
-				auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-				co_await asio_util::async_connect(
-					remote_socket, target, check_condition, uawaitable[ec]);
-				if (ec)
-				{
-					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
-						m_connection_id,
-						dst_endpoint.address().to_string(),
-						port,
-						ec.message());
-				}
+				co_await connect_host(
+					dst_endpoint.address().to_string(),
+					dst_endpoint.port(),
+					ec);
 			}
 		}
 
@@ -630,6 +579,10 @@ namespace socks {
 			}
 		}
 
+		LOG_DBG << "socks id: " << m_connection_id << ", use "
+			<< (socks4a ? "domain: " : "ip: ")
+			<< (socks4a ? hostname : dst_endpoint.address().to_string());
+
 		// 用户认证逻辑.
 		bool verify_passed = false;
 		auto server = m_socks_server.lock();
@@ -640,9 +593,11 @@ namespace socks {
 
 			verify_passed = srv_opt.usrdid_ == userid;
 			if (verify_passed)
-				LOG_DBG << "socks id: " << m_connection_id << ", auth passed";
+				LOG_DBG << "socks id: " << m_connection_id
+					<< ", auth passed";
 			else
-				LOG_WARN << "socks id: " << m_connection_id << ", auth no pass";
+				LOG_WARN << "socks id: " << m_connection_id
+					<< ", auth no pass";
 			server = {};
 		}
 
@@ -682,51 +637,13 @@ namespace socks {
 		tcp::socket& remote_socket = m_remote_socket;
 		if (command == SOCKS_CMD_CONNECT)
 		{
-			auto target = ip::basic_resolver_results<tcp>::create(dst_endpoint, "", "");
-
 			if (socks4a)
-			{
-				auto executor = co_await net::this_coro::executor;
-				tcp::resolver resolver{ executor };
-
-				target = co_await resolver.async_resolve(
-					hostname, std::to_string(dst_endpoint.port()), uawaitable[ec]);
-				if (ec)
-				{
-					LOG_WARN << "socks id: " << m_connection_id
-						<< ", resolve: " << hostname
-						<< ", error: " << ec.message();
-					co_return;
-				}
-			}
-
-			auto bind_interface = ip::address::from_string(m_bind_addr, ec);
-			if (ec)
-				m_bind_addr.clear();
-
-			auto check_condition = [this, bind_interface](
-				const boost::system::error_code&,
-				tcp::socket& stream, auto&) mutable
-			{
-				if (m_bind_addr.empty())
-					return true;
-
-				tcp::endpoint bind_endpoint(bind_interface, 0);
-				boost::system::error_code err;
-
-				stream.open(bind_endpoint.protocol(), err);
-				if (err)
-					return false;
-
-				stream.bind(bind_endpoint, err);
-				if (err)
-					return false;
-
-				return true;
-			};
-
-			co_await asio_util::async_connect(
-				remote_socket, target, check_condition, uawaitable[ec]);
+				co_await connect_host(hostname, port, ec, true);
+			else
+				co_await connect_host(
+					dst_endpoint.address().to_string(),
+					port,
+					ec);
 			if (ec)
 			{
 				LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
@@ -950,6 +867,131 @@ namespace socks {
 		}
 	}
 
+	net::awaitable<void> socks_session::connect_host(
+		std::string target_host, uint16_t target_port,
+		boost::system::error_code& ec, bool resolve)
+	{
+		auto bind_interface = ip::address::from_string(m_option.bind_addr_, ec);
+		if (ec)
+		{
+			// bind 地址有问题, 忽略bind参数.
+			m_option.bind_addr_.clear();
+		}
+
+		auto check_condition = [this, bind_interface] (
+			const boost::system::error_code&,
+			tcp::socket& stream, auto&) mutable
+		{
+			if (m_option.bind_addr_.empty())
+				return true;
+
+			tcp::endpoint bind_endpoint(bind_interface, 0);
+			boost::system::error_code err;
+
+			stream.open(bind_endpoint.protocol(), err);
+			if (err)
+				return false;
+
+			stream.bind(bind_endpoint, err);
+			if (err)
+				return false;
+
+			return true;
+		};
+
+		if (m_next_proxy)
+		{
+			tcp::endpoint proxy_endp;
+
+			auto proxy_host = std::string(m_next_proxy->host());
+			auto proxy_addr = net::ip::address::from_string(proxy_host);
+			auto proxy_port = std::string(m_next_proxy->port());
+
+			proxy_endp.address(proxy_addr);
+			proxy_endp.port((uint16_t)std::atoi(proxy_port.c_str()));
+
+			auto target = ip::basic_resolver_results<tcp>::create(
+				proxy_endp, "", "");
+
+			co_await asio_util::async_connect(m_remote_socket,
+				target, check_condition, uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WFMT("socks id: {}, connect to next proxy {}:{} error: {}",
+					m_connection_id,
+					std::string(m_next_proxy->host()),
+					std::string(m_next_proxy->port()),
+					ec.message());
+				co_return;
+			}
+
+			socks_client_option opt;
+
+			opt.target_host = target_host;
+			opt.target_port = target_port;
+			opt.proxy_hostname = true;
+			opt.username = std::string(m_next_proxy->username());
+			opt.password = std::string(m_next_proxy->password());
+
+			if (m_next_proxy->scheme() == "socks4")
+				opt.version = socks4_version;
+			else if (m_next_proxy->scheme() == "socks4a")
+				opt.version = socks4a_version;
+
+			co_await async_socks_handshake(m_remote_socket, opt, uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WFMT("socks id: {}, connect to next host {}:{} error: {}",
+					m_connection_id,
+					target_host,
+					target_port,
+					ec.message());
+			}
+		}
+		else
+		{
+			ip::basic_resolver_results<tcp> targets;
+			if (resolve)
+			{
+				auto executor = co_await net::this_coro::executor;
+				tcp::resolver resolver{ executor };
+
+				targets = co_await resolver.async_resolve(
+					target_host, std::to_string(target_port), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_WARN << "socks id: " << m_connection_id
+						<< ", resolve: " << target_host
+						<< ", error: " << ec.message();
+					co_return;
+				}
+			}
+			else
+			{
+				tcp::endpoint dst_endpoint;
+
+				dst_endpoint.address(ip::address::from_string(target_host));
+				dst_endpoint.port(target_port);
+
+				targets = ip::basic_resolver_results<tcp>::create(
+					dst_endpoint, "", "");
+			}
+
+			co_await asio_util::async_connect(m_remote_socket,
+				targets, check_condition, uawaitable[ec]);
+			if (ec)
+			{
+				LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
+					m_connection_id,
+					target_host,
+					target_port,
+					ec.message());
+			}
+		}
+
+		co_return;
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 
 	socks_server::socks_server(net::any_io_executor& executor,
@@ -1042,7 +1084,7 @@ namespace socks {
 				std::make_shared<socks_session>(std::move(socket), connection_id, self);
 			m_clients[connection_id] = new_session;
 
-			new_session->start(m_option.bind_addr_);
+			new_session->start();
 		}
 
 		LOG_WARN << "start_socks_listen exit ...";

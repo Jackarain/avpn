@@ -324,6 +324,8 @@ namespace socks {
 		net::streambuf request;
 
 		std::size_t bytes_to_write = 9 + username.size();
+		if (opt.version == socks4a_version)
+			bytes_to_write += opt.target_host.size() + 1;
 		auto req = static_cast<char*>(request.prepare(bytes_to_write).data());
 
 		write<uint8_t>(SOCKS_VERSION_4, req);	// SOCKS VERSION 4.
@@ -332,7 +334,7 @@ namespace socks {
 		write<uint16_t>(port, req);				// DST PORT.
 
 		auto address = net::ip::make_address_v4(hostname, ec);
-		if (ec)
+		if (ec && opt.version != socks4a_version)
 		{
 			auto executor = co_await net::this_coro::executor;
 			tcp::resolver resolver{ executor };
@@ -351,6 +353,10 @@ namespace socks {
 			address = (*target_endpoints).endpoint().address().to_v4();
 		}
 
+		// Using socks4a...
+		if (opt.version == socks4a_version)
+			address = net::ip::address_v4::from_string("0.0.0.1");
+
 		write<uint32_t>(address.to_uint(), req); // DST I
 
 		if (!username.empty())
@@ -359,6 +365,13 @@ namespace socks {
 			req += username.size();
 		}
 		write<uint8_t>(0, req); // NULL.
+
+		if (opt.version == socks4a_version)
+		{
+			std::copy(opt.target_host.begin(), opt.target_host.end(), req);
+			req += opt.target_host.size();
+			write<uint8_t>(0, req); // NULL.
+		}
 
 		request.commit(bytes_to_write);
 		co_await net::async_write(socket, request, uawaitable[ec]);
@@ -402,11 +415,11 @@ namespace socks {
 		{
 			boost::system::error_code ec;
 
-			if (opt.version == 5)
+			if (opt.version == socks5_version)
 			{
 				co_await do_socks5(socket, opt, ec);
 			}
-			else if (opt.version == 4)
+			else if (opt.version == socks4_version || opt.version == socks4a_version)
 			{
 				co_await do_socks4(socket, opt, ec);
 			}
