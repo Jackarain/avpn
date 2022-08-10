@@ -701,8 +701,14 @@ namespace avpn {
 				if (++m_client_tcp_cnt > 10)
 				{
 					m_client_tcp_cnt = 0;
+					auto self = shared_from_this();
+
 					net::co_spawn(m_main_context,
-						start_tcp_client(), net::detached);
+						[this, self] () mutable -> net::awaitable<void>
+						{
+							co_await start_tcp_client();
+							co_return;
+						}, net::detached);
 					LOG_DBG << "Tcp reconnect started...";
 				}
 			}
@@ -1416,7 +1422,7 @@ namespace avpn {
 
 		// 开始tunnel的tcp读取消息循环.
 		net::co_spawn(m_main_context,
-			[this, tunnel]() mutable -> net::awaitable<void>
+			[this, self, tunnel]() mutable -> net::awaitable<void>
 			{
 				co_await start_tunnel_tcp(tunnel);
 				co_return;
