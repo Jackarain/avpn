@@ -16,6 +16,8 @@
 
 #include "utils/io_context_pool.hpp"
 #include "utils/misc.hpp"
+#include "socks/socks_server.hpp"
+#include "socks/socks_client.hpp"
 
 #include <iostream>
 #include <iterator>
@@ -420,6 +422,35 @@ int main(int argc, char** argv)
 	else
 	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
+	// 如果开启了socks服务, 则listen一个socks服务.
+	// 这个socks server 则将在client模式下, 通过server代理出去.
+	// 在 server 模式下, 则将是一个单纯的socks server.
+	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
+	for (auto& socks : socks_listens)
+	{
+		boost::system::error_code ec;
+		net::ip::tcp::endpoint endp;
+		make_listen_endpoint(socks, endp, ec);
+		if (ec)
+		{
+			LOG_WARN << "Socks server param: "
+				<< socks << " listen: " << ec.message();
+			continue;
+		}
+
+		socks::socks_server_option opt;
+		opt.usrdid_ = socks_userid;
+		opt.passwd_ = socks_passwd;
+		opt.bind_addr_ = socks_interface;
+
+		net::any_io_executor executor = ios.get_io_context().get_executor();
+		auto server = std::make_shared<socks::socks_server>(
+			executor, endp, opt);
+		server->open();
+
+		socks_servers.emplace_back(std::move(server));
+	}
+
 	if (controller.empty())
 	{
 		using  avpn::avpn_service;
@@ -430,9 +461,16 @@ int main(int argc, char** argv)
 
 		// 处理中止信号.
 		terminator_signal.async_wait(
-			[&ios, &srv](const boost::system::error_code&, int)
+			[&ios, &srv, &socks_servers](const boost::system::error_code&, int)
 			{
 				LOG_DBG << "terminator is called!";
+
+				for (auto& s : socks_servers)
+				{
+					if (!s)
+						continue;
+					s->close();
+				}
 
 				srv.stop();
 				ios.stop();
