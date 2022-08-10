@@ -185,6 +185,7 @@ int main(int argc, char** argv)
 	std::string socks_interface;
 	std::string socks_userid;
 	std::string socks_passwd;
+	std::string socks_next_proxy;
 	int data_shards;
 	int parity_shards;
 	int mode;
@@ -228,6 +229,7 @@ int main(int argc, char** argv)
 		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
 		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
+		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name("next socks server"), "Next socks4/5 proxy with client.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
@@ -442,6 +444,20 @@ int main(int argc, char** argv)
 		opt.usrdid_ = socks_userid;
 		opt.passwd_ = socks_passwd;
 		opt.bind_addr_ = socks_interface;
+
+		if (cfg.identity_ == avpn::Identity::avpn_client)
+		{
+			opt.next_proxy_ = socks_next_proxy;
+
+			// 检查 next socks proxy地址格式是否正确.
+			// 如果是无效的地址则忽略.
+			if (!util::uri_view().parse(socks_next_proxy))
+			{
+				LOG_WARN << "Next socks server: "
+					<< socks_next_proxy << " invalid";
+				opt.next_proxy_.clear();
+			}
+		}
 
 		net::any_io_executor executor = ios.get_io_context().get_executor();
 		auto server = std::make_shared<socks::socks_server>(
