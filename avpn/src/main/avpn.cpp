@@ -106,14 +106,19 @@ namespace avpn {
 	{
 		m_abort = false;
 		m_client_reset_flag = vpn_tcp_loop_exit;
+		auto self = shared_from_this();
 
 		// 开启定时器.
-		net::co_spawn(m_main_context, tick(), net::detached);
+		net::co_spawn(m_main_context,
+			[this, self]() -> net::awaitable<void>
+			{
+				co_await tick();
+				co_return;
+			}, net::detached);
 
 		// 客户端启动客户端通信通道.
 		if (m_config.identity_ == Identity::avpn_client)
 		{
-			auto self = shared_from_this();
 			m_conntrack = std::make_shared<vpn_conntrack>(m_main_context, self);
 			run_as_client();
 		}
@@ -284,8 +289,9 @@ namespace avpn {
 
 	void avpn_service::do_tun_write(vpn_packet_ptr pkt)
 	{
+		auto self = shared_from_this();
 		net::co_spawn(m_main_context,
-		[this, pkt] () mutable->net::awaitable<void>
+		[this, self, pkt] () mutable->net::awaitable<void>
 		{
 			boost::system::error_code ec;
 			co_await m_tundev.async_write_some(
@@ -326,10 +332,11 @@ namespace avpn {
 
 		// 创建packet指针再通过tun_forward传入协程.
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+		auto self = shared_from_this();
 
 		// 透传到tunnel.
 		net::co_spawn(tunnel->get_executor(),
-			[this, ptr, endp = std::move(endp)]()
+			[this, self, ptr, endp = std::move(endp)]()
 			mutable->net::awaitable<void>
 		{
 			auto tunnel = m_tunnel.lock();
@@ -388,9 +395,15 @@ namespace avpn {
 				// client握手认证请求, 转入handshake处理流程.
 				if (type == vpt_handshake)
 				{
+					auto self = shared_from_this();
 					net::co_spawn(m_main_context,
-						on_udp_handshake(remote, std::move(pkt), src_vaddr),
-							net::detached);
+						[this, self, remote, pkt = std::move(pkt), src_vaddr]
+						() mutable ->net::awaitable<void>
+						{
+							co_await on_udp_handshake(
+								remote, std::move(pkt), src_vaddr);
+							co_return;
+						}, net::detached);
 					continue;
 				}
 
@@ -450,9 +463,15 @@ namespace avpn {
 				// server握手认证请求回复, 转入handshake处理流程.
 				if (type == vpt_handshake_reply)
 				{
+					auto self = shared_from_this();
 					net::co_spawn(m_main_context,
-						on_udp_handshake_reply(remote, std::move(pkt)),
-							net::detached);
+						[this, self, remote, pkt = std::move(pkt)]
+						() mutable -> net::awaitable<void>
+						{
+							co_await on_udp_handshake_reply(
+								remote, std::move(pkt));
+							co_return;
+						}, net::detached);
 					continue;
 				}
 
@@ -463,10 +482,11 @@ namespace avpn {
 
 				// 转发到client连接, 让client对象处理相应的协议数据.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+				auto self = shared_from_this();
 
 				// 将UDP消息转发到对应的vp连接中处理.
 				net::co_spawn(m_main_context,
-					[this, ptr, remote]()
+					[this, self, ptr, remote]()
 					mutable -> net::awaitable<void>
 					{
 						auto tunnel = m_tunnel.lock();
@@ -485,8 +505,14 @@ namespace avpn {
 
 	void avpn_service::do_udp_write(vpn_packet_ptr pkt, udp::endpoint endp)
 	{
+		auto self = shared_from_this();
 		net::co_spawn(m_main_context,
-			udp_write(pkt, std::move(endp)), net::detached);
+			[this, self, pkt = std::move(pkt), endp = std::move(endp)]
+			() -> net::awaitable<void>
+			{
+				co_await udp_write(pkt, std::move(endp));
+				co_return;
+			}, net::detached);
 	}
 
 	net::awaitable<void>
@@ -519,12 +545,13 @@ namespace avpn {
 		m_abort = false;
 		m_subnet = {};
 		m_client_tcp_cnt = 0;
+		auto self = shared_from_this();
 
 		LOG_DBG << "Start run_as_client...";
 
 		// 开始客户端协程.
 		net::co_spawn(m_main_context,
-			[this]() mutable -> net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await run_client();
 				co_return;
@@ -535,10 +562,15 @@ namespace avpn {
 	{
 		m_identity = Identity::avpn_server;
 		m_abort = false;
+		auto self = shared_from_this();
 
 		LOG_DBG << "Start run_as_server...";
 		net::co_spawn(m_main_context,
-			setup_tun(m_subnet), net::detached);
+			[this, self]() -> net::awaitable<void>
+			{
+				co_await setup_tun(m_subnet);
+				co_return;
+			}, net::detached);
 
 		// 初始化tcp连接.
 		bool ret = init_acceptors();
@@ -554,6 +586,7 @@ namespace avpn {
 				{
 					for (auto& a : m_tcp_acceptors)
 					{
+						// start_tcp_listen keep self.
 						net::co_spawn(a.get_executor(),
 							start_tcp_listen(a), net::detached);
 					}
@@ -563,7 +596,7 @@ namespace avpn {
 
 		// 开始侦听udp客户端消息.
 		net::co_spawn(m_main_context,
-			[this]() mutable->net::awaitable<void>
+			[this, self]() mutable->net::awaitable<void>
 			{
 				co_await start_udp_server();
 				co_return;
@@ -575,9 +608,10 @@ namespace avpn {
 		// 筛选出udp协议的url.
 		co_await make_endpoint("udp");
 
+		auto self = shared_from_this();
 		// 开始侦听udp客户端消息.
 		net::co_spawn(m_main_context,
-			[this]() mutable -> net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await start_udp_client();
 				co_return;
@@ -585,7 +619,7 @@ namespace avpn {
 
 		net::co_spawn(
 			m_main_context,
-			[this]() mutable -> net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				co_await start_tcp_client();
 				co_return;
@@ -1158,8 +1192,12 @@ namespace avpn {
 			// 证失败消息, 以快速触发client进行完整重新协商认证过程
 			// (或者server端沉默, 等client直到超时重新协商通信key).
 			net::co_spawn(m_main_context,
-				on_tcp_handshake(std::move(socket), connection_id),
-					net::detached);
+				[this, self, socket = std::move(socket), connection_id]
+				() mutable -> net::awaitable<void>
+				{
+					co_await on_tcp_handshake(std::move(socket), connection_id);
+					co_return;
+				}, net::detached);
 		}
 
 		LOG_WARN << "start_tcp_listen exit ...";
@@ -1489,6 +1527,7 @@ namespace avpn {
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
 		}
 
+		auto self = shared_from_this();
 		auto tmp_sockets = m_udp_sockets;
 		for (int fast = 0; fast < 8; fast++)
 		{
@@ -1496,7 +1535,7 @@ namespace avpn {
 			{
 				auto socket_ptr = tmp_sockets[n];
 				net::co_spawn(m_ioc_pool.get_io_context(),
-					[this, n]() mutable -> net::awaitable<void>
+					[this, self, n]() mutable -> net::awaitable<void>
 					{
 						co_await start_udp_read_loop(n);
 						co_return;
