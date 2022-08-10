@@ -27,13 +27,21 @@ namespace socks {
 	using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
 
+	struct socks_server_option
+	{
+		std::string usrdid_;
+		std::string passwd_;
+
+		std::string bind_addr_;
+
+		std::string next_proxy_;
+	};
+
 	class socks_server_base {
 	public:
 		virtual ~socks_server_base() {}
 		virtual void remove_client(size_t id) = 0;
-		virtual bool do_auth(const std::string& userid,
-			const std::string& passwd, int version) = 0;
-		virtual bool auth_require() = 0;
+		virtual const socks_server_option& option() = 0;
 	};
 
 	class socks_session
@@ -74,14 +82,6 @@ namespace socks {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	struct socks_server_option
-	{
-		std::string usrdid_;
-		std::string passwd_;
-
-		std::string bind_addr_;
-	};
-
 	class socks_server
 		: public socks_server_base
 		, public std::enable_shared_from_this<socks_server>
@@ -102,9 +102,7 @@ namespace socks {
 
 	private:
 		virtual void remove_client(size_t id) override;
-		virtual bool do_auth(const std::string& userid,
-			const std::string& passwd, int version) override;
-		virtual bool auth_require() override;
+		virtual const socks_server_option& option() override;
 
 	private:
 		net::awaitable<void> start_socks_listen(tcp::acceptor& a);

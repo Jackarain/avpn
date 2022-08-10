@@ -179,7 +179,8 @@ namespace socks {
 			co_return;
 
 		// 服务端是否需要认证.
-		auto auth_required = server->auth_require();
+		const auto& srv_opt = server->option();
+		auto auth_required = !srv_opt.usrdid_.empty();
 
 		// 循环读取客户端支持的代理方式.
 		p = m_local_buffer.data();
@@ -635,7 +636,9 @@ namespace socks {
 
 		if (server)
 		{
-			verify_passed = server->do_auth(userid, "", SOCKS_VERSION_4);
+			const auto& srv_opt = server->option();
+
+			verify_passed = srv_opt.usrdid_ == userid;
 			if (verify_passed)
 				LOG_DBG << "socks id: " << m_connection_id << ", auth passed";
 			else
@@ -884,7 +887,10 @@ namespace socks {
 
 		if (server)
 		{
-			verify_passed = server->do_auth(uname, passwd, auth_version);
+			const auto& srv_opt = server->option();
+
+			verify_passed =
+				srv_opt.usrdid_ == uname && srv_opt.passwd_ == passwd;
 			server.reset();
 		}
 
@@ -987,25 +993,9 @@ namespace socks {
 		m_clients.erase(id);
 	}
 
-	bool socks_server::do_auth(const std::string& userid,
-		const std::string& passwd, int version)
+	const socks::socks_server_option& socks_server::option()
 	{
-		if (m_option.usrdid_.empty())
-			return true;
-
-		if (userid == m_option.usrdid_
-			&& (passwd == m_option.passwd_ || version == SOCKS_VERSION_4))
-			return true;
-
-		return false;
-	}
-
-	bool socks_server::auth_require()
-	{
-		if (!m_option.usrdid_.empty())
-			return true;
-
-		return false;
+		return m_option;
 	}
 
 	net::awaitable<void> socks_server::start_socks_listen(tcp::acceptor& a)

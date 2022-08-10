@@ -176,9 +176,7 @@ namespace avpn {
 		virtual ~avpn_service();
 
 		virtual void remove_client(size_t id) override;
-		virtual bool do_auth(const std::string& userid,
-			const std::string& passwd, int version) override;
-		virtual bool auth_require() override;
+		virtual const socks::socks_server_option& option() override;
 
 	public:
 		// 启动和停止vpn服务.

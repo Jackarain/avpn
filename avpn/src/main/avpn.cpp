@@ -77,29 +77,9 @@ namespace avpn {
 		m_socks_clients.erase(id);
 	}
 
-	bool avpn_service::do_auth(const std::string& userid,
-		const std::string& passwd, int version)
+	const socks::socks_server_option& avpn_service::option()
 	{
-		auto& option = m_config.socks_opt_;
-		if (option.usrdid_.empty())
-			return true;
-
-		if (userid == option.usrdid_
-			&& (passwd == option.passwd_ ||
-				version == socks::SOCKS_VERSION_4))
-			return true;
-
-		return false;
-	}
-
-	bool avpn_service::auth_require()
-	{
-		auto& option = m_config.socks_opt_;
-
-		if (!option.usrdid_.empty())
-			return true;
-
-		return false;
+		return m_config.socks_opt_;
 	}
 
 	void avpn_service::start()
