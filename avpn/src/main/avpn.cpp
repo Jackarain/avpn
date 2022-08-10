@@ -579,7 +579,7 @@ namespace avpn {
 
 		// 开始侦听tcp客户端连接消息.
 		net::co_spawn(m_main_context,
-			[this]() mutable -> net::awaitable<void>
+			[this, self]() mutable -> net::awaitable<void>
 			{
 				int pool_size = static_cast<int>(m_ioc_pool.pool_size());
 				for (int i = 0; i < pool_size; i++)
@@ -588,7 +588,11 @@ namespace avpn {
 					{
 						// start_tcp_listen keep self.
 						net::co_spawn(a.get_executor(),
-							start_tcp_listen(a), net::detached);
+							[this, self, &a] () mutable -> net::awaitable<void>
+							{
+								co_await start_tcp_listen(a);
+								co_return;
+							}, net::detached);
 					}
 				}
 				co_return;
