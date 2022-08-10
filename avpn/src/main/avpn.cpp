@@ -113,7 +113,7 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		if (m_cancel_sig.slot().is_connected())
+		if (m_cancel_sig.slot().has_handler())
 			m_cancel_sig.emit(net::cancellation_type::all);
 
 		for (auto& a : m_tcp_acceptors)
@@ -1446,6 +1446,7 @@ namespace avpn {
 				net::redirect_error(
 					net::bind_cancellation_slot(
 						m_cancel_sig.slot(), net::use_awaitable), ec));
+			m_cancel_sig.slot().clear();
 			if (m_abort)
 			{
 				LOG_ERR << "connect_server, async_connect abort";
