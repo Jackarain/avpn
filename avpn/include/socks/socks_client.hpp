@@ -45,7 +45,7 @@ namespace socks {
 		std::string password;
 
 		// socks version: 4 or 5
-		int version{ 5 };
+		int version{ socks5_version };
 
 		// pass hostname to proxy
 		bool proxy_hostname{ true };
