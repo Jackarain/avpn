@@ -1194,6 +1194,13 @@ namespace avpn {
 				continue;
 			}
 
+			// tun2socks protocol.
+			if ((detect[0] & 0x3f) == vpt_tun2socks)
+			{
+				// tun2socks protocol 协议处理.
+				continue;
+			}
+
 			// 新连接, server先读取client的认证请求, 如果client未认
 			// 证, 则会发出认证请求, 如果是已认证过只是断开重连, 发送
 			// 认证重连消息server会根据重连信息中的src虚拟ip找到对应
@@ -1585,20 +1592,6 @@ namespace avpn {
 		int ret = co_await tcp_read_packet(stream, pkt, id);
 		if (ret == -1)
 			co_return;
-
-		bool enc;
-		uint8_t type;
-		uint32_t src;
-
-		ret = unwrap_common_header(pkt, enc, type, src);
-		if (ret == -1)
-			co_return;
-
-		if (type == vpt_tun2socks)
-		{
-			// 通过tun2socks协议.
-			co_return;
-		}
 
 		auto& params = m_config.tunnel_params_;
 
