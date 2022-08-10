@@ -1195,7 +1195,8 @@ namespace avpn {
 			}
 
 			// tun2socks protocol.
-			if ((detect[0] & 0x3f) == vpt_tun2socks)
+			if ((detect[0] & 0x3f) == vpt_tun2socks &&
+				(detect[0] & 0x40) == 0)
 			{
 				// tun2socks protocol 协议处理.
 				continue;
