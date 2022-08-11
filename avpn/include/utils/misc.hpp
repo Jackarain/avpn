@@ -9,7 +9,7 @@
 
 #include "utils/internal.hpp"
 
-#include "utils/url_parser.hpp"
+#include "utils/uri_view.hpp"
 #include "utils/io_context_pool.hpp"
 
 #define APP_NAME "avpn"

@@ -9,7 +9,7 @@
 
 #include "utils/io_context_pool.hpp"
 #include "utils/scoped_exit.hpp"
-#include "utils/url_parser.hpp"
+#include "utils/uri_view.hpp"
 #include "utils/async_connect.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"

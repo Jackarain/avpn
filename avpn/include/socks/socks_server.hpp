@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "utils/url_parser.hpp"
+#include "utils/uri_view.hpp"
 
 #include <memory>
 #include <string>

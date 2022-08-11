@@ -6,7 +6,7 @@
 //
 
 #include "utils/async_connect.hpp"
-#include "utils/url_parser.hpp"
+#include "utils/uri_view.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/uawaitable.hpp"
 #include "utils/misc.hpp"
