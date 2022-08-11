@@ -119,47 +119,32 @@ namespace avpn
 		pg.index_ = 0;
 	}
 
-	void fec_encode_group::make_fec_header(vpn_packet& pkt, uint32_t src)
+	bool fec_encode_group::has_fec_data() const
 	{
-		// 构造一个sv.
-		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
+		return !!pkts_[ds_];
+	}
+
+	void fec_encode_group::make_fec_normal(vpn_packet_ptr& pkt, uint32_t src)
+	{
+		auto [gid, pid] = fetch_ids();
 
 		// 构造transfer数据包.
-		uint32_t gid = static_cast<uint32_t>((index_ / shards_) + 1);
-		uint8_t pid = static_cast<uint8_t>(index_ % shards_);
+		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
+		make_transfer(*pkt, src, gid, pid, sv);
 
-		index_++;
-
-		make_transfer(pkt, src, gid, pid, sv);
-	}
-
-	void fec_encode_group::make_fec_zstd_header(
-		vpn_packet& pkt, uint32_t src)
-	{
-		// 构造一个sv.
-		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
-
-		// 构造transfer_compress数据包.
-		uint32_t gid = static_cast<uint32_t>((index_ / shards_) + 1);
-		uint8_t pid = static_cast<uint8_t>(index_ % shards_);
-
-		index_++;
-
-		make_transfer_compress(pkt, src, gid, pid, compress_zstd, sv);
-	}
-
-	bool fec_encode_group::encode(vpn_packet_ptr& pkt, uint32_t src/* = 0 */)
-	{
-		auto pid = pkt->pid_;
+		// 保存到fec编码缓冲.
 		pkts_[pid] = pkt;
 
+		// 判断fec编码是否达到可实施fec编码大小要求.
+		// 如果达到, 则直接进行fec编码.
 		if (pid + 1 == ds_)
 		{
-			// 立即编码.
+			// 执行fec编码.
 			if (!do_encode())
-				return false;
+				return;
 
-			// 编码完后填充协议头.
+			// 编码完后, 从编码缓冲中遍历编码出来的fec编码数
+			// 据包, 并逐一填充协议头.
 			for (pid++; pid < shards_; pid++)
 			{
 				auto& ptr = pkts_[pid];
@@ -169,14 +154,69 @@ namespace avpn
 				ptr->resize(avpn_packet_size);
 				ptr->payload_size(avpn_payload_size);
 
-				// Update fec header.
-				make_fec_header(*ptr, src);
+				auto [fgid, fpid] = fetch_ids();
+
+				// 更新fec冗余数据包的pid, gid等信息.
+				std::string_view fsv(
+					(char*)ptr->payload(),
+					avpn_payload_size);
+
+				make_transfer(*ptr, src, fgid, fpid, fsv);
 			}
-
-			return true;
 		}
+	}
 
-		return false;
+	void fec_encode_group::make_fec_zstd(vpn_packet_ptr& pkt, uint32_t src)
+	{
+		auto [gid, pid] = fetch_ids();
+
+		// 构造transfer数据包.
+		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
+		make_transfer_compress(*pkt, src, gid, pid, compress_zstd, sv);
+
+		// 保存到fec编码缓冲.
+		pkts_[pid] = pkt;
+
+		// 判断fec编码是否达到可实施fec编码大小要求.
+		// 如果达到, 则直接进行fec编码.
+		if (pid + 1 == ds_)
+		{
+			// 执行fec编码.
+			if (!do_encode())
+				return;
+
+			// 编码完后, 从编码缓冲中遍历编码出来的fec编码数
+			// 据包, 并逐一填充协议头.
+			for (pid++; pid < shards_; pid++)
+			{
+				auto& ptr = pkts_[pid];
+				if (!ptr)
+					continue;
+
+				ptr->resize(avpn_packet_size);
+				ptr->payload_size(avpn_payload_size);
+
+				auto [fgid, fpid] = fetch_ids();
+
+				// 更新fec冗余数据包的pid, gid等信息.
+				std::string_view fsv(
+					(char*)ptr->payload(),
+					avpn_payload_size);
+
+				make_transfer_compress(*ptr,
+					src, fgid, fpid, compress_zstd, fsv);
+			}
+		}
+	}
+
+	std::tuple<uint32_t, uint8_t> fec_encode_group::fetch_ids()
+	{
+		scoped_exit se([this]() { index_++; });
+
+		return {
+			static_cast<uint32_t>((index_ / shards_) + 1),
+			static_cast<uint8_t>(index_ % shards_)
+		};
 	}
 
 	bool fec_encode_group::do_encode()

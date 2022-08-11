@@ -189,9 +189,9 @@ namespace avpn {
 
 		// 更新pkt数据.
 		if (m_config.tunnel_params_.compress_ == "zstd")
-			m_feg.make_fec_zstd_header(*pkt, m_self_vaddr);
+			m_feg.make_fec_zstd(pkt, m_self_vaddr);
 		else
-			m_feg.make_fec_header(*pkt, m_self_vaddr);
+			m_feg.make_fec_normal(pkt, m_self_vaddr);
 
 		// 发送pkt到对方.
 		net::co_spawn(m_io_context,
@@ -227,8 +227,7 @@ namespace avpn {
 		}
 
 		// fec编码, 如果成功编码, 则需要发送编码部分.
-		bool ret = m_feg.encode(pkt, m_self_vaddr);
-		if (!ret)
+		if (!m_feg.has_fec_data())
 			co_return;
 
 		// 循环发送已编码部分.

@@ -92,18 +92,17 @@ namespace avpn {
 		fec_encode_group(fec_encode_group&& pg) noexcept;
 
 	public:
-		// 更新这个pkt的数据包的fec头.
-		// pkt 实际数据, 填充pkt除IP包之外的header.
-		void make_fec_header(vpn_packet& pkt, uint32_t src);
+		// 判断是否存储已编码的fec数据.
+		bool has_fec_data() const;
 
-		// 更新pkt的数据包头,并压缩payload部分.
-		void make_fec_zstd_header(vpn_packet& pkt, uint32_t src);
+		// 生成正常fec数据.
+		void make_fec_normal(vpn_packet_ptr& pkt, uint32_t src);
 
-		// 编码gop, 如果成功编码则返回true, 这时可以取编码的数据
-		// 发送到网络.
-		bool encode(vpn_packet_ptr& pkt, uint32_t src = 0);
+		// 生成压缩fec数据.
+		void make_fec_zstd(vpn_packet_ptr& pkt, uint32_t src);
 
 	private:
+		std::tuple<uint32_t, uint8_t> fetch_ids();
 		bool do_encode();
 
 	public:
