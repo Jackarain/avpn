@@ -462,7 +462,7 @@ int main(int argc, char** argv)
 		net::any_io_executor executor = ios.get_io_context().get_executor();
 		auto server = std::make_shared<socks::socks_server>(
 			executor, endp, opt);
-		server->open();
+		server->start();
 
 		socks_servers.emplace_back(std::move(server));
 	}
