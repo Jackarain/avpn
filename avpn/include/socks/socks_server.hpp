@@ -107,7 +107,7 @@ namespace socks {
 		virtual ~socks_server() = default;
 
 	public:
-		void open();
+		void start();
 		void close();
 
 	private:
