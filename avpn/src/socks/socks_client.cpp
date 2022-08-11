@@ -12,6 +12,10 @@
 #include "socks/socks_enums.hpp"
 #include "utils/uawaitable.hpp"
 
+#include <boost/asio/streambuf.hpp>
+#include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
+
 #include <cstdlib>
 
 
