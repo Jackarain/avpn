@@ -844,57 +844,22 @@ namespace avpn {
 			co_return;
 		};
 
-		auto opt = m_recover.find(gid);
-		if (!opt)
-		{
-			if (pid < m_peer_ds)
-				co_await write_pkt(pkt);
-
-			if (m_peer_ds == 1)
-				co_return;
-
-			m_recover.update(opt, gid, pid,
-				m_peer_ds, m_peer_ps, pkt);
-
-			co_return;
-		}
-
-		auto& gop = *opt;
-		if (gop.expired())
-			co_return;
-
-		// 如果是data shards, 则write到tun设备或转发.
+		// 将接收到的ip包write到tun设备.
 		if (pid < m_peer_ds)
 			co_await write_pkt(pkt);
 
-		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
-		// 已经接收到.
+		// 对方没启用fec.
 		if (m_peer_ds == 1)
 			co_return;
 
-		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
-		bool whole = m_recover.update(opt, gid, pid,
-			m_peer_ds, m_peer_ps, pkt);
-
-		// 完整接收, 发送ack消息.
-		if (whole)
-		{
-			auto ack = make_transfer_ack(src, gid);
-			auto ptr = std::make_shared<vpn_packet>(std::move(ack));
-
-			// 通过udp或tcp发送pkt.
-			co_await internal_write_pkt(ptr);
-			co_return;
-		}
-
-		// 获取fec解码结果并循环发送到tun设备.
-		auto results = std::move(m_recover.results_);
-		if (results.empty())
+		// 更新fec recover.
+		bool whole = m_recover.update(
+			gid, pid, m_peer_ds, m_peer_ps, pkt);
+		if (!whole)
 			co_return;
 
-		// 更新统计信息.
-		m_num_corrected += (int)results.size();
-
+		// 获取fec解码恢复的ip包, 并write到tun设备.
+		auto results = m_recover.acquire();
 		for (auto& p : results)
 		{
 			if (!p)
@@ -903,6 +868,9 @@ namespace avpn {
 			p->flag_ = flag + 10;
 			co_await write_pkt(p);
 		}
+
+		// 更新统计信息.
+		m_num_corrected += (int)results.size();
 
 		co_return;
 	}
@@ -915,10 +883,10 @@ namespace avpn {
 			co_return;
 
 		uint32_t src = 0;
-
 		uint32_t gid;
 		uint8_t pid;
 		uint8_t ctype;
+		auto flag = pkt->flag_;
 
 		auto dst_ptr = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
 		if (!dst_ptr)
@@ -971,55 +939,37 @@ namespace avpn {
 			co_return;
 		};
 
-		auto opt = m_recover.find(gid);
-		if (!opt)
-		{
-			if (pid < m_peer_ds)
-				co_await write_pkt(dst_ptr);
-
-			if (m_peer_ds == 1)
-				co_return;
-
-			m_recover.update(opt, gid, pid,
-				m_peer_ds, m_peer_ps, pkt);
-
-			co_return;
-		}
-
-		auto& gop = *opt;
-		if (gop.expired())
-			co_return;
-
-		// 如果是data shards, 则write到tun设备或转发.
+		// 将接收到的ip包write到tun设备.
 		if (pid < m_peer_ds)
-			co_await write_pkt(dst_ptr);
+			co_await write_pkt(pkt);
 
-		// ds等于1时, 关闭fec. TODO: 倍发模式也通过recover判断是否
-		// 已经接收到.
+		// 对方没启用fec.
 		if (m_peer_ds == 1)
 			co_return;
 
-		// 更新fec解码器, 并检查解码结果将结果write到tun设备或转发.
-		m_recover.update(opt, gid, pid,
-			m_peer_ds, m_peer_ps, pkt);
-
-		// 获取fec解码结果并循环发送到tun设备.
-		auto results = std::move(m_recover.results_);
-		if (results.empty())
+		// 更新fec recover.
+		bool whole = m_recover.update(
+			gid, pid, m_peer_ds, m_peer_ps, pkt);
+		if (!whole)
 			co_return;
 
-		// 更新统计信息.
-		m_num_corrected += (int)results.size();
-
+		// 获取fec解码恢复的ip包, 并write到tun设备.
+		auto results = m_recover.acquire();
 		for (auto& p : results)
 		{
 			if (!p)
 				continue;
+			p->flag_ = flag + 10;
+
 			auto dst = unwrap_transfer_compress(*p, src, gid, pid, ctype);
 			if (!dst)
 				continue;
+
 			co_await write_pkt(dst);
 		}
+
+		// 更新统计信息.
+		m_num_corrected += (int)results.size();
 
 		co_return;
 	}

@@ -373,38 +373,41 @@ namespace avpn
 		results_.clear();
 	}
 
-	fec_decode_group* fec_recover::find(uint32_t gid)
+	bool fec_recover::update(
+		uint32_t gid, uint16_t pid,
+		int ds, int ps,
+		vpn_packet_ptr& pkt)
 	{
+		// 查找是否已存在创建的gop, 如果不存在则创建
+		// 新的gop.
 		auto it = groups_.find(gid);
 		if (it == groups_.end())
-			return nullptr;
-		return &it->second;
-	}
-
-	bool fec_recover::update(fec_decode_group* opt,
-		uint32_t gid, uint16_t pid,
-		int ds, int ps, vpn_packet_ptr& pkt)
-	{
-		if (!opt)
 		{
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, pkt);
 			groups_.emplace(gid, std::move(gop));
+
 			return false;
 		}
 
-		auto& gop = *opt;
+		// 如果gop已过期, 直接跳过.
+		auto& gop = it->second;
 		if (gop.expired())
 			return false;
 
+		// 更新gop.
 		gop.update(gid, pid, pkt);
 		if (!gop.available())
 			return false;
 
+		// gop可用后, 作解码处理后, 标记为过期的
+		// gop并清理过期大于64的gop.
 		scoped_exit se([this, &gop, &gid]() mutable
 			{
 				gop.set_expired();
 
+				// 作gop清理工作, 清理gid大于当前gid + 64的
+				// gop.
 				for (auto it = groups_.begin();
 					it != groups_.end();)
 				{
@@ -417,15 +420,17 @@ namespace avpn
 				}
 			});
 
+		// 是否丢包, 如果没丢包则返回true
+		// 以表示完成.
 		auto lost_pkts = gop.lost();
 		if (lost_pkts.empty())
 			return true;
 
-		// gop解码.
+		// 将这个gop作fec解码.
 		if (!gop.decode())
 			return false;
 
-		// 解码后将丢失的pkt放入result容器中.
+		// 解码出丢失的pkt后, 将其放入result容器中.
 		for (auto& index : lost_pkts)
 		{
 			auto& p = gop.pkts_[index];
@@ -436,7 +441,7 @@ namespace avpn
 			results_.emplace_back(std::move(p));
 		}
 
-		return false;
+		return true;
 	}
 
 	int64_t fec_recover::garbage_clean()
