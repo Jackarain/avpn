@@ -111,7 +111,7 @@ namespace avpn {
 		int shards_{ 0 };
 		int64_t index_{ 0 };
 		std::vector<vpn_packet_ptr> pkts_;
-		static std::map<uint64_t, avpn::matrix> matrix_cache_;
+		static inline std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
 
 
@@ -155,7 +155,7 @@ namespace avpn {
 		int64_t total_{ 0 };
 		asio_timer::time_point time_;
 		std::atomic_bool used_{ false };
-		static std::map<uint64_t, avpn::matrix> matrix_cache_;
+		static inline std::map<uint64_t, avpn::matrix> matrix_cache_;
 	};
 
 

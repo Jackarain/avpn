@@ -11,10 +11,6 @@
 
 namespace avpn
 {
-	std::map<uint64_t, avpn::matrix> fec_decode_group::matrix_cache_;
-	std::map<uint64_t, avpn::matrix> fec_encode_group::matrix_cache_;
-
-
 	//////////////////////////////////////////////////////////////////////////
 	packet_allocator::packet_allocator(
 		std::size_t max_size /*= std::numeric_limits<std::size_t>::max()*/)

@@ -121,8 +121,8 @@ namespace util {
 
 namespace logging_compress__ {
 
-	const static std::string GZ_SUFFIX = ".gz";
-	const static size_t BUFLEN = 65536;
+	const inline std::string LOGGING_GZ_SUFFIX = ".gz";
+	const inline size_t LOGGING_GZ_BUFLEN = 65536;
 
 	inline std::mutex& compress_lock()
 	{
@@ -132,7 +132,7 @@ namespace logging_compress__ {
 
 	inline bool do_compress_gz(const std::string& infile)
 	{
-		std::string outfile = infile + GZ_SUFFIX;
+		std::string outfile = infile + LOGGING_GZ_SUFFIX;
 
 		gzFile out = gzopen(outfile.c_str(), "wb6f");
 		if (!out)
@@ -145,7 +145,7 @@ namespace logging_compress__ {
 			return false;
 		std::unique_ptr<FILE, decltype(&fclose)> FILE_closer(in, &fclose);
 
-		std::unique_ptr<char[]> bufs(new char[BUFLEN]);
+		std::unique_ptr<char[]> bufs(new char[LOGGING_GZ_BUFLEN]);
 		char* buf = bufs.get();
 		int len;
 
@@ -520,7 +520,7 @@ public:
 					std::lock_guard lock(m);
 					if (!logging_compress__::do_compress_gz(fn))
 					{
-						auto file = fn + logging_compress__::GZ_SUFFIX;
+						auto file = fn + logging_compress__::LOGGING_GZ_SUFFIX;
 						std::filesystem::remove(file, ignore_ec);
 						if (ignore_ec)
 							std::cerr
@@ -576,17 +576,17 @@ private:
 #endif // WIN32 && LOGGER_DBG_VIEW
 #endif // LOGGER_DBG_VIEW_
 
-const static int _logger_debug_id__ = 0;
-const static int _logger_info_id__ = 1;
-const static int _logger_warn_id__ = 2;
-const static int _logger_error_id__ = 3;
-const static int _logger_file_id__ = 4;
+const inline int _logger_debug_id__ = 0;
+const inline int _logger_info_id__ = 1;
+const inline int _logger_warn_id__ = 2;
+const inline int _logger_error_id__ = 3;
+const inline int _logger_file_id__ = 4;
 
-const static std::string _LOGGER_DEBUG_STR__ = "DEBUG";
-const static std::string _LOGGER_INFO_STR__ = "INFO";
-const static std::string _LOGGER_WARN_STR__ = "WARNING";
-const static std::string _LOGGER_ERR_STR__ = "ERROR";
-const static std::string _LOGGER_FILE_STR__ = "FILE";
+const inline std::string _LOGGER_DEBUG_STR__ = "DEBUG";
+const inline std::string _LOGGER_INFO_STR__ = "INFO";
+const inline std::string _LOGGER_WARN_STR__ = "WARNING";
+const inline std::string _LOGGER_ERR_STR__ = "ERROR";
+const inline std::string _LOGGER_FILE_STR__ = "FILE";
 
 inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 	[[maybe_unused]] const int& level,
@@ -735,11 +735,8 @@ namespace logger_aux__ {
 	};
 }
 
-inline std::shared_ptr<logger_aux__::logger_internal>& logger_fetch_log_obj__()
-{
-	static std::shared_ptr<logger_aux__::logger_internal> logger_obj_;
-	return logger_obj_;
-}
+inline bool global_logging___ = true;
+inline std::shared_ptr<logger_aux__::logger_internal> global_logger_obj___;
 
 inline void init_logging(bool use_async = true, const std::string& path = "")
 {
@@ -747,7 +744,7 @@ inline void init_logging(bool use_async = true, const std::string& path = "")
 	if (!path.empty())
 		file.open(path.c_str());
 
-	auto& log_obj = logger_fetch_log_obj__();
+	auto& log_obj = global_logger_obj___;
 	if (use_async && !log_obj) {
 		log_obj.reset(new logger_aux__::logger_internal());
 	}
@@ -761,22 +758,16 @@ inline std::string log_path()
 
 inline void shutdown_logging()
 {
-	auto& log_obj = logger_fetch_log_obj__();
+	auto& log_obj = global_logger_obj___;
 	if (log_obj) {
 		log_obj->stop();
 		log_obj.reset();
 	}
 }
 
-inline bool& logging_flag()
-{
-	static bool logging_ = true;
-	return logging_;
-}
-
 inline void toggle_logging()
 {
-	logging_flag() = !logging_flag();
+	global_logging___ = !global_logging___;
 }
 
 inline void toggle_write_logging(bool disable)
@@ -805,16 +796,16 @@ public:
 		: level_(level)
 		, disable_cout_(disable_cout)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return;
 	}
 	~logger___()
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return;
 		std::string message = logger_aux__::string_utf8(out_);
-		if (logger_fetch_log_obj__())
-			logger_fetch_log_obj__()->post_log(level_, std::move(message), disable_cout_);
+		if (global_logger_obj___)
+			global_logger_obj___->post_log(level_, std::move(message), disable_cout_);
 		else
 			logger_writer__(logger_aux__::gettime(), level_, message, disable_cout_);
 	}
@@ -822,7 +813,7 @@ public:
 	template <class... Args>
 	inline logger___& format_to(std::string_view fmt, Args&&... args)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
 		return *this;
@@ -831,7 +822,7 @@ public:
 	template <class T>
 	inline logger___& strcat_impl(T const& v) noexcept
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}", v);
 		return *this;
@@ -915,49 +906,49 @@ public:
 	}
 	inline logger___& operator<<(const void *v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{:#010x}", (std::size_t)v);
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::nanoseconds& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}ns", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::microseconds& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}us", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::milliseconds& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}ms", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::seconds& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}s", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::minutes& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}min", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::hours& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}h", v.count());
 		return *this;
@@ -965,7 +956,7 @@ public:
 
 	inline logger___& operator<<(const net::ip::tcp::endpoint& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		if (v.address().is_v6())
 			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
@@ -975,7 +966,7 @@ public:
 	}
 	inline logger___& operator<<(const net::ip::udp::endpoint& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		if (v.address().is_v6())
 			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
@@ -987,35 +978,35 @@ public:
 #if (__cplusplus >= 202002L)
 	inline logger___& operator<<(const std::chrono::days& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}d", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::weeks& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}weeks", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::years& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}years", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::months& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		std::format_to(std::back_inserter(out_), "{}months", v.count());
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::weekday& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		switch (v.c_encoding())
 		{
@@ -1041,7 +1032,7 @@ public:
 	}
 	inline logger___& operator<<(const std::chrono::year& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 #if 0
 		std::format_to(std::back_inserter(out_), "{:04}", static_cast<int>(v));
@@ -1052,7 +1043,7 @@ public:
 	}
 	inline logger___& operator<<(const std::chrono::month& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 		switch (static_cast<unsigned int>(v))
 		{
@@ -1088,7 +1079,7 @@ public:
 	}
 	inline logger___& operator<<(const std::chrono::day& v)
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 #if 0
 		std::format_to(std::back_inserter(out_), "{:02}", static_cast<int>(v));
@@ -1100,7 +1091,7 @@ public:
 #endif
 	inline logger___& operator<<(const boost::posix_time::ptime& p) noexcept
 	{
-		if (!logging_flag())
+		if (!global_logging___)
 			return *this;
 
 		if (!p.is_not_a_date_time())

@@ -114,7 +114,7 @@ namespace avpn {
 				return index;
 		}
 
-		static auto free_ppft = [](PMIB_IPFORWARDTABLE ppft) { ::free(ppft); };
+		inline auto free_ppft = [](PMIB_IPFORWARDTABLE ppft) { ::free(ppft); };
 
 		inline std::shared_ptr<MIB_IPFORWARDTABLE> get_windows_routing_table()
 		{
@@ -167,7 +167,7 @@ namespace avpn {
 			return { ret };
 		}
 
-		static auto free_pai = [](PIP_ADAPTER_INFO pai) { ::free(pai); };
+		inline auto free_pai = [](PIP_ADAPTER_INFO pai) { ::free(pai); };
 
 		inline std::shared_ptr<IP_ADAPTER_INFO> get_adapter_info_list()
 		{

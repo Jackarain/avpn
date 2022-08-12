@@ -99,7 +99,7 @@ namespace boost {
 		template <>
 		struct is_error_code_enum<socks::errc::errc_t>
 		{
-			static const bool value = true;
+			static const inline bool value = true;
 		};
 
 	} // namespace system

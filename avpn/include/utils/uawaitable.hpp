@@ -36,5 +36,5 @@ namespace asio_util
 // stream.async_read(buffer, uawaitable[ec]);
 //
 
-[[maybe_unused]] static asio_util::uawaitable_t uawaitable;
+[[maybe_unused]] inline asio_util::uawaitable_t uawaitable;
 

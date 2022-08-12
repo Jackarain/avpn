@@ -50,7 +50,7 @@ namespace avpn {
 		compress_deflate,
 	};
 
-	const static uint16_t avpn_protocol_version = 1;
+	const inline uint16_t avpn_protocol_version = 1;
 
 
 	//////////////////////////////////////////////////////////////////////////

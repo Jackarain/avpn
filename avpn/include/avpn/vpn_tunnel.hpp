@@ -29,7 +29,7 @@ namespace avpn {
 	class vpn_tunnel : public std::enable_shared_from_this<vpn_tunnel>
 	{
 		// 速率统计相关数据结构.
-		const static int speed_entries = 3;
+		const static inline int speed_entries = 3;
 		struct speed_stat
 		{
 			int64_t speeder_[speed_entries]{ 0 };

@@ -14,21 +14,21 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 	// transfer 中的IP包数据在消息中偏移.
-	const static int avpn_payload_header_size = 14;
+	const inline int avpn_payload_header_size = 14;
 	// packet的header大小.
-	const static int avpn_pkt_header_size = 5;
+	const inline int avpn_pkt_header_size = 5;
 	// 正常mtu大小定义.
-	const static int avpn_normal_mtu = 1500;
+	const inline int avpn_normal_mtu = 1500;
 	// avpn数据包大小定义.
-	const static int avpn_packet_size = 1464;
+	const inline int avpn_packet_size = 1464;
 	// avpn数据包整个大小.
-	const static int avpn_whole_packet_size =
+	const inline int avpn_whole_packet_size =
 		avpn_packet_size + 24; // 24 == sizeof vpn_packet.
 	// avpn数据包中IP包大小定义.
-	const static int avpn_payload_size =
+	const inline int avpn_payload_size =
 		avpn_packet_size - avpn_payload_header_size;
 	// avpn 网卡的mtu大小定义.
-	const static int avpn_static_mtu = 1450;
+	const inline int avpn_static_mtu = 1450;
 
 	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
