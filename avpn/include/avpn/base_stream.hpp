@@ -16,23 +16,23 @@
 namespace avpn {
 
 	template<typename... T>
-	class socks_stream : public boost::variant<T...>
+	class base_stream : public boost::variant<T...>
 	{
 	public:
 		template <typename S>
-		explicit socks_stream(S device)
+		explicit base_stream(S device)
 			: boost::variant<T...>(std::move(device))
 		{
 			static_assert(std::is_move_constructible<S>::value
 				, "must be move constructible");
 		}
-		~socks_stream() = default;
+		~base_stream() = default;
 
-		socks_stream(const socks_stream&) = delete;
-		socks_stream& operator=(socks_stream const&) = delete;
+		base_stream(const base_stream&) = delete;
+		base_stream& operator=(base_stream const&) = delete;
 
-		socks_stream& operator=(socks_stream&&) = default;
-		socks_stream(socks_stream&& s) = default;
+		base_stream& operator=(base_stream&&) = default;
+		base_stream(base_stream&& s) = default;
 
 		using executor_type = net::any_io_executor;
 

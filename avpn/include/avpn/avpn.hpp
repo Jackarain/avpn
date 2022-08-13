@@ -154,7 +154,7 @@ namespace avpn {
 	class vpn_conntrack;
 	using vpn_conntrack_ptr = std::shared_ptr<vpn_conntrack>;
 
-	using socks_stream_type = socks_stream<tcp::socket>;
+	using socks_stream_type = base_stream<tcp::socket>;
 
 	class avpn_service
 		: public socks_server_base
