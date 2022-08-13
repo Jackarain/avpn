@@ -873,8 +873,6 @@ namespace avpn {
 				continue;
 
 			p->flag_ = flag + 10;
-
-			LOG_DBG << "reco gid: " << p->gid_ << ", pid: " << p->pid_;
 			co_await write_pkt(p);
 		}
 
