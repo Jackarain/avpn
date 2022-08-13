@@ -858,16 +858,10 @@ namespace avpn {
 
 		// 将接收到的ip包write到tun设备.
 		if (pid < m_peer_ds && !expired)
-		{
-			LOG_DBG << "recv gid: " << pkt->gid_ << ", pid: " << pkt->pid_;
 			co_await write_pkt(pkt);
-		}
 
-		if (expired && pid < m_peer_ds)
-		{
-			LOG_DBG << "recv gid: " << pkt->gid_ << ", pid: " << pkt->pid_ << " expired";
-		}
-
+		// group还不完整, 表示还不能恢复丢失的数据包
+		// 需要更新多的数据包.
 		if (!whole)
 			co_return;
 
