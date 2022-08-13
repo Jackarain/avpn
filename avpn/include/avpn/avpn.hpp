@@ -137,6 +137,26 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
+
+	class crypto_stream
+	{
+		// c++11 noncopyable.
+		crypto_stream(const crypto_stream&) = delete;
+		crypto_stream& operator=(const crypto_stream&) = delete;
+
+	public:
+		crypto_stream(tcp::socket socket)
+			: m_socket(std::move(socket))
+		{}
+		~crypto_stream() = default;
+
+	private:
+		tcp::socket m_socket;
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+
+
 	class vpn_tunnel;
 
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
