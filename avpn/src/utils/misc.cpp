@@ -2028,28 +2028,28 @@ bool parse_endpoint_string(std::string_view str,
 	bool is_ipv6_address = *it == '[';
 	if (is_ipv6_address)
 	{
-		auto tmp_it = std::find(it, address_string.end(), ']');
-		if (tmp_it == address_string.end())
+		auto host_end = std::find(it, address_string.end(), ']');
+		if (host_end == address_string.end())
 			return false;
 
 		it++;
-		for (auto first = it; first != tmp_it; first++)
+		for (auto first = it; first != host_end; first++)
 			host.push_back(*first);
 
-		std::advance(it, tmp_it - it);
+		std::advance(it, host_end - it);
 		it++;
 	}
 	else
 	{
-		auto tmp_it = std::find(it, address_string.end(), ':');
-		if (tmp_it == address_string.end())
+		auto host_end = std::find(it, address_string.end(), ':');
+		if (host_end == address_string.end())
 			return false;
 
-		for (auto first = it; first != tmp_it; first++)
+		for (auto first = it; first != host_end; first++)
 			host.push_back(*first);
 
 		// Skip host.
-		std::advance(it, tmp_it - it);
+		std::advance(it, host_end - it);
 	}
 
 	if (*it != ':')
