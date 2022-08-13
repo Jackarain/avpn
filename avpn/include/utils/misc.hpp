@@ -81,6 +81,8 @@ void set_thread_name(const char* name);
 void set_thread_name(std::thread* thread, const char* name);
 
 // 用于解析listen使用的endpoint.
+bool parse_endpoint_string(std::string_view str,
+	std::string& host, std::string& port, bool& ipv6only);
 bool make_listen_endpoint(const std::string& address,
 	tcp::endpoint& endp, boost::system::error_code& ec);
 bool make_listen_endpoint(const std::string& address,

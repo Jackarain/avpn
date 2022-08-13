@@ -2017,13 +2017,14 @@ std::tuple<std::string, bool> del_route(const std::string& route)
 
 //////////////////////////////////////////////////////////////////////////
 
-
-bool parse_endpoint_string(const std::string& str, std::string& host, std::string& port, bool& ipv6only)
+bool parse_endpoint_string(std::string_view str,
+	std::string& host, std::string& port, bool& ipv6only)
 {
 	ipv6only = false;
 
 	auto address_string = boost::trim_copy(str);
 	auto it = address_string.begin();
+
 	bool is_ipv6_address = *it == '[';
 	if (is_ipv6_address)
 	{
@@ -2068,8 +2069,8 @@ bool parse_endpoint_string(const std::string& str, std::string& host, std::strin
 
 	if (it != address_string.end())
 	{
-		if (std::string(it, address_string.end()) == "ipv6only" ||
-			std::string(it, address_string.end()) == "-ipv6only")
+		if (std::string_view(it, address_string.end()) == "ipv6only" ||
+			std::string_view(it, address_string.end()) == "-ipv6only")
 			ipv6only = true;
 	}
 
