@@ -369,7 +369,7 @@ namespace avpn
 		results_.clear();
 	}
 
-	bool fec_recover::update(
+	std::tuple<bool, bool> fec_recover::update(
 		uint32_t gid, uint16_t pid,
 		int ds, int ps,
 		vpn_packet_ptr& pkt)
@@ -383,18 +383,18 @@ namespace avpn
 			gop.update(gid, pid, pkt);
 			groups_.emplace(gid, std::move(gop));
 
-			return false;
+			return { false, false };
 		}
 
 		// 如果gop已过期, 直接跳过.
 		auto& gop = it->second;
 		if (gop.expired())
-			return false;
+			return { false, true };
 
 		// 更新gop.
 		gop.update(gid, pid, pkt);
 		if (!gop.available())
-			return false;
+			return { false, false };
 
 		// gop可用后, 作解码处理后, 标记为过期的
 		// gop并清理过期大于64的gop.
@@ -420,11 +420,11 @@ namespace avpn
 		// 以表示完成.
 		auto lost_pkts = gop.lost();
 		if (lost_pkts.empty())
-			return true;
+			return { true, false };
 
 		// 将这个gop作fec解码.
 		if (!gop.decode())
-			return false;
+			return { false, false };
 
 		// 解码出丢失的pkt后, 将其放入result容器中.
 		for (auto& index : lost_pkts)
@@ -437,7 +437,7 @@ namespace avpn
 			results_.emplace_back(std::move(p));
 		}
 
-		return true;
+		return { true, false };
 	}
 
 	int64_t fec_recover::garbage_clean()

@@ -173,7 +173,7 @@ namespace avpn {
 
 		void reset();
 
-		bool update(uint32_t gid, uint16_t pid,
+		std::tuple<bool, bool> update(uint32_t gid, uint16_t pid,
 			int ds, int ps, vpn_packet_ptr& pkt);
 
 		int64_t garbage_clean();

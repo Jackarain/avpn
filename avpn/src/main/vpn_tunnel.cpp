@@ -207,13 +207,13 @@ namespace avpn {
 		// TCP倍发模式, 无需要fec, 直接发送冗余.
 		if (params.data_shards_ == 1)
 		{
-			// 计算最大发送倍数.
-			auto ps = std::min<int>(5, params.parity_shards_);
-			ps = std::max(1, ps);
-
 			// 若非tcp协议, 只发送1次.
 			if (pkt->type() != vpn_packet_t::pkt_tcp)
-				ps = 1;
+				co_return;
+
+			// 计算最大发送倍数.
+			auto ps = std::min<int>(5, params.parity_shards_);
+			--ps;
 
 			for (int i = 0; i < ps; i++)
 			{
@@ -844,17 +844,30 @@ namespace avpn {
 			co_return;
 		};
 
-		// 将接收到的ip包write到tun设备.
-		if (pid < m_peer_ds)
-			co_await write_pkt(pkt);
-
 		// 对方没启用fec.
 		if (m_peer_ds == 1)
+		{
+			if (pid < m_peer_ds)
+				co_await write_pkt(pkt);
 			co_return;
+		}
 
 		// 更新fec recover.
-		bool whole = m_recover.update(
+		auto [whole, expired] = m_recover.update(
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
+
+		// 将接收到的ip包write到tun设备.
+		if (pid < m_peer_ds && !expired)
+		{
+			LOG_DBG << "recv gid: " << pkt->gid_ << ", pid: " << pkt->pid_;
+			co_await write_pkt(pkt);
+		}
+
+		if (expired && pid < m_peer_ds)
+		{
+			LOG_DBG << "recv gid: " << pkt->gid_ << ", pid: " << pkt->pid_ << " expired";
+		}
+
 		if (!whole)
 			co_return;
 
@@ -866,6 +879,8 @@ namespace avpn {
 				continue;
 
 			p->flag_ = flag + 10;
+
+			LOG_DBG << "reco gid: " << p->gid_ << ", pid: " << p->pid_;
 			co_await write_pkt(p);
 		}
 
@@ -939,17 +954,22 @@ namespace avpn {
 			co_return;
 		};
 
-		// 将接收到的ip包write到tun设备.
-		if (pid < m_peer_ds)
-			co_await write_pkt(pkt);
-
 		// 对方没启用fec.
 		if (m_peer_ds == 1)
+		{
+			if (pid < m_peer_ds)
+				co_await write_pkt(pkt);
 			co_return;
+		}
 
 		// 更新fec recover.
-		bool whole = m_recover.update(
+		auto [whole, expired] = m_recover.update(
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
+
+		// 将接收到的ip包write到tun设备.
+		if (pid < m_peer_ds && !expired)
+			co_await write_pkt(pkt);
+
 		if (!whole)
 			co_return;
 
