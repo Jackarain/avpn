@@ -43,6 +43,7 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_conntrack.hpp
 	include/avpn/vpn_tcp_stream.hpp
 	include/avpn/chksum.hpp
+	include/avpn/base_stream.hpp
 
 	include/utils/*.hpp
 	src/utils/*.cpp
