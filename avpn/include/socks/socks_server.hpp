@@ -72,9 +72,11 @@ namespace socks {
 	// socks_session 抽象类, 它被设计为一个模板抽象类, 模板参数Stream
 	// 指定与本地通信的stream对象, 默认使用tcp::socket, 可根据此
 	// async_read/async_write等接口实现专用的stream类, 比如实现加密.
-	template <typename Stream = tcp::socket>
+	template <typename LocalStream = tcp::socket,
+		typename RemoteStream = tcp::socket>
 	class socks_session
-		: public std::enable_shared_from_this<socks_session<Stream>>
+		: public std::enable_shared_from_this<
+			socks_session<LocalStream, RemoteStream>>
 	{
 		socks_session(const socks_session&) = delete;
 		socks_session& operator=(const socks_session&) = delete;
@@ -97,7 +99,7 @@ namespace socks {
 
 
 	public:
-		socks_session(Stream&& socket,
+		socks_session(LocalStream&& socket,
 			size_t id, std::weak_ptr<socks_server_base> server)
 			: m_local_socket(std::move(socket))
 			, m_remote_socket(m_local_socket.get_executor())
@@ -400,7 +402,6 @@ namespace socks {
 			uint16_t port = 0;
 
 			auto executor = co_await net::this_coro::executor;
-			tcp::socket& remote_socket = m_remote_socket;
 
 			p = m_local_buffer.data();
 			if (atyp == SOCKS5_ATYP_IPV4)
@@ -533,9 +534,9 @@ namespace socks {
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				co_await(
-					transfer(m_local_socket, remote_socket)
+					transfer(m_local_socket, m_remote_socket)
 					&&
-					transfer(remote_socket, m_local_socket)
+					transfer(m_remote_socket, m_local_socket)
 					);
 
 				LOG_DBG << "socks id: " << m_connection_id
@@ -688,7 +689,6 @@ namespace socks {
 			}
 
 			int error_code = SOCKS4_REQUEST_GRANTED;
-			tcp::socket& remote_socket = m_remote_socket;
 			if (command == SOCKS_CMD_CONNECT)
 			{
 				if (socks4a)
@@ -743,9 +743,9 @@ namespace socks {
 				co_return;
 
 			co_await(
-				transfer(m_local_socket, remote_socket)
+				transfer(m_local_socket, m_remote_socket)
 				&&
-				transfer(remote_socket, m_local_socket)
+				transfer(m_remote_socket, m_local_socket)
 				);
 
 			LOG_DBG << "socks id: " << m_connection_id << ", transfer completed";
@@ -1048,8 +1048,8 @@ namespace socks {
 		}
 
 	private:
-		Stream m_local_socket;
-		tcp::socket m_remote_socket;
+		LocalStream m_local_socket;
+		RemoteStream m_remote_socket;
 		size_t m_connection_id;
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server_base> m_socks_server;

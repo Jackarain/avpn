@@ -43,6 +43,18 @@ namespace avpn {
 #endif
 	}
 
+	socks_stream_type instantiate_socks_stream(
+		net::io_context& ioc)
+	{
+		return socks_stream_type(tcp::socket(ioc));
+	}
+
+	socks_stream_type instantiate_socks_stream(
+		tcp::socket&& s)
+	{
+		return socks_stream_type(std::move(s));
+	}
+
 	avpn_service::avpn_service(
 		io_context_pool& ios, const service_config& config)
 		: m_ioc_pool(ios)
@@ -1167,11 +1179,21 @@ namespace avpn {
 					<< ", connection id: " << connection_id;
 
 				auto new_session =
-					std::make_shared<socks::socks_session>(
-						std::move(socket), connection_id, self);
+					std::make_shared<socks_session_type>(
+						instantiate_socks_stream(std::move(socket)),
+						connection_id,
+						self);
 				m_socks_clients[connection_id] = new_session;
 
 				new_session->start();
+				continue;
+			}
+
+			// esocks4/5 protocol.
+			if (detect[0] == 0x85 || detect[0] == 0x84)
+			{
+				LOG_DBG << "esocks protocol: " << detect[0]
+					<< ", connection id: " << connection_id;
 				continue;
 			}
 
