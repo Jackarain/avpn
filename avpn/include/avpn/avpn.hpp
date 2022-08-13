@@ -13,6 +13,7 @@
 #include "avpn/endpoint_pair.hpp"
 #include "avpn/base_stream.hpp"
 
+#include "utils/crypto.hpp"
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
 #include "utils/io_context_pool.hpp"
@@ -138,19 +139,90 @@ namespace avpn {
 	//////////////////////////////////////////////////////////////////////////
 
 
-	class crypto_stream
+	class esocks_stream
 	{
 		// c++11 noncopyable.
-		crypto_stream(const crypto_stream&) = delete;
-		crypto_stream& operator=(const crypto_stream&) = delete;
+		esocks_stream(const esocks_stream&) = delete;
+		esocks_stream& operator=(const esocks_stream&) = delete;
 
 	public:
-		crypto_stream(tcp::socket socket)
+		esocks_stream(tcp::socket socket, std::string_view passwd)
 			: m_socket(std::move(socket))
+			, m_crypto_eng(passwd)
 		{}
-		~crypto_stream() = default;
+		~esocks_stream() = default;
+
+		esocks_stream& operator=(esocks_stream&&) = default;
+		esocks_stream(esocks_stream&&) = default;
+
+		using executor_type = tcp::socket::executor_type;
+
+	public:
+		executor_type get_executor()
+		{
+			return m_socket.get_executor();
+		}
+
+		template <typename MutableBufferSequence, typename ReadHandler>
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
+			void(boost::system::error_code, std::size_t))
+			async_read_some(const MutableBufferSequence& buffers,
+				ReadHandler&& handler)
+		{
+			m_socket.async_read_some(buffers,
+				[this, buffers = buffers, handler = std::move(handler)]
+				(boost::system::error_code ec, std::size_t bytes) mutable
+				{
+					if (ec)
+					{
+						handler(ec, bytes);
+						return;
+					}
+
+					// m_crypto_eng.perform();
+					handler(ec, bytes);
+				});
+		}
+
+		template <typename ConstBufferSequence, typename WriteHandler>
+		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
+			void(boost::system::error_code, std::size_t))
+			async_write_some(const ConstBufferSequence& buffers,
+				WriteHandler&& handler)
+		{
+			m_socket.async_write_some(buffers,
+				[this, buffers = buffers, handler = std::move(handler)]
+				(boost::system::error_code ec, std::size_t bytes) mutable
+				{
+					if (ec)
+					{
+						handler(ec, bytes);
+						return;
+					}
+
+					// m_crypto_eng.perform();
+					handler(ec, bytes);
+				});
+		}
+
+		tcp::endpoint remote_endpoint()
+		{
+			return m_socket.remote_endpoint();
+		}
+
+		void shutdown(net::socket_base::shutdown_type what,
+			boost::system::error_code& ec)
+		{
+			m_socket.shutdown(what, ec);
+		}
+
+		void close(boost::system::error_code& ec)
+		{
+			m_socket.close(ec);
+		}
 
 	private:
+		crypto_util::stream_crypto m_crypto_eng;
 		tcp::socket m_socket;
 	};
 

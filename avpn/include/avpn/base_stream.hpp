@@ -32,7 +32,7 @@ namespace avpn {
 		base_stream& operator=(base_stream const&) = delete;
 
 		base_stream& operator=(base_stream&&) = default;
-		base_stream(base_stream&& s) = default;
+		base_stream(base_stream&&) = default;
 
 		using executor_type = net::any_io_executor;
 
