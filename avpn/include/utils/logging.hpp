@@ -469,7 +469,6 @@ public:
 		if (m_disable_write)
 			return;
 
-#ifdef LOGGING_COMPRESS_LOGS
 		bool condition = false;
 		auto hours = time / 1000 / 3600;
 		auto last_hours = m_last_time / 1000 / 3600;
@@ -512,6 +511,8 @@ public:
 
 			std::filesystem::resize_file(m_log_path, 0, ec);
 			m_log_size = 0;
+
+#ifdef LOGGING_COMPRESS_LOGS
 			auto fn = filename.string();
 			std::thread th([fn]()
 				{
@@ -533,9 +534,9 @@ public:
 					std::filesystem::remove(fn, ignore_ec);
 				});
 			th.detach();
+#endif
 			break;
 		}
-#endif
 
 		if (!m_ofstream) {
 			m_ofstream.reset(new std::ofstream);
