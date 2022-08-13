@@ -207,15 +207,15 @@ namespace avpn {
 		// TCP倍发模式, 无需要fec, 直接发送冗余.
 		if (params.data_shards_ == 1)
 		{
+			// 计算最大发送倍数.
+			auto ps = std::min<int>(5, params.parity_shards_);
+			ps = std::max(1, ps);
+
+			// 若非tcp协议, 只发送1次.
 			if (pkt->type() != vpn_packet_t::pkt_tcp)
-				co_return;
+				ps = 1;
 
-			params.parity_shards_ =
-				std::min<int>(5, params.parity_shards_);
-
-			for (int i = 0;
-				i < params.parity_shards_ - 1;
-				i++)
+			for (int i = 0; i < ps; i++)
 			{
 				udp_write_pkt(pkt);
 

@@ -133,7 +133,7 @@ namespace avpn
 
 		// 判断fec编码是否达到可实施fec编码大小要求.
 		// 如果达到, 则直接进行fec编码.
-		if (pid + 1 == ds_)
+		if (pid + 1 == ds_ && ds_ > 1)
 		{
 			// 执行fec编码.
 			if (!do_encode())
