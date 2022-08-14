@@ -122,6 +122,8 @@ namespace avpn {
 
 	void avpn_service::stop()
 	{
+		LOG_WARN << "avpn_service::stop";
+
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
@@ -172,7 +174,7 @@ namespace avpn {
 		}
 
 		// TODO: 退出时删除路由.
-		LOG_DBG << "avpn_service stop tuntap.";
+		LOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
 		m_tundev.close();
 		m_tick_timer.cancel(ignore_ec);
 		m_tun_wait_timer.cancel(ignore_ec);
@@ -180,8 +182,6 @@ namespace avpn {
 		m_upload_speed = 0;
 		m_down_speed = 0;
 		m_start_udp = 0;
-
-		LOG_DBG << "avpn_service.stop()";
 	}
 
 	int64_t avpn_service::upload_rate() const
