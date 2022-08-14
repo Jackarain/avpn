@@ -1080,6 +1080,7 @@ namespace avpn {
 					continue;
 				}
 
+				m_server_udp_endps.clear();
 				for (auto& endp : results)
 					m_server_udp_endps.emplace_back(endp.endpoint());
 			}
@@ -1097,6 +1098,7 @@ namespace avpn {
 					continue;
 				}
 
+				m_server_tcp_endps.clear();
 				for (auto& endp : results)
 					m_server_tcp_endps.emplace_back(endp.endpoint());
 			}
@@ -1477,6 +1479,8 @@ namespace avpn {
 			if (ec)
 			{
 				LOG_ERR << "connect_server, async_connect: " << ec.message();
+				if (ec == boost::asio::error::operation_aborted)
+					break;
 				continue;
 			}
 
