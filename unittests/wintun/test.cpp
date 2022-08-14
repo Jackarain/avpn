@@ -79,6 +79,40 @@ extern "C" {
 
 
 namespace details {
+	struct init_wintun
+	{
+		init_wintun()
+		{
+			install_wintun();
+			InitWintun();
+		}
+
+		~init_wintun()
+		{
+			WintunCloseAdapter(handle_);
+			UnInitWintun();
+		}
+
+		WINTUN_ADAPTER_HANDLE handle_{ 0 };
+	};
+}
+
+static details::init_wintun initer;
+
+
+BOOST_AUTO_TEST_CASE(wintun_test)
+{
+	GUID AdapterGuid;
+	[[maybe_unused]] HRESULT hr = CoCreateGuid(&AdapterGuid);
+
+	auto handle = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
+
+	BOOST_TEST(handle != nullptr);
+}
+
+#if 0
+
+namespace details {
 
 	inline void utf8_utf16(const std::string& utf8, std::wstring& utf16)
 	{
@@ -290,23 +324,7 @@ namespace details {
 		}
 	}
 
-	struct init_wintun
-	{
-		init_wintun()
-		{
-			install_wintun();
-			InitWintun();
-		}
 
-		~init_wintun()
-		{
-			WintunCloseAdapter(handle_);
-			UnInitWintun();
-			LOG_WARN << "init_wintun_apis::~init_wintun_apis()";
-		}
-
-		WINTUN_ADAPTER_HANDLE handle_{ 0 };
-	};
 }
 
 static inline ULONG
@@ -321,7 +339,6 @@ wintun_ring_wrap(ULONG value)
 	return value & (WINTUN_RING_CAPACITY - 1);
 }
 
-static details::init_wintun initer;
 
 
 HANDLE g_send_ring_handle;
@@ -731,3 +748,4 @@ BOOST_AUTO_TEST_CASE(wintun_test)
 	open_tun();
 }
 
+#endif

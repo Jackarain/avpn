@@ -50,6 +50,7 @@ BOOST_AUTO_TEST_CASE(test_handshake)
 	int len = (int)pubkey.size() + 1 + (int)id.size() + 1;
 	len += (1 + 4);
 	len += 2;
+	len += 2;
 	BOOST_TEST(len == bytes);
 }
 
@@ -69,7 +70,7 @@ BOOST_AUTO_TEST_CASE(test_transfer)
 	auto bytes = avpn::unwrap_transfer(pkt, src, gid, pid);
 	(void)bytes;
 
-	BOOST_TEST(bytes == 18);
+	BOOST_TEST(bytes == 19);
 	BOOST_TEST(src == (uint32_t)167772225);
 	BOOST_TEST(gid == (uint32_t)12);
 	BOOST_TEST(pid == (uint8_t)23);
