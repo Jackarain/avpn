@@ -13,9 +13,9 @@ aVPN是目前世界唯一基于 **现代c++** 的vpn实现，avpn展示了在现
 
 <br>
 
-1. 项目基于 **c++20** 开发，编译器要求gcc-10.3.1或更高，clang-13或更高，msvc-2019或更高.
+1. 项目基于 **c++20** 开发，编译器要求gcc-10.3.1或更高，clang-13或更高，msvc-2019或更高。
 
-1. cmake-3.20或更高.
+1. cmake-3.20或更高。
 
 ***
 <br>
@@ -37,18 +37,16 @@ mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 ```
 
-上面命令中，CMAKE_BUILD_TYPE=Debug指定了编译为Debug的类型，如果需要更好的性
-能，则需要编译为Release.
+上面命令中，CMAKE_BUILD_TYPE=Debug指定了编译为Debug的类型，如果需要更好的性能，则需要编译为Release。
 
 在cmake命令成功执行完成后，开始输入以下命令编译：
 ```
 make
 ```
 
-通常编译过程不会出现问题，如果出现任何问题，请联系作者，并将完整的错误信息
-保留并报告给作者。
+通常编译过程不会出现问题，如果出现任何问题，请联系作者，并将完整的错误信息保留并报告给作者。
 
-成功编译后，可执行程序将在bin目录下生成.
+成功编译后，可执行程序将在bin目录下生成。
 
 ***
 <br>
@@ -56,19 +54,13 @@ make
 ### 部分选项介绍
 <br>
 
-avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cmake源文件中的选
-项开关尝试不同功能，比如可以选择使用mimalloc、tcmalloc等分配器，比如使用更快
-的mold链接器，比如打开systemd的日志开关，便可将日志记录到systemd.journal中.
+avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cmake源文件中的选项开关尝试不同功能，比如可以选择使用mimalloc、tcmalloc等分配器，比如使用更快的mold链接器，比如打开systemd的日志开关，便可将日志记录到systemd.journal中。
 
-avpn还提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目
-录，可以执行如下命令，创建一个docker并编译avpn：
+avpn还提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目录，可以执行如下命令，创建一个docker并编译avpn：
 ```
 docker build -t avpn:v1 .
 ```
-编译完成后，将生成一个无任何系统依赖的avpn可执行程序，因为它使用了静态链接到
-一个叫作 musl 的 libc，这样编译出来的avpn可执行程序将可运行在无glibc的环境下
-如 initramfs 中，使用musl的最大好处就是可以无需关心系统上过于古老的glibc而导
-致无法运行的问题。
+编译完成后，将生成一个无任何系统依赖的avpn可执行程序，因为它使用了静态链接到一个叫作 musl 的 libc，这样编译出来的avpn可执行程序将可运行在无glibc的环境下如 initramfs 中，使用musl的最大好处就是可以无需关心系统上过于古老的glibc而导致无法运行的问题。
 
 ***
 <br>
@@ -76,8 +68,7 @@ docker build -t avpn:v1 .
 ### Windows 平台下编译
 
 <br>
-同样先执行git克隆源码，上面已经介绍过了，这里略过，在git克隆的源码目录下建立
-一个build目录，然后执行以下命令：
+同样先执行git克隆源码，上面已经介绍过了，这里略过，在git克隆的源码目录下建立一个build目录，然后执行以下命令：
 
 ```
 cmake.exe ..
@@ -88,8 +79,7 @@ cmake.exe ..
 msbuild avpn.sln /p:Configuration="Debug"
 ```
 
-在完成编译后，同样会生成一个avpn.exe在bin目录，当然也可以直接使用msvc打开
-avpn.sln项目文件，通过菜单上的编译命令进行编译。
+在完成编译后，同样会生成一个avpn.exe在bin目录，当然也可以直接使用msvc打开avpn.sln项目文件，通过菜单上的编译命令进行编译。
 
 ***
 <br>
@@ -97,8 +87,7 @@ avpn.sln项目文件，通过菜单上的编译命令进行编译。
 ### 功能参数介绍
 <br>
 
-除config参数之外，所有参数均可在命令行或配置文件中，在下
-面一一解释各参数相关作用
+除config参数之外，所有参数均可在命令行或配置文件中，在下面一一解释各参数相关作用
 
 |  参    数      | 用法解释  |
 |  --------      | -----    |
@@ -109,6 +98,7 @@ avpn.sln项目文件，通过菜单上的编译命令进行编译。
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
 | socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
 | socks_userid<BR>socks_passwd |		指定socks server的userid/passwd。|
+| socks_next_proxy |		作为socks server时指定下一个socks server以实现client可跨过2层socks server的目的，这对client来说是无感的。|
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
 | data_shards <br> parity_shards |		这2个参数是fec参数，主要指定多少份data_shards和多少份parity_shards组成一组fec数据，也就是说，在发送data_shards份数据的同时，携带parity_shards份冗余数据。fec算法可以允许任意最多丢失parity_shards份数据。|
