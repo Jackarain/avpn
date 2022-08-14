@@ -26,9 +26,11 @@
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
 
-boost::asio::io_context ioc;
-boost::asio::io_context::work* work2;
-boost::asio::io_context ioc2;
+namespace net = boost::asio;
+
+net::io_context ioc;
+net::io_context::work* work2;
+net::io_context ioc2;
 
 struct params
 {
@@ -55,7 +57,7 @@ net::awaitable<void>
 test3(params p)
 {
 	LOG_DBG << "##############1: " << std::this_thread::get_id();
-	co_await boost::asio::this_coro::executor;
+	co_await net::this_coro::executor;
 	LOG_DBG << "##############2: " << std::this_thread::get_id();
 
 	p.print();
@@ -67,9 +69,9 @@ net::awaitable<void>
 test2(params p)
 {
 	LOG_DBG << "*************1: " << std::this_thread::get_id();
-	co_await boost::asio::this_coro::executor;
+	co_await net::this_coro::executor;
 	LOG_DBG << "*************2: " << std::this_thread::get_id();
-	boost::asio::co_spawn(ioc2, test3(std::move(p)), boost::asio::detached);
+	net::co_spawn(ioc2, test3(std::move(p)), net::detached);
 	LOG_DBG << "*************3: " << std::this_thread::get_id();
 	co_return;
 }
@@ -81,7 +83,7 @@ test(params p)
 	LOG_DBG << ".............1: " << std::this_thread::get_id();
 	co_await test2(std::move(p));
 	LOG_DBG << ".............2: " << std::this_thread::get_id();
-	// boost::asio::co_spawn(ioc, test2(std::move(p)), boost::asio::detached);
+	// net::co_spawn(ioc, test2(std::move(p)), net::detached);
 
 	co_return;
 }
@@ -98,17 +100,17 @@ async_make_tunnel(int i)
 BOOST_AUTO_TEST_CASE(asio_coroutine_test)
 {
 	params p;
-	boost::asio::co_spawn(ioc, test(std::move(p)), boost::asio::detached);
+	net::co_spawn(ioc, test(std::move(p)), net::detached);
 
 // 	for (int i = 0; i < 100; i++)
 // 	{
-// 		boost::asio::co_spawn(ioc, [i]() -> boost::asio::awaitable<void> {
+// 		net::co_spawn(ioc, [i]() -> net::awaitable<void> {
 // 			co_await async_make_tunnel(i);
-// 			}, boost::asio::detached);
+// 			}, net::detached);
 // 	}
 
 	std::thread t([]() {
-		work2 = new boost::asio::io_context::work(ioc2);
+		work2 = new net::io_context::work(ioc2);
 		ioc2.run();
 		});
 
