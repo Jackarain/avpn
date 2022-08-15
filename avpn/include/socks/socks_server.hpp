@@ -69,13 +69,22 @@ namespace socks {
 		virtual const socks_server_option& option() = 0;
 	};
 
+	// socks session 虚基类.
+	class socks_session_base {
+	public:
+		virtual ~socks_session_base() {}
+		virtual void start() = 0;
+		virtual void close() = 0;
+	};
+
 	// socks_session 抽象类, 它被设计为一个模板抽象类, 模板参数Stream
 	// 指定与本地通信的stream对象, 默认使用tcp::socket, 可根据此
 	// async_read/async_write等接口实现专用的stream类, 比如实现加密.
 	template <typename LocalStream = tcp::socket,
 		typename RemoteStream = tcp::socket>
 	class socks_session
-		: public std::enable_shared_from_this<
+		: public socks_session_base
+		, public std::enable_shared_from_this<
 			socks_session<LocalStream, RemoteStream>>
 	{
 		socks_session(const socks_session&) = delete;
@@ -118,7 +127,7 @@ namespace socks {
 		}
 
 	public:
-		void start()
+		virtual void start() override
 		{
 			auto server = m_socks_server.lock();
 			if (!server)
@@ -151,7 +160,7 @@ namespace socks {
 				}, net::detached);
 		}
 
-		void close()
+		virtual void close() override
 		{
 			m_abort = true;
 

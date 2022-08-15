@@ -1180,21 +1180,28 @@ namespace avpn {
 				LOG_DBG << "socks protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
-				auto new_session =
-					std::make_shared<socks_session_type>(
+				socks_session_base* session_ptr =
+					new socks::socks_session<socks_stream_type>(
 						instantiate_socks_stream(std::move(socket)),
 						connection_id,
 						self);
+
+				auto new_session = socks_session_ptr(session_ptr);
 				m_socks_clients[connection_id] = new_session;
 
 				new_session->start();
 				continue;
 			}
-
-			// esocks4/5 protocol.
-			if (detect[0] == 0x85 || detect[0] == 0x84)
+			else if (detect[0] == 0x16) // https protocol.
 			{
-				LOG_DBG << "esocks protocol: " << detect[0]
+				LOG_DBG << "https protocol: " << detect[0]
+					<< ", connection id: " << connection_id;
+				continue;
+
+			}
+			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
+			{
+				LOG_DBG << "http protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 				continue;
 			}

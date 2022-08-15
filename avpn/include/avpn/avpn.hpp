@@ -439,10 +439,10 @@ namespace avpn {
 		std::vector<tcp::acceptor> m_tcp_acceptors;
 
 		// socks clients连接表.
-		using socks_session_type =
-			socks::socks_session<socks_stream_type>;
 		using socks_session_weak_ptr =
-			std::weak_ptr<socks_session_type>;
+			std::weak_ptr<socks_session_base>;
+		using socks_session_ptr =
+			std::shared_ptr<socks_session_base>;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
 
 		// udp socket集合.
