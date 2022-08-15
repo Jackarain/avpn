@@ -111,11 +111,51 @@ namespace socks {
 
 			LOG_DBG << "start client incoming id: " << connection_id;
 
-			auto new_session = std::make_shared<socks_session<>>(
-				std::move(socket), connection_id, self);
-			m_clients[connection_id] = new_session;
+			// 等待读取事件.
+			co_await socket.async_wait(
+				tcp::socket::wait_read, uawaitable[error]);
+			if (error)
+			{
+				LOG_WARN << "socket.async_wait error: " << error.message();
+				continue;
+			}
 
-			new_session->start();
+			// 检查协议.
+			auto fd = socket.native_handle();
+			uint8_t detect[5] = { 0 };
+
+#if defined(WIN32) || defined(__APPLE__)
+			auto ret = recv(fd, (char*)detect, sizeof(detect),
+				MSG_PEEK);
+#else
+			auto ret = recv(fd, (void*)detect, sizeof(detect),
+				MSG_PEEK | MSG_NOSIGNAL | MSG_DONTWAIT);
+#endif
+			if (ret <= 0)
+			{
+				LOG_WARN << "start_tcp_listen, peek message return: " << ret;
+				continue;
+			}
+
+			if (detect[0] == 0x05 || detect[0] == 0x04)	// socks4/5 protocol.
+			{
+				LOG_DBG << "socks protocol: " << detect[0]
+					<< ", connection id: " << connection_id;
+
+				auto new_session =
+					std::make_shared<socks_session<>>(
+					std::move(socket), connection_id, self);
+				m_clients[connection_id] = new_session;
+
+				new_session->start();
+			}
+			else if (detect[0] == 0x16) // https protocol.
+			{
+
+			}
+			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
+			{
+			}
 		}
 
 		LOG_WARN << "start_socks_listen exit ...";
