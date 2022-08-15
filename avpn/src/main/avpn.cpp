@@ -1192,7 +1192,7 @@ namespace avpn {
 				new_session->start();
 				continue;
 			}
-			else if (detect[0] == 0x16) // https protocol.
+			else if (detect[0] == 0x16) // tls protocol.
 			{
 				LOG_DBG << "https protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
