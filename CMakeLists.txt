@@ -76,6 +76,7 @@ endif()
 option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
 
 option(ENABLE_SYSTEM_ZLIB "Build with system zlib support" OFF)
+option(ENABLE_SYSTEM_OPENSSL "Build with system openssl support" OFF)
 
 option(ENABLE_TCMALLOC_STATIC "Build with Tcmalloc support" OFF)
 option(ENABLE_JEMALLOC_STATIC "Build with Jemalloc support" OFF)
@@ -357,10 +358,24 @@ add_subdirectory(third_party/zstd)
 set(ZSTD_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib)
 set(ZSTD_LIBRARIES zstd)
 
+if (ENABLE_SYSTEM_OPENSSL)
+	find_package(OpenSSL)
+else()
+	add_subdirectory(third_party/openssl)
+	if (NOT MSVC AND NOT APPLE)
+		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+			set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
+			set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
+			set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
+		endif()
+	endif()
+endif()
+
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
 	${ZSTD_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
+	${OPENSSL_INCLUDE_DIR}
 )
 
 if (ENABLE_USE_WINTUN)
@@ -384,6 +399,7 @@ link_libraries(
 
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
+		${OPENSSL_LIBRARIES}
 )
 
 if (WIN32)
