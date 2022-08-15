@@ -6,6 +6,8 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 project(avpn)
 
+################################################################################
+
 string(TIMESTAMP VERSION_YEAR "%Y")
 string(TIMESTAMP VERSION_MONTH_YEAR "%m")
 string(TIMESTAMP VERSION_DAY_YEAR "%j")
@@ -19,6 +21,8 @@ math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
+
+################################################################################
 
 # Disable in-source builds to prevent source tree corruption.
 if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
@@ -67,6 +71,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SO
 
 include(CheckCXXLinkerFlag)
 
+################################################################################
+
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
 if(WIN32)
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
@@ -94,8 +100,12 @@ option(ENABLE_LLD "build using lld" OFF)
 option(ENABLE_BUILD_TESTS "build avpn's unit tests" OFF)
 option(LINKE_TO_LIBATOMIC "link to libatomic.so - some platform requires it" OFF)
 
+################################################################################
+
 find_program(MOLD_LINKER mold)
 find_program(LLD_LINKER lld)
+
+################################################################################
 
 if (ENABLE_GIT_VERSION)
 	find_package(Git)
@@ -105,6 +115,8 @@ if (ENABLE_GIT_VERSION)
 endif()
 
 set(CMAKE_C_STANDARD 11)
+
+################################################################################
 
 if (MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -157,12 +169,16 @@ if (MSVC)
 	endif()
 endif()
 
+################################################################################
+
 CHECK_CXX_COMPILER_FLAG(-fvisibility-inlines-hidden COMPILER_HAS_VISIBILITY_INLINE_HIDDEN)
 CHECK_CXX_COMPILER_FLAG(-fvisibility=hidden COMPILER_HAS_VISIBILITY_HIDDEN)
 CHECK_CXX_COMPILER_FLAG(-fdiagnostics-color=always COMPILER_HAS_COLOR)
 CHECK_CXX_COMPILER_FLAG(-fcoroutines COMPILER_HAS_FCOROUTINES)
 CHECK_CXX_COMPILER_FLAG(-fcoroutines-ts COMPILER_HAS_FCOROUTINES_TS)
 CHECK_CXX_COMPILER_FLAG(-std=c++20 COMPILER_HAS_STD_CXX20)
+
+################################################################################
 
 if (${COMPILER_HAS_VISIBILITY_INLINE_HIDDEN})
 	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
@@ -182,12 +198,14 @@ elseif(COMPILER_HAS_FCOROUTINES_TS)
 	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fcoroutines-ts>)
 endif()
 
-if (ENABLE_SYSTEMD_LOGGING )
+if (ENABLE_SYSTEMD_LOGGING)
 	add_compile_definitions(USE_SYSTEMD_LOGGING)
 endif()
 if (DISABLE_WRITE_LOGGING)
 	add_compile_definitions(DISABLE_WRITE_LOGGING)
 endif()
+
+################################################################################
 
 if (NOT MSVC)
 	if(NOT APPLE)
@@ -236,16 +254,24 @@ if (NOT MSVC)
 
 endif(NOT MSVC)
 
-if (ENABLE_USE_WINTUN)
-	add_definitions(-DAVPN_USE_WINTUN)
-	add_subdirectory(third_party/wintun)
-	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
-	set(nci ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/src/nci.lib)
-endif()
+################################################################################
 
-set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
-add_subdirectory(third_party/crypto)
-set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
+if (ENABLE_SYSTEM_OPENSSL)
+	find_package(OpenSSL)
+else()
+	set(OpenSSL_FOUND TRUE)
+	add_subdirectory(third_party/openssl)
+	if (NOT MSVC AND NOT APPLE)
+		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+			set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
+			set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
+			set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
+		endif()
+	endif()
+endif()
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+################################################################################
 
 if (ENABLE_BUILD_TESTS)
 	set(USE_BOOST_TEST ON)
@@ -285,18 +311,41 @@ endif()
 set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
+################################################################################
+
+if (ENABLE_USE_WINTUN)
+	add_definitions(-DAVPN_USE_WINTUN)
+	add_subdirectory(third_party/wintun)
+	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
+	set(nci ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/src/nci.lib)
+endif()
+
+################################################################################
+
+set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
+add_subdirectory(third_party/crypto)
+set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
+
+################################################################################
+
 find_package(Threads)
 link_libraries(${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
+
+################################################################################
 
 if (ENABLE_TCMALLOC_STATIC)
 	find_package(Tcmalloc)
 	link_libraries(${Tcmalloc_LIBRARY})
 endif()
 
+################################################################################
+
 if (ENABLE_JEMALLOC_STATIC)
 	find_package(JeMalloc)
 	link_libraries(${JEMALLOC_LIBRARIES})
 endif()
+
+################################################################################
 
 if (ENABLE_MIMALLOC_STATIC)
 	add_definitions(-DUSE_MIMALLOC)
@@ -332,9 +381,13 @@ if (ENABLE_MIMALLOC_STATIC)
 	endif()
 endif()
 
+################################################################################
+
 if (ENABLE_SYSTEMD_LOGGING)
 	link_libraries(systemd)
 endif()
+
+################################################################################
 
 if (WIN32 OR NOT ENABLE_SYSTEM_ZLIB)
 	add_subdirectory(third_party/zlib EXCLUDE_FROM_ALL)
@@ -344,6 +397,8 @@ else()
 	find_package(ZLIB REQUIRED)
 endif()
 
+################################################################################
+
 if (UNIX AND NOT APPLE AND NOT ANDROID)
 	add_subdirectory(third_party/iproute2)
 	set(IPROUTE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iproute2/include)
@@ -352,31 +407,25 @@ if (UNIX AND NOT APPLE AND NOT ANDROID)
 	include_directories(${IPROUTE2_INCLUDE_DIRS})
 endif()
 
+################################################################################
+
 add_subdirectory(third_party/fmt)
+
+################################################################################
 
 add_subdirectory(third_party/zstd)
 set(ZSTD_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib)
 set(ZSTD_LIBRARIES zstd)
 
-if (ENABLE_SYSTEM_OPENSSL)
-	find_package(OpenSSL)
-else()
-	add_subdirectory(third_party/openssl)
-	if (NOT MSVC AND NOT APPLE)
-		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-			set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
-			set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
-			set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
-		endif()
-	endif()
-endif()
+################################################################################
 
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
 	${ZSTD_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
-	${OPENSSL_INCLUDE_DIR}
 )
+
+################################################################################
 
 if (ENABLE_USE_WINTUN)
 	include_directories(${WINTUN_INCLUDE_DIRS})
@@ -397,9 +446,9 @@ link_libraries(
 		fmt
 		cryptopp-static
 
+		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
-		${OPENSSL_LIBRARIES}
 )
 
 if (WIN32)
@@ -426,6 +475,8 @@ if (LINKE_TO_LIBATOMIC)
 	link_libraries(atomic)
 endif()
 
+################################################################################
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -435,7 +486,11 @@ if (WIN32)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/release)
 endif()
 
+################################################################################
+
 add_subdirectory(avpn)
+
+################################################################################
 
 if (ENABLE_BUILD_TESTS)
 	link_libraries(Boost::test)
@@ -444,6 +499,8 @@ if (ENABLE_BUILD_TESTS)
 	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
 	add_subdirectory(unittests)
 endif()
+
+################################################################################
 
 configure_file(avpn.service.in avpn.service)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/avpn.service DESTINATION /usr/lib/systemd/system/)
