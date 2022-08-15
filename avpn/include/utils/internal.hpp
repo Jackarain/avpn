@@ -87,6 +87,9 @@ using time_point = std::chrono::time_point<steady_clock>;
 #include <boost/asio/strand.hpp>
 #include <boost/asio/buffer.hpp>
 
+#include <boost/asio/ssl.hpp>
+#include <boost/beast/ssl.hpp>
+
 namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 using udp = boost::asio::ip::udp;	// from <boost/asio/ip/udp.hpp>
