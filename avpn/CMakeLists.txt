@@ -11,10 +11,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DENABLE_LOGGER -DDISABL
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
 set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
 
+file(GLOB avpn_WINTUN_SRCS
+	include/avpn/wintun_windows_service.hpp
+)
 file(GLOB avpn_WINDOWS_SRCS
 	include/avpn/windows_apis.hpp
 	include/avpn/tuntap_windows_service.hpp
-	include/avpn/wintun_windows_service.hpp
 )
 file(GLOB avpn_APPLE_SRCS
 	include/avpn/tundev_macos_service.hpp
@@ -64,6 +66,9 @@ file(GLOB avpn_SRCS
 )
 
 if (WIN32)
+	if(ENABLE_USE_WINTUN)
+		list (APPEND avpn_WINDOWS_SRCS ${avpn_WINTUN_SRCS})
+	endif()
 	list (APPEND avpn_SRCS ${avpn_WINDOWS_SRCS})
 elseif (UNIX AND NOT APPLE)
 	list (APPEND avpn_SRCS ${avpn_LINUX_SRCS})

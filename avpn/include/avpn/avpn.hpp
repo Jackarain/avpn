@@ -138,104 +138,13 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
-
-	class esocks_stream
-	{
-		// c++11 noncopyable.
-		esocks_stream(const esocks_stream&) = delete;
-		esocks_stream& operator=(const esocks_stream&) = delete;
-
-	public:
-		esocks_stream(tcp::socket socket, std::string_view passwd)
-			: m_socket(std::move(socket))
-			, m_crypto_eng(passwd)
-		{}
-		~esocks_stream() = default;
-
-		esocks_stream& operator=(esocks_stream&&) = default;
-		esocks_stream(esocks_stream&&) = default;
-
-		using executor_type = tcp::socket::executor_type;
-
-	public:
-		executor_type get_executor()
-		{
-			return m_socket.get_executor();
-		}
-
-		template <typename MutableBufferSequence, typename ReadHandler>
-		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
-			void(boost::system::error_code, std::size_t))
-			async_read_some(const MutableBufferSequence& buffers,
-				ReadHandler&& handler)
-		{
-			m_socket.async_read_some(buffers,
-				[this, buffers = buffers, handler = std::move(handler)]
-				(boost::system::error_code ec, std::size_t bytes) mutable
-				{
-					if (ec)
-					{
-						handler(ec, bytes);
-						return;
-					}
-
-					// m_crypto_eng.perform();
-					handler(ec, bytes);
-				});
-		}
-
-		template <typename ConstBufferSequence, typename WriteHandler>
-		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
-			void(boost::system::error_code, std::size_t))
-			async_write_some(const ConstBufferSequence& buffers,
-				WriteHandler&& handler)
-		{
-			m_socket.async_write_some(buffers,
-				[this, buffers = buffers, handler = std::move(handler)]
-				(boost::system::error_code ec, std::size_t bytes) mutable
-				{
-					if (ec)
-					{
-						handler(ec, bytes);
-						return;
-					}
-
-					// m_crypto_eng.perform();
-					handler(ec, bytes);
-				});
-		}
-
-		tcp::endpoint remote_endpoint()
-		{
-			return m_socket.remote_endpoint();
-		}
-
-		void shutdown(net::socket_base::shutdown_type what,
-			boost::system::error_code& ec)
-		{
-			m_socket.shutdown(what, ec);
-		}
-
-		void close(boost::system::error_code& ec)
-		{
-			m_socket.close(ec);
-		}
-
-	private:
-		crypto_util::stream_crypto m_crypto_eng;
-		tcp::socket m_socket;
-	};
-
-	//////////////////////////////////////////////////////////////////////////
-
-
 	class vpn_tunnel;
 
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;
 	using vpn_tunnel_weak_ptr = std::weak_ptr<vpn_tunnel>;
 	using ip_assign_type = std::tuple<std::string, uint32_t>;
 
-#if defined(AVPN_WINDOWS)
+#if defined(AVPN_WINDOWS) && defined(AVPN_USE_WINTUN)
 	using wintun_device = basic_tun_service<avpn::wintun_windows_service>;
 	using tuntap_device = basic_tun_service<avpn::tuntap_windows_service>;
 	using vtun_device_type = vtun_device<wintun_device, tuntap_device>;
