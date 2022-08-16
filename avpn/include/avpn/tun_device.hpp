@@ -9,7 +9,9 @@
 
 #if defined(AVPN_WINDOWS)
 
-#	include "avpn/wintun_windows_service.hpp"
+#	if defined(AVPN_USE_WINTUN)
+#		include "avpn/wintun_windows_service.hpp"
+#	endif
 #	include "avpn/tuntap_windows_service.hpp"
 
 #elif defined(AVPN_LINUX)
