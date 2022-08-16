@@ -36,13 +36,13 @@
 #	include <fcntl.h>
 #	include <io.h>
 
-#	include <Windows.h>
-#	include <Shlwapi.h>
-#	include <NTSecAPI.h>
+#	include <windows.h>
+#	include <shlwapi.h>
+#	include <ntsecapi.h>
 
 #	include <ws2tcpip.h>
 #	include <iphlpapi.h>
-#	include <SetupAPI.h>
+#	include <setupapi.h>
 // #	include <winternl.h>
 
 #	include <cfgmgr32.h>
