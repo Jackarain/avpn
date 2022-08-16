@@ -25,7 +25,6 @@
 #include <iphlpapi.h>
 
 #include <mstcpip.h>
-#include <ip2string.h>
 #include <winternl.h>
 #include <cfgmgr32.h>
 #include <ndisguid.h>
