@@ -47,7 +47,12 @@
 
 #	include <cfgmgr32.h>
 #	include <devguid.h>
+
+#if defined(AVPN_USE_WINTUN)
 #	include <ndisguid.h>
+// DEFINE_GUID(GUID_DEVINTERFACE_NET, 0xcac88484, 0x7515, 0x4c03, 0x82, 0xe6, 0x71, 0xa8, 0x7a, 0xba, 0xc3, 0x61);
+#endif
+
 #	include <shellapi.h>
 #	include <ipexport.h>
 #	include <sddl.h>
@@ -699,6 +704,73 @@ uint64_t get_process_id()
 
 //////////////////////////////////////////////////////////////////////////
 
+#if defined(__MINGW32__)  /* Rest of file */
+/*
+ * These are 'static __inline' function in MinGW.org's <ws2tcpip.h>.
+ * But in other MinGW distribution they are not. In any case they are part
+ * of 'libws2_32.a' even though 'gai_strerror[A|W]' is not part of the
+ * system 'ws2_32.dll'. So for 'libwsock_trace.a' to be a replacement for
+ * 'libws2_32.a', we must also add these functions to it.
+ *
+ * But tracing these calls would be difficult since the needed functions
+ * for that is in wsock_trace.c.
+ */
+#define FORMAT_FLAGS (FORMAT_MESSAGE_FROM_SYSTEM    | \
+                      FORMAT_MESSAGE_IGNORE_INSERTS | \
+                      FORMAT_MESSAGE_MAX_WIDTH_MASK)
+
+#undef gai_strerrorA
+#undef gai_strerrorW
+
+#define DIM(x)          (int) (sizeof(x) / sizeof((x)[0]))
+
+ /*
+  * These are also in common.c. But since this module is not part of
+  * the wsock_trace_mw.dll (only added to libwsock_trace.a), these
+  * function must also be here.
+  */
+char* str_rip(char* s)
+{
+	char* p;
+
+	if ((p = strrchr(s, '\n')) != NULL) *p = '\0';
+	if ((p = strrchr(s, '\r')) != NULL) *p = '\0';
+	return (s);
+}
+
+wchar_t* str_ripw(wchar_t* s)
+{
+	wchar_t* p;
+
+	if ((p = wcsrchr(s, L'\n')) != NULL) *p = L'\0';
+	if ((p = wcsrchr(s, L'\r')) != NULL) *p = L'\0';
+	return (s);
+}
+
+
+char* gai_strerrorA(int err)
+{
+	static char err_buf[512];
+
+	err_buf[0] = '\0';
+	FormatMessageA(FORMAT_FLAGS, NULL, err, LANG_NEUTRAL,
+		err_buf, sizeof(err_buf) - 1, NULL);
+	return str_rip(err_buf);
+}
+
+wchar_t* gai_strerrorW(int err)
+{
+	static wchar_t err_buf[512];
+
+	err_buf[0] = L'\0';
+	FormatMessageW(FORMAT_FLAGS, NULL, err, LANG_NEUTRAL,
+		err_buf, DIM(err_buf) - 1, NULL);
+	return str_ripw(err_buf);
+}
+
+#endif  /* __MINGW32__ */
+
+
 
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 
@@ -714,6 +786,10 @@ typedef struct tagTHREADNAME_INFO
 
 void SetThreadName(uint32_t dwThreadID, const char* threadName)
 {
+#if __MINGW32__
+	(void)dwThreadID;
+	(void)threadName;
+#else
 	THREADNAME_INFO info;
 	info.dwType = 0x1000;
 	info.szName = threadName;
@@ -726,6 +802,7 @@ void SetThreadName(uint32_t dwThreadID, const char* threadName)
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{}
+#endif
 }
 
 void set_thread_name(const char* name)
@@ -735,7 +812,7 @@ void set_thread_name(const char* name)
 
 void set_thread_name(std::thread* thread, const char* name)
 {
-	DWORD threadId = ::GetThreadId(static_cast<HANDLE>(thread->native_handle()));
+	DWORD threadId = ::GetThreadId((HANDLE)(thread->native_handle()));
 	SetThreadName(threadId, name);
 }
 
@@ -748,7 +825,7 @@ std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept
 	sa.bInheritHandle = TRUE;
 
 	if (!CreatePipe(&hread, &hwrite, &sa, 0))
-		return { {}, false };
+		return { "", false};
 
 	std::wstring command = L"cmd.exe /C " + boost::nowide::widen(cmd);
 
@@ -766,7 +843,7 @@ std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept
 		CloseHandle(hwrite);
 		CloseHandle(hread);
 
-		return { {}, false };
+		return { "", false};
 	}
 
 	CloseHandle(hwrite);
@@ -777,7 +854,7 @@ std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept
 
 	while (true)
 	{
-		if (ReadFile(hread, buffer, 4096, &nbytes, NULL) == NULL)
+		if (ReadFile(hread, buffer, 4096, &nbytes, NULL) == FALSE)
 			break;
 
 		oss.write(buffer, nbytes);
@@ -992,6 +1069,7 @@ bool set_default_route(const std::string& vaddr, const std::string& vgateway,
 
 static SECURITY_ATTRIBUTES SecurityAttributes = { .nLength = sizeof(SECURITY_ATTRIBUTES) };
 
+#if defined(AVPN_USE_WINTUN)
 const void* ResourceGetAddress(LPCWSTR ResourceName, DWORD* Size)
 {
 	auto ResourceModule = GetModuleHandleA(nullptr);
@@ -1553,6 +1631,8 @@ HANDLE open_wintun(const std::string& name)
 		FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED,
 		0);
 }
+
+#endif
 
 #if 0
 

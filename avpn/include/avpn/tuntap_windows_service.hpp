@@ -262,7 +262,7 @@ namespace avpn {
 			std::wstring usermodedevicedir = USERMODEDEVICEDIR;
 			std::wstring tapsuffix = TAPSUFFIX;
 #else
-			auto guid = cfg.guid_;
+			auto guid = boost::nowide::widen(cfg.guid_);
 			std::wstring usermodedevicedir = boost::nowide::widen(USERMODEDEVICEDIR);
 			std::wstring tapsuffix = boost::nowide::widen(TAPSUFFIX);
 #endif

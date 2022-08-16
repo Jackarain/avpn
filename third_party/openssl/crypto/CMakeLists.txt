@@ -1,4 +1,4 @@
-if(WIN32)
+﻿if(WIN32)
 ENABLE_LANGUAGE(ASM_MASM)
 else()
 ENABLE_LANGUAGE(ASM)
@@ -197,3 +197,6 @@ if(NOT MSVC AND NOT APPLE)
 	target_link_libraries(crypto PUBLIC)
 endif()
 
+if(MINGW)
+	target_link_libraries(crypto PUBLIC ws2_32)
+endif()

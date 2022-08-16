@@ -79,7 +79,7 @@ endif()
 add_library(libavpn ${avpn_SRCS})
 
 file(GLOB rc_SRCS)
-if (WIN32)
+if (WIN32 AND ENABLE_USE_WINTUN)
 	list (APPEND rc_SRCS src/resource/avpn.rc)
 endif()
 
@@ -109,6 +109,11 @@ target_link_libraries(avpn
 	Boost::asio
 	Boost::beast
 )
+
+if(MINGW)
+	target_compile_options(avpn PUBLIC "-Wa,-mbig-obj")
+	target_compile_options(libavpn PUBLIC "-Wa,-mbig-obj")
+endif()
 
 set_target_properties(libavpn PROPERTIES OUTPUT_NAME avpn PREFIX "lib" CLEAN_DIRECT_OUTPUT 1)
 
@@ -144,7 +149,7 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-if(WIN32)
+if(WIN32 AND NOT MINGW)
 	SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
 endif()
 

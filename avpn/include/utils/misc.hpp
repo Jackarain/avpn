@@ -44,6 +44,7 @@ std::string add_suffix(float val, char const* suffix = nullptr);
 uint64_t get_process_id();
 
 #ifdef WIN32
+#ifdef AVPN_USE_WINTUN
 
 bool install_wintun();
 HANDLE open_wintun(const std::string& name);
@@ -63,6 +64,7 @@ struct windows_driver
 
 std::vector<windows_driver> enum_windows_devices();
 
+#endif
 #endif // WIN32
 
 // 创建pid文件.

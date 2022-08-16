@@ -99,7 +99,7 @@ namespace avpn {
 			return error_msg;
 		}
 
-		inline DWORD get_interface_index(const TCHAR* guid)
+		inline DWORD get_interface_index(const wchar_t* guid)
 		{
 			ULONG index = 0;
 			DWORD status;

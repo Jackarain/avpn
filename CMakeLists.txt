@@ -452,12 +452,22 @@ link_libraries(
 )
 
 if (WIN32)
-	link_libraries(
-		Secur32.lib
-		Bcrypt.lib
-		Winmm.lib
-		Mswsock.lib
-	)
+        if(MINGW)
+                link_libraries(
+						secur32
+                        ws2_32
+                        mswsock
+                        bcrypt
+						iphlpapi
+                )
+        else()
+                link_libraries(
+                        Secur32.lib
+                        Bcrypt.lib
+                        Winmm.lib
+                        Mswsock.lib
+                )
+        endif()
 elseif(UNIX AND NOT APPLE)
 	# aviod link std::filesystem fail.
 	set(std_fs_workaround "")

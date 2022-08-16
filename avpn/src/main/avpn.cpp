@@ -36,8 +36,12 @@ namespace avpn {
 #if defined(AVPN_WINDOWS)
 		if (device_type == 0)
 			return vtun_device_type(tuntap_device(ioc));
+#if defined(AVPN_USE_WINTUN)
 		else
 			return vtun_device_type(wintun_device(ioc));
+#else
+		return vtun_device_type(tuntap_device(ioc));
+#endif
 #else
 		return vtun_device_type(tun_device(ioc));
 #endif

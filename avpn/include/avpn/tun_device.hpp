@@ -34,9 +34,9 @@ namespace avpn {
 	// 定义不同平台的tuntap实现.
 #if defined(AVPN_WINDOWS)
 #ifdef AVPN_USE_WINTUN
-	using tun_device = basic_tun_service<wintun_windows_service>;
+	using wintun_device = basic_tun_service<wintun_windows_service>;
 #else
-	using tun_device = basic_tun_service<tuntap_windows_service>;
+	using tuntap_device = basic_tun_service<tuntap_windows_service>;
 #endif // AVPN_USE_WINTUN
 #elif defined(AVPN_LINUX)
 	using tun_device = basic_tun_service<tundev_linux_service>;

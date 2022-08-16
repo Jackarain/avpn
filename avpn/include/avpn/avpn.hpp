@@ -149,7 +149,11 @@ namespace avpn {
 	using tuntap_device = basic_tun_service<avpn::tuntap_windows_service>;
 	using vtun_device_type = vtun_device<wintun_device, tuntap_device>;
 #else
+#if defined(AVPN_WINDOWS)
+	using vtun_device_type = vtun_device<tuntap_device>;
+#else
 	using vtun_device_type = vtun_device<tun_device>;
+#endif
 #endif
 
 	class vpn_conntrack;
