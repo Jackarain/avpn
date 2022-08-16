@@ -27,7 +27,6 @@
 #include <mstcpip.h>
 #include <winternl.h>
 #include <cfgmgr32.h>
-#include <ndisguid.h>
 #include <combaseapi.h>
 
 #include <string>
