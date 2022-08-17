@@ -29,7 +29,9 @@ aVPN是目前世界唯一基于 **现代c++** 的vpn实现，avpn展示了在现
 ```
 git clone <source url>
 ```
+
 然后进入源码目录，执行如下操作：
+
 ```
 mkdir build && cd build
 ```
@@ -40,6 +42,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug
 上面命令中，CMAKE_BUILD_TYPE=Debug指定了编译为Debug的类型，如果需要更好的性能，则需要编译为Release。
 
 在cmake命令成功执行完成后，开始输入以下命令编译：
+
 ```
 make
 ```
@@ -48,15 +51,16 @@ make
 
 成功编译后，可执行程序将在bin目录下生成。
 
+avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cmake源文件中的选项开关尝试不同功能，比如可以选择使用mimalloc、tcmalloc等分配器，比如使用更快的mold链接器，比如打开systemd的日志开关，便可将日志记录到systemd.journal中。
+
 ***
 <br>
 
-### 部分选项介绍
+### 通过Docker编译构建
 <br>
 
-avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cmake源文件中的选项开关尝试不同功能，比如可以选择使用mimalloc、tcmalloc等分配器，比如使用更快的mold链接器，比如打开systemd的日志开关，便可将日志记录到systemd.journal中。
+avpn提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目录，可以执行如下命令，创建一个docker并编译avpn：
 
-avpn还提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目录，可以执行如下命令，创建一个docker并编译avpn：
 ```
 docker build -t avpn:v1 .
 ```
@@ -75,6 +79,7 @@ cmake.exe ..
 ```
 
 成功完成cmake后，cmake将生成vc的项目文件，然后执行以下命令编译avpn：
+
 ```
 msbuild avpn.sln /p:Configuration="Debug"
 ```
@@ -95,6 +100,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw.cmake .. -DCMAKE_EXE_LINKER_FLAGS="-
 ```
 
 成功完成cmake后，然后执行以下命令编译avpn：
+
 ```
 ninja
 ```
