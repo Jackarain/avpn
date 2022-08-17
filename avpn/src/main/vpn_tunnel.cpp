@@ -122,6 +122,7 @@ namespace avpn {
 	{
 		[[maybe_unused]] auto self = shared_from_this();
 		LOG_DBG << "Enter tcp loop: " << this;
+		m_tcp_ready = true;
 
 		while (!m_abort)
 		{
@@ -145,6 +146,8 @@ namespace avpn {
 			// 控制下载速率.
 			co_await speed_limit(pkt.payload_size(), false);
 		}
+
+		m_tcp_ready = false;
 
 		std::string suffix;
 		scoped_exit se([&]() mutable {
@@ -562,6 +565,12 @@ namespace avpn {
 		tcp::socket& stream, vpn_packet_ptr& pkt)
 	{
 		auto self = shared_from_this();
+
+		if (!m_tcp_ready)
+		{
+			LOG_WARN << "tcp_write_packet, tcp socket not ready";
+			co_return;
+		}
 
 		// 执行限速算法.
 		co_await speed_limit(pkt->payload_size(), true);

@@ -209,6 +209,7 @@ namespace avpn {
 		tcp::socket m_tcp_socket;
 		size_t m_tcp_socket_id{ 0 };
 		std::deque<vpn_packet_ptr> m_tcp_deque;
+		bool m_tcp_ready{ false };
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;
