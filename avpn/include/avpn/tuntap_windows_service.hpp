@@ -243,12 +243,12 @@ namespace avpn {
 
 		bool open(const dev_config& cfg)
 		{
-#if UNICODE
 			auto guid = boost::nowide::widen(cfg.guid_);
+
+#if UNICODE
 			std::wstring usermodedevicedir = USERMODEDEVICEDIR;
 			std::wstring tapsuffix = TAPSUFFIX;
 #else
-			auto guid = boost::nowide::widen(cfg.guid_);
 			std::wstring usermodedevicedir = boost::nowide::widen(USERMODEDEVICEDIR);
 			std::wstring tapsuffix = boost::nowide::widen(TAPSUFFIX);
 #endif
@@ -256,8 +256,8 @@ namespace avpn {
 			m_if_index = details::get_interface_index(guid.data());
 
 			std::wstring device_path = usermodedevicedir + guid + tapsuffix;
-			LOG_DBG << "Open device: " << boost::nowide::narrow(device_path);
-			auto handle = CreateFile((LPCTSTR)device_path.data(), GENERIC_READ | GENERIC_WRITE,
+			LOG_DBG << "Open device: " << device_path;
+			auto handle = CreateFileW(device_path.data(), GENERIC_READ | GENERIC_WRITE,
 				0, 0, OPEN_EXISTING,
 				FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED, 0);
 
