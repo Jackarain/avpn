@@ -84,6 +84,26 @@ msbuild avpn.sln /p:Configuration="Debug"
 ***
 <br>
 
+
+### MinGW 编译
+
+<br>
+在安装好MinGW工具链的Linux平台上执行：
+
+```
+cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw.cmake .. -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_BUILD_TYPE=Release -DENABLE_USE_WINTUN=OFF -G Ninja
+```
+
+成功完成cmake后，然后执行以下命令编译avpn：
+```
+ninja
+```
+
+在完成编译后，同样会生成一个avpn.exe在bin/release。
+
+***
+<br>
+
 ### 功能参数介绍
 <br>
 
