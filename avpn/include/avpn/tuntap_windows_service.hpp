@@ -131,12 +131,12 @@ namespace avpn {
 						break;
 					register_closer unit_key_close(unit_key, &RegCloseKey);
 
-					TCHAR component_id_string[] = TEXT("ComponentId");
-					TCHAR net_cfg_instance_id_string[] = TEXT("NetCfgInstanceId");
+					WCHAR component_id_string[] = L"ComponentId";
+					WCHAR net_cfg_instance_id_string[] = L"NetCfgInstanceId";
 					DWORD data_type;
-					TCHAR component_id[256];
+					WCHAR component_id[256];
 					len = 256;
-					status = RegQueryValueEx(
+					status = RegQueryValueExW(
 						unit_key,
 						component_id_string,
 						NULL,
@@ -146,12 +146,12 @@ namespace avpn {
 					if (status != ERROR_SUCCESS)
 						break;
 
-					if (_tcscmp(component_id, TEXT("tap0901")) == 0 ||
-						_tcscmp(component_id, TEXT("tapnordvpn")) == 0)
+					if (wcscmp(component_id, L"tap0901") == 0 ||
+						wcscmp(component_id, L"tapnordvpn") == 0)
 					{
-						TCHAR net_cfg_instance_id[256];
+						WCHAR net_cfg_instance_id[256];
 						len = 256;
-						status = RegQueryValueEx(
+						status = RegQueryValueExW(
 							unit_key,
 							net_cfg_instance_id_string,
 							NULL,
@@ -162,11 +162,8 @@ namespace avpn {
 							break;
 
 						std::string tmp;
-#ifdef UNICODE
 						utf16_utf8(net_cfg_instance_id, tmp);
-#else
-						tmp = net_cfg_instance_id;
-#endif
+
 						dev_map.insert(std::make_pair(tmp, ""));
 
 						LOG_DBG << "component_id " << component_id
@@ -185,9 +182,9 @@ namespace avpn {
 
 			for (int i = 0; ; i++)
 			{
-				TCHAR enum_name[256];
+				WCHAR enum_name[256];
 				DWORD len = 256;
-				status = RegEnumKeyEx(network_connections_key,
+				status = RegEnumKeyExW(network_connections_key,
 					i, enum_name, &len, NULL, NULL, NULL, NULL);
 				if (status == ERROR_NO_MORE_ITEMS)
 					break;
@@ -196,44 +193,33 @@ namespace avpn {
 				else
 				{
 					HKEY connection_key;
-					TCHAR connection_string[256];
+					WCHAR connection_string[256];
 
-					_stprintf(connection_string,
-						TEXT("%s\\%s\\Connection"), NETWORK_CONNECTIONS_KEY, enum_name);
+					_swprintf(connection_string,
+						L"SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}\\%s\\Connection",
+						enum_name);
 
-					status = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+					status = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
 						connection_string, 0, KEY_READ, &connection_key);
 					if (status != ERROR_SUCCESS)
 						continue;
 					register_closer connection_key_close(connection_key, &RegCloseKey);
 
-					TCHAR name_data[256];
-					TCHAR name_string[] = TEXT("Name");
+					WCHAR name_data[256];
+					WCHAR name_string[] = L"Name";
 					len = 256;
 
 					DWORD name_type;
-					status = RegQueryValueEx(connection_key, name_string,
+					status = RegQueryValueExW(connection_key, name_string,
 						NULL, &name_type, (LPBYTE)name_data, &len);
 					if (status != ERROR_SUCCESS)
 						continue;
 
 					std::string dev_name;
-					{
-#ifdef UNICODE
-						utf16_utf8(name_data, dev_name);
-#else
-						dev_name = name_data;
-#endif
-					}
+					utf16_utf8(name_data, dev_name);
 
 					std::string guid_key;
-					{
-#ifdef UNICODE
-						utf16_utf8(enum_name, guid_key);
-#else
-						guid_key = enum_name;
-#endif
-					}
+					utf16_utf8(enum_name, guid_key);
 
 					auto iter = dev_map.find(guid_key);
 					if (iter != dev_map.end())
