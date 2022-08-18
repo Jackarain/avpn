@@ -67,20 +67,47 @@ namespace avpn {
 		tcp::endpoint remote_endpoint()
 		{
 			return boost::apply_visitor([&](auto& t) mutable
-				{ return t.remote_endpoint(); }, *this);
+				{
+					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					{
+						return t.remote_endpoint();
+					}
+					else
+					{
+						return t.lowest_layer().remote_endpoint();
+					}
+				}, *this);
 		}
 
 		void shutdown(net::socket_base::shutdown_type what,
 			boost::system::error_code& ec)
 		{
 			boost::apply_visitor([&](auto& t) mutable
-				{ t.shutdown(what, ec); }, *this);
+				{
+					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					{
+						t.shutdown(what, ec);
+					}
+					else
+					{
+						t.lowest_layer().shutdown(what, ec);
+					}
+				}, *this);
 		}
 
 		void close(boost::system::error_code& ec)
 		{
 			boost::apply_visitor([&](auto& t) mutable
-				{ t.close(ec); }, *this);
+				{
+					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					{
+						t.close(ec);
+					}
+					else
+					{
+						t.lowest_layer().close(ec);
+					}
+				}, *this);
 		}
 	};
 }
