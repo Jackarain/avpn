@@ -10,6 +10,7 @@
 #include "utils/scoped_exit.hpp"
 #include "utils/uawaitable.hpp"
 #include "utils/misc.hpp"
+#include "utils/fileop.hpp"
 
 #include "avpn/version.hpp"
 #include "avpn/endpoint_pair.hpp"
@@ -74,6 +75,36 @@ namespace avpn {
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
 	{
+		m_context.set_options(
+			boost::asio::ssl::context::default_workarounds
+			| boost::asio::ssl::context::no_sslv2
+			| boost::asio::ssl::context::single_dh_use);
+
+		auto dir = std::filesystem::path(m_config.ssl_certificate_dir_);
+		auto pwd = dir / "ssl_crt.pwd";
+
+		if (std::filesystem::exists(pwd))
+		m_context.set_password_callback(
+			[this, &pwd]([[maybe_unused]] auto... args) {
+				std::string password;
+				fileop::read(pwd, password);
+				return password;
+			}
+		);
+
+		auto cert = dir / "ssl_crt.pem";
+		auto key = dir / "ssl_key.pem";
+		auto dh = dir / "ssl_dh.pem";
+
+		if (std::filesystem::exists(cert))
+			m_context.use_certificate_chain_file(cert.string());
+
+		if (std::filesystem::exists(key))
+			m_context.use_private_key_file(
+				key.string(), boost::asio::ssl::context::pem);
+
+		if (std::filesystem::exists(dh))
+			m_context.use_tmp_dh_file(dh.string());
 	}
 
 	std::shared_ptr<avpn_service> avpn_service::make_avpn_service(

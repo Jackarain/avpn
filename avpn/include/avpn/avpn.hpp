@@ -116,6 +116,14 @@ namespace avpn {
 		// 协商出解密密钥.
 		std::string passphrase_;
 
+		// ssl 证书目录.
+		// 证书目录, 包含以下文件:
+		// 证书文件: ssl_crt.pem
+		// 证书密钥文件: ssl_key.pem
+		// tmp dh文件: ssl_dh.pem
+		// 证书解密密钥: ssl_crt.pwd
+		std::string ssl_certificate_dir_;
+
 		// 指定tun设备名称.
 		std::string ifdev_;
 
@@ -358,6 +366,9 @@ namespace avpn {
 		using socks_session_ptr =
 			std::shared_ptr<socks_session_base>;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
+
+		// ssl context.
+		net::ssl::context m_context{ net::ssl::context::sslv23 };
 
 		// udp socket集合.
 		// 作为server时, m_udp_sockets初始化为几个用于监听client的

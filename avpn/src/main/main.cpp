@@ -207,6 +207,8 @@ int main(int argc, char** argv)
 	std::string ignored_param;
 	std::string passphrase;
 
+	std::string ssl_certificate_dir;
+
 	[[maybe_unused]] boost::nowide::args _(argc, argv);
 
 	po::options_description desc("Options");
@@ -230,6 +232,8 @@ int main(int argc, char** argv)
 		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
 		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name("next socks server"), "Next socks4/5 proxy with client.")
+
+		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("ssl certificate dir"), "SSL certificate dir.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
@@ -361,6 +365,7 @@ int main(int argc, char** argv)
 	cfg.ifdev_ = ifdev;
 	cfg.controller_ = controller;
 	cfg.passphrase_ = passphrase;
+	cfg.ssl_certificate_dir_ = ssl_certificate_dir;
 
 	auto& socks_opt = cfg.socks_opt_;
 	socks_opt.usrdid_ = socks_userid;
