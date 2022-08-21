@@ -1254,6 +1254,12 @@ namespace avpn {
 				// do async handshake.
 				co_await ssl_socket.async_handshake(
 					net::ssl::stream_base::server, uawaitable[error]);
+				if (error)
+				{
+					LOG_WARN << "ssl protocol handshake error: "
+						<< error.message();
+					continue;
+				}
 
 				// make socks session shared ptr.
 				socks_session_ptr new_session =
