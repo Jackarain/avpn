@@ -1243,12 +1243,26 @@ namespace avpn {
 				LOG_DBG << "https protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
+				// instantiate socks stream with ssl context.
+				auto ssl_socks_stream = instantiate_socks_stream(
+					std::move(socket), m_ssl_ctx);
+
+				// get origin ssl stream type.
+				ssl_stream& ssl_socket =
+					boost::get<ssl_stream>(ssl_socks_stream);
+
+				// do async handshake.
+				co_await ssl_socket.async_handshake(
+					net::ssl::stream_base::server, uawaitable[error]);
+
+				// make socks session shared ptr.
 				socks_session_ptr new_session =
 					std::make_shared<socks_session_type>(
-						instantiate_socks_stream(std::move(socket), m_ssl_ctx),
+						std::move(ssl_socks_stream),
 						connection_id,
 						self);
 
+				// save and start.
 				m_socks_clients[connection_id] = new_session;
 				new_session->start();
 
