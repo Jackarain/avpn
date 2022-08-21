@@ -215,6 +215,9 @@ namespace avpn {
 		const service_config& config() const;
 
 	private:
+		// 初始化ssl context.
+		void init_ssl_context();
+
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
 		void do_tun_write(vpn_packet_ptr);
