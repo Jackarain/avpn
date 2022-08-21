@@ -60,6 +60,13 @@ namespace avpn {
 		return socks_stream_type(std::move(s));
 	}
 
+	socks_stream_type instantiate_socks_stream(
+		tcp::socket&& s, net::ssl::context& sslctx)
+	{
+		return socks_stream_type(ssl_stream(
+			std::forward<tcp::socket>(s), sslctx));
+	}
+
 	avpn_service::avpn_service(
 		io_context_pool& ios, const service_config& config)
 		: m_ioc_pool(ios)
@@ -75,7 +82,7 @@ namespace avpn {
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
 	{
-		m_context.set_options(
+		m_ssl_ctx.set_options(
 			boost::asio::ssl::context::default_workarounds
 			| boost::asio::ssl::context::no_sslv2
 			| boost::asio::ssl::context::single_dh_use);
@@ -84,7 +91,7 @@ namespace avpn {
 		auto pwd = dir / "ssl_crt.pwd";
 
 		if (std::filesystem::exists(pwd))
-		m_context.set_password_callback(
+		m_ssl_ctx.set_password_callback(
 			[this, &pwd]([[maybe_unused]] auto... args) {
 				std::string password;
 				fileop::read(pwd, password);
@@ -97,14 +104,14 @@ namespace avpn {
 		auto dh = dir / "ssl_dh.pem";
 
 		if (std::filesystem::exists(cert))
-			m_context.use_certificate_chain_file(cert.string());
+			m_ssl_ctx.use_certificate_chain_file(cert.string());
 
 		if (std::filesystem::exists(key))
-			m_context.use_private_key_file(
+			m_ssl_ctx.use_private_key_file(
 				key.string(), boost::asio::ssl::context::pem);
 
 		if (std::filesystem::exists(dh))
-			m_context.use_tmp_dh_file(dh.string());
+			m_ssl_ctx.use_tmp_dh_file(dh.string());
 	}
 
 	std::shared_ptr<avpn_service> avpn_service::make_avpn_service(
@@ -1227,10 +1234,22 @@ namespace avpn {
 				new_session->start();
 				continue;
 			}
-			else if (detect[0] == 0x16) // tls protocol.
+			else if (detect[0] == 0x16) // socks5 with ssl protocol.
 			{
 				LOG_DBG << "https protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
+
+				socks_session_base* session_ptr =
+					new socks::socks_session<socks_stream_type>(
+						instantiate_socks_stream(std::move(socket), m_ssl_ctx),
+						connection_id,
+						self);
+
+				auto new_session = socks_session_ptr(session_ptr);
+				m_socks_clients[connection_id] = new_session;
+
+				new_session->start();
+
 				continue;
 
 			}

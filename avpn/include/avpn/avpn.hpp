@@ -368,7 +368,7 @@ namespace avpn {
 		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
 
 		// ssl context.
-		net::ssl::context m_context{ net::ssl::context::sslv23 };
+		net::ssl::context m_ssl_ctx{ net::ssl::context::sslv23 };
 
 		// udp socket集合.
 		// 作为server时, m_udp_sockets初始化为几个用于监听client的
