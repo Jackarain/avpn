@@ -454,11 +454,11 @@ link_libraries(
 if (WIN32)
         if(MINGW)
                 link_libraries(
-						secur32
+			secur32
                         ws2_32
                         mswsock
                         bcrypt
-						iphlpapi
+			iphlpapi
                 )
         else()
                 link_libraries(
