@@ -1273,12 +1273,27 @@ namespace avpn {
 				new_session->start();
 
 				continue;
-
 			}
 			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
 			{
 				LOG_DBG << "http protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
+
+				// instantiate socks stream with socket.
+				auto ssl_socks_stream = instantiate_socks_stream(
+					std::move(socket));
+
+				// make socks session shared ptr.
+				socks_session_ptr new_session =
+					std::make_shared<socks_session_type>(
+						std::move(ssl_socks_stream),
+						connection_id,
+						self);
+
+				// save and start.
+				m_socks_clients[connection_id] = new_session;
+				new_session->start();
+
 				continue;
 			}
 
