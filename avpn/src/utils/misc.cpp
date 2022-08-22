@@ -102,6 +102,74 @@ namespace fs = std::filesystem;
 
 //////////////////////////////////////////////////////////////////////////
 
+inline bool is_space(const char c)
+{
+	if (c == ' ' ||
+		c == '\f' ||
+		c == '\n' ||
+		c == '\r' ||
+		c == '\t' ||
+		c == '\v')
+		return true;
+	return false;
+}
+
+std::string_view string_trim(std::string_view sv)
+{
+	const char* b = sv.data();
+	const char* e = b + sv.size();
+
+	for (; b != e; b++)
+	{
+		if (!is_space(*b))
+			break;
+	}
+
+	for (; e != b; )
+	{
+		if (!is_space(*(--e)))
+		{
+			++e;
+			break;
+		}
+	}
+
+	return {b, e};
+}
+
+std::string_view string_trim_left(std::string_view sv)
+{
+	const char* b = sv.data();
+	const char* e = b + sv.size();
+
+	for (; b != e; b++)
+	{
+		if (!is_space(*b))
+			break;
+	}
+
+	return { b, e };
+}
+
+std::string_view string_trim_right(std::string_view sv)
+{
+	const char* b = sv.data();
+	const char* e = b + sv.size();
+
+	for (; e != b; )
+	{
+		if (!is_space(*(--e)))
+		{
+			++e;
+			break;
+		}
+	}
+
+	return { b, e };
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 template <class Iterator>
 std::string to_hex(Iterator it, Iterator end, std::string const& prefix)
 {
@@ -2102,7 +2170,7 @@ bool parse_endpoint_string(std::string_view str,
 {
 	ipv6only = false;
 
-	auto address_string = boost::trim_copy(std::string(str));
+	auto address_string = string_trim(str);
 	auto it = address_string.begin();
 
 	bool is_ipv6_address = *it == '[';
@@ -2149,8 +2217,12 @@ bool parse_endpoint_string(std::string_view str,
 
 	if (it != address_string.end())
 	{
-		if (std::string(it, address_string.end()) == "ipv6only" ||
-			std::string(it, address_string.end()) == "-ipv6only")
+#ifdef __cpp_lib_to_address
+		auto opt = std::string_view(it, address_string.end());
+#else
+		auto opt = std::string(it, address_string.end());
+#endif
+		if (opt == "ipv6only" || opt == "-ipv6only")
 			ipv6only = true;
 	}
 

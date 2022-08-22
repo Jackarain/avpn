@@ -15,6 +15,11 @@
 #define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
 
+// trim 一个string_view对象.
+std::string_view string_trim(std::string_view sv);
+std::string_view string_trim_left(std::string_view sv);
+std::string_view string_trim_right(std::string_view sv);
+
 // 将一个string_view转成16进制的字符串.
 std::string to_hex(std::string_view data);
 std::string to_hex_prefixed(std::string_view data);
