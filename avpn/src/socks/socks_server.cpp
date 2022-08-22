@@ -149,12 +149,16 @@ namespace socks {
 
 				new_session->start();
 			}
-			else if (detect[0] == 0x16) // https protocol.
+			else if (detect[0] == 0x47 || detect[0] == 0x50)
 			{
+				// http protocol, return fake webpage.
 
-			}
-			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
-			{
+				auto new_session =
+					std::make_shared<socks_session<>>(
+						std::move(socket), connection_id, self);
+				m_clients[connection_id] = new_session;
+
+				new_session->start();
 			}
 		}
 
