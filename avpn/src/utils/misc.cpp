@@ -2102,7 +2102,7 @@ bool parse_endpoint_string(std::string_view str,
 {
 	ipv6only = false;
 
-	auto address_string = boost::trim_copy(str);
+	auto address_string = boost::trim_copy(std::string(str));
 	auto it = address_string.begin();
 
 	bool is_ipv6_address = *it == '[';
@@ -2149,8 +2149,8 @@ bool parse_endpoint_string(std::string_view str,
 
 	if (it != address_string.end())
 	{
-		if (std::string_view(it, address_string.end()) == "ipv6only" ||
-			std::string_view(it, address_string.end()) == "-ipv6only")
+		if (std::string(it, address_string.end()) == "ipv6only" ||
+			std::string(it, address_string.end()) == "-ipv6only")
 			ipv6only = true;
 	}
 
