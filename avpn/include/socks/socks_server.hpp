@@ -222,6 +222,14 @@ namespace socks {
 				co_await socks_connect_v4();
 				co_return;
 			}
+			if (socks_version == 'G')
+			{
+				co_await net::async_write(
+					m_local_socket,
+					net::buffer(fake_webpage()),
+					net::transfer_all(),
+					uawaitable[ec]);
+			}
 
 			co_return;
 		}
@@ -1054,6 +1062,22 @@ namespace socks {
 			}
 
 			co_return;
+		}
+
+		std::string fake_webpage()
+		{
+			return R"xxxxxx(HTTP/1.1 404 Not Found
+Server: nginx/1.20.2
+Content-Type: text/html
+Connection: close
+
+<html><head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr>
+<center>nginx/1.20.2</center>
+</body>
+</html>)xxxxxx";
 		}
 
 	private:
