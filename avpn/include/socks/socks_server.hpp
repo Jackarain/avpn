@@ -973,20 +973,26 @@ namespace socks {
 
 			if (m_next_proxy)
 			{
-				tcp::endpoint proxy_endp;
+				auto executor = co_await net::this_coro::executor;
+				tcp::resolver resolver{ executor };
 
 				auto proxy_host = std::string(m_next_proxy->host());
-				auto proxy_addr = net::ip::address::from_string(proxy_host);
 				auto proxy_port = std::string(m_next_proxy->port());
 
-				proxy_endp.address(proxy_addr);
-				proxy_endp.port((uint16_t)std::atoi(proxy_port.c_str()));
-
-				auto target = net::ip::basic_resolver_results<tcp>::create(
-					proxy_endp, "", "");
+				auto targets = co_await resolver.async_resolve(
+					proxy_host, proxy_port, uawaitable[ec]);
+				if (ec)
+				{
+					LOG_WFMT("socks id: {}, resolver to next proxy {}:{} error: {}",
+						m_connection_id,
+						std::string(m_next_proxy->host()),
+						std::string(m_next_proxy->port()),
+						ec.message());
+					co_return;
+				}
 
 				co_await asio_util::async_connect(m_remote_socket,
-					target, check_condition, uawaitable[ec]);
+					targets, check_condition, uawaitable[ec]);
 				if (ec)
 				{
 					LOG_WFMT("socks id: {}, connect to next proxy {}:{} error: {}",
