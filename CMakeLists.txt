@@ -25,7 +25,7 @@ include(CheckLibraryExists)
 ################################################################################
 
 # Disable in-source builds to prevent source tree corruption.
-if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+if ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
   message(FATAL_ERROR "
 FATAL: In-source builds are not allowed.
        You should create a separate directory for build files.
@@ -38,7 +38,7 @@ message(STATUS "Host System name: ${CMAKE_HOST_SYSTEM_NAME}")
 
 set(default_build_type "Release")
 
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
         STRING "Choose the type of build." FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
@@ -57,7 +57,7 @@ message(STATUS "SYSTEM NAME: ${CMAKE_SYSTEM_NAME}")
 if (WIN32)
 	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
 	add_definitions(-DAVPN_USE_WINAPI -DAVPN_WINDOWS)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_definitions(-DAVPN_LINUX)
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
 	add_definitions(-DAVPN_FREEBSD)
@@ -74,7 +74,7 @@ include(CheckCXXLinkerFlag)
 ################################################################################
 
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
-if(WIN32)
+if (WIN32)
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
 else()
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" OFF)
@@ -208,7 +208,7 @@ endif()
 ################################################################################
 
 if (NOT MSVC)
-	if(NOT APPLE)
+	if (NOT APPLE)
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			if (ENABLE_BUILD_WITH_LIBCXX)
 				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
@@ -230,7 +230,7 @@ if (NOT MSVC)
 	if (ANDROID)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fPIE -pie")
 	endif()
-	if(COMPILER_HAS_STD_CXX20)
+	if (COMPILER_HAS_STD_CXX20)
 		set(CMAKE_CXX_STANDARD 20)
 		add_definitions(-DUSE_STD_STRING_VIEW)
 		message(STATUS "Set default cxx standard: C++20")
@@ -304,7 +304,7 @@ if (ENABLE_USE_IO_URING)
 	endif()
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
@@ -452,23 +452,23 @@ link_libraries(
 )
 
 if (WIN32)
-        if(MINGW)
-                link_libraries(
-			secur32
-                        ws2_32
-                        mswsock
-                        bcrypt
-			iphlpapi
-                )
-        else()
-                link_libraries(
-                        Secur32.lib
-                        Bcrypt.lib
-                        Winmm.lib
-                        Mswsock.lib
-                )
-        endif()
-elseif(UNIX AND NOT APPLE)
+		if (MINGW)
+			link_libraries(
+				secur32
+				ws2_32
+				mswsock
+				bcrypt
+				iphlpapi
+			)
+		else()
+			link_libraries(
+				Secur32.lib
+				Bcrypt.lib
+				Winmm.lib
+				Mswsock.lib
+			)
+		endif()
+elseif (UNIX AND NOT APPLE)
 	# aviod link std::filesystem fail.
 	set(std_fs_workaround "")
 	if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)

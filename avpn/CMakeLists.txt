@@ -66,7 +66,7 @@ file(GLOB avpn_SRCS
 )
 
 if (WIN32)
-	if(ENABLE_USE_WINTUN)
+	if (ENABLE_USE_WINTUN)
 		list (APPEND avpn_WINDOWS_SRCS ${avpn_WINTUN_SRCS})
 	endif()
 	list (APPEND avpn_SRCS ${avpn_WINDOWS_SRCS})
@@ -110,7 +110,7 @@ target_link_libraries(avpn
 	Boost::beast
 )
 
-if(MINGW)
+if (MINGW)
 	target_compile_options(avpn PUBLIC "-Wa,-mbig-obj")
 	target_compile_options(libavpn PUBLIC "-Wa,-mbig-obj")
 endif()
@@ -134,8 +134,8 @@ set(BASE_SOURCE_DIR
 target_include_directories(avpn PUBLIC ${BASE_SOURCE_DIR})
 target_include_directories(libavpn PUBLIC ${BASE_SOURCE_DIR})
 
-if(ENABLE_BUILD_WERROR)
-	if(MSVC)
+if (ENABLE_BUILD_WERROR)
+	if (MSVC)
 		target_compile_options(avpn PRIVATE /W4 /WX)
 		target_compile_options(libavpn PRIVATE /W4 /WX)
 	elseif(UNIX AND NOT APPLE)
@@ -149,7 +149,7 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-if(WIN32 AND NOT MINGW)
+if (WIN32 AND NOT MINGW)
 	SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
 endif()
 
