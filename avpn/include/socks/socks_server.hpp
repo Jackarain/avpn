@@ -28,6 +28,7 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include <boost/asio/detached.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
@@ -57,6 +58,12 @@ namespace socks {
 		// 例如: socks5://user:passwd@proxy.server.com:1080
 		// 默认使用hostname模式, dns解析在远程执行.
 		std::string next_proxy_;
+
+		// 多层代理模式中, 与下一个代理服务器是否使用tls加密(ssl).
+		bool next_proxy_use_ssl_{ false };
+
+		// 使用ssl的时候, 指定证书目录.
+		std::string ssl_cert_path_;
 	};
 
 	// socks server 虚基类, 任何socks server的实现, 必须基于这个基类.
@@ -1003,6 +1010,29 @@ namespace socks {
 					co_return;
 				}
 
+				// 使用ssl加密与下一级代理通信.
+				if (m_option.next_proxy_use_ssl_)
+				{
+					// 设置 ssl cert 证书目录.
+					if (std::filesystem::exists(m_option.ssl_cert_path_))
+					{
+						m_ssl_context.add_verify_path(
+							m_option.ssl_cert_path_, ec);
+						if (ec)
+						{
+							LOG_WFMT("socks id: {}, "
+								"load cert path: {}, "
+								"error: {}",
+								m_connection_id,
+								m_option.ssl_cert_path_,
+								ec.message());
+						}
+					}
+
+					// TODO: 修改 socks_client 使用模板来实例化remote socket
+					// 使其可以使用普通socket和ssl socket来和socks服务器通信.
+				}
+
 				socks_client_option opt;
 
 				opt.target_host = target_host;
@@ -1094,6 +1124,7 @@ Connection: close
 		std::weak_ptr<socks_server_base> m_socks_server;
 		socks_server_option m_option;
 		std::unique_ptr<util::uri_view> m_next_proxy;
+		net::ssl::context m_ssl_context{ net::ssl::context::sslv23 };
 		bool m_abort{ false };
 	};
 
