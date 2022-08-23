@@ -870,6 +870,13 @@ namespace avpn {
 		{
 			if (pid < m_peer_ds || m_peer_ds == 1)
 				co_await write_pkt(pkt);
+
+			if (m_peer_ds == 1)
+				co_return;
+		}
+		else
+		{
+			co_return;
 		}
 
 		// group还不完整, 表示还不能恢复丢失的数据包
