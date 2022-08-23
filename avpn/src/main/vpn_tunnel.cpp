@@ -984,11 +984,29 @@ namespace avpn {
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
 
 		// 将接收到的ip包write到tun设备.
-		if (pid < m_peer_ds && !expired)
-			co_await write_pkt(pkt);
+		if (!expired)
+		{
+			if (pid < m_peer_ds || m_peer_ds == 1)
+				co_await write_pkt(pkt);
 
+			// 对方重复发送模式时, 只要接收到任何1个包, 则表示
+			// 可以退出recover逻辑.
+			if (m_peer_ds == 1)
+				co_return;
+		}
+		else
+		{
+			co_return;
+		}
+
+		// group还不完整, 表示还不能恢复丢失的数据包
+		// 需要更新多的数据包.
 		if (!whole)
 			co_return;
+
+		// 运行到这里如果触发断言, 则表示 recover 在处理
+		// 对方重复发送模式时有问题.
+		BOOST_ASSERT(m_peer_ds != 1);
 
 		// 获取fec解码恢复的ip包, 并write到tun设备.
 		auto results = m_recover.acquire();
