@@ -134,7 +134,7 @@ std::string_view string_trim(std::string_view sv)
 		}
 	}
 
-	return {b, e};
+	return std::string_view(b, e - b);
 }
 
 std::string_view string_trim_left(std::string_view sv)
@@ -148,7 +148,7 @@ std::string_view string_trim_left(std::string_view sv)
 			break;
 	}
 
-	return { b, e };
+	return std::string_view(b, e - b);
 }
 
 std::string_view string_trim_right(std::string_view sv)
@@ -165,7 +165,7 @@ std::string_view string_trim_right(std::string_view sv)
 		}
 	}
 
-	return { b, e };
+	return std::string_view(b, e - b);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2218,7 +2218,7 @@ bool parse_endpoint_string(std::string_view str,
 	if (it != address_string.end())
 	{
 #ifdef __cpp_lib_to_address
-		auto opt = std::string_view(it, address_string.end());
+		auto opt = std::string_view(std::to_address(it), address_string.end() - it);
 #else
 		auto opt = std::string(it, address_string.end());
 #endif
