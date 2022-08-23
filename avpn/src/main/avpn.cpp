@@ -1764,7 +1764,8 @@ namespace avpn {
 		// 输出协商的加密密钥到日志.
 		LOG_DBG << "Negotiated shared key via tcp: "
 			<< base64_encode(tunnel->shared_key())
-			<< ", ip: " << vaddr;
+			<< ", ip: " << vaddr
+			<< ", remote: " << remote;
 
 		// 回复认证消息.
 		auto response = make_handshake_reply(
@@ -1853,7 +1854,8 @@ namespace avpn {
 		// 输出协商的加密密钥到日志.
 		LOG_DBG << "Negotiated shared key via udp: "
 			<< base64_encode(tunnel->shared_key())
-			<< ", ip: " << vaddr;
+			<< ", ip: " << vaddr
+			<< ", remote: " << remote;
 
 		// 回复认证消息.
 		auto response = make_handshake_reply(
