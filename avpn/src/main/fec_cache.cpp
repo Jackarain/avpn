@@ -129,6 +129,7 @@ namespace avpn
 		{
 			auto p = pkt->data();
 			p[9] = pid;
+			pkt->pid_ = pid;
 
 			return;
 		}
@@ -184,6 +185,7 @@ namespace avpn
 		{
 			auto p = pkt->data();
 			p[9] = pid;
+			pkt->pid_ = pid;
 
 			return;
 		}
@@ -293,12 +295,14 @@ namespace avpn
 		, ps_(pg.ps_)
 		, total_(pg.total_)
 		, time_(pg.time_)
+		, used_(!!pg.used_)
 	{
 		pg.gid_ = 0;
 		pg.pkts_.clear();
 		pg.ds_ = -1;
 		pg.ps_ = -1;
 		pg.total_ = 0;
+		pg.used_ = false;
 	}
 
 	void fec_decode_group::update(
@@ -407,6 +411,11 @@ namespace avpn
 		{
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, pkt);
+
+			// 对方ds为1的时候, 任何pkt返回即过期.
+			if (ds == 1)
+				gop.set_expired();
+
 			groups_.emplace(gid, std::move(gop));
 
 			return { false, false };

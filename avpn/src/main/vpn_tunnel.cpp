@@ -871,6 +871,8 @@ namespace avpn {
 			if (pid < m_peer_ds || m_peer_ds == 1)
 				co_await write_pkt(pkt);
 
+			// 对方重复发送模式时, 只要接收到任何1个包, 则表示
+			// 可以退出recover逻辑.
 			if (m_peer_ds == 1)
 				co_return;
 		}
