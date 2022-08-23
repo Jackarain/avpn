@@ -196,6 +196,36 @@ namespace avpn {
 		else
 			m_feg.make_fec_normal(pkt, m_self_vaddr);
 
+		// 重复发送模式.
+		if (params.data_shards_ == 1)
+		{
+			int repeated = params.parity_shards_ + 1;
+
+			for (auto i = 0; i < repeated; i++)
+			{
+				auto dup = dup_vpn_packet(pkt);
+				if (i != 0)
+				{
+					if (m_config.tunnel_params_.compress_ == "zstd")
+						m_feg.make_fec_zstd(dup, m_self_vaddr);
+					else
+						m_feg.make_fec_normal(dup, m_self_vaddr);
+				}
+
+				// 计算上行速率.
+				compute_speed(m_upload_stat, dup->size());
+
+				net::co_spawn(m_io_context,
+					[this, self, dup]() mutable->net::awaitable<void>
+					{
+						co_await internal_write_pkt(dup);
+						co_return;
+					}, net::detached);
+			}
+
+			co_return;
+		}
+
 		// 发送pkt到对方.
 		net::co_spawn(m_io_context,
 			[this, self, pkt]() mutable->net::awaitable<void>
@@ -206,28 +236,6 @@ namespace avpn {
 
 		// 计算上行速率.
 		compute_speed(m_upload_stat, pkt->size());
-
-		// TCP倍发模式, 无需要fec, 直接发送冗余.
-		if (params.data_shards_ == 1)
-		{
-			// 若非tcp协议, 只发送1次.
-			if (pkt->type() != vpn_packet_t::pkt_tcp)
-				co_return;
-
-			// 计算最大发送倍数.
-			auto ps = std::min<int>(5, params.parity_shards_);
-			--ps;
-
-			for (int i = 0; i < ps; i++)
-			{
-				udp_write_pkt(pkt);
-
-				// 计算上行速率.
-				compute_speed(m_upload_stat, pkt->size());
-			}
-
-			co_return;
-		}
 
 		// fec编码, 如果成功编码, 则需要发送编码部分.
 		if (!m_feg.has_fec_data())
@@ -853,26 +861,25 @@ namespace avpn {
 			co_return;
 		};
 
-		// 对方没启用fec.
-		if (m_peer_ds == 1)
-		{
-			if (pid < m_peer_ds)
-				co_await write_pkt(pkt);
-			co_return;
-		}
-
 		// 更新fec recover.
 		auto [whole, expired] = m_recover.update(
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
 
 		// 将接收到的ip包write到tun设备.
-		if (pid < m_peer_ds && !expired)
-			co_await write_pkt(pkt);
+		if (!expired)
+		{
+			if (pid < m_peer_ds || m_peer_ds == 1)
+				co_await write_pkt(pkt);
+		}
 
 		// group还不完整, 表示还不能恢复丢失的数据包
 		// 需要更新多的数据包.
 		if (!whole)
 			co_return;
+
+		// 运行到这里如果触发断言, 则表示 recover 在处理
+		// 对方重复发送模式时有问题.
+		BOOST_ASSERT(m_peer_ds != 1);
 
 		// 获取fec解码恢复的ip包, 并write到tun设备.
 		auto results = m_recover.acquire();

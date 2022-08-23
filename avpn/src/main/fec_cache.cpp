@@ -124,16 +124,29 @@ namespace avpn
 	{
 		auto [gid, pid] = fetch_ids();
 
+		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
+		if (ds_ == 1 && pid != 0)
+		{
+			auto p = pkt->data();
+			p[9] = pid;
+
+			return;
+		}
+
 		// 构造transfer数据包.
 		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
 		make_transfer(*pkt, src, gid, pid, sv);
+
+		// 倍发模式不再作fec编码.
+		if (ds_ <= 1)
+			return;
 
 		// 保存到fec编码缓冲.
 		pkts_[pid] = pkt;
 
 		// 判断fec编码是否达到可实施fec编码大小要求.
 		// 如果达到, 则直接进行fec编码.
-		if (pid + 1 == ds_ && ds_ > 1)
+		if (pid + 1 == ds_)
 		{
 			// 执行fec编码.
 			if (!do_encode())
@@ -166,9 +179,22 @@ namespace avpn
 	{
 		auto [gid, pid] = fetch_ids();
 
+		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
+		if (ds_ == 1 && pid != 0)
+		{
+			auto p = pkt->data();
+			p[9] = pid;
+
+			return;
+		}
+
 		// 构造transfer数据包.
 		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
 		make_transfer_compress(*pkt, src, gid, pid, compress_zstd, sv);
+
+		// 倍发模式不再作fec编码.
+		if (ds_ <= 1)
+			return;
 
 		// 保存到fec编码缓冲.
 		pkts_[pid] = pkt;
@@ -416,10 +442,14 @@ namespace avpn
 				}
 			});
 
-		// 是否丢包, 如果没丢包则返回true
-		// 以表示完成.
+		// 是否丢包, 如果没丢包则返回 true 以表示完成.
 		auto lost_pkts = gop.lost();
 		if (lost_pkts.empty())
+			return { true, false };
+
+		// 发送方配置了重复发送模式, 所以这里只要接受到1个数
+		// 据包, 便属于未丢包的情况.
+		if (ds == 1)
 			return { true, false };
 
 		// 将这个gop作fec解码.
