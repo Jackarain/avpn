@@ -15,7 +15,7 @@
 
 #include <boost/beast/core/string.hpp>
 
-namespace util {
+namespace urls {
 
 	using boost::beast::string_view;
 
@@ -637,7 +637,7 @@ namespace util {
 
 		static std::string encodeURI(string_view str) noexcept
 		{
-			using namespace ::util::detail;
+			using namespace ::urls::detail;
 			std::string result;
 
 			for (const auto& c : str)
@@ -658,7 +658,7 @@ namespace util {
 
 		static std::string decodeURI(string_view str)
 		{
-			using namespace ::util::detail;
+			using namespace ::urls::detail;
 			std::string result;
 
 			auto start = str.cbegin();
@@ -711,7 +711,7 @@ namespace util {
 
 		static std::string encodeURIComponent(string_view str) noexcept
 		{
-			using namespace ::util::detail;
+			using namespace ::urls::detail;
 			std::string result;
 
 			for (const auto& c : str)
@@ -732,7 +732,7 @@ namespace util {
 
 		static std::string decodeURIComponent(string_view str)
 		{
-			using namespace ::util::detail;
+			using namespace ::urls::detail;
 			std::string result;
 
 			auto start = str.cbegin();

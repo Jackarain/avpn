@@ -1102,7 +1102,7 @@ namespace avpn {
 			&& it != upstreams.end(); it++)
 		{
 			auto upstream = *it;
-			util::url_view parser;
+			urls::url_view parser;
 
 			if (!parser.parse(upstream))
 				continue;
