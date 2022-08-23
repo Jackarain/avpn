@@ -58,6 +58,12 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
+	// 公共协议头, 共5字节.
+	// 协议格式
+	// enc  (1b)
+	// rsv  (1b)
+	// type (6b)
+	// src  (1)
 	vpn_packet make_common_header(
 		bool enc, uint8_t type, uint32_t src);
 
