@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "utils/uri_view.hpp"
+#include "utils/url_view.hpp"
 #include "utils/uawaitable.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/async_connect.hpp"
@@ -147,7 +147,7 @@ namespace socks {
 				try
 				{
 					m_next_proxy =
-						std::make_unique<util::uri_view>(m_option.next_proxy_);
+						std::make_unique<util::url_view>(m_option.next_proxy_);
 				}
 				catch (const std::exception& e)
 				{
@@ -1123,7 +1123,7 @@ Connection: close
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server_base> m_socks_server;
 		socks_server_option m_option;
-		std::unique_ptr<util::uri_view> m_next_proxy;
+		std::unique_ptr<util::url_view> m_next_proxy;
 		net::ssl::context m_ssl_context{ net::ssl::context::sslv23 };
 		bool m_abort{ false };
 	};

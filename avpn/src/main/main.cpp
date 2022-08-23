@@ -456,7 +456,7 @@ int main(int argc, char** argv)
 
 			// 检查 next socks proxy地址格式是否正确.
 			// 如果是无效的地址则忽略.
-			if (!util::uri_view().parse(socks_next_proxy))
+			if (!util::url_view().parse(socks_next_proxy))
 			{
 				LOG_WARN << "Next socks server: "
 					<< socks_next_proxy << " invalid";

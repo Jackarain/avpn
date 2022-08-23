@@ -6,7 +6,7 @@
 //
 
 #include "utils/async_connect.hpp"
-#include "utils/uri_view.hpp"
+#include "utils/url_view.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/uawaitable.hpp"
 #include "utils/misc.hpp"
@@ -1102,7 +1102,7 @@ namespace avpn {
 			&& it != upstreams.end(); it++)
 		{
 			auto upstream = *it;
-			util::uri_view parser;
+			util::url_view parser;
 
 			if (!parser.parse(upstream))
 				continue;
