@@ -95,6 +95,7 @@ namespace avpn {
 
 		p = p + ihl;
 
+		/*
 		// 下面开始执行tcp状态机, 总体参考下面实现, 稍作修改的地方几个就是这里初始状态设置
 		// 为ts_invalid, 而不是closed, 因为这里我需要判断一个tcp stream对象是已经closed
 		// 的, 还是新开的等待连接的对象, 另外执行到time_wait时, 按标准需要等待2MSL个时间
@@ -147,6 +148,7 @@ namespace avpn {
 		//    \ snd ACK                 +---------+delete TCB         +---------+
 		//     ------------------------>|TIME WAIT|------------------>| CLOSED  |
 		//                              +---------+                   +---------+
+		*/
 
 
 		uint32_t seq = ntohl(*(uint32_t*)(p + 4));
@@ -185,14 +187,12 @@ namespace avpn {
 			co_return;
 		}
 
-		bool keep_alive = false;
 		// tcp keep alive, only ack.
 		if (m_tsm.state_ == tcp_state::ts_established && seq == m_tsm.seq_ - 1)
 		{
 			LOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " tcp keep alive, skip it";
-			keep_alive = true;
 			co_return;
 		}
 
