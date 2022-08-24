@@ -36,10 +36,17 @@ namespace avpn {
 	{
 		auto stream = std::make_shared<vpn_tcp_stream>(m_io_context, m_serivce);
 
-		stream->set_accept_handler(std::bind(&vpn_conntrack::handle_accept,
-			this, stream, std::placeholders::_1));
-		stream->set_closed_handler(std::bind(&vpn_conntrack::handle_closed,
-			this, stream, std::placeholders::_1));
+		stream->set_accept_handler(
+			[this, stream](auto arg) mutable
+			{
+				handle_accept(stream, arg);
+			});
+
+		stream->set_closed_handler(
+			[this, stream](auto arg) mutable
+			{
+				handle_closed(stream, arg);
+			});
 
 		return stream;
 	}

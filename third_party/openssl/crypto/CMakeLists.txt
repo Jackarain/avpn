@@ -200,3 +200,7 @@ endif()
 if(MINGW)
 	target_link_libraries(crypto PUBLIC ws2_32)
 endif()
+
+find_package(Threads)
+target_link_libraries(crypto ${CMAKE_THREAD_LIBS_INIT})
+

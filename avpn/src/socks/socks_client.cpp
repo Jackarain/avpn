@@ -42,7 +42,9 @@ namespace socks {
 	} // detail
 
 	net::awaitable<void> do_socks5(
-		tcp::socket& socket, socks_client_option opt, boost::system::error_code& ec)
+		tcp::socket& socket,
+		socks_client_option opt,
+		boost::system::error_code& ec)
 	{
 		using detail::write;
 		using detail::read;
@@ -54,7 +56,8 @@ namespace socks {
 
 		std::size_t bytes_to_write = username.empty() ? 3 : 4;
 		net::streambuf request;
-		auto req = static_cast<char*>(request.prepare(bytes_to_write).data());
+		auto req = static_cast<char*>(
+			request.prepare(bytes_to_write).data());
 
 		write<uint8_t>(SOCKS_VERSION_5, req);		// SOCKS VERSION 5.
 		if (username.empty())
@@ -81,7 +84,8 @@ namespace socks {
 		if (ec) co_return;
 		BOOST_ASSERT(response.size() == 2);
 
-		auto resp = static_cast<const char*>(response.data().data());
+		auto resp = static_cast<const char*>(
+			response.data().data());
 		auto version = read<uint8_t>(resp);
 		auto method = read<uint8_t>(resp);
 
@@ -102,7 +106,8 @@ namespace socks {
 			request.consume(request.size());
 
 			bytes_to_write = username.size() + passwd.size() + 3;
-			auto auth = static_cast<char*>(request.prepare(bytes_to_write).data());
+			auto auth = static_cast<char*>(
+				request.prepare(bytes_to_write).data());
 
 			write<uint8_t>(0x01, auth);								// auth version.
 			write<uint8_t>(static_cast<uint8_t>(username.size()), auth);
@@ -163,7 +168,7 @@ namespace socks {
 		{
 			write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, req); // atyp, domain name.
 			BOOST_ASSERT(hostname.size() <= 255);
-			write<uint8_t>(static_cast<int8_t>(hostname.size()), req);    // domainname size.
+			write<uint8_t>(static_cast<int8_t>(hostname.size()), req); // domainname size.
 			std::copy(hostname.begin(), hostname.end(), req);    // domainname.
 			req += hostname.size();
 			write<uint16_t>(port, req);    // port.
@@ -177,8 +182,9 @@ namespace socks {
 				tcp::resolver resolver{ executor };
 				auto error = ec;
 
-				auto target_endpoints = co_await resolver.async_resolve(
-					hostname, std::to_string(port), uawaitable[ec]);
+				auto target_endpoints =
+					co_await resolver.async_resolve(
+						hostname, std::to_string(port), uawaitable[ec]);
 				if (ec) co_return;
 
 				if (target_endpoints.empty())
@@ -317,7 +323,9 @@ namespace socks {
 	}
 
 	net::awaitable<void> do_socks4(
-		tcp::socket& socket, socks_client_option opt, boost::system::error_code& ec)
+		tcp::socket& socket,
+		socks_client_option opt,
+		boost::system::error_code& ec)
 	{
 		using detail::write;
 		using detail::read;
@@ -330,7 +338,8 @@ namespace socks {
 		std::size_t bytes_to_write = 9 + username.size();
 		if (opt.version == socks4a_version)
 			bytes_to_write += opt.target_host.size() + 1;
-		auto req = static_cast<char*>(request.prepare(bytes_to_write).data());
+		auto req = static_cast<char*>(
+			request.prepare(bytes_to_write).data());
 
 		write<uint8_t>(SOCKS_VERSION_4, req);	// SOCKS VERSION 4.
 		write<uint8_t>(SOCKS_CMD_CONNECT, req); // CONNECT.
@@ -386,8 +395,11 @@ namespace socks {
 			net::transfer_exactly(8), uawaitable[ec]);
 		if (ec) co_return;
 
-		auto resp = static_cast<const unsigned char*>(response.data().data());
-		read<uint8_t>(resp); // VN is the version of the reply code and should be 0.
+		auto resp = static_cast<const unsigned char*>(
+			response.data().data());
+
+		// VN is the version of the reply code and should be 0.
+		read<uint8_t>(resp);
 		auto cd = read<uint8_t>(resp);
 
 		if (cd != SOCKS4_REQUEST_GRANTED)
@@ -415,7 +427,8 @@ namespace socks {
 	namespace detail
 	{
 		net::awaitable<boost::system::error_code>
-			do_socks_handshake(tcp::socket& socket, socks_client_option opt /*= {}*/)
+			do_socks_handshake(tcp::socket& socket,
+				socks_client_option opt /*= {}*/)
 		{
 			boost::system::error_code ec;
 
@@ -423,7 +436,8 @@ namespace socks {
 			{
 				co_await do_socks5(socket, opt, ec);
 			}
-			else if (opt.version == socks4_version || opt.version == socks4a_version)
+			else if (opt.version == socks4_version ||
+				opt.version == socks4a_version)
 			{
 				co_await do_socks4(socket, opt, ec);
 			}

@@ -35,7 +35,7 @@ namespace avpn {
 		, m_main_context(ioc_pool.main_io_context())
 		, m_signal(m_main_context)
 		, m_config(cfg)
-		, m_avpn_service(avpn::avpn_service::make_avpn_service(ioc_pool, cfg))
+		, m_avpn_service(avpn_service::make_avpn_service(ioc_pool, cfg))
 		, m_service(*m_avpn_service)
 		, m_ws_stream(m_main_context)
 		, m_timer(m_main_context)
@@ -123,7 +123,8 @@ namespace avpn {
 			controller_server_host, "/", uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect, handshake: " << ec.message();
+			LOG_ERR << "controller::start_connect"
+				", handshake: " << ec.message();
 
 			// 全部退出.
 			m_ioc_pool.stop();
