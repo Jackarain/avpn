@@ -1,0 +1,23 @@
+stages:
+- build
+- test
+
+build:
+  stage: build
+  script:
+    - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
+    - cmake --build build --target avpn
+  artifacts:
+    paths:
+      - build/bin/avpn
+  cache:
+    paths:
+      - build
+
+RunBoostTest:
+  stage: test
+  script:
+    - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_TESTS=ON
+    - cmake --build build
+    - cd build
+    - ctest

@@ -257,7 +257,8 @@ namespace avpn {
 		auto pkt = make_common_header(
 			false, vpt_handshake_reply, addr);
 
-		bitstream writer(pkt.data() + pkt.size(), avpn_packet_size - pkt.size());
+		bitstream writer(pkt.data() + pkt.size(),
+			avpn_packet_size - pkt.size());
 
 		writer.WriteUInt8((uint8_t)id.size());
 		writer.WriteString(id.data(), id.size());

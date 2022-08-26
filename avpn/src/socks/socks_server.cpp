@@ -82,7 +82,8 @@ namespace socks {
 			co_await a.async_accept(socket, uawaitable[error]);
 			if (error)
 			{
-				LOG_ERR << "start_socks_listen, async_accept: " << error.message();
+				LOG_ERR << "start_socks_listen"
+					", async_accept: " << error.message();
 
 				if (error == net::error::operation_aborted ||
 					error == net::error::bad_descriptor)

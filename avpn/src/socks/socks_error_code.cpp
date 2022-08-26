@@ -15,7 +15,8 @@ namespace socks {
 	namespace errc {
 		boost::system::error_code make_error_code(errc_t e)
 		{
-			return boost::system::error_code(static_cast<int>(e), socks::error_category());
+			return boost::system::error_code(
+				static_cast<int>(e), socks::error_category());
 		}
 	}
 
@@ -63,9 +64,11 @@ namespace socks {
 		case errc::socks_request_rejected_or_failed:
 			return "SOCKS request rejected or failed";
 		case errc::socks_request_rejected_cannot_connect:
-			return "SOCKS request rejected becasue SOCKS server cannot connect to identd on the client";
+			return "SOCKS request rejected becasue SOCKS"
+				" server cannot connect to identd on the client";
 		case errc::socks_request_rejected_incorrect_userid:
-			return "SOCKS request rejected because the client program and identd report different user";
+			return "SOCKS request rejected because the client"
+				" program and identd report different user";
 		default:
 			return "SOCKS Unknown PROXY error";
 		}

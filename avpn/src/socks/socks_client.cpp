@@ -109,12 +109,12 @@ namespace socks {
 			auto auth = static_cast<char*>(
 				request.prepare(bytes_to_write).data());
 
-			write<uint8_t>(0x01, auth);								// auth version.
+			write<uint8_t>(0x01, auth);							// auth version.
 			write<uint8_t>(static_cast<uint8_t>(username.size()), auth);
-			std::copy(username.begin(), username.end(), auth);		// username.
+			std::copy(username.begin(), username.end(), auth);	// username.
 			auth += username.size();
 			write<uint8_t>(static_cast<int8_t>(passwd.size()), auth);
-			std::copy(passwd.begin(), passwd.end(), auth);			// password.
+			std::copy(passwd.begin(), passwd.end(), auth);		// password.
 			auth += passwd.size();
 			request.commit(bytes_to_write);
 
@@ -168,8 +168,10 @@ namespace socks {
 		{
 			write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, req); // atyp, domain name.
 			BOOST_ASSERT(hostname.size() <= 255);
-			write<uint8_t>(static_cast<int8_t>(hostname.size()), req); // domainname size.
-			std::copy(hostname.begin(), hostname.end(), req);    // domainname.
+			write<uint8_t>(static_cast<int8_t>(
+				hostname.size()), req);					// domain size.
+			std::copy(hostname.begin(), hostname.end(),
+				req);									// domainname.
 			req += hostname.size();
 			write<uint16_t>(port, req);    // port.
 		}
