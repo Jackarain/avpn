@@ -10,9 +10,6 @@ build:
   artifacts:
     paths:
       - build/bin/avpn
-  cache:
-    paths:
-      - build
 
 RunBoostTest:
   stage: test
