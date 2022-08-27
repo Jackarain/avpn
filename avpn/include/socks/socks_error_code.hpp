@@ -20,7 +20,9 @@ namespace socks {
 	const boost::system::error_category& error_category_single()
 	{
 		static error_category error_category_instance;
-		return reinterpret_cast<const boost::system::error_category&>(error_category_instance);
+
+		return reinterpret_cast<const boost::system::error_category&>(
+				error_category_instance);
 	}
 
 	inline const boost::system::error_category& error_category()
@@ -82,10 +84,12 @@ namespace socks {
 			/// request rejected or failed.
 			socks_request_rejected_or_failed,
 
-			/// request rejected becasue SOCKS server cannot connect to identd on the client.
+			/// request rejected becasue SOCKS server
+			// cannot connect to identd on the client.
 			socks_request_rejected_cannot_connect,
 
-			/// request rejected because the client program and identd report different user - ids
+			/// request rejected because the client
+			// program and identd report different user - ids
 			socks_request_rejected_incorrect_userid,
 		};
 
