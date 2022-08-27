@@ -99,14 +99,22 @@ namespace socks {
 			write<uint8_t>(SOCKS_VERSION_5, req);		// SOCKS VERSION 5.
 			if (username.empty())
 			{
-				write<uint8_t>(1, req);					// 1 method
-				write<uint8_t>(SOCKS5_AUTH_NONE, req);	// support no authentication
+				// 1 method
+				write<uint8_t>(1, req);
+
+				// support no authentication
+				write<uint8_t>(SOCKS5_AUTH_NONE, req);
 			}
 			else
 			{
-				write<uint8_t>(2, req);					// 2 methods
-				write<uint8_t>(SOCKS5_AUTH_NONE, req);	// support no authentication
-				write<uint8_t>(SOCKS5_AUTH, req);		// support username/password
+				// 2 methods
+				write<uint8_t>(2, req);
+
+				// support no authentication
+				write<uint8_t>(SOCKS5_AUTH_NONE, req);
+
+				// support username/password
+				write<uint8_t>(SOCKS5_AUTH, req);
 			}
 
 			request.commit(bytes_to_write);
@@ -146,12 +154,21 @@ namespace socks {
 				auto auth = static_cast<char*>(
 					request.prepare(bytes_to_write).data());
 
-				write<uint8_t>(0x01, auth);							// auth version.
+				// auth version.
+				write<uint8_t>(0x01, auth);
+
+				// username length.
 				write<uint8_t>(static_cast<uint8_t>(username.size()), auth);
-				std::copy(username.begin(), username.end(), auth);	// username.
+
+				// username.
+				std::copy(username.begin(), username.end(), auth);
 				auth += username.size();
+
+				// password length.
 				write<uint8_t>(static_cast<int8_t>(passwd.size()), auth);
-				std::copy(passwd.begin(), passwd.end(), auth);		// password.
+
+				// password.
+				std::copy(passwd.begin(), passwd.end(), auth);
 				auth += passwd.size();
 				request.commit(bytes_to_write);
 
@@ -195,7 +212,8 @@ namespace socks {
 			request.consume(request.size());
 			bytes_to_write = 7 + hostname.size();
 			req = static_cast<char*>(
-				request.prepare(std::max<std::size_t>(bytes_to_write, 22)).data());
+				request.prepare(std::max<std::size_t>(
+					bytes_to_write, 22)).data());
 
 			write<uint8_t>(SOCKS_VERSION_5, req);	// SOCKS VERSION 5.
 			write<uint8_t>(SOCKS_CMD_CONNECT, req); // CONNECT command.
@@ -203,14 +221,21 @@ namespace socks {
 
 			if (opt.proxy_hostname)
 			{
-				write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, req); // atyp, domain name.
+				// atyp, domain name.
+				write<uint8_t>(SOCKS5_ATYP_DOMAINNAME, req);
+
+				// domain size.
 				BOOST_ASSERT(hostname.size() <= 255);
 				write<uint8_t>(static_cast<int8_t>(
-					hostname.size()), req);					// domain size.
+					hostname.size()), req);
+
+				// domain.
 				std::copy(hostname.begin(), hostname.end(),
-					req);									// domainname.
+					req);
 				req += hostname.size();
-				write<uint16_t>(port, req);    // port.
+
+				// port.
+				write<uint16_t>(port, req);
 			}
 			else
 			{
