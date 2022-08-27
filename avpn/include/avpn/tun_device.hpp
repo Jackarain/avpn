@@ -27,7 +27,7 @@
 #include "avpn/basic_tun_service.hpp"
 
 #include <variant>
-#include <boost/variant.hpp>
+#include <boost/variant2.hpp>
 
 namespace avpn {
 
@@ -67,7 +67,7 @@ namespace avpn {
 		vtun_device& operator=(vtun_device const&) = delete;
 		vtun_device& operator=(vtun_device&&) = default;
 
-		boost::asio::io_context& get_io_context()
+		net::io_context& get_io_context()
 		{
 			return std::visit([&](auto& t) mutable
 				{ return t.get_io_context(); }, *this);
@@ -117,12 +117,12 @@ namespace avpn {
 	inline namespace v2 {
 
 	template<typename... T>
-	class vtun_device : public boost::variant<T...>
+	class vtun_device : public boost::variant2::variant<T...>
 	{
 	public:
 		template <typename S>
 		explicit vtun_device(S device)
-			: boost::variant<T...>(std::move(device))
+			: boost::variant2::variant<T...>(std::move(device))
 		{
 			static_assert(std::is_move_constructible<S>::value
 				, "must be move constructible");
@@ -134,21 +134,21 @@ namespace avpn {
 		vtun_device& operator=(vtun_device const&) = delete;
 		vtun_device& operator=(vtun_device&&) = default;
 
-		boost::asio::io_context& get_io_context()
+		net::io_context& get_io_context()
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.get_io_context(); }, *this);
 		}
 
 		bool open(const dev_config& cfg)
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.open(cfg); }, *this);
 		}
 
 		void close()
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.close(); }, *this);
 		}
 
@@ -157,7 +157,7 @@ namespace avpn {
 			void(boost::system::error_code, std::size_t))
 			async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.async_read_some(buffers,
 					std::forward<ReadHandler>(handler)); }, *this);
 		}
@@ -167,14 +167,14 @@ namespace avpn {
 			void(boost::system::error_code, std::size_t))
 			async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.async_write_some(buffers,
 					std::forward<WriteHandler>(handler)); }, *this);
 		}
 
 		std::vector<tun_device_info> take_device_list()
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.take_device_list(); }, *this);
 		}
 	};
