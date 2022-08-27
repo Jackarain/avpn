@@ -386,7 +386,7 @@ namespace socks {
 
 			int command = read<int8_t>(p);		// CONNECT/BIND/UDP
 			read<int8_t>(p);					// reserved.
-			int atyp = read<int8_t>(p);		// atyp.
+			int atyp = read<int8_t>(p);			// atyp.
 
 			//  +----+-----+-------+------+----------+----------+
 			//  |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
@@ -417,7 +417,8 @@ namespace socks {
 			if (ec)
 			{
 				LOG_WARN << "socks id: " << m_connection_id
-					<< ", read client request dst.addr error: " << ec.message();
+					<< ", read client request dst.addr error: "
+					<< ec.message();
 				co_return;
 			}
 
@@ -508,8 +509,10 @@ namespace socks {
 
 				if (dst_endpoint.address().is_v4())
 				{
+					auto uaddr = dst_endpoint.address().to_v4().to_uint();
+
 					write<uint8_t>(SOCKS5_ATYP_IPV4, p);
-					write<uint32_t>(dst_endpoint.address().to_v4().to_ulong(), p);
+					write<uint32_t>(uaddr, p);
 					write<uint16_t>(dst_endpoint.port(), p);
 				}
 				else if (dst_endpoint.address().is_v6())
@@ -724,7 +727,8 @@ namespace socks {
 						ec);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
+					LOG_WFMT("socks id: {},"
+						" connect to target {}:{} error: {}",
 						m_connection_id,
 						dst_endpoint.address().to_string(),
 						port,
@@ -735,7 +739,8 @@ namespace socks {
 			else
 			{
 				error_code = SOCKS4_REQUEST_REJECTED_OR_FAILED;
-				LOG_WFMT("socks id: {}, unsupported command for socks4", m_connection_id);
+				LOG_WFMT("socks id: {},"
+					" unsupported command for socks4", m_connection_id);
 			}
 
 			//  +----+----+----+----+----+----+----+----+
@@ -772,7 +777,8 @@ namespace socks {
 				transfer(m_remote_socket, m_local_socket)
 				);
 
-			LOG_DBG << "socks id: " << m_connection_id << ", transfer completed";
+			LOG_DBG << "socks id: " << m_connection_id
+				<< ", transfer completed";
 			co_return;
 		}
 
@@ -950,7 +956,8 @@ namespace socks {
 			std::string target_host, uint16_t target_port,
 			boost::system::error_code& ec, bool resolve = false)
 		{
-			auto bind_interface = net::ip::address::from_string(m_option.bind_addr_, ec);
+			auto bind_interface = net::ip::address::from_string(
+				m_option.bind_addr_, ec);
 			if (ec)
 			{
 				// bind 地址有问题, 忽略bind参数.
@@ -990,7 +997,8 @@ namespace socks {
 					proxy_host, proxy_port, uawaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {}, resolver to next proxy {}:{} error: {}",
+					LOG_WFMT("socks id: {},"
+						" resolver to next proxy {}:{} error: {}",
 						m_connection_id,
 						std::string(m_next_proxy->host()),
 						std::string(m_next_proxy->port()),
@@ -1002,7 +1010,8 @@ namespace socks {
 					targets, check_condition, uawaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {}, connect to next proxy {}:{} error: {}",
+					LOG_WFMT("socks id: {},"
+						" connect to next proxy {}:{} error: {}",
 						m_connection_id,
 						std::string(m_next_proxy->host()),
 						std::string(m_next_proxy->port()),
@@ -1046,10 +1055,12 @@ namespace socks {
 				else if (m_next_proxy->scheme() == "socks4a")
 					opt.version = socks4a_version;
 
-				co_await async_socks_handshake(m_remote_socket, opt, uawaitable[ec]);
+				co_await async_socks_handshake(
+					m_remote_socket, opt, uawaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {}, connect to next host {}:{} error: {}",
+					LOG_WFMT("socks id: {},"
+						" connect to next host {}:{} error: {}",
 						m_connection_id,
 						target_host,
 						target_port,
@@ -1065,7 +1076,9 @@ namespace socks {
 					tcp::resolver resolver{ executor };
 
 					targets = co_await resolver.async_resolve(
-						target_host, std::to_string(target_port), uawaitable[ec]);
+						target_host,
+						std::to_string(target_port),
+						uawaitable[ec]);
 					if (ec)
 					{
 						LOG_WARN << "socks id: " << m_connection_id
@@ -1078,7 +1091,8 @@ namespace socks {
 				{
 					tcp::endpoint dst_endpoint;
 
-					dst_endpoint.address(net::ip::address::from_string(target_host));
+					dst_endpoint.address(
+						net::ip::address::from_string(target_host));
 					dst_endpoint.port(target_port);
 
 					targets = net::ip::basic_resolver_results<tcp>::create(
@@ -1139,19 +1153,153 @@ Connection: close
 
 	public:
 		socks_server(net::any_io_executor& executor,
-			const tcp::endpoint& endp, socks_server_option opt = {});
+			const tcp::endpoint& endp, socks_server_option opt = {})
+			: m_executor(executor)
+			, m_acceptor(executor, endp)
+			, m_option(std::move(opt))
+		{
+			boost::system::error_code ec;
+			m_acceptor.listen(net::socket_base::max_listen_connections, ec);
+		}
+
 		virtual ~socks_server() = default;
 
 	public:
-		void start();
-		void close();
+		inline void start()
+		{
+			// 同时启动32个连接协程, 开始为socks client提供服务.
+			for (int i = 0; i < 32; i++)
+			{
+				net::co_spawn(m_executor,
+					start_socks_listen(m_acceptor), net::detached);
+			}
+		}
+
+		inline void close()
+		{
+			boost::system::error_code ignore_ec;
+			m_abort = true;
+
+			m_acceptor.close(ignore_ec);
+
+			for (auto& [id, c] : m_clients)
+			{
+				auto client = c.lock();
+				if (!client)
+					continue;
+				client->close();
+			}
+		}
 
 	private:
-		virtual void remove_client(size_t id) override;
-		virtual const socks_server_option& option() override;
+		virtual void remove_client(size_t id) override
+		{
+			m_clients.erase(id);
+		}
+
+		virtual const socks_server_option& option() override
+		{
+			return m_option;
+		}
 
 	private:
-		net::awaitable<void> start_socks_listen(tcp::acceptor& a);
+		inline net::awaitable<void> start_socks_listen(tcp::acceptor& a)
+		{
+			auto self = shared_from_this();
+			boost::system::error_code error;
+
+			while (!m_abort)
+			{
+				tcp::socket socket(m_executor);
+				co_await a.async_accept(socket, uawaitable[error]);
+				if (error)
+				{
+					LOG_ERR << "start_socks_listen"
+						", async_accept: " << error.message();
+
+					if (error == net::error::operation_aborted ||
+						error == net::error::bad_descriptor)
+					{
+						co_return;
+					}
+
+					if (!a.is_open())
+						co_return;
+
+					continue;
+				}
+
+				{
+					net::socket_base::keep_alive option(true);
+					socket.set_option(option, error);
+				}
+
+				{
+					net::ip::tcp::no_delay option(true);
+					socket.set_option(option);
+				}
+
+				static std::atomic_size_t id{ 1 };
+				size_t connection_id = id++;
+
+				LOG_DBG << "start client incoming id: " << connection_id;
+
+				// 等待读取事件.
+				co_await socket.async_wait(
+					tcp::socket::wait_read, uawaitable[error]);
+				if (error)
+				{
+					LOG_WARN << "socket.async_wait error: " << error.message();
+					continue;
+				}
+
+				// 检查协议.
+				auto fd = socket.native_handle();
+				uint8_t detect[5] = { 0 };
+
+#if defined(WIN32) || defined(__APPLE__)
+				auto ret = recv(fd, (char*)detect, sizeof(detect),
+					MSG_PEEK);
+#else
+				auto ret = recv(fd, (void*)detect, sizeof(detect),
+					MSG_PEEK | MSG_NOSIGNAL | MSG_DONTWAIT);
+#endif
+				if (ret <= 0)
+				{
+					LOG_WARN << "start_tcp_listen,"
+						" peek message return: " << ret;
+					continue;
+				}
+
+				// socks4/5 protocol.
+				if (detect[0] == 0x05 || detect[0] == 0x04)
+				{
+					LOG_DBG << "socks protocol: " << detect[0]
+						<< ", connection id: " << connection_id;
+
+					auto new_session =
+						std::make_shared<socks_session<>>(
+							std::move(socket), connection_id, self);
+					m_clients[connection_id] = new_session;
+
+					new_session->start();
+				}
+				else if (detect[0] == 0x47 || detect[0] == 0x50)
+				{
+					// http protocol, return fake webpage.
+
+					auto new_session =
+						std::make_shared<socks_session<>>(
+							std::move(socket), connection_id, self);
+					m_clients[connection_id] = new_session;
+
+					new_session->start();
+				}
+			}
+
+			LOG_WARN << "start_socks_listen exit ...";
+			co_return;
+		}
 
 	private:
 		net::any_io_executor m_executor;
