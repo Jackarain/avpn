@@ -15,6 +15,7 @@
 #include "utils/scoped_exit.hpp"
 #include "utils/async_connect.hpp"
 #include "utils/logging.hpp"
+#include "utils/base_stream.hpp"
 
 #include "socks/socks_enums.hpp"
 #include "socks/socks_client.hpp"
@@ -39,9 +40,12 @@ namespace net = boost::asio;
 namespace socks {
 
 	using namespace net::experimental::awaitable_operators;
+	using namespace util;
 
 	using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
 	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
+
+	using ssl_stream = net::ssl::stream<tcp::socket>;
 
 	// socks server 参数选项.
 	struct socks_server_option
@@ -87,12 +91,9 @@ namespace socks {
 	// socks_session 抽象类, 它被设计为一个模板抽象类, 模板参数Stream
 	// 指定与本地通信的stream对象, 默认使用tcp::socket, 可根据此
 	// async_read/async_write等接口实现专用的stream类, 比如实现加密.
-	template <typename LocalStream = tcp::socket,
-		typename RemoteStream = tcp::socket>
 	class socks_session
 		: public socks_session_base
-		, public std::enable_shared_from_this<
-			socks_session<LocalStream, RemoteStream>>
+		, public std::enable_shared_from_this<socks_session>
 	{
 		socks_session(const socks_session&) = delete;
 		socks_session& operator=(const socks_session&) = delete;
@@ -115,10 +116,11 @@ namespace socks {
 
 
 	public:
-		socks_session(LocalStream&& socket,
+		socks_session(socks_stream_type&& socket,
 			size_t id, std::weak_ptr<socks_server_base> server)
 			: m_local_socket(std::move(socket))
-			, m_remote_socket(m_local_socket.get_executor())
+			, m_remote_socket(instantiate_socks_stream(
+				m_local_socket.get_executor()))
 			, m_connection_id(id)
 			, m_socks_server(server)
 		{
@@ -956,6 +958,12 @@ namespace socks {
 			std::string target_host, uint16_t target_port,
 			boost::system::error_code& ec, bool resolve = false)
 		{
+			auto executor = co_await net::this_coro::executor;
+
+			// 获取构造函数中临时创建的tcp::socket.
+			tcp::socket& remote_socket =
+				boost::variant2::get<tcp::socket>(m_remote_socket);
+
 			auto bind_interface = net::ip::address::from_string(
 				m_option.bind_addr_, ec);
 			if (ec)
@@ -987,7 +995,6 @@ namespace socks {
 
 			if (m_next_proxy)
 			{
-				auto executor = co_await net::this_coro::executor;
 				tcp::resolver resolver{ executor };
 
 				auto proxy_host = std::string(m_next_proxy->host());
@@ -1003,10 +1010,11 @@ namespace socks {
 						std::string(m_next_proxy->host()),
 						std::string(m_next_proxy->port()),
 						ec.message());
+
 					co_return;
 				}
 
-				co_await asio_util::async_connect(m_remote_socket,
+				co_await asio_util::async_connect(remote_socket,
 					targets, check_condition, uawaitable[ec]);
 				if (ec)
 				{
@@ -1016,6 +1024,7 @@ namespace socks {
 						std::string(m_next_proxy->host()),
 						std::string(m_next_proxy->port()),
 						ec.message());
+
 					co_return;
 				}
 
@@ -1037,10 +1046,40 @@ namespace socks {
 								ec.message());
 						}
 					}
-
-					// TODO: 修改 socks_client 使用模板来实例化remote socket
-					// 使其可以使用普通socket和ssl socket来和socks服务器通信.
 				}
+
+				auto instantiate_stream = [this, &remote_socket, &ec]() mutable
+					-> net::awaitable<socks_stream_type>
+				{
+					ec = {};
+
+					if (m_option.next_proxy_use_ssl_)
+					{
+						auto socks_stream = instantiate_socks_stream(
+							std::move(remote_socket), m_ssl_context);
+
+						// get origin ssl stream type.
+						ssl_stream& ssl_socket =
+							boost::variant2::get<ssl_stream>(socks_stream);
+
+						// do async handshake.
+						co_await ssl_socket.async_handshake(
+							net::ssl::stream_base::client, uawaitable[ec]);
+						if (ec)
+						{
+							LOG_WFMT("socks id: {},"
+								" ssl protocol handshake error: {}",
+								m_connection_id, ec.message());
+						}
+
+						co_return std::move(socks_stream);
+					}
+
+					co_return instantiate_socks_stream(
+						std::move(remote_socket));
+				};
+
+				m_remote_socket = std::move(co_await instantiate_stream());
 
 				socks_client_option opt;
 
@@ -1072,7 +1111,6 @@ namespace socks {
 				net::ip::basic_resolver_results<tcp> targets;
 				if (resolve)
 				{
-					auto executor = co_await net::this_coro::executor;
 					tcp::resolver resolver{ executor };
 
 					targets = co_await resolver.async_resolve(
@@ -1084,6 +1122,7 @@ namespace socks {
 						LOG_WARN << "socks id: " << m_connection_id
 							<< ", resolve: " << target_host
 							<< ", error: " << ec.message();
+
 						co_return;
 					}
 				}
@@ -1099,7 +1138,7 @@ namespace socks {
 						dst_endpoint, "", "");
 				}
 
-				co_await asio_util::async_connect(m_remote_socket,
+				co_await asio_util::async_connect(remote_socket,
 					targets, check_condition, uawaitable[ec]);
 				if (ec)
 				{
@@ -1109,6 +1148,9 @@ namespace socks {
 						target_port,
 						ec.message());
 				}
+
+				m_remote_socket = instantiate_socks_stream(
+					std::move(remote_socket));
 			}
 
 			co_return;
@@ -1131,8 +1173,8 @@ Connection: close
 		}
 
 	private:
-		LocalStream m_local_socket;
-		RemoteStream m_remote_socket;
+		socks_stream_type m_local_socket;
+		socks_stream_type m_remote_socket;
 		size_t m_connection_id;
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server_base> m_socks_server;
@@ -1158,11 +1200,47 @@ Connection: close
 			, m_acceptor(executor, endp)
 			, m_option(std::move(opt))
 		{
+			init_ssl_context();
+
 			boost::system::error_code ec;
 			m_acceptor.listen(net::socket_base::max_listen_connections, ec);
 		}
 
 		virtual ~socks_server() = default;
+
+		void init_ssl_context()
+		{
+			m_ssl_context.set_options(
+				boost::asio::ssl::context::default_workarounds
+				| boost::asio::ssl::context::no_sslv2
+				| boost::asio::ssl::context::single_dh_use);
+
+			auto dir = std::filesystem::path(m_option.ssl_cert_path_);
+			auto pwd = dir / "ssl_crt.pwd";
+
+			if (std::filesystem::exists(pwd))
+				m_ssl_context.set_password_callback(
+					[this, &pwd]([[maybe_unused]] auto... args) {
+						std::string password;
+						fileop::read(pwd, password);
+						return password;
+					}
+			);
+
+			auto cert = dir / "ssl_crt.pem";
+			auto key = dir / "ssl_key.pem";
+			auto dh = dir / "ssl_dh.pem";
+
+			if (std::filesystem::exists(cert))
+				m_ssl_context.use_certificate_chain_file(cert.string());
+
+			if (std::filesystem::exists(key))
+				m_ssl_context.use_private_key_file(
+					key.string(), boost::asio::ssl::context::pem);
+
+			if (std::filesystem::exists(dh))
+				m_ssl_context.use_tmp_dh_file(dh.string());
+		}
 
 	public:
 		inline void start()
@@ -1278,8 +1356,41 @@ Connection: close
 						<< ", connection id: " << connection_id;
 
 					auto new_session =
-						std::make_shared<socks_session<>>(
-							std::move(socket), connection_id, self);
+						std::make_shared<socks_session>(
+							instantiate_socks_stream(std::move(socket)),
+								connection_id, self);
+
+					m_clients[connection_id] = new_session;
+
+					new_session->start();
+				}
+				else if (detect[0] == 0x16) // socks5 with ssl protocol.
+				{
+					LOG_DBG << "socks protocol: " << detect[0]
+						<< ", connection id: " << connection_id;
+
+					// instantiate socks stream with ssl context.
+					auto ssl_socks_stream = instantiate_socks_stream(
+						std::move(socket), m_ssl_context);
+
+					// get origin ssl stream type.
+					ssl_stream& ssl_socket =
+						boost::variant2::get<ssl_stream>(ssl_socks_stream);
+
+					// do async handshake.
+					co_await ssl_socket.async_handshake(
+						net::ssl::stream_base::server, uawaitable[error]);
+					if (error)
+					{
+						LOG_WARN << "ssl protocol handshake error: "
+							<< error.message();
+						continue;
+					}
+
+					// make socks session shared ptr.
+					auto new_session =
+						std::make_shared<socks_session>(
+							std::move(ssl_socks_stream), connection_id, self);
 					m_clients[connection_id] = new_session;
 
 					new_session->start();
@@ -1289,8 +1400,9 @@ Connection: close
 					// http protocol, return fake webpage.
 
 					auto new_session =
-						std::make_shared<socks_session<>>(
-							std::move(socket), connection_id, self);
+						std::make_shared<socks_session>(
+							instantiate_socks_stream(std::move(socket)),
+								connection_id, self);
 					m_clients[connection_id] = new_session;
 
 					new_session->start();
@@ -1305,8 +1417,10 @@ Connection: close
 		net::any_io_executor m_executor;
 		tcp::acceptor m_acceptor;
 		socks_server_option m_option;
-		using socks_session_weak_ptr = std::weak_ptr<socks_session<>>;
+		using socks_session_weak_ptr =
+			std::weak_ptr<socks_session>;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_clients;
+		net::ssl::context m_ssl_context{ net::ssl::context::sslv23 };
 		bool m_abort{ false };
 	};
 

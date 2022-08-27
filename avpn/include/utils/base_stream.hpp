@@ -7,21 +7,22 @@
 
 #pragma once
 
-#include <boost/variant.hpp>
+#include <boost/variant2.hpp>
 #include <boost/system/error_code.hpp>
 
 #include <boost/asio/socket_base.hpp>
 #include <boost/asio/any_io_executor.hpp>
+#include <boost/asio/ssl.hpp>
 
 namespace util {
 
 	template<typename... T>
-	class base_stream : public boost::variant<T...>
+	class base_stream : public boost::variant2::variant<T...>
 	{
 	public:
 		template <typename S>
 		explicit base_stream(S device)
-			: boost::variant<T...>(std::move(device))
+			: boost::variant2::variant<T...>(std::move(device))
 		{
 			static_assert(std::is_move_constructible<S>::value
 				, "must be move constructible");
@@ -38,7 +39,7 @@ namespace util {
 
 		net::any_io_executor get_executor()
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.get_executor(); }, *this);
 		}
 
@@ -48,7 +49,7 @@ namespace util {
 			async_read_some(const MutableBufferSequence& buffers,
 				ReadHandler&& handler)
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.async_read_some(buffers,
 					std::forward<ReadHandler>(handler)); }, *this);
 		}
@@ -59,14 +60,14 @@ namespace util {
 			async_write_some(const ConstBufferSequence& buffers,
 				WriteHandler&& handler)
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{ return t.async_write_some(buffers,
 					std::forward<WriteHandler>(handler)); }, *this);
 		}
 
 		tcp::endpoint remote_endpoint()
 		{
-			return boost::apply_visitor([&](auto& t) mutable
+			return boost::variant2::visit([&](auto& t) mutable
 				{
 					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
 					{
@@ -82,7 +83,7 @@ namespace util {
 		void shutdown(net::socket_base::shutdown_type what,
 			boost::system::error_code& ec)
 		{
-			boost::apply_visitor([&](auto& t) mutable
+			boost::variant2::visit([&](auto& t) mutable
 				{
 					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
 					{
@@ -97,7 +98,7 @@ namespace util {
 
 		void close(boost::system::error_code& ec)
 		{
-			boost::apply_visitor([&](auto& t) mutable
+			boost::variant2::visit([&](auto& t) mutable
 				{
 					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
 					{
@@ -110,4 +111,40 @@ namespace util {
 				}, *this);
 		}
 	};
+
+	using ssl_stream = net::ssl::stream<tcp::socket>;
+	using socks_stream_type = base_stream<tcp::socket, ssl_stream>;
+
+
+	inline socks_stream_type instantiate_socks_stream(
+		socks_stream_type& s)
+	{
+		return socks_stream_type(tcp::socket(s.get_executor()));
+	}
+
+	inline socks_stream_type instantiate_socks_stream(
+		net::any_io_executor executor)
+	{
+		return socks_stream_type(tcp::socket(executor));
+	}
+
+	inline socks_stream_type instantiate_socks_stream(
+		net::io_context& ioc)
+	{
+		return socks_stream_type(tcp::socket(ioc));
+	}
+
+	inline socks_stream_type instantiate_socks_stream(
+		tcp::socket&& s)
+	{
+		return socks_stream_type(std::move(s));
+	}
+
+	inline socks_stream_type instantiate_socks_stream(
+		tcp::socket&& s, net::ssl::context& sslctx)
+	{
+		return socks_stream_type(ssl_stream(
+			std::forward<tcp::socket>(s), sslctx));
+	}
+
 }

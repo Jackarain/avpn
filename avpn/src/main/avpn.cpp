@@ -48,25 +48,6 @@ namespace avpn {
 #endif
 	}
 
-	socks_stream_type instantiate_socks_stream(
-		net::io_context& ioc)
-	{
-		return socks_stream_type(tcp::socket(ioc));
-	}
-
-	socks_stream_type instantiate_socks_stream(
-		tcp::socket&& s)
-	{
-		return socks_stream_type(std::move(s));
-	}
-
-	socks_stream_type instantiate_socks_stream(
-		tcp::socket&& s, net::ssl::context& sslctx)
-	{
-		return socks_stream_type(ssl_stream(
-			std::forward<tcp::socket>(s), sslctx));
-	}
-
 	avpn_service::avpn_service(
 		io_context_pool& ios, const service_config& config)
 		: m_ioc_pool(ios)
@@ -1228,7 +1209,7 @@ namespace avpn {
 					<< ", connection id: " << connection_id;
 
 				socks_session_ptr new_session =
-					std::make_shared<socks_session_type>(
+					std::make_shared<socks::socks_session>(
 						instantiate_socks_stream(std::move(socket)),
 						connection_id,
 						self);
@@ -1249,7 +1230,7 @@ namespace avpn {
 
 				// get origin ssl stream type.
 				ssl_stream& ssl_socket =
-					boost::get<ssl_stream>(ssl_socks_stream);
+					boost::variant2::get<ssl_stream>(ssl_socks_stream);
 
 				// do async handshake.
 				co_await ssl_socket.async_handshake(
@@ -1263,7 +1244,7 @@ namespace avpn {
 
 				// make socks session shared ptr.
 				socks_session_ptr new_session =
-					std::make_shared<socks_session_type>(
+					std::make_shared<socks::socks_session>(
 						std::move(ssl_socks_stream),
 						connection_id,
 						self);
@@ -1285,7 +1266,7 @@ namespace avpn {
 
 				// make socks session shared ptr.
 				socks_session_ptr new_session =
-					std::make_shared<socks_session_type>(
+					std::make_shared<socks::socks_session>(
 						std::move(ssl_socks_stream),
 						connection_id,
 						self);

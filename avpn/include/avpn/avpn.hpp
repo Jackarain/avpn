@@ -11,8 +11,8 @@
 #include "avpn/fec_cache.hpp"
 #include "avpn/vpn_client_table.hpp"
 #include "avpn/endpoint_pair.hpp"
-#include "avpn/base_stream.hpp"
 
+#include "utils/base_stream.hpp"
 #include "utils/crypto.hpp"
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
@@ -166,9 +166,6 @@ namespace avpn {
 
 	class vpn_conntrack;
 	using vpn_conntrack_ptr = std::shared_ptr<vpn_conntrack>;
-
-	using ssl_stream = net::ssl::stream<tcp::socket>;
-	using socks_stream_type = base_stream<tcp::socket, ssl_stream>;
 
 	class avpn_service
 		: public socks_server_base
@@ -368,8 +365,6 @@ namespace avpn {
 			std::weak_ptr<socks_session_base>;
 		using socks_session_ptr =
 			std::shared_ptr<socks_session_base>;
-		using socks_session_type =
-			socks::socks_session<socks_stream_type>;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
 
 		// ssl context.

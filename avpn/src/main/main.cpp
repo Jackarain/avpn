@@ -186,6 +186,7 @@ int main(int argc, char** argv)
 	std::string socks_userid;
 	std::string socks_passwd;
 	std::string socks_next_proxy;
+	bool socks_next_proxy_ssl = false;
 	int data_shards;
 	int parity_shards;
 	int mode;
@@ -231,7 +232,8 @@ int main(int argc, char** argv)
 		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
 		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
-		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name("next socks server"), "Next socks4/5 proxy with client.")
+		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name("next socks server"), "Next socks4/5 proxy.")
+		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value("")->value_name("next socks server use ssl"), "Next socks4/5 proxy with ssl.")
 
 		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("ssl certificate dir"), "SSL certificate dir.")
 
@@ -453,6 +455,7 @@ int main(int argc, char** argv)
 		if (cfg.identity_ == avpn::Identity::avpn_client)
 		{
 			opt.next_proxy_ = socks_next_proxy;
+			opt.next_proxy_use_ssl_ = socks_next_proxy_ssl;
 
 			// 检查 next socks proxy地址格式是否正确.
 			// 如果是无效的地址则忽略.
@@ -464,7 +467,9 @@ int main(int argc, char** argv)
 			}
 		}
 
-		net::any_io_executor executor = ios.get_io_context().get_executor();
+		net::any_io_executor executor =
+			ios.get_io_context().get_executor();
+
 		auto server = std::make_shared<socks::socks_server>(
 			executor, endp, opt);
 		server->start();
