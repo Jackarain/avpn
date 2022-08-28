@@ -452,7 +452,8 @@ int main(int argc, char** argv)
 		opt.passwd_ = socks_passwd;
 		opt.bind_addr_ = socks_interface;
 
-		if (cfg.identity_ == avpn::Identity::avpn_client)
+		if (cfg.identity_ == avpn::Identity::avpn_client &&
+			!socks_next_proxy.empty())
 		{
 			opt.next_proxy_ = socks_next_proxy;
 			opt.next_proxy_use_ssl_ = socks_next_proxy_ssl;
