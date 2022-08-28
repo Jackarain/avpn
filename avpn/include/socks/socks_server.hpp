@@ -1156,9 +1156,10 @@ namespace socks {
 			co_return;
 		}
 
-		std::string fake_webpage()
+		const std::string& fake_webpage() const
 		{
-			return R"xxxxxx(HTTP/1.1 404 Not Found
+			static std::string fake_content =
+R"xxxxxx(HTTP/1.1 404 Not Found
 Server: nginx/1.20.2
 Content-Type: text/html
 Connection: close
@@ -1170,6 +1171,7 @@ Connection: close
 <center>nginx/1.20.2</center>
 </body>
 </html>)xxxxxx";
+			return fake_content;
 		}
 
 	private:
