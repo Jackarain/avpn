@@ -88,7 +88,8 @@ namespace avpn {
 		template <typename MutableBufferSequence, typename ReadHandler>
 		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
 			void(boost::system::error_code, std::size_t))
-		async_read_some(const MutableBufferSequence& buffers, ReadHandler&& handler)
+		async_read_some(
+			const MutableBufferSequence& buffers, ReadHandler&& handler)
 		{
 			return std::visit([&](auto& t) mutable
 				{ return t.async_read_some(buffers,
@@ -98,7 +99,8 @@ namespace avpn {
 		template <typename ConstBufferSequence, typename WriteHandler>
 		BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
 			void(boost::system::error_code, std::size_t))
-		async_write_some(const ConstBufferSequence& buffers, WriteHandler&& handler)
+		async_write_some(
+			const ConstBufferSequence& buffers, WriteHandler&& handler)
 		{
 			return std::visit([&](auto& t) mutable
 				{ return t.async_write_some(buffers,

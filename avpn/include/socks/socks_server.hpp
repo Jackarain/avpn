@@ -160,7 +160,7 @@ namespace socks {
 				}
 			}
 
-			auto self = this->shared_from_this();
+			auto self = shared_from_this();
 
 			net::co_spawn(m_local_socket.get_executor(),
 				[self, this]() -> net::awaitable<void>
@@ -182,7 +182,7 @@ namespace socks {
 		net::awaitable<void> start_socks_proxy()
 		{
 			// 保持整个生命周期在协程栈上.
-			auto self = this->shared_from_this();
+			auto self = shared_from_this();
 
 			// read
 			//  +----+----------+----------+
@@ -582,7 +582,7 @@ namespace socks {
 
 		net::awaitable<void> socks_connect_v4()
 		{
-			auto self = this->shared_from_this();
+			auto self = shared_from_this();
 			char* p = m_local_buffer.data();
 
 			[[maybe_unused]] auto socks_version = read<int8_t>(p);

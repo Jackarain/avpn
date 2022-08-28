@@ -69,7 +69,8 @@ namespace util {
 		{
 			return boost::variant2::visit([&](auto& t) mutable
 				{
-					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					if constexpr (std::same_as<tcp::socket,
+						std::decay_t<decltype(t)>>)
 					{
 						return t.remote_endpoint();
 					}
@@ -85,7 +86,8 @@ namespace util {
 		{
 			boost::variant2::visit([&](auto& t) mutable
 				{
-					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					if constexpr (std::same_as<tcp::socket,
+						std::decay_t<decltype(t)>>)
 					{
 						t.shutdown(what, ec);
 					}
@@ -100,7 +102,8 @@ namespace util {
 		{
 			boost::variant2::visit([&](auto& t) mutable
 				{
-					if constexpr (std::same_as<tcp::socket, std::decay_t<decltype(t)>>)
+					if constexpr (std::same_as<tcp::socket,
+						std::decay_t<decltype(t)>>)
 					{
 						t.close(ec);
 					}
