@@ -435,6 +435,9 @@ namespace avpn {
 			m_identity == Identity::avpn_server)
 			return Proto::avpn_tcp;
 
+		if (!m_tcp_ready)
+			return Proto::avpn_udp;
+
 		if ((params.mode_ == Proto::avpn_tcp ||
 			ipproto == Proto::avpn_mix) &&
 			m_tcp_deque.empty() &&
@@ -579,7 +582,16 @@ namespace avpn {
 
 		if (!m_tcp_ready)
 		{
-			LOG_WARN << "tcp_write_packet, tcp socket not ready";
+			static std::chrono::system_clock::time_point last_time;
+			auto cur_time = std::chrono::system_clock::now();
+			auto timeout = cur_time - last_time;
+
+			if (timeout > std::chrono::seconds(1))
+			{
+				last_time = cur_time;
+				LOG_WARN << "tcp_write_packet, tcp socket not ready";
+			}
+
 			co_return;
 		}
 
