@@ -130,8 +130,8 @@ target_link_libraries(avpn
 )
 
 if (MINGW)
-	target_compile_options(avpn PUBLIC "-Wa,-mbig-obj")
-	target_compile_options(libavpn PUBLIC "-Wa,-mbig-obj")
+	target_compile_options(avpn PUBLIC "-O2 -Wa,-mbig-obj")
+	target_compile_options(libavpn PUBLIC "-O2 -Wa,-mbig-obj")
 endif()
 
 set_target_properties(libavpn PROPERTIES OUTPUT_NAME avpn PREFIX "lib" CLEAN_DIRECT_OUTPUT 1)
