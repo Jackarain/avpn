@@ -121,10 +121,13 @@ ninja
 | identity |		指定avpn运行角色是server或client，avpn的客户端和服务器是同一程序，server或是client，主要由这个参数指定avpn的运行身份。|
 | tun |		指定tun虚拟网卡名称，在windows上为虚拟网卡的具体名字（有时需要注意空格，比如 "以太网 3" 中间的空格不能丢失），在类unix平台，avpn将会自动创建虚拟网卡，windows平台使用wintun同样也会自动创建虚拟网卡。|
 | upstream |		运行身份作为client时，这个参数指定了目标server和端口，目前版本实现由udp/tcp必须同时运行，所以需要同时指定udp和ws的地址和端口。如--upstream ws://example.com:33333 udp://example.com:33333|
+| passphrase |		作为server时，指定ecdh的私钥(base64编码)，作为client时，指定为server的ecdh公钥信息(base64编码)。client 本身的密钥对由系统自动随机生成，在握手时通过协议传输公钥到server。server 通过握手协议拿到client的公钥，及本参数指定的密钥对，协商出解密密钥。client 通过本参数指定的server的公钥，及自己生成的密钥对，协商出解密密钥。|
+| genkey |		随机生成一个base64编码的密钥（等同wg genkey）。|
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
 | socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
 | socks_userid<BR>socks_passwd |		指定socks server的userid/passwd。|
 | socks_next_proxy |		作为socks server时指定下一个socks server以实现client可跨过2层socks server的目的，这对client来说是无感的。|
+| socks_next_proxy_ssl |		指定socks_next_proxy时，与下一层socks server通信时是否采用ssl加密通信。|
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
 | data_shards <br> parity_shards |		这2个参数是fec参数，主要指定多少份data_shards和多少份parity_shards组成一组fec数据，也就是说，在发送data_shards份数据的同时，携带parity_shards份冗余数据。fec算法可以允许任意最多丢失parity_shards份数据。|
@@ -135,7 +138,7 @@ ninja
 | pushroute |		推送路由到client，当运行身份为server时，向client推送路由。一般格式为"TARGET MASK GATEWAY METRIC"，其中METRIC可省略，也可以使用CIDR格式，如："TARGET/32 GATEWAY METRIC"。|
 | pushdns |		推送DNS到client。|
 | passbyvpn |		通过server配置此参数，所有client将默认所有流量将通过server传输。|
-| noroute |		推送路由到client的所有路由将被忽略。|
+| noroute |		推送路由到client的所有路由和DNS将被忽略。|
 | subnet |		在服务端上指定虚拟的子网网段，默认为"10.0.0.1/16"。|
 | c2c |		是否允许client之间互相通过虚拟子网网络通信，默认是允许。|
 | controller |		指定控制器的，控制器是一个用于通过本地websocket服务控制avpn开启或关闭，或者获取网络速率的，比如在flutter中开启一个websocket服务，服务端口为5656，那么启动avpn的时候使用 --controller 5656就可以让avpn自动连接到flutter中的服务，flutter通过websocket连接控制avpn。|
