@@ -306,6 +306,25 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
+		if (vm.count("pubkey"))
+		{
+			std::string pkey;
+
+			for (std::string line; std::getline(std::cin, line);)
+				pkey += line;
+
+			pkey = base64_decode(pkey);
+			if (pkey.size() < 32)
+			{
+				std::cout << "Usage: avpn pubkey";
+				return EXIT_SUCCESS;
+			}
+
+			std::cout << base64_encode(crypto_util::ecdh_public(pkey)) << "\n";
+
+			return EXIT_SUCCESS;
+		}
+
 		std::vector<std::string> print_args;
 		print_args.assign(argv, argv + argc);
 		LOG_DBG << "Run: " << boost::algorithm::join(print_args, " ");

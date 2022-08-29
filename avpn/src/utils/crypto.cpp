@@ -35,6 +35,31 @@ namespace crypto_util {
 		return ret;
 	}
 
+	std::string ecdh_public(const std::string& pkey)
+	{
+		using namespace CryptoPP;
+
+		Base64Decoder decoder;
+		decoder.Put((byte*)pkey.data(), pkey.size());
+		decoder.MessageEnd();
+
+		SecByteBlock block;
+		auto size = decoder.MaxRetrievable();
+		if (size && size <= SIZE_MAX)
+		{
+			block.resize(size);
+			decoder.Get(block, size);
+		}
+
+		auto ecdh = CryptoPP::x25519(block);
+		std::string pubkey(ecdh.PublicKeyLength(), 0);
+
+		AutoSeededRandomPool prng;
+		ecdh.GeneratePublicKey(prng, block, (byte*)pubkey.data());
+
+		return pubkey;
+	}
+
 	struct keyexchange_member
 	{
 		keyexchange_member()
