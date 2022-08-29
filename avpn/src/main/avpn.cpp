@@ -1807,7 +1807,8 @@ namespace avpn {
 			if (!tunnel)
 			{
 				net::ip::address_v4 src_addr(src_vaddr);
-				LOG_WARN << "Not found client via udp: " << src_addr.to_string();
+				LOG_WARN << "Not found client via udp: "
+					<< src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 
