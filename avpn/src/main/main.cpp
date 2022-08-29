@@ -232,10 +232,10 @@ int main(int argc, char** argv)
 		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
 		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
-		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name("next socks server"), "Next socks4/5 proxy.")
-		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value("")->value_name("next socks server use ssl"), "Next socks4/5 proxy with ssl.")
+		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name(""), "Next socks4/5 proxy. (e.g: socks5://user:passwd@ip:port)")
+		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value(false, "false")->value_name(""), "Next socks4/5 proxy with ssl.")
 
-		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("ssl certificate dir"), "SSL certificate dir.")
+		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("path"), "SSL certificate dir.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
@@ -248,17 +248,17 @@ int main(int argc, char** argv)
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Keep alive(milliseconds) for tcp and udp.")
 
-		("noroute", po::value<bool>(&noroute)->value_name(" "), "Ignore server pushed routes")
+		("noroute", po::value<bool>(&noroute)->value_name(""), "Ignore server pushed routes")
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push nameserver to client.")
-		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(" "), "All IP network traffic originating on client machines to pass through the server.")
+		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(""), "All IP network traffic originating on client machines to pass through the server.")
 
 		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "VPN subnet.")
 		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow different clients to be able to see each other.")
 
 		("controller", po::value<std::string>(&controller)->default_value("")->value_name("ip:port"), "Controller, local controller server port.")
 
-		("disable_logs", po::value<bool>(&disable_logs)->value_name(" "), "Disable logs.")
+		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logs.")
 		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
 	;
 
