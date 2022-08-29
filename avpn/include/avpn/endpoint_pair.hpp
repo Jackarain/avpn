@@ -53,7 +53,8 @@ namespace std {
 
 namespace avpn {
 
-	// see https://www.iana.org/assignments/protocol-numbers/protocol-numbers.txt
+	// see this:
+	// https://www.iana.org/assignments/protocol-numbers/protocol-numbers.txt
 	enum ip_type
 	{
 		ip_tcp = 0x06,
@@ -288,13 +289,15 @@ namespace std
 
 namespace util {
 
-	inline logger___& operator<<(logger___& log, const avpn::endpoint_pair& endp)
+	inline logger___&
+	operator<<(logger___& log, const avpn::endpoint_pair& endp)
 	{
 		log << endp.to_string();
 		return log;
 	}
 
-	inline logger___& operator<<(logger___&& log, const avpn::endpoint_pair& endp)
+	inline logger___&
+	operator<<(logger___&& log, const avpn::endpoint_pair& endp)
 	{
 		log << endp.to_string();
 		return log;
