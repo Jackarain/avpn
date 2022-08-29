@@ -169,7 +169,9 @@ if (ENABLE_BUILD_WERROR)
 endif()
 
 if (WIN32 AND NOT MINGW)
-	SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
+	if (NOT CMAKE_CXX_FLAGS_DEBUG)
+		SET_TARGET_PROPERTIES(avpn PROPERTIES LINK_FLAGS " /MANIFESTUAC:\"level='requireAdministrator'\" /level='requireAdministrator'")
+	endif()
 endif()
 
 install(TARGETS avpn DESTINATION bin)
