@@ -25,7 +25,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
-#include <any>
+#include <tuple>
 #include <type_traits>
 
 
@@ -256,7 +256,8 @@ namespace asio_util {
 				// happy eyeballs detection
 				happy_eyeballs_detection(begin, end);
 
-				std::vector<std::pair<std::function<void()>, bool>> connectors;
+				using connector_type = std::tuple<std::function<void()>, bool>;
+				std::vector<connector_type> connectors;
 
 				for (; begin != end; begin++)
 				{
@@ -280,7 +281,7 @@ namespace asio_util {
 
 					auto v4 = begin->endpoint().address().is_v4();
 
-					connectors.emplace_back(std::make_pair(conn_func, v4));
+					connectors.emplace_back(connector_type{ conn_func, v4 });
 				}
 
 				for (auto& [conn_func, v4] : connectors)
