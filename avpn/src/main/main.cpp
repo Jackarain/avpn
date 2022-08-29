@@ -314,11 +314,11 @@ int main(int argc, char** argv)
 			for (std::string line; std::getline(std::cin, line);)
 				pkey += line;
 
-			pkey = base64_decode(pkey);
-			if (pkey.size() < 32)
+			auto priv_key = base64_decode(pkey);
+			if (priv_key.size() != 32)
 			{
-				std::cout << "Usage: avpn pubkey";
-				return EXIT_SUCCESS;
+				std::cerr << "Key is not the correct length or format";
+				return EXIT_FAILURE;
 			}
 
 			std::cout << base64_encode(crypto_util::ecdh_public(pkey)) << "\n";
