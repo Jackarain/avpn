@@ -901,7 +901,7 @@ namespace avpn {
 		auto& params = m_config.tunnel_params_;
 
 		// 根据server的推送信息配置网络.
-		if (!params.ignore_pushroute_ &&
+		if (!params.ignore_push_ &&
 			(m_push_params.passbyvpn_ &&
 			m_config.identity_ == Identity::avpn_client))
 		{
@@ -920,7 +920,7 @@ namespace avpn {
 					<< defgw_string << ", change faild!";
 		}
 
-		if (!params.ignore_pushroute_)
+		if (!params.ignore_push_)
 		{
 			for (auto& route : m_push_params.pushroutes_)
 			{
@@ -935,7 +935,7 @@ namespace avpn {
 			}
 		}
 
-		if (!params.ignore_pushroute_ &&
+		if (!params.ignore_push_ &&
 			(m_push_params.pushdns_ != 0 &&
 			m_config.identity_ == Identity::avpn_client))
 		{

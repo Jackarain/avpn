@@ -79,8 +79,8 @@ namespace avpn {
 		// nat, 否则可能无法通过vpn server上网.
 		bool passbyvpn_{ false };
 
-		// 作为client时, 是否忽略掉服务器推送的路由.
-		bool ignore_pushroute_ = { false };
+		// 作为client时, 是否忽略掉服务器推送的信息.
+		bool ignore_push_ = { false };
 
 		// server的IP地址.
 		std::string server_ip_;

@@ -248,7 +248,7 @@ int main(int argc, char** argv)
 
 		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Keep alive(milliseconds) for tcp and udp.")
 
-		("noroute", po::value<bool>(&noroute)->value_name(""), "Ignore server pushed routes")
+		("noroute", po::value<bool>(&noroute)->value_name(""), "Ignore server pushed routes&dns")
 		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push routes to client.")
 		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push nameserver to client.")
 		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(""), "All IP network traffic originating on client machines to pass through the server.")
@@ -387,7 +387,7 @@ int main(int argc, char** argv)
 	}
 	params.pushroutes_ = routes;
 	params.passbyvpn_ = passbyvpn;
-	params.ignore_pushroute_ = noroute;
+	params.ignore_push_ = noroute;
 	params.c2c_ = c2c;
 	params.subnet_ = subnet;
 
