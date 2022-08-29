@@ -46,11 +46,31 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_tcp_stream.hpp
 	include/avpn/chksum.hpp
 
-	include/utils/*.hpp
-	src/utils/*.cpp
+	include/utils/acl.hpp
+	include/utils/async_connect.hpp
+	include/utils/base_stream.hpp
+	include/utils/crypto.hpp
+	include/utils/fileop.hpp
+	include/utils/internal.hpp
+	include/utils/io_context_pool.hpp
+	include/utils/io.hpp
+	include/utils/logging.hpp
+	include/utils/misc.hpp
+	include/utils/scoped_exit.hpp
+	include/utils/uawaitable.hpp
+	include/utils/url_view.hpp
+	include/utils/xxhash.hpp
 
-	include/socks/*.hpp
-	src/socks/*.cpp
+	src/utils/acl.cpp
+	src/utils/crypto.cpp
+	src/utils/io_context_pool.cpp
+	src/utils/misc.cpp
+	src/utils/resolved_setdns.cpp
+
+	include/socks/socks_client.hpp
+	include/socks/socks_enums.hpp
+	include/socks/socks_error_code.hpp
+	include/socks/socks_server.hpp
 
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
@@ -137,7 +157,7 @@ if (ENABLE_BUILD_WERROR)
 	if (MSVC)
 		target_compile_options(avpn PRIVATE /W4 /WX)
 		target_compile_options(libavpn PRIVATE /W4 /WX)
-	elseif(UNIX AND NOT APPLE)
+	elseif (UNIX AND NOT APPLE)
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
 			target_compile_options(avpn PRIVATE -Werror -Wall -Wextra -Wno-unknown-pragmas -Wno-deprecated)
 			target_compile_options(libavpn PRIVATE -Werror -Wall -Wextra -Wno-unknown-pragmas -Wno-deprecated)
