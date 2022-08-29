@@ -153,8 +153,8 @@ namespace stream_endian {
 			return byte & ((1 << bit_count) - 1);
 		}
 
-		// Returns the highest (left-most) |bit_count| bits in |byte|, shifted to the
-		// lowest bits (to the right).
+		// Returns the highest (left-most) |bit_count| bits in |byte|, shifted
+		// to the lowest bits (to the right).
 		inline uint8_t HighestBits(uint8_t byte, size_t bit_count)
 		{
 			uint8_t shift = 8 - static_cast<uint8_t>(bit_count);
@@ -179,11 +179,12 @@ namespace stream_endian {
 			uint8_t mask =
 				// The number of bits we want, in the most significant bits...
 				static_cast<uint8_t>(0xFF << (8 - source_bit_count))
-				// ...shifted over to the target offset from the most signficant bit.
+				// ...shifted over to the target offset from the most signficant
+				// bit.
 				>> target_bit_offset;
 
-			// We want the target, with the bits we'll overwrite masked off, or'ed with
-			// the bits from the source we want.
+			// We want the target, with the bits we'll overwrite masked off,
+			// or'ed with the bits from the source we want.
 			return (target & ~mask) | (source >> target_bit_offset);
 		}
 
@@ -206,16 +207,20 @@ namespace stream_endian {
 
 	public:
 		inline bitstream(const uint8_t* bytes, size_t byte_count)
-			: bytes_(bytes), byte_count_(byte_count), writable_bytes_((uint8_t*)bytes)
+			: bytes_(bytes)
+			, byte_count_(byte_count)
+			, writable_bytes_((uint8_t*)bytes)
 		{}
 
 		inline bitstream(uint8_t* bytes, size_t byte_count)
 			: bytes_(bytes), byte_count_(byte_count), writable_bytes_(bytes)
 		{}
 
-		// Gets the current offset, in bytes/bits, from the start of the buffer. The
-		// bit offset is the offset into the current byte, in the range [0,7].
-		inline void GetCurrentOffset(size_t* out_byte_offset, size_t* out_bit_offset)
+		// Gets the current offset, in bytes/bits, from the start of the buffer.
+		// Thebit offset is the offset into the current byte, in the range
+		// [0,7].
+		inline void
+		GetCurrentOffset(size_t* out_byte_offset, size_t* out_bit_offset)
 		{
 			*out_byte_offset = byte_offset_;
 			*out_bit_offset = bit_offset_;
@@ -224,7 +229,8 @@ namespace stream_endian {
 		// The remaining bits in the byte buffer.
 		inline uint64_t RemainingBitCount() const
 		{
-			return (static_cast<uint64_t>(byte_count_) - byte_offset_) * 8 - bit_offset_;
+			return (static_cast<uint64_t>(byte_count_) - byte_offset_) * 8
+				- bit_offset_;
 		}
 
 		// Reads byte-sized values from the buffer. Returns false if there isn't
@@ -253,16 +259,16 @@ namespace stream_endian {
 			return ReadBits(val, sizeof(uint32_t) * 8);
 		}
 
-		// Reads bit-sized values from the buffer. Returns false if there isn't enough
-		// data left for the specified bit count..
+		// Reads bit-sized values from the buffer. Returns false if there isn't
+		// enough data left for the specified bit count..
 		inline bool ReadBits(uint32_t* val, size_t bit_count)
 		{
 			return PeekBits(val, bit_count) && ConsumeBits(bit_count);
 		}
 
-		// Peeks bit-sized values from the buffer. Returns false if there isn't enough
-		// data left for the specified number of bits. Doesn't move the current
-		// offset.
+		// Peeks bit-sized values from the buffer. Returns false if there isn't
+		// enough data left for the specified number of bits. Doesn't move the
+		// current offset.
 		inline bool PeekBits(uint32_t* val, size_t bit_count)
 		{
 			if (!val || bit_count > RemainingBitCount() || bit_count > 32)
@@ -270,18 +276,19 @@ namespace stream_endian {
 
 			const uint8_t* bytes = bytes_ + byte_offset_;
 			size_t remaining_bits_in_current_byte = 8 - bit_offset_;
-			uint32_t bits = LowestBits(*bytes++, remaining_bits_in_current_byte);
+			uint32_t bits = LowestBits(*bytes++,
+				remaining_bits_in_current_byte);
 
-			// If we're reading fewer bits than what's left in the current byte, just
-			// return the portion of this byte that we need.
+			// If we're reading fewer bits than what's left in the current byte,
+			// just return the portion of this byte that we need.
 			if (bit_count < remaining_bits_in_current_byte)
 			{
 				*val = HighestBits((uint8_t)bits, bit_offset_ + bit_count);
 				return true;
 			}
 
-			// Otherwise, subtract what we've read from the bit count and read as many
-			// full bytes as we can into bits.
+			// Otherwise, subtract what we've read from the bit count and read
+			// as many full bytes as we can into bits.
 			bit_count -= remaining_bits_in_current_byte;
 			while (bit_count >= 8)
 			{
@@ -289,8 +296,8 @@ namespace stream_endian {
 				bit_count -= 8;
 			}
 
-			// Whatever we have left is smaller than a byte, so grab just the bits we need
-			// and shift them into the lowest bits.
+			// Whatever we have left is smaller than a byte, so grab just the
+			// bits we need and shift them into the lowest bits.
 			if (bit_count > 0)
 			{
 				bits <<= bit_count;
@@ -305,21 +312,22 @@ namespace stream_endian {
 		// Exponential golomb values are encoded as:
 		// 1) x = source val + 1
 		// 2) In binary, write [countbits(x) - 1] 0s, then x
-		// To decode, we count the number of leading 0 bits, read that many + 1 bits,
-		// and increment the result by 1.
-		// Returns false if there isn't enough data left for the specified type, or if
-		// the value wouldn't fit in a uint32_t.
+		// To decode, we count the number of leading 0 bits, read that many + 1
+		// bits, and increment the result by 1.
+		// Returns false if there isn't enough data left for the specified type,
+		// or if the value wouldn't fit in a uint32_t.
 		inline bool ReadExponentialGolomb(uint32_t* val)
 		{
 			if (!val)
 				return false;
 
-			// Store off the current byte/bit offset, in case we want to restore them due
-			// to a failed parse.
+			// Store off the current byte/bit offset, in case we want to restore
+			// them due to a failed parse.
 			size_t original_byte_offset = byte_offset_;
 			size_t original_bit_offset = bit_offset_;
 
-			// Count the number of leading 0 bits by peeking/consuming them one at a time.
+			// Count the number of leading 0 bits by peeking/consuming them one
+			// at a time.
 			size_t zero_bit_count = 0;
 			uint32_t peeked_bit;
 			while (PeekBits(&peeked_bit, 1) && peeked_bit == 0)
@@ -328,11 +336,12 @@ namespace stream_endian {
 				ConsumeBits(1);
 			}
 
-			// We should either be at the end of the stream, or the next bit should be 1.
+			// We should either be at the end of the stream, or the next bit
+			// should be 1.
 
-			// The bit count of the value is the number of zeros + 1. Make sure that many
-			// bits fits in a uint32_t and that we have enough bits left for it, and then
-			// read the value.
+			// The bit count of the value is the number of zeros + 1. Make sure
+			// that many bits fits in a uint32_t and that we have enough bits
+			// left for it, and then read the value.
 			size_t value_bit_count = zero_bit_count + 1;
 			if (value_bit_count > 32 || !ReadBits(val, value_bit_count))
 			{
@@ -395,8 +404,8 @@ namespace stream_endian {
 			return true;
 		}
 
-		// Writes byte-sized values from the buffer. Returns false if there isn't
-		// enough data left for the specified type.
+		// Writes byte-sized values from the buffer. Returns false if there
+		// isn't enough data left for the specified type.
 		inline bool WriteUInt8(uint8_t val)
 		{
 			return WriteBits(val, sizeof(uint8_t) * 8);
@@ -412,8 +421,8 @@ namespace stream_endian {
 			return WriteBits(val, sizeof(uint32_t) * 8);
 		}
 
-		// Writes bit-sized values to the buffer. Returns false if there isn't enough
-		// room left for the specified number of bits.
+		// Writes bit-sized values to the buffer. Returns false if there isn't
+		// enough room left for the specified number of bits.
 		inline bool WriteBits(uint64_t val, size_t bit_count)
 		{
 			if (bit_count > RemainingBitCount())
@@ -421,24 +430,26 @@ namespace stream_endian {
 
 			size_t total_bits = bit_count;
 
-			// For simplicity, push the bits we want to read from val to the highest bits.
+			// For simplicity, push the bits we want to read from val to the
+			// highest bits.
 			val <<= (sizeof(uint64_t) * 8 - bit_count);
 
 			uint8_t* bytes = writable_bytes_ + byte_offset_;
 
-			// The first byte is relatively special; the bit offset to write to may put us
-			// in the middle of the byte, and the total bit count to write may require we
-			// save the bits at the end of the byte.
+			// The first byte is relatively special; the bit offset to write to
+			// may put us in the middle of the byte, and the total bit count to
+			// write may require we save the bits at the end of the byte.
 			size_t remaining_bits_in_current_byte = 8 - bit_offset_;
 			size_t bits_in_first_byte =
 				std::min(bit_count, remaining_bits_in_current_byte);
 			*bytes = WritePartialByte(
 				HighestByte(val), bits_in_first_byte, *bytes, bit_offset_);
 			if (bit_count <= remaining_bits_in_current_byte)
-				return ConsumeBits(total_bits);	// Nothing left to write, so quit early.
+				return ConsumeBits(total_bits);	// Nothing left to write, so
+												// quit early.
 
-			// Subtract what we've written from the bit count, shift it off the value, and
-			// write the remaining full bytes.
+			// Subtract what we've written from the bit count, shift it off the
+			// value, and write the remaining full bytes.
 			val <<= bits_in_first_byte;
 			bytes++;
 			bit_count -= bits_in_first_byte;
@@ -449,10 +460,11 @@ namespace stream_endian {
 				bit_count -= 8;
 			}
 
-			// Last byte may also be partial, so write the remaining bits from the top of
-			// val.
+			// Last byte may also be partial, so write the remaining bits from
+			// the top of val.
 			if (bit_count > 0)
-				*bytes = WritePartialByte(HighestByte(val), bit_count, *bytes, 0);
+				*bytes = WritePartialByte(HighestByte(val),
+					bit_count, *bytes, 0);
 
 			// All done! Consume the bits we've written.
 			return ConsumeBits(total_bits);
@@ -462,22 +474,23 @@ namespace stream_endian {
 		// Returns false if there isn't enough room left for the value.
 		inline bool WriteExponentialGolomb(uint32_t val)
 		{
-			// We don't support reading UINT32_MAX, because it doesn't fit in a uint32_t
-			// when encoded, so don't support writing it either.
+			// We don't support reading UINT32_MAX, because it doesn't fit in a
+			// uint32_t when encoded, so don't support writing it either.
 			if (val == std::numeric_limits<uint32_t>::max())
 				return false;
 
 			uint64_t val_to_encode = static_cast<uint64_t>(val) + 1;
 
-			// We need to write CountBits(val+1) 0s and then val+1. Since val (as a
-			// uint64_t) has leading zeros, we can just write the total golomb encoded
-			// size worth of bits, knowing the value will appear last.
+			// We need to write CountBits(val+1) 0s and then val+1. Since val
+			// (as a uint64_t) has leading zeros, we can just write the total
+			// golomb encoded size worth of bits, knowing the value will appear
+			// last.
 			return WriteBits(val_to_encode, CountBits(val_to_encode) * 2 - 1);
 		}
 
 		// Writes the signed exponential golomb version of the supplied value.
-		// Signed exponential golomb values are just the unsigned values mapped to the
-		// sequence 0, 1, -1, 2, -2, etc. in order.
+		// Signed exponential golomb values are just the unsigned values mapped
+		// to the sequence 0, 1, -1, 2, -2, etc. in order.
 		inline bool WriteSignedExponentialGolomb(int32_t val)
 		{
 			if (val == 0)

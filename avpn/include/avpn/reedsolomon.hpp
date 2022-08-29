@@ -44,7 +44,8 @@ namespace avpn {
 
 		matrix operator*(const matrix& m) const;
 		matrix operator+(const matrix& m) const;
-		matrix sub_matrix(size_t rmin, size_t cmin, size_t rmax, size_t cmax) const;
+		matrix sub_matrix(size_t rmin, size_t cmin,
+			size_t rmax, size_t cmax) const;
 
 		void swap_rows(size_t r1, size_t r2);
 		bool is_square() const;
@@ -132,6 +133,7 @@ namespace avpn {
 		int m_parity_shards;
 		const matrix m_matrix;
 		std::vector<std::vector<uint8_t>> m_parity_rows;
-		std::unique_ptr<codingloop> m_codingloop = std::make_unique<io_table_codingloop>();
+		std::unique_ptr<codingloop> m_codingloop =
+			std::make_unique<io_table_codingloop>();
 	};
 }

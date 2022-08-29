@@ -138,7 +138,8 @@ namespace logging_compress__ {
 		if (!out)
 			return false;
 		typedef typename std::remove_pointer<gzFile>::type gzFileType;
-		std::unique_ptr<gzFileType, decltype(&gzclose)> gz_closer(out, &gzclose);
+		std::unique_ptr<gzFileType,
+			decltype(&gzclose)> gz_closer(out, &gzclose);
 
 		FILE* in = fopen(infile.c_str(), "rb");
 		if (!in)
@@ -162,7 +163,8 @@ namespace logging_compress__ {
 			while (total < len) {
 				ret = gzwrite(out, buf + total, (unsigned)len - total);
 				if (ret <= 0) {
-					return false;	// detail error information see gzerror(out, &ret);
+					// detail error information see gzerror(out, &ret);
+					return false;
 				}
 				total += ret;
 			}
@@ -183,7 +185,9 @@ namespace logger_aux__ {
 
 		auto now = system_clock::now() -
 			system_clock::time_point(std::chrono::milliseconds(0));
-		return std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+
+		return std::chrono::duration_cast<
+			std::chrono::milliseconds>(now).count();
 	}
 
 	namespace internal {
@@ -237,22 +241,23 @@ namespace logger_aux__ {
 
 	inline uint32_t decode(uint32_t* state, uint32_t* codep, uint32_t byte)
 	{
-		static constexpr uint8_t utf8d[] = {
-			  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 00..1f
-			  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 20..3f
-			  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 40..5f
-			  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 60..7f
-			  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9, // 80..9f
-			  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7, // a0..bf
-			  8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, // c0..df
-			  0xa,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x4,0x3,0x3, // e0..ef
-			  0xb,0x6,0x6,0x6,0x5,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8, // f0..ff
-			  0x0,0x1,0x2,0x3,0x5,0x8,0x7,0x1,0x1,0x1,0x4,0x6,0x1,0x1,0x1,0x1, // s0..s0
-			  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1, // s1..s2
-			  1,2,1,1,1,1,1,2,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1, // s3..s4
-			  1,2,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,3,1,1,1,1,1,1, // s5..s6
-			  1,3,1,1,1,1,1,3,1,3,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // s7..s8
-		};
+		static constexpr uint8_t utf8d[] =
+{
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 00..1f
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 20..3f
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 40..5f
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 60..7f
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9, // 80..9f
+	7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7, // a0..bf
+	8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, // c0..df
+	0xa,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x4,0x3,0x3, // e0..ef
+	0xb,0x6,0x6,0x6,0x5,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8, // f0..ff
+	0x0,0x1,0x2,0x3,0x5,0x8,0x7,0x1,0x1,0x1,0x4,0x6,0x1,0x1,0x1,0x1, // s0..s0
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1, // s1..s2
+	1,2,1,1,1,1,1,2,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1, // s3..s4
+	1,2,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,3,1,1,1,1,1,1, // s5..s6
+	1,3,1,1,1,1,1,3,1,3,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // s7..s8
+};
 
 		uint32_t type = utf8d[byte];
 
@@ -302,17 +307,23 @@ namespace logger_aux__ {
 		for (i = 0, ix = static_cast<int>(str.size()); i < ix; i++)
 		{
 			c = (unsigned char)str[i];
-			//if (c==0x09 || c==0x0a || c==0x0d || (0x20 <= c && c <= 0x7e) ) n = 0; // is_printable_ascii
+			// is_printable_ascii
+			//if (c==0x09 || c==0x0a || c==0x0d ||
+			// (0x20 <= c && c <= 0x7e)) n = 0;
 			if (0x00 <= c && c <= 0x7f) n = 0; // 0bbbbbbb
 			else if ((c & 0xE0) == 0xC0) n = 1; // 110bbbbb
-			else if (c == 0xed && i < (ix - 1) && ((unsigned char)str[i + 1] & 0xa0) == 0xa0)
+			else if (c == 0xed && i < (ix - 1) &&
+				((unsigned char)str[i + 1] & 0xa0) == 0xa0)
 				return false; // U+d800 to U+dfff
 			else if ((c & 0xF0) == 0xE0) n = 2; // 1110bbbb
 			else if ((c & 0xF8) == 0xF0) n = 3; // 11110bbb
-			//else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
-			//else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
+			// 111110bb //byte 5, unnecessary in 4 byte UTF-8
+			//else if (($c & 0xFC) == 0xF8) n=4;
+			// 1111110b //byte 6, unnecessary in 4 byte UTF-8
+			//else if (($c & 0xFE) == 0xFC) n=5;
 			else return false;
-			for (j = 0; j < n && i < ix; j++)	// n bytes matching 10bbbbbb follow ?
+			// n bytes matching 10bbbbbb follow ?
+			for (j = 0; j < n && i < ix; j++)
 			{
 				if ((++i == ix) || (((unsigned char)str[i] & 0xC0) != 0x80))
 					return false;
@@ -456,7 +467,8 @@ public:
 		m_log_path = m_log_path / (LOG_APPNAME + std::string(".log"));
 		std::error_code ignore_ec;
 		if (!std::filesystem::exists(m_log_path, ignore_ec))
-			std::filesystem::create_directories(m_log_path.parent_path(), ignore_ec);
+			std::filesystem::create_directories(
+				m_log_path.parent_path(), ignore_ec);
 	}
 	~auto_logger_file__()
 	{
@@ -469,7 +481,8 @@ public:
 		m_log_path = path;
 		std::error_code ignore_ec;
 		if (!std::filesystem::exists(m_log_path, ignore_ec))
-			std::filesystem::create_directories(m_log_path.parent_path(), ignore_ec);
+			std::filesystem::create_directories(
+				m_log_path.parent_path(), ignore_ec);
 	}
 
 	std::string log_path() const
@@ -482,7 +495,8 @@ public:
 		m_disable_write = disable;
 	}
 
-	void write([[maybe_unused]] int64_t time, const char* str, std::streamsize size)
+	void write([[maybe_unused]] int64_t time,
+		const char* str, std::streamsize size)
 	{
 		if (m_disable_write)
 			return;
@@ -491,8 +505,10 @@ public:
 		auto hours = time / 1000 / 3600;
 		auto last_hours = m_last_time / 1000 / 3600;
 
-		if (static_cast<int>(m_log_size) > LOG_MAXFILE_SIZE && LOG_MAXFILE_SIZE > 0)
+		if (static_cast<int>(m_log_size) > LOG_MAXFILE_SIZE &&
+			LOG_MAXFILE_SIZE > 0)
 			condition = true;
+
 		if (last_hours != hours && LOG_MAXFILE_SIZE < 0)
 			condition = true;
 
@@ -512,12 +528,18 @@ public:
 
 			if constexpr (LOG_MAXFILE_SIZE <= 0) {
 				auto logfile = std::format("{:04d}{:02d}{:02d}-{:02d}.log",
-					ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_hour);
+					ptm->tm_year + 1900,
+					ptm->tm_mon + 1,
+					ptm->tm_mday,
+					ptm->tm_hour);
 				filename = logpath / logfile;
 			} else {
 				auto utc_time = std::mktime(ptm);
 				auto logfile = std::format("{:04d}{:02d}{:02d}-{}.log",
-					ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, utc_time);
+					ptm->tm_year + 1900,
+					ptm->tm_mon + 1,
+					ptm->tm_mday,
+					utc_time);
 				filename = logpath / logfile;
 			}
 
@@ -559,7 +581,8 @@ public:
 		if (!m_ofstream) {
 			m_ofstream.reset(new std::ofstream);
 			auto& ofstream = *m_ofstream;
-			ofstream.open(m_log_path.string().c_str(), std::ios_base::out | std::ios_base::app);
+			ofstream.open(m_log_path.string().c_str(),
+				std::ios_base::out | std::ios_base::app);
 			ofstream.sync_with_stdio(false);
 		}
 
@@ -579,13 +602,17 @@ private:
 };
 
 #ifndef DISABLE_LOGGER_THREAD_SAFE
-#define LOGGER_LOCKS_() std::lock_guard lock(logger_aux__::lock_single<std::mutex>())
+#define LOGGER_LOCKS_() std::lock_guard \
+	lock(logger_aux__::lock_single<std::mutex>())
 #else
 #define LOGGER_LOCKS_() ((void)0)
 #endif // LOGGER_THREAD_SAFE
 
 #ifndef LOGGER_DBG_VIEW_
-#if defined(WIN32) && (defined(LOGGER_DBG_VIEW) || defined(DEBUG) || defined(_DEBUG))
+#if defined(WIN32) && \
+	(defined(LOGGER_DBG_VIEW) || \
+	defined(DEBUG) || \
+	defined(_DEBUG))
 #define LOGGER_DBG_VIEW_(x)                \
 	do {                                   \
 		::OutputDebugStringW((x).c_str()); \
@@ -626,18 +653,25 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
 		GetConsoleScreenBufferInfo(handle_stdout, &csbi);
 		if (level == _logger_info_id__)
-			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN);
+			SetConsoleTextAttribute(handle_stdout,
+				FOREGROUND_GREEN);
 		else if (level == _logger_debug_id__)
-			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+			SetConsoleTextAttribute(handle_stdout,
+				FOREGROUND_GREEN | FOREGROUND_INTENSITY);
 		else if (level == _logger_warn_id__)
-			SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
+			SetConsoleTextAttribute(handle_stdout,
+				FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
 		else if (level == _logger_error_id__)
-			SetConsoleTextAttribute(handle_stdout, FOREGROUND_RED | FOREGROUND_INTENSITY);
+			SetConsoleTextAttribute(handle_stdout,
+				FOREGROUND_RED | FOREGROUND_INTENSITY);
 
-		WriteConsoleW(handle_stdout, title.data(), (DWORD)title.size(), nullptr, nullptr);
-		SetConsoleTextAttribute(handle_stdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE);
+		WriteConsoleW(handle_stdout,
+			title.data(), (DWORD)title.size(), nullptr, nullptr);
+		SetConsoleTextAttribute(handle_stdout,
+			FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE);
 
-		WriteConsoleW(handle_stdout, msg.data(), (DWORD)msg.size(), nullptr, nullptr);
+		WriteConsoleW(handle_stdout,
+			msg.data(), (DWORD)msg.size(), nullptr, nullptr);
 		SetConsoleTextAttribute(handle_stdout, csbi.wAttributes);
 	}
 #endif
@@ -651,13 +685,17 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 	{
 		std::string out;
 		if (level == _logger_info_id__)
-			std::format_to(std::back_inserter(out), "\033[32m{}\033[0m{}", prefix, message);
+			std::format_to(std::back_inserter(out),
+				"\033[32m{}\033[0m{}", prefix, message);
 		else if (level == _logger_debug_id__)
-			std::format_to(std::back_inserter(out), "\033[1;32m{}\033[0m{}", prefix, message);
+			std::format_to(std::back_inserter(out),
+				"\033[1;32m{}\033[0m{}", prefix, message);
 		else if (level == _logger_warn_id__)
-			std::format_to(std::back_inserter(out), "\033[1;33m{}\033[0m{}", prefix, message);
+			std::format_to(std::back_inserter(out),
+				"\033[1;33m{}\033[0m{}", prefix, message);
 		else if (level == _logger_error_id__)
-			std::format_to(std::back_inserter(out), "\033[1;31m{}\033[0m{}", prefix, message);
+			std::format_to(std::back_inserter(out),
+				"\033[1;31m{}\033[0m{}", prefix, message);
 		std::cout << out;
 		std::cout.flush();
 	}
@@ -665,7 +703,8 @@ inline void logger_output_console__([[maybe_unused]] bool disable_cout,
 }
 
 #ifdef USE_SYSTEMD_LOGGING
-inline void logger_output_systemd__(const int& level, const std::string& message) noexcept
+inline void logger_output_systemd__(
+	const int& level, const std::string& message) noexcept
 {
 	if (level == _logger_info_id__)
 		sd_journal_print(LOG_INFO, "%s", message.c_str());
@@ -699,16 +738,19 @@ inline const std::string& logger_level_string__(const int& level) noexcept
 }
 
 inline void logger_writer__(int64_t time, const int& level,
-	const std::string& message, [[maybe_unused]] bool disable_cout = false) noexcept
+	const std::string& message,
+	[[maybe_unused]] bool disable_cout = false) noexcept
 {
 	LOGGER_LOCKS_();
 	char ts[64] = { 0 };
 	[[maybe_unused]] auto ptm = logger_aux__::time_to_string(ts, time);
-	std::string prefix = ts + std::string(" [") + logger_level_string__(level) + std::string("]: ");
+	std::string prefix = ts + std::string(" [") +
+		logger_level_string__(level) + std::string("]: ");
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;
 #ifndef DISABLE_WRITE_LOGGING
-	util::logger_aux__::writer_single<util::auto_logger_file__>().write(time, whole.c_str(), whole.size());
+	util::logger_aux__::writer_single<
+		util::auto_logger_file__>().write(time, whole.c_str(), whole.size());
 #endif // !DISABLE_WRITE_LOGGING
 	logger_output_console__(disable_cout, level, prefix, tmp);
 #ifdef USE_SYSTEMD_LOGGING
@@ -743,7 +785,10 @@ namespace logger_aux__ {
 			std::string&& message, bool disable_cout = false)
 		{
 			net::post(m_io_thread,
-				[time = logger_aux__::gettime(), level, message = std::move(message), disable_cout]()
+				[time = logger_aux__::gettime(),
+				level,
+				message = std::move(message),
+				disable_cout]()
 				{
 					logger_writer__(time, level, message, disable_cout);
 				});
@@ -759,7 +804,9 @@ inline std::shared_ptr<logger_aux__::logger_internal> global_logger_obj___;
 
 inline void init_logging(bool use_async = true, const std::string& path = "")
 {
-	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
+	auto_logger_file__& file =
+		logger_aux__::writer_single<util::auto_logger_file__>();
+
 	if (!path.empty())
 		file.open(path.c_str());
 
@@ -771,7 +818,8 @@ inline void init_logging(bool use_async = true, const std::string& path = "")
 
 inline std::string log_path()
 {
-	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
+	auto_logger_file__& file =
+		logger_aux__::writer_single<util::auto_logger_file__>();
 	return file.log_path();
 }
 
@@ -791,7 +839,8 @@ inline void toggle_logging()
 
 inline void toggle_write_logging(bool disable)
 {
-	auto_logger_file__& file = logger_aux__::writer_single<util::auto_logger_file__>();
+	auto_logger_file__& file =
+		logger_aux__::writer_single<util::auto_logger_file__>();
 	file.logging(disable);
 }
 
@@ -824,9 +873,11 @@ public:
 			return;
 		std::string message = logger_aux__::string_utf8(out_);
 		if (global_logger_obj___)
-			global_logger_obj___->post_log(level_, std::move(message), disable_cout_);
+			global_logger_obj___->post_log(
+				level_, std::move(message), disable_cout_);
 		else
-			logger_writer__(logger_aux__::gettime(), level_, message, disable_cout_);
+			logger_writer__(logger_aux__::gettime(),
+				level_, message, disable_cout_);
 	}
 
 	template <class... Args>
@@ -834,7 +885,8 @@ public:
 	{
 		if (!global_logging___)
 			return *this;
-		out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+		out_ += std::vformat(fmt,
+			std::make_format_args(std::forward<Args>(args)...));
 		return *this;
 	}
 
@@ -978,9 +1030,11 @@ public:
 		if (!global_logging___)
 			return *this;
 		if (v.address().is_v6())
-			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
+			std::format_to(std::back_inserter(out_),
+				"[{}]:{}", v.address().to_string(), v.port());
 		else
-			std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+			std::format_to(std::back_inserter(out_),
+				"{}:{}", v.address().to_string(), v.port());
 		return *this;
 	}
 	inline logger___& operator<<(const net::ip::udp::endpoint& v)
@@ -988,9 +1042,11 @@ public:
 		if (!global_logging___)
 			return *this;
 		if (v.address().is_v6())
-			std::format_to(std::back_inserter(out_), "[{}]:{}", v.address().to_string(), v.port());
+			std::format_to(std::back_inserter(out_),
+				"[{}]:{}", v.address().to_string(), v.port());
 		else
-			std::format_to(std::back_inserter(out_), "{}:{}", v.address().to_string(), v.port());
+			std::format_to(std::back_inserter(out_),
+				"{}:{}", v.address().to_string(), v.port());
 		return *this;
 	}
 
@@ -1054,9 +1110,12 @@ public:
 		if (!global_logging___)
 			return *this;
 #if 0
-		std::format_to(std::back_inserter(out_), "{:04}", static_cast<int>(v));
+		std::format_to(std::back_inserter(out_),
+			"{:04}", static_cast<int>(v));
 #else
-		std::format_to(std::back_inserter(out_), "{:04}{}", static_cast<int>(v), logger_aux__::from_u8string(u8"年"));
+		std::format_to(std::back_inserter(out_),
+			"{:04}{}", static_cast<int>(v),
+				logger_aux__::from_u8string(u8"年"));
 #endif
 		return *this;
 	}
@@ -1101,9 +1160,12 @@ public:
 		if (!global_logging___)
 			return *this;
 #if 0
-		std::format_to(std::back_inserter(out_), "{:02}", static_cast<int>(v));
+		std::format_to(std::back_inserter(out_),
+			"{:02}", static_cast<int>(v));
 #else
-		std::format_to(std::back_inserter(out_), "{:02}{}", static_cast<unsigned int>(v), logger_aux__::from_u8string(u8"日"));
+		std::format_to(std::back_inserter(out_),
+			"{:02}{}", static_cast<unsigned int>(v),
+				logger_aux__::from_u8string(u8"日"));
 #endif
 		return *this;
 	}
@@ -1118,17 +1180,24 @@ public:
 			auto date = p.date().year_month_day();
 			auto time = p.time_of_day();
 
-			std::format_to(std::back_inserter(out_), "{:04}", static_cast<unsigned int>(date.year));
-			std::format_to(std::back_inserter(out_), "-{:02}", date.month.as_number());
-			std::format_to(std::back_inserter(out_), "-{:02}", date.day.as_number());
+			std::format_to(std::back_inserter(out_),
+				"{:04}", static_cast<unsigned int>(date.year));
+			std::format_to(std::back_inserter(out_),
+				"-{:02}", date.month.as_number());
+			std::format_to(std::back_inserter(out_),
+				"-{:02}", date.day.as_number());
 
-			std::format_to(std::back_inserter(out_), " {:02}", time.hours());
-			std::format_to(std::back_inserter(out_), ":{:02}", time.minutes());
-			std::format_to(std::back_inserter(out_), ":{:02}", time.seconds());
+			std::format_to(std::back_inserter(out_),
+				" {:02}", time.hours());
+			std::format_to(std::back_inserter(out_),
+				":{:02}", time.minutes());
+			std::format_to(std::back_inserter(out_),
+				":{:02}", time.seconds());
 
 			auto ms = time.total_milliseconds() % 1000;		// milliseconds.
 			if (ms != 0)
-				std::format_to(std::back_inserter(out_), ".{:03}", ms);
+				std::format_to(std::back_inserter(out_),
+					".{:03}", ms);
 		}
 		else
 		{
@@ -1162,7 +1231,8 @@ public:
 };
 } // namespace util
 
-#if (defined(DEBUG) || defined(_DEBUG) || defined(ENABLE_LOGGER)) && !defined(DISABLE_LOGGER)
+#if (defined(DEBUG) || defined(_DEBUG) || \
+	defined(ENABLE_LOGGER)) && !defined(DISABLE_LOGGER)
 
 #undef LOG_DBG
 #undef LOG_INFO
@@ -1182,11 +1252,16 @@ public:
 #define LOG_ERR util::logger___(util::_logger_error_id__)
 #define LOG_FILE util::logger___(util::_logger_file_id__, true)
 
-#define LOG_FMT(...) util::logger___(util::_logger_debug_id__).format_to(__VA_ARGS__)
-#define LOG_IFMT(...) util::logger___(util::_logger_info_id__).format_to(__VA_ARGS__)
-#define LOG_WFMT(...) util::logger___(util::_logger_warn_id__).format_to(__VA_ARGS__)
-#define LOG_EFMT(...) util::logger___(util::_logger_error_id__).format_to(__VA_ARGS__)
-#define LOG_FFMT(...) util::logger___(util::_logger_file_id__, true).format_to(__VA_ARGS__)
+#define LOG_FMT(...) util::logger___( \
+		util::_logger_debug_id__).format_to(__VA_ARGS__)
+#define LOG_IFMT(...) util::logger___( \
+		util::_logger_info_id__).format_to(__VA_ARGS__)
+#define LOG_WFMT(...) util::logger___( \
+		util::_logger_warn_id__).format_to(__VA_ARGS__)
+#define LOG_EFMT(...) util::logger___( \
+		util::_logger_error_id__).format_to(__VA_ARGS__)
+#define LOG_FFMT(...) util::logger___( \
+		util::_logger_file_id__, true).format_to(__VA_ARGS__)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
@@ -1194,14 +1269,20 @@ public:
 #define VLOG_ERR LOG_ERR << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_FILE LOG_FILE << "(" << __FILE__ << ":" << __LINE__ << "): "
 
-#define VLOG_FMT(...) (LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
-#define VLOG_IFMT(...) (LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
-#define VLOG_WFMT(...) (LOG_WARN << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
-#define VLOG_EFMT(...) (LOG_ERR << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
-#define VLOG_FFMT(...) (LOG_FILE << "(" << __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_FMT(...) (LOG_DBG << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_IFMT(...) (LOG_INFO << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_WFMT(...) (LOG_WARN << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_EFMT(...) (LOG_ERR << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define VLOG_FFMT(...) (LOG_FILE << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
 
 
-#define INIT_ASYNC_LOGGING() [[maybe_unused]] util::auto_init_async_logger ____init_logger____
+#define INIT_ASYNC_LOGGING() [[maybe_unused]] \
+		util::auto_init_async_logger ____init_logger____
 
 #else
 

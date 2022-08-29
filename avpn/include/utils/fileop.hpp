@@ -16,12 +16,14 @@
 
 namespace fileop {
 	namespace details {
+
 		inline void create_parent_directories(const std::filesystem::path& p)
 		{
 			std::error_code ec;
 			auto e = std::filesystem::exists(p, ec);
 			if (ec)
 				return;
+
 			if (!e)
 			{
 				if (!p.parent_path().empty())
@@ -33,47 +35,79 @@ namespace fileop {
 		}
 
 		template<class T>
-		std::streamsize write(std::streambuf& buf, const T& val) {
-			static_assert(std::is_standard_layout<T>{}, "data is not standard layout");
+		std::streamsize
+		write(std::streambuf& buf, const T& val)
+		{
+			static_assert(std::is_standard_layout<T>{},
+				"data is not standard layout");
+
 			std::streamsize bytes = sizeof(T);
 			return buf.sputn(reinterpret_cast<const char*>(&val), bytes);
 		}
-		inline std::streamsize write(std::streambuf& buf, const std::vector<uint8_t>& val) {
+
+		inline std::streamsize
+		write(std::streambuf& buf, const std::vector<uint8_t>& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
 		}
-		inline std::streamsize write(std::streambuf& buf, const std::string& val) {
+
+		inline std::streamsize
+		write(std::streambuf& buf, const std::string& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
 		}
-		inline std::streamsize write(std::streambuf& buf, const std::string_view& val) {
+
+		inline std::streamsize
+		write(std::streambuf& buf, const std::string_view& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
 		}
-		inline std::streamsize write(std::streambuf& buf, const std::span<uint8_t>& val) {
+
+		inline std::streamsize
+		write(std::streambuf& buf, const std::span<uint8_t>& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sputn(reinterpret_cast<const char*>(val.data()), bytes);
 		}
 
 		template<class T>
-		std::streamsize read(std::streambuf& buf, T& val) {
-			static_assert(std::is_standard_layout<T>{}, "data is not standard layout");
+		std::streamsize
+		read(std::streambuf& buf, T& val)
+		{
+			static_assert(std::is_standard_layout<T>{},
+				"data is not standard layout");
+
 			std::streamsize bytes = sizeof(T);
 			return buf.sgetn(reinterpret_cast<char*>(&val), bytes);
 		}
-		inline std::streamsize read(std::streambuf& buf, std::vector<uint8_t>& val) {
+
+		inline std::streamsize
+		read(std::streambuf& buf, std::vector<uint8_t>& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sgetn(reinterpret_cast<char*>(val.data()), bytes);
 		}
-		inline std::streamsize read(std::streambuf& buf, std::string& val) {
+
+		inline std::streamsize
+		read(std::streambuf& buf, std::string& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sgetn(reinterpret_cast<char*>(val.data()), bytes);
 		}
-		inline std::streamsize read(std::streambuf& buf, std::string_view& val) {
+
+		inline std::streamsize
+		read(std::streambuf& buf, std::string_view& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sgetn((char*)(val.data()), bytes);
 		}
-		inline std::streamsize read(std::streambuf& buf, std::span<uint8_t>& val) {
+
+		inline std::streamsize
+		read(std::streambuf& buf, std::span<uint8_t>& val)
+		{
 			std::streamsize bytes = val.size();
 			return buf.sgetn((char*)(val.data()), bytes);
 		}
