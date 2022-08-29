@@ -17,18 +17,19 @@ io_context_pool::io_context_pool(std::size_t pool_size)
 	if (pool_size == 0)
 		throw std::runtime_error("io_context_pool size is 0");
 
-	// Give all the io_contexts work to do so that their run() functions will not
-	// exit until they are explicitly stopped.
+	// Give all the io_contexts work to do so that their run() functions will
+	// not exit until they are explicitly stopped.
 	for (std::size_t i = 0; i < pool_size; ++i)
 	{
-		io_context_ptr io_context(new net::io_context(BOOST_ASIO_CONCURRENCY_HINT_UNSAFE_IO));
+		io_context_ptr io_context(
+			new net::io_context(BOOST_ASIO_CONCURRENCY_HINT_UNSAFE_IO));
 		work_ptr work(new net::io_context::work(*io_context));
 		io_contexts_.push_back(io_context);
 		work_.push_back(work);
 	}
 
-	// main_io_context_ do not have a worker on it, so main thread run() will exit
-	// if no more work left
+	// main_io_context_ do not have a worker on it, so main thread run() will
+	// exit if no more work left
 }
 
 void io_context_pool::run()
