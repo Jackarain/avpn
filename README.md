@@ -113,7 +113,7 @@ ninja
 ### 功能参数介绍
 <br>
 
-除config参数之外，所有参数均可在命令行或配置文件中，在下面一一解释各参数相关作用
+除config、genkey、pubkey参数之外，所有参数均可在命令行或配置文件中，在下面一一解释各参数相关作用
 
 |  参    数      | 用法解释  |
 |  --------      | -----    |
@@ -123,15 +123,16 @@ ninja
 | upstream |		运行身份作为client时，这个参数指定了目标server和端口，目前版本实现由udp/tcp必须同时运行，所以需要同时指定udp和ws的地址和端口。如--upstream ws://example.com:33333 udp://example.com:33333|
 | passphrase |		作为server时，指定ecdh的私钥(base64编码)，作为client时，指定为server的ecdh公钥信息(base64编码)。client 本身的密钥对由系统自动随机生成，在握手时通过协议传输公钥到server。server 通过握手协议拿到client的公钥，及本参数指定的密钥对，协商出解密密钥。client 通过本参数指定的server的公钥，及自己生成的密钥对，协商出解密密钥。|
 | genkey |		随机生成一个base64编码的密钥（等同wg genkey）。|
+| pubkey |		给定的一个私钥，计算它的公钥，私钥以base64编码并从stdin输入，公钥将以base64编码输出stdout，对应的私钥生成可使用genkey（等同wg）。|
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
 | socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
 | socks_userid<BR>socks_passwd |		指定socks server的userid/passwd。|
 | socks_next_proxy |		作为socks server时指定下一个socks server以实现client可跨过2层socks server的目的，这对client来说是无感的。|
 | socks_next_proxy_ssl |		指定socks_next_proxy时，与下一层socks server通信时是否采用ssl加密通信。|
+| ssl_certificate_dir |		作为socks server时，指定ssl证书目录，固定证书相关文件名为：ssl_crt.pem、ssl_key.pem、ssl_dh.pem、ssl_crt.pwd。|
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
 | data_shards <br> parity_shards |		这2个参数是fec参数，主要指定多少份data_shards和多少份parity_shards组成一组fec数据，也就是说，在发送data_shards份数据的同时，携带parity_shards份冗余数据。fec算法可以允许任意最多丢失parity_shards份数据。|
-| autofec |		自动化fec参数，暂未完成实现。|
 | mode |		数据发送模式，取值0: 只用 udp，1: tcp/udp 混合，2: 只用 tcp主要由这3种模式。如果udp模式，则在延迟上一般远小于tcp，但是在udp丢包特别严重的ISP网络环境中，tcp有时更有效率。|
 | compress |		启用数据压缩算法。|
 | keepalive |		设置心跳时间间隔，单位ms。|
@@ -143,4 +144,5 @@ ninja
 | c2c |		是否允许client之间互相通过虚拟子网网络通信，默认是允许。|
 | controller |		指定控制器的，控制器是一个用于通过本地websocket服务控制avpn开启或关闭，或者获取网络速率的，比如在flutter中开启一个websocket服务，服务端口为5656，那么启动avpn的时候使用 --controller 5656就可以让avpn自动连接到flutter中的服务，flutter通过websocket连接控制avpn。|
 | disable_logs |		关闭日志写入。|
+| writepid |		将pid写入指定的文件。|
 
