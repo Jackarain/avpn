@@ -160,14 +160,10 @@ namespace socks {
 
 }
 
-namespace boost {
-	namespace system {
-
-		template <>
-		struct is_error_code_enum<socks::errc::errc_t>
-		{
-			static const inline bool value = true;
-		};
-
-	} // namespace system
+namespace boost::system {
+	template <>
+	struct is_error_code_enum<socks::errc::errc_t>
+	{
+		static const inline bool value = true;
+	};
 } // namespace boost

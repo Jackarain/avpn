@@ -12,6 +12,8 @@
 
 #include "socks/socks_error_code.hpp"
 #include "socks/socks_enums.hpp"
+#include "socks/socks_io.hpp"
+
 #include "utils/uawaitable.hpp"
 
 #include <cstdlib>
@@ -35,6 +37,9 @@ namespace socks {
 
 	using net::ip::tcp;
 	using net::ip::udp;
+
+	using io_util::write;
+	using io_util::read;
 
 	enum {
 		socks5_version = 5,
@@ -61,31 +66,12 @@ namespace socks {
 
 	namespace detail {
 
-		template<typename type, typename source>
-		type read(source& p)
-		{
-			type ret = 0;
-			for (std::size_t i = 0; i < sizeof(type); i++)
-				ret = (ret << 8) | (static_cast<unsigned char>(*p++));
-			return ret;
-		}
-
-		template<typename type, typename target>
-		void write(type v, target& p)
-		{
-			for (auto i = (int)sizeof(type) - 1; i >= 0; i--, p++)
-				*p = static_cast<unsigned char>((v >> (i * 8)) & 0xff);
-		}
-
 		template <typename Stream>
 		net::awaitable<void> do_socks5(
 			Stream& socket,
 			socks_client_option opt,
 			boost::system::error_code& ec)
 		{
-			using detail::write;
-			using detail::read;
-
 			auto& username = opt.username;
 			auto& passwd = opt.password;
 			auto& hostname = opt.target_host;
@@ -392,9 +378,6 @@ namespace socks {
 			socks_client_option opt,
 			boost::system::error_code& ec)
 		{
-			using detail::write;
-			using detail::read;
-
 			auto& username = opt.username;
 			auto& hostname = opt.target_host;
 			auto& port = opt.target_port;

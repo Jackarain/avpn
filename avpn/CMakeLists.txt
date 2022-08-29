@@ -71,6 +71,7 @@ file(GLOB avpn_SRCS
 	include/socks/socks_enums.hpp
 	include/socks/socks_error_code.hpp
 	include/socks/socks_server.hpp
+	include/socks/socks_io.hpp
 
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp

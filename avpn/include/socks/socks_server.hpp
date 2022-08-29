@@ -19,6 +19,7 @@
 
 #include "socks/socks_enums.hpp"
 #include "socks/socks_client.hpp"
+#include "socks/socks_io.hpp"
 
 #include <memory>
 #include <string>
@@ -46,6 +47,9 @@ namespace socks {
 	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
 
 	using ssl_stream = net::ssl::stream<tcp::socket>;
+
+	using io_util::read;
+	using io_util::write;
 
 	// socks server 参数选项.
 	struct socks_server_option
@@ -97,23 +101,6 @@ namespace socks {
 	{
 		socks_session(const socks_session&) = delete;
 		socks_session& operator=(const socks_session&) = delete;
-
-		template<typename type, typename source>
-		type read(source& p)
-		{
-			type ret = 0;
-			for (std::size_t i = 0; i < sizeof(type); i++)
-				ret = (ret << 8) | (static_cast<unsigned char>(*p++));
-			return ret;
-		}
-
-		template<typename type, typename target>
-		void write(type v, target& p)
-		{
-			for (auto i = (int)sizeof(type) - 1; i >= 0; i--, p++)
-				*p = static_cast<unsigned char>((v >> (i * 8)) & 0xff);
-		}
-
 
 	public:
 		socks_session(socks_stream_type&& socket,
