@@ -226,6 +226,7 @@ int main(int argc, char** argv)
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
 		("genkey", "Generates a new private key and writes it to stdout.")
+		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
 
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
