@@ -20,6 +20,8 @@ CrossCompile:
   artifacts:
     paths:
       - build/bin
+    exclude:
+      - build/bin/avpn
 
 RunBoostTest:
   stage: test
