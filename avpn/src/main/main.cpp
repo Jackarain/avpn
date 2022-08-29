@@ -290,16 +290,6 @@ int main(int argc, char** argv)
 		if (disable_logs)
 			util::toggle_write_logging(true);
 
-		// 输出版本信息.
-		LOG_FILE << version_info();
-
-		// 帮助输出.
-		if (vm.count("help") || argc == 1)
-		{
-			std::cout << desc;
-			return EXIT_SUCCESS;
-		}
-
 		// 生成私钥.
 		if (vm.count("genkey"))
 		{
@@ -323,6 +313,16 @@ int main(int argc, char** argv)
 
 			std::cout << base64_encode(crypto_util::ecdh_public(pkey)) << "\n";
 
+			return EXIT_SUCCESS;
+		}
+
+		// 输出版本信息.
+		LOG_FILE << version_info();
+
+		// 帮助输出.
+		if (vm.count("help") || argc == 1)
+		{
+			std::cout << desc;
 			return EXIT_SUCCESS;
 		}
 
