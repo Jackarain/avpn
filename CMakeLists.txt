@@ -309,7 +309,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
-set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost EXCLUDE_FROM_ALL)
+set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost)
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
 ################################################################################
@@ -458,7 +458,6 @@ link_libraries(
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
 		${UTILS_LIBRARIES}
-		${SOCKS_LIBRARIES}
 )
 
 if (WIN32)
