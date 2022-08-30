@@ -16,6 +16,9 @@
 
 namespace util {
 
+	using tcp = net::ip::tcp;               // from <boost/asio/ip/tcp.hpp>
+	using udp = net::ip::udp;               // from <boost/asio/ip/udp.hpp>
+
 	template<typename... T>
 	class base_stream : public boost::variant2::variant<T...>
 	{
