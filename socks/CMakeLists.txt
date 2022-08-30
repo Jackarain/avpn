@@ -15,14 +15,12 @@ target_sources(socks
 target_include_directories(socks
 	INTERFACE
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
+
+	${Boost_INCLUDE_DIRS} # 上层传递的boost依赖库目录.
+	${UTILS_INCLUDE_DIRS} # 上层传递的utils依赖库目录.
 )
 
 set(SOCKS_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/include
-	PARENT_SCOPE
-)
-
-set(SOCKS_LIBRARIES
-	socks
 	PARENT_SCOPE
 )
