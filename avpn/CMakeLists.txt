@@ -46,33 +46,6 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_tcp_stream.hpp
 	include/avpn/chksum.hpp
 
-	include/utils/acl.hpp
-	include/utils/async_connect.hpp
-	include/utils/base_stream.hpp
-	include/utils/crypto.hpp
-	include/utils/fileop.hpp
-	include/utils/internal.hpp
-	include/utils/io_context_pool.hpp
-	include/utils/io.hpp
-	include/utils/logging.hpp
-	include/utils/misc.hpp
-	include/utils/scoped_exit.hpp
-	include/utils/uawaitable.hpp
-	include/utils/url_view.hpp
-	include/utils/xxhash.hpp
-
-	src/utils/acl.cpp
-	src/utils/crypto.cpp
-	src/utils/io_context_pool.cpp
-	src/utils/misc.cpp
-	src/utils/resolved_setdns.cpp
-
-	include/socks/socks_client.hpp
-	include/socks/socks_enums.hpp
-	include/socks/socks_error_code.hpp
-	include/socks/socks_server.hpp
-	include/socks/socks_io.hpp
-
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
 	src/main/reedsolomon.cpp

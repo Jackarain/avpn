@@ -1,0 +1,51 @@
+﻿cmake_minimum_required(VERSION 3.16)
+project(utils)
+
+add_library(utils STATIC)
+
+target_sources(utils
+	PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/acl.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/async_connect.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/base_stream.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/crypto.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/fileop.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/internal.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/io.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/io_context_pool.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/logging.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/misc.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/scoped_exit.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/uawaitable.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/url_view.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/xxhash.hpp
+
+	PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/src/acl.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/crypto.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/io_context_pool.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/misc.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/resolved_setdns.cpp
+)
+
+target_include_directories(utils
+	PUBLIC
+	${CMAKE_CURRENT_SOURCE_DIR}/include/
+)
+
+target_link_libraries(utils
+	Boost::asio
+	Boost::beast
+	cryptopp-static
+	fmt
+)
+
+set(UTILS_INCLUDE_DIRS
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+	PARENT_SCOPE
+)
+
+set(UTILS_LIBRARIES
+	utils
+	PARENT_SCOPE
+)

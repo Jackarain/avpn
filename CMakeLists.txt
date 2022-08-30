@@ -414,6 +414,11 @@ add_subdirectory(third_party/fmt)
 
 ################################################################################
 
+add_subdirectory(utils)
+add_subdirectory(socks)
+
+################################################################################
+
 add_subdirectory(third_party/zstd)
 set(ZSTD_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib)
 set(ZSTD_LIBRARIES zstd)
@@ -424,6 +429,8 @@ include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
 	${ZSTD_INCLUDE_DIRS}
 	${CRYPTOPP_INCLUDE_DIRS}
+	${UTILS_INCLUDE_DIRS}
+	${SOCKS_INCLUDE_DIRS}
 )
 
 ################################################################################
@@ -450,6 +457,8 @@ link_libraries(
 		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
 		${ZSTD_LIBRARIES}
+		${UTILS_LIBRARIES}
+		${SOCKS_LIBRARIES}
 )
 
 if (WIN32)

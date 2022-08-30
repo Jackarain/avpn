@@ -9,6 +9,7 @@
 //
 
 #include <memory>
+#include <cassert>
 #include <type_traits>
 
 #include <boost/asio/ip/address.hpp>
