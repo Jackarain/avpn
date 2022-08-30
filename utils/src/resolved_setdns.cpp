@@ -15,6 +15,8 @@
 #include <boost/asio.hpp>
 #include "utils/scoped_exit.hpp"
 
+namespace net = boost::asio;
+
 bool SetLinkDNSv4(int if_index, std::vector<net::ip::address_v4> dns_addrs)
 {
 	sd_bus* bus = NULL;
