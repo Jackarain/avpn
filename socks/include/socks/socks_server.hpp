@@ -882,6 +882,13 @@ namespace socks {
 				verify_passed =
 					srv_opt.usrdid_ == uname && srv_opt.passwd_ == passwd;
 				server.reset();
+
+				LOG_DBG << "socks id: " << m_connection_id
+					<< ", auth: " << srv_opt.usrdid_
+					<< " := " << uname
+					<< ", passwd: " << srv_opt.passwd_
+					<< " := " << passwd
+					<< ", client: " << client;
 			}
 
 			p = m_local_buffer.data();
@@ -912,7 +919,7 @@ namespace socks {
 				co_return false;
 			}
 
-			co_return true;
+			co_return verify_passed;
 		}
 
 		template<typename S1, typename S2>
