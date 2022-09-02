@@ -41,9 +41,6 @@ namespace avpn {
 		vpt_transfer_ack,
 
 		vpt_error,
-
-		vpt_esocks4 = 0x84,
-		vpt_esocks5 = 0x85,
 	};
 
 	enum
