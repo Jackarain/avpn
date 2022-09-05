@@ -69,6 +69,7 @@ namespace avpn {
 	{
 		if (m_abort)
 			return;
+
 		m_abort = true;
 		m_start = false;
 
