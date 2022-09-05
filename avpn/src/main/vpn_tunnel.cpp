@@ -45,6 +45,10 @@ namespace avpn {
 
 	vpn_tunnel::~vpn_tunnel()
 	{
+		auto serivce = m_serivce.lock();
+		if (serivce)
+			serivce->remove_tunnel(m_self_vaddr);
+
 		LOG_DBG << "vpn_tunnel::~vpn_tunnel, this: " << this;
 	}
 

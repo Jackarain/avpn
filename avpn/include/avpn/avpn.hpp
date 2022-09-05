@@ -190,7 +190,8 @@ namespace avpn {
 			make_avpn_service(io_context_pool&, avpn::service_config);
 		virtual ~avpn_service();
 
-		virtual void remove_client(size_t id) override;
+		// socks server相关.
+		virtual void remove_socks_client(size_t id) override;
 		virtual const socks::socks_server_option& option() override;
 
 	public:
@@ -210,6 +211,9 @@ namespace avpn {
 
 		// service config.
 		const service_config& config() const;
+
+		// remove vpn_tunnel.
+		void remove_tunnel(uint32_t);
 
 	private:
 		// 初始化ssl context.

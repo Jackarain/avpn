@@ -80,7 +80,7 @@ namespace socks {
 	class socks_server_base {
 	public:
 		virtual ~socks_server_base() {}
-		virtual void remove_client(size_t id) = 0;
+		virtual void remove_socks_client(size_t id) = 0;
 		virtual const socks_server_option& option() = 0;
 	};
 
@@ -119,7 +119,7 @@ namespace socks {
 			if (!server)
 				return;
 
-			server->remove_client(m_connection_id);
+			server->remove_socks_client(m_connection_id);
 		}
 
 	public:
@@ -1266,7 +1266,7 @@ Connection: close
 		}
 
 	private:
-		virtual void remove_client(size_t id) override
+		virtual void remove_socks_client(size_t id) override
 		{
 			m_clients.erase(id);
 		}

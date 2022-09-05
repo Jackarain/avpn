@@ -78,7 +78,7 @@ namespace avpn {
 		LOG_DBG << "avpn_service::~avpn_service()";
 	}
 
-	void avpn_service::remove_client(size_t id)
+	void avpn_service::remove_socks_client(size_t id)
 	{
 		m_socks_clients.erase(id);
 	}
@@ -201,6 +201,11 @@ namespace avpn {
 	const avpn::service_config& avpn_service::config() const
 	{
 		return m_config;
+	}
+
+	void avpn_service::remove_tunnel(uint32_t vaddr)
+	{
+		m_clients.remove(vaddr);
 	}
 
 	void avpn_service::init_ssl_context()
