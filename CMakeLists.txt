@@ -6,6 +6,8 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 project(avpn)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 ################################################################################
 
 string(TIMESTAMP VERSION_YEAR "%Y")
@@ -448,7 +450,6 @@ link_libraries(
 		Boost::thread
 		Boost::date_time
 		Boost::program_options
-		Boost::regex
 		Boost::json
 
 		fmt
