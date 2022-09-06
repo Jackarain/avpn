@@ -11,6 +11,7 @@
 #include <memory>
 #include <cassert>
 #include <type_traits>
+#include <vector>
 
 #include <boost/asio/ip/address.hpp>
 
