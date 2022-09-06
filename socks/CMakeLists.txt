@@ -4,7 +4,7 @@ project(socks)
 add_library(socks INTERFACE)
 
 target_sources(socks
-	PRIVATE
+	INTERFACE
 	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_client.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_enums.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_error_code.hpp
