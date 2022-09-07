@@ -403,6 +403,7 @@ namespace avpn {
 				LOG_INFO << this << ", C: " << m_num_corrected
 					<< ", W: " << m_num_incorrect
 					<< ", E: " << m_num_expired
+					<< ", I: " << m_fec_group_id
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
@@ -832,6 +833,11 @@ namespace avpn {
 
 		BOOST_ASSERT(gid > 0);
 		BOOST_ASSERT(pid < shards);
+
+		if (std::abs(static_cast<std::intmax_t>(m_fec_group_id - gid)) < 1000)
+			m_fec_group_id = gid;
+		else
+			m_fec_group_id = std::max(gid, m_fec_group_id);
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
