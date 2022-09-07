@@ -894,6 +894,8 @@ namespace avpn {
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
 		{
+			m_num_received++;
+
 			if (pid < m_peer_ds || m_peer_ds == 1)
 				co_await write_pkt(pkt);
 
@@ -1013,6 +1015,8 @@ namespace avpn {
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
 		{
+			m_num_received++;
+
 			if (pid < m_peer_ds || m_peer_ds == 1)
 				co_await write_pkt(pkt);
 
