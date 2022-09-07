@@ -1001,14 +1001,6 @@ namespace avpn {
 			co_return;
 		};
 
-		// 对方没启用fec.
-		if (m_peer_ds == 1)
-		{
-			if (pid < m_peer_ds)
-				co_await write_pkt(pkt);
-			co_return;
-		}
-
 		// 更新fec recover.
 		auto [whole, expired] = m_recover.update(
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
