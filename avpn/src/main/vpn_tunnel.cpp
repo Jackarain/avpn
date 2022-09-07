@@ -417,6 +417,8 @@ namespace avpn {
 				continue;
 
 			auto keepalive = m_config.tunnel_params_.keepalive_ / 1000;
+			if (keepalive == 0)
+				keepalive = 1;
 			if (tick_interval % keepalive == 0)
 			{
 				// keepalive, 随机使用tcp/udp发送.

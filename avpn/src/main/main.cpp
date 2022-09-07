@@ -399,7 +399,7 @@ int main(int argc, char** argv)
 	params.parity_shards_ = parity_shards;
 	params.mode_ = static_cast<avpn::Proto>(mode);
 	params.compress_ = compress;
-	params.keepalive_ = keepalive;
+	params.keepalive_ = keepalive < 1000 ? 1000 : keepalive;
 	if (!pushdns.empty())
 	{
 		auto dns = net::ip::address_v4::from_string(pushdns);
