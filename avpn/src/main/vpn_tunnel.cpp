@@ -200,6 +200,20 @@ namespace avpn {
 		else
 			m_feg.make_fec_normal(pkt, m_self_vaddr);
 
+		// 从fec编码缓冲中获取已经fec编码.
+		std::vector<vpn_packet_ptr> paritys;
+		if (params.data_shards_ > 1)
+		{
+			for (int i = m_feg.ds_; i < m_feg.shards_; i++)
+			{
+				auto p = std::move(m_feg.pkts_[i]);
+				if (!p)
+					break;
+
+				paritys.emplace_back(std::move(p));
+			}
+		}
+
 		// 重复发送模式.
 		if (params.data_shards_ == 1)
 		{
@@ -220,9 +234,10 @@ namespace avpn {
 				compute_speed(m_upload_stat, dup->size());
 
 				net::co_spawn(m_io_context,
-					[this, self, dup]() mutable->net::awaitable<void>
+					[this, self, pkt = std::move(dup)]
+					() mutable->net::awaitable<void>
 					{
-						co_await internal_write_pkt(dup);
+						co_await internal_write_pkt(pkt);
 						co_return;
 					}, net::detached);
 			}
@@ -232,7 +247,8 @@ namespace avpn {
 
 		// 发送pkt到对方.
 		net::co_spawn(m_io_context,
-			[this, self, pkt]() mutable->net::awaitable<void>
+			[this, self, pkt = std::move(pkt)]
+			() mutable->net::awaitable<void>
 			{
 				co_await internal_write_pkt(pkt);
 				co_return;
@@ -241,17 +257,10 @@ namespace avpn {
 		// 计算上行速率.
 		compute_speed(m_upload_stat, pkt->size());
 
-		// fec编码, 如果成功编码, 则需要发送编码部分.
-		if (!m_feg.has_fec_data())
-			co_return;
-
-		// 循环发送已编码部分.
-		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
+		// 循环发送已FEC编码部分.
+		for (auto& p : paritys)
 		{
-			auto p = std::move(m_feg.pkts_[i]);
-			BOOST_ASSERT(p && "p == nullptr");
-			if (!p)
-				continue;
+			BOOST_ASSERT(p != nullptr && "tun_forward");
 
 			// 发送到对方.
 			co_await internal_write_pkt(p);
@@ -530,7 +539,7 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::internal_write_pkt(vpn_packet_ptr pkt)
 	{
-		BOOST_ASSERT(pkt && "pkt == nullptr");
+		BOOST_ASSERT(pkt != nullptr && "internal_write_pkt");
 
 		auto pick = cherry_pick();
 
@@ -838,8 +847,8 @@ namespace avpn {
 			co_return;
 		}
 
-		BOOST_ASSERT(gid > 0);
-		BOOST_ASSERT(pid < shards);
+		BOOST_ASSERT(gid > 0 && "on_vpn_transfer");
+		BOOST_ASSERT(pid < shards && "on_vpn_transfer");
 
 		if (std::abs(static_cast<std::intmax_t>(m_fec_group_id - gid)) < 1000)
 			m_fec_group_id = gid;
@@ -924,7 +933,7 @@ namespace avpn {
 
 		// 运行到这里如果触发断言, 则表示 recover 在处理
 		// 对方重复发送模式时有问题.
-		BOOST_ASSERT(m_peer_ds != 1);
+		BOOST_ASSERT(m_peer_ds != 1 && "on_vpn_transfer");
 
 		// 获取fec解码恢复的ip包, 并write到tun设备.
 		auto results = m_recover.acquire();
@@ -960,8 +969,9 @@ namespace avpn {
 		if (!dst_ptr)
 			co_return;
 
-		BOOST_ASSERT(gid > 0);
-		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps));
+		BOOST_ASSERT(gid > 0 && "on_vpn_transfer_compress");
+		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps)
+			&& "on_vpn_transfer_compress");
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
@@ -1037,7 +1047,7 @@ namespace avpn {
 
 		// 运行到这里如果触发断言, 则表示 recover 在处理
 		// 对方重复发送模式时有问题.
-		BOOST_ASSERT(m_peer_ds != 1);
+		BOOST_ASSERT(m_peer_ds != 1 && "on_vpn_transfer_compress");
 
 		// 获取fec解码恢复的ip包, 并write到tun设备.
 		auto results = m_recover.acquire();
