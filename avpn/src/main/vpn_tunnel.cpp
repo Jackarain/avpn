@@ -412,17 +412,19 @@ namespace avpn {
 				auto duration = std::chrono::nanoseconds(m_rtt);
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
-				LOG_INFO << this << ", C: " << m_num_corrected
-					<< ", W: " << m_num_incorrect
-					<< ", E: " << m_num_expired
-					<< ", G: " << m_fec_group_id
-					<< ", R: " << m_num_received
-					<< ", TX: " << m_num_send_packet
-					<< ", RX: " << m_num_recv_packet
-					<< ", D: " << m_down_stat.rate_
-					<< ", U: " << m_upload_stat.rate_
-					<< ", RTT: " << t.count()
-					<< "ms";
+				LOG_IFMT("{}, {}c, {}w, {}e, {}g, {}r"
+					", {}tx, {}rx, {}d, {}u, {}rtt",
+					static_cast<const void*>(this),
+					m_num_corrected,
+					m_num_incorrect,
+					m_num_expired,
+					m_fec_group_id,
+					m_num_received,
+					m_num_send_packet,
+					m_num_recv_packet,
+					m_down_stat.rate_,
+					m_upload_stat.rate_,
+					t.count());
 			}
 
 			if (m_identity == Identity::avpn_server)
