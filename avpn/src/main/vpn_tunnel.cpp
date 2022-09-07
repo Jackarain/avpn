@@ -404,6 +404,7 @@ namespace avpn {
 					<< ", W: " << m_num_incorrect
 					<< ", E: " << m_num_expired
 					<< ", I: " << m_fec_group_id
+					<< ", R: " << m_num_received
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
