@@ -93,7 +93,7 @@ namespace avpn {
 				boost::system::error_code ec;
 				m_tick_timer.cancel(ec);
 
-				if (m_tcp_socket.is_open())
+				if (m_tcp_ready)
 					m_tcp_socket.close(ec);
 
 				m_tcp_deque = {};
@@ -248,7 +248,7 @@ namespace avpn {
 		// 循环发送已编码部分.
 		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
 		{
-			auto p = m_feg.pkts_[i];
+			auto p = std::move(m_feg.pkts_[i]);
 
 			// 发送到对方.
 			co_await internal_write_pkt(p);
@@ -440,8 +440,7 @@ namespace avpn {
 		auto& params = m_config.tunnel_params_;
 		auto ipproto = m_ipproto;
 
-		if (m_remote_endpoint.port() == 0 &&
-			m_identity == Identity::avpn_server)
+		if (m_remote_endpoint.port() == 0)
 			return Proto::avpn_tcp;
 
 		if (!m_tcp_ready)
