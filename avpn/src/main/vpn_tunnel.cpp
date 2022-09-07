@@ -249,6 +249,9 @@ namespace avpn {
 		for (int i = m_feg.ds_; i < m_feg.shards_; i++)
 		{
 			auto p = std::move(m_feg.pkts_[i]);
+			BOOST_ASSERT(p && "p == nullptr");
+			if (!p)
+				continue;
 
 			// 发送到对方.
 			co_await internal_write_pkt(p);
