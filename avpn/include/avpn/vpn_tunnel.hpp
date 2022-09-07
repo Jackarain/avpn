@@ -185,6 +185,7 @@ namespace avpn {
 		// fec纠错相关统计信息.
 		int m_num_corrected{ 0 };
 		int m_num_incorrect{ 0 };
+		int m_num_expired{ 0 };
 
 		// 网络统计信息.
 		int m_num_send_packet{ 0 };

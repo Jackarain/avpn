@@ -400,8 +400,9 @@ namespace avpn {
 				auto duration = std::chrono::nanoseconds(m_rtt);
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
-				LOG_INFO << this << ", CORR: " << m_num_corrected
-					<< ", WNG: " << m_num_incorrect
+				LOG_INFO << this << ", C: " << m_num_corrected
+					<< ", W: " << m_num_incorrect
+					<< ", E: " << m_num_expired
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
 					<< ", D: " << m_down_stat.rate_
@@ -897,6 +898,7 @@ namespace avpn {
 		}
 		else
 		{
+			m_num_expired++;
 			co_return;
 		}
 
@@ -1015,6 +1017,7 @@ namespace avpn {
 		}
 		else
 		{
+			m_num_expired++;
 			co_return;
 		}
 
