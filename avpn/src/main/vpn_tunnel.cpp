@@ -230,13 +230,13 @@ namespace avpn {
 						m_feg.make_fec_normal(dup, m_self_vaddr);
 				}
 
-				// 计算上行速率.
-				compute_speed(m_upload_stat, dup->size());
-
 				net::co_spawn(m_io_context,
 					[this, self, pkt = std::move(dup)]
 					() mutable->net::awaitable<void>
 					{
+						// 计算上行速率.
+						compute_speed(m_upload_stat, pkt->size());
+
 						co_await internal_write_pkt(pkt);
 						co_return;
 					}, net::detached);
@@ -250,12 +250,12 @@ namespace avpn {
 			[this, self, pkt = std::move(pkt)]
 			() mutable->net::awaitable<void>
 			{
+				// 计算上行速率.
+				compute_speed(m_upload_stat, pkt->size());
+
 				co_await internal_write_pkt(pkt);
 				co_return;
 			}, net::detached);
-
-		// 计算上行速率.
-		compute_speed(m_upload_stat, pkt->size());
 
 		// 循环发送已FEC编码部分.
 		for (auto& p : paritys)
