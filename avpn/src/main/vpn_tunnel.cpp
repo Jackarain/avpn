@@ -406,7 +406,7 @@ namespace avpn {
 				LOG_INFO << this << ", C: " << m_num_corrected
 					<< ", W: " << m_num_incorrect
 					<< ", E: " << m_num_expired
-					<< ", I: " << m_fec_group_id
+					<< ", G: " << m_fec_group_id
 					<< ", R: " << m_num_received
 					<< ", TX: " << m_num_send_packet
 					<< ", RX: " << m_num_recv_packet
