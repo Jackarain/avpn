@@ -530,6 +530,8 @@ namespace avpn {
 
 	net::awaitable<void> vpn_tunnel::internal_write_pkt(vpn_packet_ptr pkt)
 	{
+		BOOST_ASSERT(pkt && "pkt == nullptr");
+
 		auto pick = cherry_pick();
 
 		if (pick == Proto::avpn_tcp)
