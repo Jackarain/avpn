@@ -255,7 +255,7 @@ namespace avpn {
 		bool init_acceptors();
 
 		// 作为client时, 根据连接协议筛选出server信息.
-		net::awaitable<void> make_endpoint(std::string protocol);
+		net::awaitable<void> make_endpoint(std::string);
 
 		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
