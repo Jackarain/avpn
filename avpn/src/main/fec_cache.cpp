@@ -121,7 +121,7 @@ namespace avpn
 
 		if (ds_ == 1)
 		{
-			return std::move(paritys);
+			return paritys;
 		}
 
 		for (int i = ds_; i < shards_; i++)
@@ -133,7 +133,7 @@ namespace avpn
 			paritys.emplace_back(std::move(p));
 		}
 
-		return std::move(paritys);
+		return paritys;
 	}
 
 	void fec_encode_group::make_fec_normal(vpn_packet_ptr& pkt, uint32_t src)
@@ -523,6 +523,8 @@ namespace avpn
 
 	std::vector<vpn_packet_ptr> fec_recover::acquire()
 	{
+		// 必须调用 std::move 以清空recover的结果
+		// 避免被重复获取.
 		return std::move(results_);
 	}
 }
