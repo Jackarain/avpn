@@ -115,9 +115,25 @@ namespace avpn
 		pg.index_ = 0;
 	}
 
-	bool fec_encode_group::has_fec_data() const
+	std::vector<avpn::vpn_packet_ptr> fec_encode_group::acquire()
 	{
-		return !!pkts_[ds_];
+		std::vector<avpn::vpn_packet_ptr> paritys;
+
+		if (ds_ == 1)
+		{
+			return std::move(paritys);
+		}
+
+		for (int i = ds_; i < shards_; i++)
+		{
+			auto p = std::move(pkts_[i]);
+			if (!p)
+				break;
+
+			paritys.emplace_back(std::move(p));
+		}
+
+		return std::move(paritys);
 	}
 
 	void fec_encode_group::make_fec_normal(vpn_packet_ptr& pkt, uint32_t src)

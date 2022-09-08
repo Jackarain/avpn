@@ -93,7 +93,7 @@ namespace avpn {
 
 	public:
 		// 判断是否存储已编码的fec数据.
-		bool has_fec_data() const;
+		std::vector<vpn_packet_ptr> acquire();
 
 		// 生成正常fec数据.
 		void make_fec_normal(vpn_packet_ptr& pkt, uint32_t src);

@@ -201,18 +201,7 @@ namespace avpn {
 			m_feg.make_fec_normal(pkt, m_self_vaddr);
 
 		// 从fec编码缓冲中获取已经fec编码.
-		std::vector<vpn_packet_ptr> paritys;
-		if (params.data_shards_ > 1)
-		{
-			for (int i = m_feg.ds_; i < m_feg.shards_; i++)
-			{
-				auto p = std::move(m_feg.pkts_[i]);
-				if (!p)
-					break;
-
-				paritys.emplace_back(std::move(p));
-			}
-		}
+		std::vector<vpn_packet_ptr> paritys = m_feg.acquire();
 
 		// 重复发送模式.
 		if (params.data_shards_ == 1)
