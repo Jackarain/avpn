@@ -1066,7 +1066,7 @@ namespace socks {
 								m_connection_id, ec.message());
 						}
 
-						co_return std::move(socks_stream);
+						co_return socks_stream;
 					}
 
 					co_return instantiate_socks_stream(
