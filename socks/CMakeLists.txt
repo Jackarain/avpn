@@ -3,14 +3,25 @@ project(socks)
 
 add_library(socks INTERFACE)
 
-target_sources(socks
-	INTERFACE
-	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_client.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_enums.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_error_code.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_io.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_server.hpp
-)
+if (APPLE)
+	target_sources(socks
+		INTERFACE
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_client.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_enums.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_error_code.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_io.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_server.hpp
+	)
+else()
+	target_sources(socks
+		PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_client.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_enums.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_error_code.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_io.hpp
+		${CMAKE_CURRENT_SOURCE_DIR}/include/socks/socks_server.hpp
+	)
+endif()
 
 target_include_directories(socks
 	INTERFACE
