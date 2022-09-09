@@ -19,16 +19,25 @@ namespace avpn {
 	const inline int avpn_pkt_header_size = 5;
 	// 正常mtu大小定义.
 	const inline int avpn_normal_mtu = 1500;
-	// avpn数据包大小定义.
-	const inline int avpn_packet_size = 1464;
-	// avpn数据包整个大小.
-	const inline int avpn_whole_packet_size =
-		avpn_packet_size + 24; // 24 == sizeof vpn_packet.
+	// PPPoE header大小.
+	const inline int avpn_normal_pppoe = 8;
+	// ipv6 header大小.
+	const inline int avpn_normal_ipv6_header_size = 40;
+	// ipv4 header大小.
+	const inline int avpn_normal_ipv4_header_size = 20;
+
+	// UDP header大小.
+	inline int avpn_normal_udp_header = avpn_normal_ipv4_header_size + 8;
+
+	// avpn数据包最大定义(传输在udp网络中的最大可用size).
+	inline int avpn_packet_size =
+		avpn_normal_mtu - avpn_normal_pppoe - avpn_normal_udp_header;
+
 	// avpn数据包中IP包大小定义.
-	const inline int avpn_payload_size =
+	inline int avpn_payload_size =
 		avpn_packet_size - avpn_payload_header_size;
 	// avpn 网卡的mtu大小定义.
-	const inline int avpn_static_mtu = 1450;
+	inline int avpn_static_mtu = avpn_payload_size;
 
 	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
@@ -86,6 +95,10 @@ namespace avpn {
 		vpn_packet_t type_;
 		int flag_{ -1 };
 	};
+
+	// avpn数据包整个占用内存大小.
+	const inline int avpn_packet_memory_size =
+		avpn_packet_size + sizeof(vpn_packet);
 
 	using vpn_packet_ptr = std::shared_ptr<vpn_packet>;
 	using vpn_packet_weak_ptr = std::weak_ptr<vpn_packet>;

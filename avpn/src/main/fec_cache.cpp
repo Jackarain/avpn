@@ -48,7 +48,7 @@ namespace avpn
 		}
 
 		p = (uint8_t*)std::calloc(1, avpn_packet_size);
-		memory_size_ += avpn_whole_packet_size;
+		memory_size_ += avpn_packet_memory_size;
 		return p;
 	}
 
@@ -58,7 +58,7 @@ namespace avpn
 		if ((size_t)memory_size_ >= max_size_)
 		{
 			std::free((void*)p);
-			memory_size_ -= avpn_whole_packet_size;
+			memory_size_ -= avpn_packet_memory_size;
 			return;
 		}
 
