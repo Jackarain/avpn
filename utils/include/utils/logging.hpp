@@ -21,15 +21,18 @@
 #include <functional>
 #include <filesystem>
 #include <system_error>
+#include <atomic>
+#include <deque>
+#include <condition_variable>
 
-#include <boost/asio/thread_pool.hpp>
-#include <boost/asio/post.hpp>
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/ip/basic_endpoint.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
+#ifndef LOGGING_DISABLE_ASIO_ENDPOINT
 
-namespace net = boost::asio;
+#	include <boost/asio/ip/tcp.hpp>
+#	include <boost/asio/ip/udp.hpp>
+#	include <boost/asio/ip/address.hpp>
+#	include <boost/asio/ip/basic_endpoint.hpp>
+
+#endif // !LOGGING_DISABLE_ASIO_ENDPOINT
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/nowide/convert.hpp>
@@ -107,6 +110,10 @@ namespace std {
 //////////////////////////////////////////////////////////////////////////
 
 namespace util {
+
+#ifndef LOGGING_DISABLE_ASIO_ENDPOINT
+	namespace net = boost::asio;
+#endif
 
 #ifndef LOG_APPNAME
 #	define LOG_APPNAME "application"
@@ -759,61 +766,106 @@ inline void logger_writer__(int64_t time, const int& level,
 }
 
 namespace logger_aux__ {
+	using namespace std::chrono_literals;
 
-	class logger_internal
+	class async_logger___
 	{
+		struct internal_message
+		{
+			int level_;
+			int64_t time_;
+			std::string message_;
+			bool disable_cout_;
+		};
+
 		// c++11 noncopyable.
-		logger_internal(const logger_internal&) = delete;
-		logger_internal& operator=(const logger_internal&) = delete;
+		async_logger___(const async_logger___&) = delete;
+		async_logger___& operator=(const async_logger___&) = delete;
 
 	public:
-		logger_internal()
+		async_logger___()
 		{
+			m_bg_thread = std::thread([this]()
+				{
+					internal_work();
+				});
 		}
-		~logger_internal()
+		~async_logger___()
 		{
-			m_io_thread.join();
+			// TODO: 实现Crash handler以接管在crash时
+			// 不会漏写日志.
+			m_abort = true;
+			m_bg_thread.join();
 		}
 
 	public:
 		void stop()
 		{
-			m_io_thread.stop();
+			m_abort = true;
+		}
+
+		void internal_work()
+		{
+			while (!m_abort || !m_messages.empty())
+			{
+				std::unique_lock lock(m_bg_mutex);
+
+				if (m_messages.empty())
+					m_bg_cv.wait_for(lock, 128ms);
+
+				while (!m_messages.empty())
+				{
+					auto message = std::move(m_messages.front());
+					m_messages.pop_front();
+
+					logger_writer__(message.time_,
+						message.level_,
+						message.message_,
+						message.disable_cout_);
+				}
+			}
 		}
 
 		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
-			net::post(m_io_thread,
-				[time = logger_aux__::gettime(),
-				level,
-				message = std::move(message),
-				disable_cout]()
+			auto time = logger_aux__::gettime();
+			std::unique_lock lock(m_bg_mutex);
+
+			m_messages.emplace_back(
+				internal_message
 				{
-					logger_writer__(time, level, message, disable_cout);
-				});
+				.level_ = level,
+				.time_ = time,
+				.message_ = std::move(message),
+				.disable_cout_ = disable_cout
+				}
+			);
+			lock.unlock();
+
+			m_bg_cv.notify_one();
 		}
 
 	private:
-		net::thread_pool m_io_thread{ 1 };
+		std::thread m_bg_thread;
+		std::mutex m_bg_mutex;
+		std::condition_variable m_bg_cv;
+		std::deque<internal_message> m_messages;
+		std::atomic_bool m_abort{ false };
 	};
 }
 
 inline bool global_logging___ = true;
-inline std::shared_ptr<logger_aux__::logger_internal> global_logger_obj___;
+inline std::shared_ptr<logger_aux__::async_logger___> global_logger_obj___ =
+	std::make_shared<logger_aux__::async_logger___>();
 
-inline void init_logging(bool use_async = true, const std::string& path = "")
+inline void init_logging(const std::string& path = "")
 {
 	auto_logger_file__& file =
 		logger_aux__::writer_single<util::auto_logger_file__>();
 
 	if (!path.empty())
 		file.open(path.c_str());
-
-	auto& log_obj = global_logger_obj___;
-	if (use_async && !log_obj) {
-		log_obj.reset(new logger_aux__::logger_internal());
-	}
 }
 
 inline std::string log_path()
@@ -860,8 +912,10 @@ class logger___
 	logger___(const logger___&) = delete;
 	logger___& operator=(const logger___&) = delete;
 public:
-	logger___(const int& level, bool disable_cout = false)
+	logger___(const int& level,
+		bool async = false, bool disable_cout = false)
 		: level_(level)
+		, async_(async)
 		, disable_cout_(disable_cout)
 	{
 		if (!global_logging___)
@@ -871,8 +925,12 @@ public:
 	{
 		if (!global_logging___)
 			return;
+
 		std::string message = logger_aux__::string_utf8(out_);
-		if (global_logger_obj___)
+
+		// if global_logger_obj___ is nullptr, fallback to
+		// synchronous operation.
+		if (async_ && global_logger_obj___)
 			global_logger_obj___->post_log(
 				level_, std::move(message), disable_cout_);
 		else
@@ -1025,6 +1083,7 @@ public:
 		return *this;
 	}
 
+#ifndef LOGGING_DISABLE_ASIO_ENDPOINT
 	inline logger___& operator<<(const net::ip::tcp::endpoint& v)
 	{
 		if (!global_logging___)
@@ -1049,6 +1108,7 @@ public:
 				"{}:{}", v.address().to_string(), v.port());
 		return *this;
 	}
+#endif
 
 #if (__cplusplus >= 202002L)
 	inline logger___& operator<<(const std::chrono::days& v)
@@ -1217,6 +1277,7 @@ public:
 
 	std::string out_;
 	const int& level_;
+	bool async_;
 	bool disable_cout_;
 };
 
@@ -1246,11 +1307,23 @@ public:
 #undef LOG_EFMT
 #undef LOG_FFMT
 
+#undef ASYNC_LOGDBG
+#undef ASYNC_LOGINFO
+#undef ASYNC_LOGWARN
+#undef ASYNC_LOGERR
+#undef ASYNC_LOGFILE
+
+#undef ASYNC_LOGFMT
+#undef ASYNC_LOGIFMT
+#undef ASYNC_LOGWFMT
+#undef ASYNC_LOGEFMT
+#undef ASYNC_LOGFFMT
+
 #define LOG_DBG util::logger___(util::_logger_debug_id__)
 #define LOG_INFO util::logger___(util::_logger_info_id__)
 #define LOG_WARN util::logger___(util::_logger_warn_id__)
 #define LOG_ERR util::logger___(util::_logger_error_id__)
-#define LOG_FILE util::logger___(util::_logger_file_id__, true)
+#define LOG_FILE util::logger___(util::_logger_file_id__, false, true)
 
 #define LOG_FMT(...) util::logger___( \
 		util::_logger_debug_id__).format_to(__VA_ARGS__)
@@ -1261,7 +1334,46 @@ public:
 #define LOG_EFMT(...) util::logger___( \
 		util::_logger_error_id__).format_to(__VA_ARGS__)
 #define LOG_FFMT(...) util::logger___( \
-		util::_logger_file_id__, true).format_to(__VA_ARGS__)
+		util::_logger_file_id__, false, true).format_to(__VA_ARGS__)
+
+#define ASYNC_LOGDBG util::logger___(util::_logger_debug_id__, true)
+#define ASYNC_LOGINFO util::logger___(util::_logger_info_id__, true)
+#define ASYNC_LOGWARN util::logger___(util::_logger_warn_id__, true)
+#define ASYNC_LOGERR util::logger___(util::_logger_error_id__, true)
+#define ASYNC_LOGFILE util::logger___(util::_logger_file_id__, true, true)
+
+#define ASYNC_LOGFMT(...) util::logger___( \
+		util::_logger_debug_id__, true).format_to(__VA_ARGS__)
+#define ASYNC_LOGIFMT(...) util::logger___( \
+		util::_logger_info_id__, true).format_to(__VA_ARGS__)
+#define ASYNC_LOGWFMT(...) util::logger___( \
+		util::_logger_warn_id__, true).format_to(__VA_ARGS__)
+#define ASYNC_LOGEFMT(...) util::logger___( \
+		util::_logger_error_id__, true).format_to(__VA_ARGS__)
+#define ASYNC_LOGFFMT(...) util::logger___( \
+		util::_logger_file_id__, true, true).format_to(__VA_ARGS__)
+
+#define ASYNC_VLOGDBG ASYNC_LOGDBG \
+	<< "(" << __FILE__ << ":" << __LINE__ << "): "
+#define ASYNC_VLOGINFO ASYNC_LOGINFO \
+	<< "(" << __FILE__ << ":" << __LINE__ << "): "
+#define ASYNC_VLOGWARN ASYNC_LOGWARN \
+	<< "(" << __FILE__ << ":" << __LINE__ << "): "
+#define ASYNC_VLOGERR ASYNC_LOGERR \
+	<< "(" << __FILE__ << ":" << __LINE__ << "): "
+#define ASYNC_VLOGFILE ASYNC_LOGFILE \
+	<< "(" << __FILE__ << ":" << __LINE__ << "): "
+
+#define ASYNC_VLOGFMT(...) (ASYNC_LOGDBG << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define ASYNC_VLOGIFMT(...) (ASYNC_LOGINFO << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define ASYNC_VLOGWFMT(...) (ASYNC_LOGWARN << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define ASYNC_VLOGEFMT(...) (ASYNC_LOGERR << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
+#define ASYNC_VLOGFFMT(...) (ASYNC_LOGFILE << "(" \
+		<< __FILE__ << ":" << __LINE__ << "): ").format_to(__VA_ARGS__)
 
 #define VLOG_DBG LOG_DBG << "(" << __FILE__ << ":" << __LINE__ << "): "
 #define VLOG_INFO LOG_INFO << "(" << __FILE__ << ":" << __LINE__ << "): "
@@ -1298,6 +1410,18 @@ public:
 #undef LOG_EFMT
 #undef LOG_FFMT
 
+#undef ASYNC_LOGDBG
+#undef ASYNC_LOGINFO
+#undef ASYNC_LOGWARN
+#undef ASYNC_LOGERR
+#undef ASYNC_LOGFILE
+
+#undef ASYNC_LOGFMT
+#undef ASYNC_LOGIFMT
+#undef ASYNC_LOGWFMT
+#undef ASYNC_LOGEFMT
+#undef ASYNC_LOGFFMT
+
 #define LOG_DBG util::empty_logger___()
 #define LOG_INFO util::empty_logger___()
 #define LOG_WARN util::empty_logger___()
@@ -1310,6 +1434,30 @@ public:
 #define LOG_EFMT(...) util::empty_logger___()
 #define LOG_FFMT(...) util::empty_logger___()
 
+#define VLOG_DBG(...) util::empty_logger___()
+#define VLOG_INFO(...) util::empty_logger___()
+#define VLOG_WARN(...) util::empty_logger___()
+#define VLOG_ERR(...) util::empty_logger___()
+#define VLOG_FILE(...) util::empty_logger___()
+
+#define VLOG_FMT(...) util::empty_logger___()
+#define VLOG_IFMT(...) util::empty_logger___()
+#define VLOG_WFMT(...) util::empty_logger___()
+#define VLOG_EFMT(...) util::empty_logger___()
+#define VLOG_FFMT(...) util::empty_logger___()
+
+#define ASYNC_LOGDBG util::empty_logger___()
+#define ASYNC_LOGINFO util::empty_logger___()
+#define ASYNC_LOGWARN util::empty_logger___()
+#define ASYNC_LOGERR util::empty_logger___()
+#define ASYNC_LOGFILE util::empty_logger___()
+
+#define ASYNC_LOGFMT(...) util::empty_logger___()
+#define ASYNC_LOGIFMT(...) util::empty_logger___()
+#define ASYNC_LOGWFMT(...) util::empty_logger___()
+#define ASYNC_LOGEFMT(...) util::empty_logger___()
+#define ASYNC_LOGFFMT(...) util::empty_logger___()
+
 #define VLOG_DBG LOG_DBG
 #define VLOG_INFO LOG_INFO
 #define VLOG_WARN LOG_WARN
@@ -1321,6 +1469,18 @@ public:
 #define VLOG_WFMT LOG_WFMT
 #define VLOG_EFMT LOG_EFMT
 #define VLOG_FFMT LOG_FFMT
+
+#define ASYNC_VLOGDBG LOG_DBG
+#define ASYNC_VLOGINFO LOG_INFO
+#define ASYNC_VLOGWARN LOG_WARN
+#define ASYNC_VLOGERR LOG_ERR
+#define ASYNC_VLOGFILE LOG_FILE
+
+#define ASYNC_VLOGFMT LOG_FMT
+#define ASYNC_VLOGIFMT LOG_IFMT
+#define ASYNC_VLOGWFMT LOG_WFMT
+#define ASYNC_VLOGEFMT LOG_EFMT
+#define ASYNC_VLOGFFMT LOG_FFMT
 
 #define INIT_ASYNC_LOGGING() void
 
