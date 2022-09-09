@@ -765,6 +765,11 @@ inline void logger_writer__(int64_t time, const int& level,
 #endif // USE_SYSTEMD_LOGGING
 }
 
+#if defined(_WIN32) || defined(WIN32)
+static LONG WINAPI unexpectedExceptionHandling(EXCEPTION_POINTERS* info);
+#endif
+void signalHandler(int);
+
 namespace logger_aux__ {
 	using namespace std::chrono_literals;
 
@@ -785,6 +790,16 @@ namespace logger_aux__ {
 	public:
 		async_logger___()
 		{
+#if defined(_WIN32) || defined(WIN32)
+			m_unexpected_exception_handler =
+				SetUnhandledExceptionFilter(unexpectedExceptionHandling);
+#endif
+			signal(SIGTERM, signalHandler);
+			signal(SIGABRT, signalHandler);
+			signal(SIGFPE, signalHandler);
+			signal(SIGSEGV, signalHandler);
+			signal(SIGILL, signalHandler);
+
 			m_bg_thread = std::thread([this]()
 				{
 					internal_work();
@@ -799,6 +814,13 @@ namespace logger_aux__ {
 		}
 
 	public:
+#if defined(_WIN32) || defined(WIN32)
+		LPTOP_LEVEL_EXCEPTION_FILTER oldUnhandledExceptionFilter()
+		{
+			return m_unexpected_exception_handler;
+		}
+#endif
+
 		void stop()
 		{
 			m_abort = true;
@@ -852,12 +874,31 @@ namespace logger_aux__ {
 		std::condition_variable m_bg_cv;
 		std::deque<internal_message> m_messages;
 		std::atomic_bool m_abort{ false };
+#if defined(_WIN32) || defined(WIN32)
+		LPTOP_LEVEL_EXCEPTION_FILTER m_unexpected_exception_handler{ nullptr };
+#endif
 	};
 }
 
 inline bool global_logging___ = true;
 inline std::shared_ptr<logger_aux__::async_logger___> global_logger_obj___ =
 	std::make_shared<logger_aux__::async_logger___>();
+
+#if defined(_WIN32) || defined(WIN32)
+static LONG WINAPI unexpectedExceptionHandling(EXCEPTION_POINTERS* info)
+{
+	auto old = global_logger_obj___->oldUnhandledExceptionFilter();
+	SetUnhandledExceptionFilter(old);
+
+	global_logger_obj___.reset();
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
+inline void signalHandler(int)
+{
+	global_logger_obj___.reset();
+}
 
 inline void init_logging(const std::string& path = "")
 {
