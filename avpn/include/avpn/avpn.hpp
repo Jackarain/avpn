@@ -135,6 +135,14 @@ namespace avpn {
 		// 当前avpn运行的模式: server/client.
 		avpn::Identity identity_;
 
+		// Tun mtu大小, 必须让tun网卡的mtu大小保证能通过物理网络
+		// 的mtu大小.
+		int mtu_size_;
+
+		// 传输网络使用ipv6, 这个标志将影响计算avpn的packet及
+		// tun的mtu.
+		bool using_ipv6_;
+
 		// vpn隧道相关参数.
 		avpn::tunnel_params tunnel_params_;
 

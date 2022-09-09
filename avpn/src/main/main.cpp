@@ -189,6 +189,7 @@ int main(int argc, char** argv)
 	bool socks_next_proxy_ssl = false;
 	int data_shards;
 	int parity_shards;
+	int mtu_size;
 	int mode;
 	std::string compress;
 	int keepalive;
@@ -204,6 +205,7 @@ int main(int argc, char** argv)
 	bool c2c = true;
 	bool noroute = false;
 	bool disable_logs = false;
+	bool ipv6;
 	std::string writepid_file;
 	std::string ignored_param;
 	std::string passphrase;
@@ -222,6 +224,8 @@ int main(int argc, char** argv)
 		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
 		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
+		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size.")
+		("ipv6", po::value<bool>(&ipv6)->default_value(false)->value_name("ip6"), "Using ipv6 communication.")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
@@ -388,6 +392,9 @@ int main(int argc, char** argv)
 	cfg.controller_ = controller;
 	cfg.passphrase_ = passphrase;
 	cfg.ssl_certificate_dir_ = ssl_certificate_dir;
+
+	cfg.mtu_size_ = mtu_size;
+	cfg.using_ipv6_ = ipv6;
 
 	auto& socks_opt = cfg.socks_opt_;
 	socks_opt.usrdid_ = socks_userid;
