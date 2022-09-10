@@ -1499,18 +1499,6 @@ public:
 #define ASYNC_LOGEFMT(...) util::empty_logger___()
 #define ASYNC_LOGFFMT(...) util::empty_logger___()
 
-#define VLOG_DBG LOG_DBG
-#define VLOG_INFO LOG_INFO
-#define VLOG_WARN LOG_WARN
-#define VLOG_ERR LOG_ERR
-#define VLOG_FILE LOG_FILE
-
-#define VLOG_FMT LOG_FMT
-#define VLOG_IFMT LOG_IFMT
-#define VLOG_WFMT LOG_WFMT
-#define VLOG_EFMT LOG_EFMT
-#define VLOG_FFMT LOG_FFMT
-
 #define ASYNC_VLOGDBG LOG_DBG
 #define ASYNC_VLOGINFO LOG_INFO
 #define ASYNC_VLOGWARN LOG_WARN
