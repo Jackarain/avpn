@@ -790,6 +790,9 @@ namespace logger_aux__ {
 	public:
 		async_logger___()
 		{
+			// 实现Crash handler以接管在crash时
+			// 不会漏写日志.
+
 #if defined(_WIN32) || defined(WIN32)
 			m_unexpected_exception_handler =
 				SetUnhandledExceptionFilter(unexpectedExceptionHandling);
@@ -807,8 +810,6 @@ namespace logger_aux__ {
 		}
 		~async_logger___()
 		{
-			// TODO: 实现Crash handler以接管在crash时
-			// 不会漏写日志.
 			m_abort = true;
 			m_bg_thread.join();
 		}
