@@ -37,7 +37,7 @@ namespace avpn {
 	inline int avpn_payload_size =
 		avpn_packet_size - avpn_payload_header_size;
 	// avpn 网卡的mtu大小定义.
-	inline int avpn_static_mtu = avpn_payload_size;
+	inline int avpn_static_mtu = avpn_packet_size;
 
 	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
