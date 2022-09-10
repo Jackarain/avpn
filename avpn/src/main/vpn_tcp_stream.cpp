@@ -466,7 +466,7 @@ namespace avpn {
 
 		{
 			start_len_tag = ntohl(start_len_tag);
-			if ((uint32_t)start_len_tag > (uint32_t)avpn_static_mtu)
+			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
 				LOG_ERR << "tcp_read_packet, id: "
 					<< id << ", stream verify size fail: " << start_len_tag;

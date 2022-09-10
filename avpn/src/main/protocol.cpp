@@ -664,7 +664,7 @@ namespace avpn {
 			writer.WriteUInt16((uint16_t)dst_size);
 			std::memcpy(pkt.payload(), dst.data(), dst_size);
 			std::memset(pkt.payload() + dst_size,
-				0, avpn_payload_size - dst_size);
+				0, avpn_static_mtu - dst_size);
 		}
 
 		auto bytes = writer.ByteOffset() + dst_size;

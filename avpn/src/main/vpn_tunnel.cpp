@@ -853,7 +853,7 @@ namespace avpn {
 		auto write_pkt = [this, service](vpn_packet_ptr pkt)
 			mutable -> net::awaitable<void>
 		{
-			auto endp = check_packet(pkt->payload(), avpn_payload_size);
+			auto endp = check_packet(pkt->payload(), avpn_static_mtu);
 			if (!endp)
 			{
 				m_num_incorrect++;
@@ -971,7 +971,7 @@ namespace avpn {
 		auto write_pkt = [this, service](vpn_packet_ptr pkt)
 			mutable -> net::awaitable<void>
 		{
-			auto endp = check_packet(pkt->payload(), avpn_payload_size);
+			auto endp = check_packet(pkt->payload(), avpn_static_mtu);
 			if (!endp)
 			{
 				m_num_incorrect++;
@@ -1066,7 +1066,7 @@ namespace avpn {
 	{
 		auto ep = parser_endpoint(data, size);
 		if (ep.size_ <= 0 ||
-			ep.size_ > avpn_payload_size)
+			ep.size_ > avpn_static_mtu)
 		{
 			return {};
 		}

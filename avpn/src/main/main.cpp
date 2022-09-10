@@ -224,7 +224,7 @@ int main(int argc, char** argv)
 		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
 		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
-		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size.")
+		("mtu", po::value<int>(&mtu_size)->default_value(0)->value_name("mtu"), "Tun mtu size(default: 0).")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
@@ -459,6 +459,13 @@ int main(int argc, char** argv)
 
 			if (ipv6)
 				break;
+		}
+
+		// 重新计算packet及mtu等大小.
+		if (!avpn::recompute_mtu(mtu_size, ipv6))
+		{
+			LOG_ERR << "Mtu set incorrect!!!";
+			return EXIT_FAILURE;
 		}
 	}
 

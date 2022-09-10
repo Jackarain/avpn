@@ -1179,13 +1179,13 @@ namespace avpn {
 				shards[i]->gid_ = gid;
 				shards[i]->pid_ = (uint8_t)i;
 				auto data = shards[i]->payload();
-				outputs.push_back(std::span<uint8_t>(data, avpn_payload_size));
+				outputs.push_back(std::span<uint8_t>(data, avpn_static_mtu));
 			}
 
 			std::vector<std::string_view> sv;
 			for (size_t i = 0; i < (size_t)m_data_shards; i++) {
 				auto data = shards[i]->payload();
-				sv.emplace_back(std::string_view((const char*)data, avpn_payload_size));
+				sv.emplace_back(std::string_view((const char*)data, avpn_static_mtu));
 			}
 
 			// do the coding.
@@ -1230,7 +1230,7 @@ namespace avpn {
 				auto data = shards[matrix_row]->payload();
 
 				sub_shards[sub_matrix_row] =
-					std::string_view((char*)data, avpn_payload_size);
+					std::string_view((char*)data, avpn_static_mtu);
 
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
@@ -1257,7 +1257,7 @@ namespace avpn {
 				if (!shards[ishard] || shards[ishard]->size() == 0) {
 					shards[ishard] = std::make_shared<vpn_packet>();
 					shards[ishard]->resize(avpn_packet_size);
-					shards[ishard]->payload_size(avpn_payload_size);
+					shards[ishard]->payload_size(avpn_static_mtu);
 					outputs[output_count] = std::span(shards[ishard]->payload(),
 						shards[ishard]->payload() + shards[ishard]->payload_size());
 					matrix_rows[output_count] = data_decode_matrix[ishard];

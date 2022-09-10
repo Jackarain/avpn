@@ -26,18 +26,20 @@ namespace avpn {
 	// ipv4 header大小.
 	const inline int avpn_normal_ipv4_header_size = 20;
 
+	// 上层协议空间.
+	inline int avpn_upper_layer_additional_size = 0;
 	// UDP header大小.
 	inline int avpn_normal_udp_header = avpn_normal_ipv4_header_size + 8;
 
 	// avpn数据包最大定义(传输在udp网络中的最大可用size).
-	inline int avpn_packet_size =
-		avpn_normal_mtu - avpn_normal_pppoe - avpn_normal_udp_header;
+	inline int avpn_packet_size = avpn_normal_mtu
+		- avpn_normal_pppoe
+		- avpn_normal_udp_header
+		- avpn_upper_layer_additional_size;
 
-	// avpn数据包中IP包大小定义.
-	inline int avpn_payload_size =
+	// avpn数据包中IP包大小定义, 即网卡的mtu.
+	inline int avpn_static_mtu =
 		avpn_packet_size - avpn_payload_header_size;
-	// avpn 网卡的mtu大小定义.
-	inline int avpn_static_mtu = avpn_packet_size;
 
 	//////////////////////////////////////////////////////////////////////////
 	// vpn数据包定义.
@@ -97,8 +99,41 @@ namespace avpn {
 	};
 
 	// avpn数据包整个占用内存大小.
-	const inline int avpn_packet_memory_size =
+	inline int avpn_packet_memory_size =
 		avpn_packet_size + sizeof(vpn_packet);
+
+	// 重新计算mtut等参数的大小, 返回false则表示设置了不
+	// 合适的值, avpn将自动计算合适的值.
+	inline bool recompute_mtu(int mtu = 0, bool v6 = true)
+	{
+		avpn_normal_udp_header =
+			(v6 ? avpn_normal_ipv6_header_size : avpn_normal_ipv4_header_size)
+			+ 8;
+
+		avpn_packet_size = avpn_normal_mtu
+			- avpn_normal_pppoe
+			- avpn_normal_udp_header;
+
+		if (mtu > avpn_packet_size)
+			return false;
+
+		if (mtu <= 0)
+			avpn_upper_layer_additional_size = 0;
+		else
+			avpn_upper_layer_additional_size = avpn_packet_size
+			- mtu
+			- avpn_payload_header_size;
+
+		avpn_packet_size = avpn_normal_mtu
+			- avpn_normal_pppoe
+			- avpn_normal_udp_header
+			- avpn_upper_layer_additional_size;
+
+		avpn_static_mtu =
+			avpn_packet_size - avpn_payload_header_size;
+
+		return true;
+	}
 
 	using vpn_packet_ptr = std::shared_ptr<vpn_packet>;
 	using vpn_packet_weak_ptr = std::weak_ptr<vpn_packet>;

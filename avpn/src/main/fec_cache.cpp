@@ -178,14 +178,14 @@ namespace avpn
 					continue;
 
 				ptr->resize(avpn_packet_size);
-				ptr->payload_size(avpn_payload_size);
+				ptr->payload_size(avpn_static_mtu);
 
 				auto [fgid, fpid] = fetch_ids();
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
 					(char*)ptr->payload(),
-					avpn_payload_size);
+					avpn_static_mtu);
 
 				make_transfer(*ptr, src, fgid, fpid, fsv);
 			}
@@ -234,14 +234,14 @@ namespace avpn
 					continue;
 
 				ptr->resize(avpn_packet_size);
-				ptr->payload_size(avpn_payload_size);
+				ptr->payload_size(avpn_static_mtu);
 
 				auto [fgid, fpid] = fetch_ids();
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
 					(char*)ptr->payload(),
-					avpn_payload_size);
+					avpn_static_mtu);
 
 				make_transfer_compress(*ptr,
 					src, fgid, fpid, compress_zstd, fsv);
