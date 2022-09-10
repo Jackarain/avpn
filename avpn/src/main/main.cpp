@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 	bool c2c = true;
 	bool noroute = false;
 	bool disable_logs = false;
-	bool ipv6;
+	bool ipv6 = false;
 	std::string writepid_file;
 	std::string ignored_param;
 	std::string passphrase;
@@ -225,7 +225,6 @@ int main(int argc, char** argv)
 
 		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
 		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size.")
-		("ipv6", po::value<bool>(&ipv6)->default_value(false)->value_name("ip6"), "Using ipv6 communication.")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
@@ -433,10 +432,34 @@ int main(int argc, char** argv)
 		cfg.identity_ = avpn::Identity::avpn_client;
 	}
 
-	if (cfg.identity_ == avpn::Identity::avpn_client && cfg.upstreams_.empty())
+	if (cfg.identity_ == avpn::Identity::avpn_client)
 	{
-		LOG_ERR << "Missing upstream...";
-		return EXIT_FAILURE;
+		if (cfg.upstreams_.empty())
+		{
+			LOG_ERR << "Missing upstream...";
+			return EXIT_FAILURE;
+		}
+
+		// 检查upstream是否有ipv6, 如果有v6地址, mtu则需要减少20
+		// 这样避免在udp中发送ip包时, 超过物理mtu大小则拆包.
+		for (auto& stream : cfg.upstreams_)
+		{
+			auto url = urls::url_view(stream);
+			udp::resolver resolver{ ios.main_io_context() };
+			boost::system::error_code ec;
+			auto results = resolver.resolve(url.host(), url.port(), ec);
+			for (auto endp : results)
+			{
+				if (endp.endpoint().address().is_v6())
+				{
+					cfg.using_ipv6_ = ipv6 = true;
+					break;
+				}
+			}
+
+			if (ipv6)
+				break;
+		}
 	}
 
 #ifdef _WIN32
