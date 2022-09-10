@@ -1334,9 +1334,6 @@ public:
 };
 } // namespace util
 
-#if (defined(DEBUG) || defined(_DEBUG) || \
-	defined(ENABLE_LOGGER)) && !defined(DISABLE_LOGGER)
-
 #undef LOG_DBG
 #undef LOG_INFO
 #undef LOG_WARN
@@ -1360,6 +1357,9 @@ public:
 #undef ASYNC_LOGWFMT
 #undef ASYNC_LOGEFMT
 #undef ASYNC_LOGFFMT
+
+#if (defined(DEBUG) || defined(_DEBUG) || \
+	defined(ENABLE_LOGGER)) && !defined(DISABLE_LOGGER)
 
 #define LOG_DBG util::logger___(util::_logger_debug_id__)
 #define LOG_INFO util::logger___(util::_logger_info_id__)
@@ -1439,30 +1439,6 @@ public:
 		util::auto_init_async_logger ____init_logger____
 
 #else
-
-#undef LOG_DBG
-#undef LOG_INFO
-#undef LOG_WARN
-#undef LOG_ERR
-#undef LOG_FILE
-
-#undef LOG_FMT
-#undef LOG_IFMT
-#undef LOG_WFMT
-#undef LOG_EFMT
-#undef LOG_FFMT
-
-#undef ASYNC_LOGDBG
-#undef ASYNC_LOGINFO
-#undef ASYNC_LOGWARN
-#undef ASYNC_LOGERR
-#undef ASYNC_LOGFILE
-
-#undef ASYNC_LOGFMT
-#undef ASYNC_LOGIFMT
-#undef ASYNC_LOGWFMT
-#undef ASYNC_LOGEFMT
-#undef ASYNC_LOGFFMT
 
 #define LOG_DBG util::empty_logger___()
 #define LOG_INFO util::empty_logger___()
