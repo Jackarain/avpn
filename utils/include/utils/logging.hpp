@@ -23,6 +23,7 @@
 #include <system_error>
 #include <atomic>
 #include <deque>
+#include <csignal>
 #include <condition_variable>
 
 #ifndef LOGGING_DISABLE_ASIO_ENDPOINT
