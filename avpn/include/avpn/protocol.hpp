@@ -70,6 +70,9 @@ namespace avpn {
 	int unwrap_common_header(vpn_packet& pkt,
 		bool& enc, uint8_t& type, uint32_t& src);
 
+
+	//////////////////////////////////////////////////////////////////////////
+
 	// 构造握手认证消息, c -> s.
 	// 协议格式
 	// id_len(8)
