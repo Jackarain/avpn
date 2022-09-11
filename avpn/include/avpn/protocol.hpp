@@ -92,6 +92,34 @@ namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
+	// 构造握手认证回复消息, s -> c.
+	// 协议格式
+	// id_len(8)
+	// id(id_len)
+	// ds(8)
+	// ps(8)
+	// vaddr(32)
+	// prefix_length(8)
+	// passbyvpn(8)
+	// pushdns(32)
+	// routes(8)
+	// {size(u8), string[size]}[routes]
+	vpn_packet make_handshake_reply(std::string_view id,
+		uint8_t ds, uint8_t ps,
+		uint32_t addr, uint8_t prefix_length,
+		bool passbyvpn, uint32_t pushdns,
+		std::vector<std::string> routes);
+
+	int unwrap_handshake_reply(vpn_packet& pkt,
+		std::string& id,
+		uint8_t& ds, uint8_t& ps,
+		uint32_t& addr, uint8_t& prefix_length,
+		bool& passbyvpn, uint32_t& pushdns,
+		std::vector<std::string>& routes);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
 	// 构造tun2socks协议.
 	// 协议格式
 	// target_len(8)
@@ -120,34 +148,6 @@ namespace avpn {
 
 	int unwarp_tun2socks_reply(vpn_packet& pkt,
 		uint8_t& status, std::string& reason);
-
-
-	//////////////////////////////////////////////////////////////////////////
-
-	// 构造握手认证回复消息, s -> c.
-	// 协议格式
-	// id_len(8)
-	// id(id_len)
-	// ds(8)
-	// ps(8)
-	// vaddr(32)
-	// prefix_length(8)
-	// passbyvpn(8)
-	// pushdns(32)
-	// routes(8)
-	// {size(u8), string[size]}[routes]
-	vpn_packet make_handshake_reply(std::string_view id,
-		uint8_t ds, uint8_t ps,
-		uint32_t addr, uint8_t prefix_length,
-		bool passbyvpn, uint32_t pushdns,
-		std::vector<std::string> routes);
-
-	int unwrap_handshake_reply(vpn_packet& pkt,
-		std::string& id,
-		uint8_t& ds, uint8_t& ps,
-		uint32_t& addr, uint8_t& prefix_length,
-		bool& passbyvpn, uint32_t& pushdns,
-		std::vector<std::string>& routes);
 
 
 	//////////////////////////////////////////////////////////////////////////
