@@ -325,7 +325,10 @@ int main(int argc, char** argv)
 		// 帮助输出.
 		if (vm.count("help") || argc == 1)
 		{
-			std::cout << desc;
+			std::cout << desc
+				<< "\nWritten by jackarain"
+				<< "\nReport bugs to: jack.wgm@gmail.com"
+				<< "\n";
 			return EXIT_SUCCESS;
 		}
 
