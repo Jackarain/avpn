@@ -291,7 +291,10 @@ int main(int argc, char** argv)
 		po::notify(vm);
 
 		if (disable_logs)
+		{
+			util::toggle_logging();
 			util::toggle_write_logging(true);
+		}
 
 		// 生成私钥.
 		if (vm.count("genkey"))
