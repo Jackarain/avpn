@@ -54,7 +54,10 @@ namespace avpn {
 		, m_main_context(m_ioc_pool.main_io_context())
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
-		, m_client_key(base64_encode(crypto_util::ecdh_keygen()))
+		, m_client_key(
+			config.private_key_.empty()
+			? base64_encode(crypto_util::ecdh_keygen())
+			: config.private_key_)
 		, m_tundev(instantiate_vtun_device(
 			config.ifdev_ == "wintun" ? 1 : 0, m_main_context))
 		, m_tick_timer(m_main_context)
@@ -1472,7 +1475,7 @@ namespace avpn {
 		// 握手成功.
 		if (!tunnel)
 		{
-			auto server_pubkey = base64_decode(m_config.passphrase_);
+			auto server_pubkey = base64_decode(m_config.public_key_);
 
 			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中
 			// 循环处理tcp消息.
@@ -1923,7 +1926,7 @@ namespace avpn {
 		// 手成功, 如果未创建, 则创建tunnel对象.
 		if (!tunnel)
 		{
-			auto server_pubkey = base64_decode(m_config.passphrase_);
+			auto server_pubkey = base64_decode(m_config.public_key_);
 
 			// 创建tunnel对象, 在完成握手后, 进入tunnel的tcp loop中循
 			// 环处理tcp消息.
@@ -2064,7 +2067,8 @@ namespace avpn {
 		if (tunnel)
 			co_return tunnel;
 
-		// 分配一个虚拟ip.
+		// TODO: 根据client的pubkey, 查找m_staic_ipp表, 然后分配
+		// 一个固定虚拟ip.
 		auto [ip_string, vaddr] = ip_assigner();
 
 		// 创建tunnel.
@@ -2086,7 +2090,7 @@ namespace avpn {
 
 		auto& ioc = m_ioc_pool.get_io_context();
 		auto tunnel = vpn_tunnel::make(ioc, self, m_config,
-			pubkey, m_config.passphrase_);
+			pubkey, m_config.private_key_);
 
 		auto ipaddr = net::ip::address_v4(vaddr);
 		auto vnetaddr = net::ip::make_network_v4(

@@ -20,7 +20,11 @@
 
 #include "socks/socks_server.hpp"
 
+#include <boost/assign/list_inserter.hpp>
 
+#include <boost/bimap/bimap.hpp>
+#include <boost/bimap/unordered_set_of.hpp>
+#include <boost/bimap/multiset_of.hpp>
 
 namespace avpn {
 
@@ -106,15 +110,21 @@ namespace avpn {
 		// 作为server时, udp服务端口.
 		std::vector<std::string> udp_listens_;
 
-		// 作为server时, 指定ecdh的私钥(base64编码)
-		// 作为client时, 指定为server的ecdh公钥信息(base64编码).
-		// client 本身的密钥对由系统自动随机生成, 在握手时通过协议传
-		// 输公钥到server.
-		// server 通过握手协议拿到client的公钥, 及本参数指定的密钥对,
-		// 协商出解密密钥.
-		// client 通过本参数指定的server的公钥, 及自己生成的密钥对,
-		// 协商出解密密钥.
-		std::string passphrase_;
+		// 作为client时, 必选项, 必须设置为server的public key(base64编码).
+		// 作为server时, 此选项为可选项, 如果存在, 则表示必须由server
+		// 指定的public key才能和server通信, 并且可以通过这个参数指定
+		// client的public key所固定的ip.
+		// 具体语法为:
+		// pubkey1:ip1;pubkey2:ip2;...
+		std::string public_key_;
+
+		// 作为client时, 此选项为可选项, 手工设置ecdh的私钥(base64编码)
+		// 而不是由系统自动生成, 这样可以通过server绑定client的pubkey
+		// 所对应的ip, 同时也便于实现双向认证, 如果不设置将由系统自动生
+		// 成一个临时的密钥对.
+		// 作为server时, 必选项, 设置该server的全局私钥对(base64编码),
+		// 其公钥可分发给client, client通过其公钥来和server协商密钥.
+		std::string private_key_;
 
 		// ssl 证书目录.
 		// 证书目录, 包含以下文件:
@@ -422,6 +432,15 @@ namespace avpn {
 		// 作为server时, 虚拟 IP 分配器.
 		net::ip::address_v4_range m_ip_assigner;
 		net::ip::address_v4_range::iterator m_ip_iterator;
+
+		// 作为server时, client的pubkey所对应的ip分配表.
+		// 通过此表固定分配ip.
+		// 这里key表示pubkey, value表示ip, 双向唯一且可索引.
+		using staic_ipp_type = boost::bimaps::bimap<
+			boost::bimaps::unordered_set_of<std::string>,
+			boost::bimaps::unordered_set_of<std::string>
+		>;
+		staic_ipp_type m_staic_ipp;
 
 		// 访问控制路由表, 命中的ip则转入tun2socks协议.
 		acl_util::lpm_table m_routes;

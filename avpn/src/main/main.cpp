@@ -208,7 +208,9 @@ int main(int argc, char** argv)
 	bool ipv6 = false;
 	std::string writepid_file;
 	std::string ignored_param;
-	std::string passphrase;
+
+	std::string privatekey;
+	std::string publickey;
 
 	std::string ssl_certificate_dir;
 
@@ -227,7 +229,10 @@ int main(int argc, char** argv)
 		("mtu", po::value<int>(&mtu_size)->default_value(0)->value_name("mtu"), "Tun mtu size(default: 0).")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
-		("passphrase", po::value<std::string>(&passphrase)->default_value("")->value_name("passphrase"), "Communication Security passphrase.")
+
+		("privkey", po::value<std::string>(&privatekey)->default_value("")->value_name("privatekey"), "Communication Security private key.")
+		("pubkey", po::value<std::string>(&publickey)->default_value("")->value_name("publickey"), "Communication Security public key.")
+
 		("genkey", "Generates a new private key and writes it to stdout.")
 		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
 
@@ -395,7 +400,8 @@ int main(int argc, char** argv)
 
 	cfg.ifdev_ = ifdev;
 	cfg.controller_ = controller;
-	cfg.passphrase_ = passphrase;
+	cfg.private_key_ = privatekey;
+	cfg.public_key_ = publickey;
 	cfg.ssl_certificate_dir_ = ssl_certificate_dir;
 
 	cfg.mtu_size_ = mtu_size;

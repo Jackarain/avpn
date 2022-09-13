@@ -17,14 +17,14 @@ namespace avpn {
 	vpn_tunnel::vpn_tunnel(net::io_context& ioc,
 		std::shared_ptr<avpn_service>& vpn,
 		const service_config& cfg,
-		std::string pubkey, std::string passphrase)
+		std::string pubkey, std::string privatekey)
 		: m_io_context(ioc)
 		, m_serivce(vpn)
 		, m_config(cfg)
 		, m_identity(cfg.identity_)
 		, m_pubkey(pubkey)
 		, m_tcp_socket(ioc)
-		, m_keyexchange(passphrase)
+		, m_keyexchange(privatekey)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(m_pubkey))
 		, m_tick_timer(ioc)
 		, m_feg(cfg.tunnel_params_.data_shards_,
@@ -37,10 +37,10 @@ namespace avpn {
 	vpn_tunnel::make(net::io_context& ioc,
 		std::shared_ptr<avpn_service>& vpn,
 		const service_config& cfg,
-		std::string pubkey, std::string passphrase)
+		std::string pubkey, std::string privatekey)
 	{
 		return std::shared_ptr<vpn_tunnel>(new
-			vpn_tunnel(ioc, vpn, cfg, pubkey, passphrase));
+			vpn_tunnel(ioc, vpn, cfg, pubkey, privatekey));
 	}
 
 	vpn_tunnel::~vpn_tunnel()
