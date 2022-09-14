@@ -548,11 +548,10 @@ namespace avpn {
 		boost::system::error_code ec;
 		int start_len_tag = -1;
 
+		// 先读取4个字节的头.
 		co_await net::async_read(stream,
-			m_tcp_buffer,
-			net::transfer_exactly(4),
-			uawaitable[ec]
-		);
+			net::buffer((void*)&start_len_tag, 4),
+			net::transfer_exactly(4), uawaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet"
@@ -562,7 +561,6 @@ namespace avpn {
 		}
 
 		{
-			m_tcp_buffer.sgetn((char*)&start_len_tag, 4);
 			start_len_tag = ntohl(start_len_tag);
 			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
@@ -573,10 +571,10 @@ namespace avpn {
 			}
 		}
 
+		// 读取body本身.
 		co_await net::async_read(stream,
-			m_tcp_buffer,
-			net::transfer_exactly(start_len_tag),
-			uawaitable[ec]);
+			net::buffer(pkt.data(), start_len_tag),
+			net::transfer_exactly(start_len_tag), uawaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet"
@@ -585,7 +583,6 @@ namespace avpn {
 			co_return -1;
 		}
 
-		m_tcp_buffer.sgetn((char*)pkt.data(), start_len_tag);
 		pkt.resize(start_len_tag);
 
 		co_return start_len_tag;
