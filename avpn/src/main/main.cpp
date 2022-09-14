@@ -230,8 +230,8 @@ int main(int argc, char** argv)
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 
-		("privkey", po::value<std::string>(&privatekey)->default_value("")->value_name("privatekey"), "Communication Security private key.")
-		("pubkey", po::value<std::string>(&publickey)->default_value("")->value_name("publickey"), "Communication Security public key.")
+		("privatekey", po::value<std::string>(&privatekey)->default_value("")->value_name("privatekey"), "Communication Security private key.")
+		("publickey", po::value<std::string>(&publickey)->default_value("")->value_name("publickey"), "Communication Security public key.")
 
 		("genkey", "Generates a new private key and writes it to stdout.")
 		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
