@@ -31,6 +31,7 @@ namespace avpn {
 			cfg.tunnel_params_.parity_shards_)
 	{
 		m_crypto = std::make_unique<crypto_util::stream_crypto>(m_shared_key);
+		m_tcp_buffer.prepare(1024 * 1024 * 10);
 	}
 
 	std::shared_ptr<vpn_tunnel>
@@ -542,25 +543,56 @@ namespace avpn {
 		co_return;
 	}
 
+	class transfer_at_least_t
+	{
+	public:
+		typedef std::size_t result_type;
+
+		explicit transfer_at_least_t(std::size_t minimum)
+			: minimum_(minimum)
+		{
+		}
+
+		template <typename Error>
+		std::size_t operator()(const Error& err, std::size_t bytes_transferred)
+		{
+			return (!!err || bytes_transferred >= minimum_)
+				? 0 : 1024 * 1024;
+		}
+
+	private:
+		std::size_t minimum_;
+	};
+
+	inline transfer_at_least_t transfer_at_least(std::size_t minimum)
+	{
+		return transfer_at_least_t(minimum);
+	}
+
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
 		boost::system::error_code ec;
 		int start_len_tag = -1;
 
-		// 先读取4个字节的头.
-		co_await net::async_read(stream,
-			net::buffer((void*)&start_len_tag, 4),
-			net::transfer_exactly(4), uawaitable[ec]);
-		if (ec)
+		if (m_tcp_buffer.size() < 4)
 		{
-			LOG_ERR << "tcp_read_packet"
-				<< ", id: " << m_tcp_socket_id
-				<< ", read tag error: " << ec.message();
-			co_return -1;
+			co_await net::async_read(
+				stream,
+				m_tcp_buffer,
+				transfer_at_least(4),
+				uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "tcp_read_packet"
+					<< ", id: " << m_tcp_socket_id
+					<< ", read tag error: " << ec.message();
+				co_return -1;
+			}
 		}
 
 		{
+			m_tcp_buffer.sgetn((char*)&start_len_tag, 4);
 			start_len_tag = ntohl(start_len_tag);
 			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
@@ -571,18 +603,23 @@ namespace avpn {
 			}
 		}
 
-		// 读取body本身.
-		co_await net::async_read(stream,
-			net::buffer(pkt.data(), start_len_tag),
-			net::transfer_exactly(start_len_tag), uawaitable[ec]);
-		if (ec)
+		if (m_tcp_buffer.size() < start_len_tag)
 		{
-			LOG_ERR << "tcp_read_packet"
-				<< ", id: " << m_tcp_socket_id
-				<< ", read body error: " << ec.message();
-			co_return -1;
+			auto least = start_len_tag - m_tcp_buffer.size();
+			co_await net::async_read(stream,
+				m_tcp_buffer,
+				transfer_at_least(least),
+				uawaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "tcp_read_packet"
+					<< ", id: " << m_tcp_socket_id
+					<< ", read tag error: " << ec.message();
+				co_return -1;
+			}
 		}
 
+		m_tcp_buffer.sgetn((char*)pkt.data(), start_len_tag);
 		pkt.resize(start_len_tag);
 
 		co_return start_len_tag;
