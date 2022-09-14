@@ -27,9 +27,6 @@
 #endif // __clang__
 
 #include <boost/assert.hpp>
-#include <boost/asio/buffer.hpp>
-#include <boost/beast/core/multi_buffer.hpp>
-#include <boost/asio.hpp>
 
 #include <cinttypes>
 #include <vector>
