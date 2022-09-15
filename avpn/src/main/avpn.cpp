@@ -8,7 +8,7 @@
 #include "utils/async_connect.hpp"
 #include "utils/url_view.hpp"
 #include "utils/scoped_exit.hpp"
-#include "utils/uawaitable.hpp"
+#include "utils/asio_util.hpp"
 #include "utils/misc.hpp"
 #include "utils/fileop.hpp"
 
@@ -130,12 +130,16 @@ namespace avpn {
 		for (auto& a : m_tcp_acceptors)
 			a.cancel(ignore_ec);
 
-		for (auto& socket_ptr : m_udp_sockets)
 		{
-			if (!socket_ptr) continue;
+			std::lock_guard lock(m_udp_sockets);
+			for (auto& socket_ptr : m_udp_sockets)
+			{
+				if (!socket_ptr) continue;
 
-			auto& udp_socket = *socket_ptr;
-			udp_socket.sock_.close(ignore_ec);
+				auto& udp_socket = *socket_ptr;
+				udp_socket.sock_.close(ignore_ec);
+			}
+			m_udp_sockets.clear();
 		}
 
 		// 根据client/server身份关闭相应隧道.
@@ -178,7 +182,6 @@ namespace avpn {
 		m_subnet = {};
 		m_upload_speed = 0;
 		m_down_speed = 0;
-		m_start_udp = 0;
 	}
 
 	int64_t avpn_service::upload_rate() const
@@ -380,10 +383,16 @@ namespace avpn {
 	{
 		udp::endpoint remote;
 		boost::system::error_code ec;
+		auto socket_ptr = pick_random_usock(index);
 
 		while (!m_abort)
 		{
-			auto socket_ptr = m_udp_sockets[index];
+			if (!socket_ptr)
+			{
+				socket_ptr = pick_random_usock(index);
+				continue;
+			}
+
 			auto& udp_socket = socket_ptr->sock_;
 
 			vpn_packet pkt;
@@ -392,7 +401,11 @@ namespace avpn {
 				net::buffer(pkt.data(), avpn_packet_size),
 					remote, uawaitable[ec]);
 			if (ec)
+			{
+				socket_ptr = pick_random_usock(index);
+				BOOST_ASSERT(socket_ptr && "socket_ptr == nullptr");
 				continue;
+			}
 
 			// 只有是client时, 才需要更新last see, 因为client一旦检
 			// 测到超时, 则会重建udp socket对象重新向server建立通信.
@@ -547,11 +560,10 @@ namespace avpn {
 	net::awaitable<void>
 	avpn_service::udp_write(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
-		auto usize = m_udp_sockets.size();
-		static uint32_t index = 0;
+		auto socket_ptr = pick_random_usock();
+		if (!socket_ptr)
+			co_return;
 
-		// TODO: 这里可以优化为选择一个活跃的udp socket 用于发送.
-		auto socket_ptr = m_udp_sockets[index++ % usize];
 		auto& udp_socket = socket_ptr->sock_;
 
 		boost::system::error_code ec;
@@ -565,6 +577,16 @@ namespace avpn {
 			<< ", error: " << ec.message();
 
 		co_return;
+	}
+
+	void avpn_service::udp_write(vpn_packet&&, udp::endpoint)
+	{
+// 		auto usize = m_udp_sockets.size();
+// 		static uint32_t index = 0;
+//
+// 		// TODO: 这里可以优化为选择一个活跃的udp socket 用于发送.
+// 		auto socket_ptr = m_udp_sockets[index++ % usize];
+// 		auto& udp_socket = socket_ptr->sock_;
 	}
 
 	void avpn_service::run_as_client()
@@ -751,13 +773,14 @@ namespace avpn {
 				return;
 
 			auto now = steady_clock::now();
-			auto tmp_sockets = m_udp_sockets;
-			for (size_t i = 0; i < tmp_sockets.size(); i++)
+
+			std::lock_guard lock(m_udp_sockets);
+			for (size_t i = 0; i < m_udp_sockets.size(); i++)
 			{
 				if (m_abort)
 					break;
 
-				auto socket_ptr = tmp_sockets[i];
+				auto socket_ptr = m_udp_sockets[i];
 				if (!socket_ptr)
 					continue;
 
@@ -1357,15 +1380,18 @@ namespace avpn {
 
 			auto sockptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
+
+			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(sockptr));
 		}
 
-		auto tmp_sockets = m_udp_sockets;
 		for (int fast = 0; fast < 8; fast++)
 		{
-			for (int n = 0; n < (int)tmp_sockets.size(); n++)
+			std::lock_guard lock(m_udp_sockets);
+
+			for (int n = 0; n < (int)m_udp_sockets.size(); n++)
 			{
-				auto socket_ptr = tmp_sockets[n];
+				auto socket_ptr = m_udp_sockets[n];
 				auto local_endp = socket_ptr->sock_.local_endpoint();
 
 				LOG_DBG << "start_udp_server"
@@ -1583,11 +1609,8 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
 		// 只有在第1次启动client时创建好所有udp socket对象.
-		if (m_start_udp == 0)
-		{
-			m_start_udp = 1;
+		if (m_udp_sockets.empty())
 			co_await make_udp_client();
-		}
 
 		// 发起UDP握手请求.
 		co_await start_udp_handshake();
@@ -1597,19 +1620,6 @@ namespace avpn {
 	net::awaitable<void> avpn_service::make_udp_client()
 	{
 		boost::system::error_code ec;
-
-		// 关闭清除原来的udp socket.
-		for (auto& socket_ptr : m_udp_sockets)
-		{
-			if (!socket_ptr)
-				continue;
-			if (!socket_ptr->sock_.is_open())
-				continue;
-
-			socket_ptr->sock_.close(ec);
-		}
-
-		m_udp_sockets.clear();
 
 		// 创建udp socket, 使用随机端口, 创建4倍个数的udp socket用于
 		// 与vpn服务端通信以提高收发效率.
@@ -1625,28 +1635,31 @@ namespace avpn {
 			[[maybe_unused]] auto local_endp = sock.local_endpoint(ec);
 			if (ec)
 			{
-				LOG_ERR << "start_udp_client"
+				LOG_ERR << "make_udp_client"
 					<< ", udp open error: " << ec.message();
 				continue;
 			}
 
 			auto address_string = local_endp.address().to_string();
-			LOG_DBG << "start_udp_client"
+			LOG_DBG << "make_udp_client"
 				<< ", create udp socket: [" << address_string
 				<< "]:" << local_endp.port();
 
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
+
+			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
 		}
 
 		auto self = shared_from_this();
-		auto tmp_sockets = m_udp_sockets;
 		for (int fast = 0; fast < 8; fast++)
 		{
-			for (int n = 0; n < (int)tmp_sockets.size(); n++)
+			std::lock_guard lock(m_udp_sockets);
+
+			for (int n = 0; n < (int)m_udp_sockets.size(); n++)
 			{
-				auto socket_ptr = tmp_sockets[n];
+				auto socket_ptr = m_udp_sockets[n];
 				net::co_spawn(m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void>
 					{
@@ -2133,6 +2146,39 @@ namespace avpn {
 	{
 		LOG_WARN << "Reset tcp reconnect";
 		m_client_tcp_cnt = cnt;
+	}
+
+	avpn_service::udp_socket_ptr
+	avpn_service::pick_random_usock(int index/* = -1*/)
+	{
+		std::lock_guard lock(m_udp_sockets);
+		static uint32_t static_index = 0;
+
+		auto num_sockets = m_udp_sockets.size();
+		if (num_sockets == 0)
+		{
+			BOOST_ASSERT(false && "m_udp_sockets is empty!");
+			return {};
+		}
+
+		// TODO: 这里可以优化为选择一个活跃的udp socket 用于发送.
+		if (index == -1)
+			index = static_index++ % num_sockets;
+
+		if (index < 0 || index >= num_sockets)
+		{
+			BOOST_ASSERT(false && "index out of range!");
+			return {};
+		}
+
+		auto socket_ptr = m_udp_sockets[index];
+		if (!socket_ptr)
+		{
+			BOOST_ASSERT(false && "socket_ptr == nullptr");
+			return {};
+		}
+
+		return socket_ptr;
 	}
 
 }

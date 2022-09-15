@@ -136,4 +136,21 @@ namespace avpn {
 		return ret;
 	}
 
+
+	//////////////////////////////////////////////////////////////////////////
+
+	vpn_tun_packet::vpn_tun_packet(vpn_tun_packet&& p)
+		: pkt_(std::move(p.pkt_))
+		, endp_(std::move(p.endp_))
+	{
+	}
+
+	vpn_tun_packet& vpn_tun_packet::operator=(vpn_tun_packet&& p)
+	{
+		pkt_ = std::move(p.pkt_);
+		endp_ = std::move(p.endp_);
+
+		return *this;
+	}
+
 }

@@ -14,7 +14,7 @@
 #include "socks/socks_enums.hpp"
 #include "socks/socks_io.hpp"
 
-#include "utils/uawaitable.hpp"
+#include "utils/asio_util.hpp"
 
 #include <cstdlib>
 #include <string>

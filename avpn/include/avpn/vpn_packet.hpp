@@ -10,6 +10,8 @@
 #include <cinttypes>
 #include <memory>
 
+#include "avpn/endpoint_pair.hpp"
+
 namespace avpn {
 
 	//////////////////////////////////////////////////////////////////////////
@@ -140,4 +142,25 @@ namespace avpn {
 
 	vpn_packet_ptr dup_vpn_packet(const vpn_packet_ptr& p);
 	vpn_packet_ptr dup_vpn_packet(const vpn_packet& p);
+
+
+	//////////////////////////////////////////////////////////////////////////
+
+	struct vpn_tun_packet
+	{
+	private:
+		vpn_tun_packet(const vpn_tun_packet&) = delete;
+		vpn_tun_packet& operator=(const vpn_tun_packet&) = delete;
+
+	public:
+		vpn_tun_packet() = default;
+		~vpn_tun_packet() = default;
+
+		vpn_tun_packet(vpn_tun_packet&&);
+		vpn_tun_packet& operator=(vpn_tun_packet&&);
+
+	public:
+		vpn_packet pkt_;
+		endpoint_pair endp_;
+	};
 }

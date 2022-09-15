@@ -1,5 +1,5 @@
 ﻿//
-// uawaitable.hpp
+// asio_util.hpp
 // ~~~~~~~~~~~~~~
 //
 // Copyright (c) 2019 Jack (jack dot wgm at gmail dot com)
@@ -19,6 +19,39 @@ namespace net = boost::asio;
 
 namespace asio_util
 {
+	//////////////////////////////////////////////////////////////////////////
+
+	inline size_t default_max_transfer_size = 1024 * 1024;
+
+	class transfer_at_least_t
+	{
+	public:
+		typedef std::size_t result_type;
+
+		explicit transfer_at_least_t(std::size_t minimum)
+			: minimum_(minimum)
+		{
+		}
+
+		template <typename Error>
+		std::size_t operator()(const Error& err, std::size_t bytes_transferred)
+		{
+			return (!!err || bytes_transferred >= minimum_)
+				? 0 : default_max_transfer_size;
+		}
+
+	private:
+		std::size_t minimum_;
+	};
+
+	inline transfer_at_least_t transfer_at_least(std::size_t minimum)
+	{
+		return transfer_at_least_t(minimum);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
+
 	struct uawaitable_t
 	{
 		inline net::redirect_error_t<

@@ -16,7 +16,7 @@ target_sources(utils
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/logging.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/misc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/scoped_exit.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/uawaitable.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/asio_util.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/url_view.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/xxhash.hpp
 

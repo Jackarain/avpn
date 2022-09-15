@@ -15,13 +15,14 @@
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
-#include "utils/uawaitable.hpp"
+#include "utils/asio_util.hpp"
 
 #include "avpn/endpoint_pair.hpp"
 
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"
 #include "avpn/avpn.hpp"
+#include "avpn/vpn_queue.hpp"
 
 
 namespace avpn {
@@ -84,6 +85,12 @@ namespace avpn {
 		// forward udp packet from network.
 		net::awaitable<void>
 		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
+
+		// 提交一个tun读取的packet到队列.
+		void tun_submit(vpn_tun_packet&& pkt);
+
+		// 提交一个网络数据包到队列.
+		void net_submit(vpn_packet&& pkt, udp::endpoint remote);
 
 		// 设置/返回client的id.
 		std::string client_id() const;
@@ -214,6 +221,12 @@ namespace avpn {
 		std::deque<vpn_packet_ptr> m_tcp_deque;
 		bool m_tcp_ready{ false };
 		net::streambuf m_tcp_buffer;
+
+		// tun input数据包队列.
+		vpn_queue<vpn_tun_packet> m_tun_iqe;
+
+		// net input数据包队列.
+		vpn_queue<vpn_packet> m_net_iqe;
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;

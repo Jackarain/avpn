@@ -91,6 +91,9 @@ namespace avpn {
 				m_upload_stat = {};
 				m_down_stat = {};
 
+				m_net_iqe.close();
+				m_tun_iqe.close();
+
 				boost::system::error_code ec;
 				m_tick_timer.cancel(ec);
 
@@ -277,6 +280,22 @@ namespace avpn {
 
 		co_await process_udp_packet(pkt);
 		co_return;
+	}
+
+	void vpn_tunnel::tun_submit(vpn_tun_packet&& pkt)
+	{
+		m_tun_iqe.submit(std::move(pkt));
+	}
+
+	void vpn_tunnel::net_submit(vpn_packet&& pkt, udp::endpoint remote)
+	{
+		if (m_identity == Identity::avpn_server)
+			m_remote_endpoint = remote;
+
+		m_num_recv_packet++;
+		compute_speed(m_down_stat, pkt.size());
+
+		m_net_iqe.submit(std::move(pkt));
 	}
 
 	std::string vpn_tunnel::client_id() const
@@ -543,32 +562,6 @@ namespace avpn {
 		co_return;
 	}
 
-	class transfer_at_least_t
-	{
-	public:
-		typedef std::size_t result_type;
-
-		explicit transfer_at_least_t(std::size_t minimum)
-			: minimum_(minimum)
-		{
-		}
-
-		template <typename Error>
-		std::size_t operator()(const Error& err, std::size_t bytes_transferred)
-		{
-			return (!!err || bytes_transferred >= minimum_)
-				? 0 : 1024 * 1024;
-		}
-
-	private:
-		std::size_t minimum_;
-	};
-
-	inline transfer_at_least_t transfer_at_least(std::size_t minimum)
-	{
-		return transfer_at_least_t(minimum);
-	}
-
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
 		tcp::socket& stream, vpn_packet& pkt)
 	{
@@ -580,7 +573,7 @@ namespace avpn {
 			co_await net::async_read(
 				stream,
 				m_tcp_buffer,
-				transfer_at_least(4),
+				asio_util::transfer_at_least(4),
 				uawaitable[ec]);
 			if (ec)
 			{
@@ -608,7 +601,7 @@ namespace avpn {
 			auto least = start_len_tag - m_tcp_buffer.size();
 			co_await net::async_read(stream,
 				m_tcp_buffer,
-				transfer_at_least(least),
+				asio_util::transfer_at_least(least),
 				uawaitable[ec]);
 			if (ec)
 			{

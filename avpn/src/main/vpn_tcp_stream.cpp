@@ -8,7 +8,7 @@
 #include "avpn/vpn_tcp_stream.hpp"
 #include "avpn/protocol.hpp"
 
-#include "utils/uawaitable.hpp"
+#include "utils/asio_util.hpp"
 #include "utils/crypto.hpp"
 
 namespace avpn {

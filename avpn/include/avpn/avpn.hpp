@@ -26,6 +26,8 @@
 #include <boost/bimap/unordered_set_of.hpp>
 #include <boost/bimap/multiset_of.hpp>
 
+#include <boost/thread/lockable_adapter.hpp>
+
 namespace avpn {
 
 	using namespace util;
@@ -185,6 +187,13 @@ namespace avpn {
 	class vpn_conntrack;
 	using vpn_conntrack_ptr = std::shared_ptr<vpn_conntrack>;
 
+	// 带mutex的vector类, 访问对象前可调用lock加锁以保证线程安装.
+	template<typename Ty, class Alloc = std::allocator<Ty>>
+	class safe_vector
+		: public std::vector<Ty, Alloc>
+		, public boost::lockable_adapter<std::mutex>
+	{};
+
 	class avpn_service
 		: public socks_server_base
 		, public std::enable_shared_from_this<avpn_service>
@@ -198,6 +207,18 @@ namespace avpn {
 		avpn_service(io_context_pool&, const service_config&);
 
 		friend class vpn_tunnel;
+
+		struct udp_socket
+		{
+			udp_socket(time_point now, udp::socket&& sock)
+				: last_see_(now)
+				, sock_(std::move(sock))
+			{}
+
+			time_point last_see_;
+			udp::socket sock_;
+		};
+		using udp_socket_ptr = std::shared_ptr<udp_socket>;
 
 	public:
 		// 创建apvn service对象, 因为avpn_service必须是一个shared_ptr对象
@@ -249,6 +270,8 @@ namespace avpn {
 		net::awaitable<void> start_udp_read_loop(int);
 		void do_udp_write(vpn_packet_ptr, udp::endpoint);
 		net::awaitable<void> udp_write(vpn_packet_ptr, udp::endpoint);
+
+		void udp_write(vpn_packet&&, udp::endpoint);
 
 		// 启动avpn服务.
 		void run_as_client();
@@ -323,6 +346,9 @@ namespace avpn {
 		// 作为client时, 重置tcp连接计数.
 		void reset_tcp_cnt(int);
 
+		// 随机选择一个udp socket指针.
+		udp_socket_ptr pick_random_usock(int index = -1);
+
 	private:
 		// io context pool
 		// 用于使用不同的io_context为不同的client服务.
@@ -352,8 +378,6 @@ namespace avpn {
 
 		// client连接超时计数.
 		int m_client_tcp_cnt{ 0 };
-		// client的udp创建标志.
-		int m_start_udp{ 0 };
 
 		// client重启计数.
 		enum {
@@ -398,18 +422,7 @@ namespace avpn {
 		// 作为client时, 可以随时创建新的udp_socket用于和server通信.
 		// last_see_ 用作client时, 标识最后和server通信时间, 如果超
 		// 时则可创建新的udp_socket替代超时的udp_socket.
-		struct udp_socket
-		{
-			udp_socket(time_point now, udp::socket&& sock)
-				: last_see_(now)
-				, sock_(std::move(sock))
-			{}
-
-			time_point last_see_;
-			udp::socket sock_;
-		};
-		using udp_socket_ptr = std::shared_ptr<udp_socket>;
-		std::vector<udp_socket_ptr> m_udp_sockets;
+		safe_vector<udp_socket_ptr> m_udp_sockets;
 
 		// 作为server时, 保存client连接的容器.
 		// 所有client连接将保存到这个容器, 这个容器不管理client的生命

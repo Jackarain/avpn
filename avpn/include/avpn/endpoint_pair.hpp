@@ -107,6 +107,22 @@ namespace avpn {
 			endp.id_ = 0;
 		}
 
+		endpoint_pair& operator=(endpoint_pair&& endp)
+		{
+			src_ = std::move(endp.src_);
+			dst_ = std::move(endp.dst_);
+
+			type_ = endp.type_;
+			size_ = endp.size_;
+			id_ = endp.id_;
+
+			endp.type_ = -1;
+			endp.size_ = -1;
+			endp.id_ = 0;
+
+			return *this;
+		}
+
 		endpoint_pair(const endpoint_pair& endp)
 			: src_(endp.src_)
 			, dst_(endp.dst_)
