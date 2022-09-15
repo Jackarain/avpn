@@ -420,6 +420,23 @@ namespace avpn
 		int ds, int ps,
 		vpn_packet_ptr& pkt)
 	{
+		auto clean_gops =
+		[this](uint32_t& gid) mutable -> void
+		{
+			// 作gop清理工作, 清理gid大于当前gid + 64的
+			// gop.
+			for (auto it = groups_.begin();
+				it != groups_.end();)
+			{
+				auto& [i, g] = *it;
+
+				if (g.gid_ + 64 > gid)
+					break;
+
+				it = groups_.erase(it);
+			}
+		};
+
 		// 查找是否已存在创建的gop, 如果不存在则创建
 		// 新的gop.
 		auto it = groups_.find(gid);
@@ -428,9 +445,13 @@ namespace avpn
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, pkt);
 
+			scoped_exit se(std::bind(clean_gops, std::ref(gid)));
+
 			// 对方ds为1的时候, 任何pkt返回即过期.
 			if (ds == 1)
 				gop.set_expired();
+			else
+				se.cancel();
 
 			groups_.emplace(gid, std::move(gop));
 
@@ -447,25 +468,11 @@ namespace avpn
 		if (!gop.available())
 			return { false, false };
 
-		// gop可用后, 作解码处理后, 标记为过期的
-		// gop并清理过期大于64的gop.
-		scoped_exit se([this, &gop, &gid]() mutable
-			{
-				gop.set_expired();
+		// gop可用后, 标记为过期.
+		gop.set_expired();
 
-				// 作gop清理工作, 清理gid大于当前gid + 64的
-				// gop.
-				for (auto it = groups_.begin();
-					it != groups_.end();)
-				{
-					auto& [i, g] = *it;
-
-					if (g.gid_ + 64 > gid)
-						break;
-
-					it = groups_.erase(it);
-				}
-			});
+		// 在完成解码后, 清理过期大于64的gop.
+		scoped_exit se(std::bind(clean_gops, std::ref(gid)));
 
 		// 是否丢包, 如果没丢包则返回 true 以表示完成.
 		auto lost_pkts = gop.lost();

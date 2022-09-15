@@ -719,7 +719,7 @@ namespace avpn {
 			return tmp;
 		}
 		pkt.payload_size(rawsize);
-		return dup_vpn_packet(pkt);
+		return dup_vpn_packet_ptr(pkt);
 	}
 
 	vpn_packet make_transfer_ack(uint32_t src, uint32_t gid)

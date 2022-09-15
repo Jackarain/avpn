@@ -292,17 +292,17 @@ namespace avpn {
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-				if (m_routes.lookup(endp.dst_.address())
-					== (acl_util::lpm_tag)0xa)
-				{
-					// TODO: 通过tun2socks模式转发.
-					if (!m_conntrack)
-						continue;
-
-					auto& conntrack = *m_conntrack;
-					conntrack.forward_ip(std::move(pkt), std::move(endp));
-				}
-				else
+// 				if (m_routes.lookup(endp.dst_.address())
+// 					== (acl_util::lpm_tag)0xa)
+// 				{
+// 					// TODO: 通过tun2socks模式转发.
+// 					if (!m_conntrack)
+// 						continue;
+//
+// 					auto& conntrack = *m_conntrack;
+// 					conntrack.forward_ip(std::move(pkt), std::move(endp));
+// 				}
+// 				else
 				{
 					do_client_tun_read(std::move(pkt), std::move(endp));
 				}
@@ -403,7 +403,6 @@ namespace avpn {
 			if (ec)
 			{
 				socket_ptr = pick_random_usock(index);
-				BOOST_ASSERT(socket_ptr && "socket_ptr == nullptr");
 				continue;
 			}
 
@@ -464,11 +463,8 @@ namespace avpn {
 						continue;
 
 					// 没找到src对应的client, 则返回空handshake reply消息.
-					auto response = make_handshake_reply(
-						{}, 0, 0, 0, 0, false, 0, {});
-					auto ptr = std::make_shared<vpn_packet>(
-						std::move(response));
-					co_await udp_write(ptr, remote);
+					do_udp_write(make_handshake_reply(
+						{}, 0, 0, 0, 0, false, 0, {}), remote);
 					continue;
 				}
 
@@ -545,48 +541,29 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_udp_write(vpn_packet_ptr pkt, udp::endpoint endp)
+	void avpn_service::do_udp_write(vpn_packet&& pkt, udp::endpoint remote)
 	{
-		auto self = shared_from_this();
-		net::co_spawn(m_main_context,
-			[this, self, pkt = std::move(pkt), endp = std::move(endp)]
-			() -> net::awaitable<void>
-			{
-				co_await udp_write(pkt, std::move(endp));
-				co_return;
-			}, net::detached);
-	}
-
-	net::awaitable<void>
-	avpn_service::udp_write(vpn_packet_ptr pkt, udp::endpoint remote)
-	{
+		// 选择一个可用的udp socket准备用于数据发送.
 		auto socket_ptr = pick_random_usock();
 		if (!socket_ptr)
-			co_return;
+			return;
 
-		auto& udp_socket = socket_ptr->sock_;
+ 		auto& udp_socket = socket_ptr->sock_;
+		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
-		boost::system::error_code ec;
-		// 调用udp socket发送数据.
-		co_await udp_socket.async_send_to(
-			net::buffer(pkt->data(), pkt->size()),
-			remote, uawaitable[ec]);
-		if (ec)
-			LOG_WARN << "udp_write"
-			<< ", send_to " << remote
-			<< ", error: " << ec.message();
-
-		co_return;
-	}
-
-	void avpn_service::udp_write(vpn_packet&&, udp::endpoint)
-	{
-// 		auto usize = m_udp_sockets.size();
-// 		static uint32_t index = 0;
-//
-// 		// TODO: 这里可以优化为选择一个活跃的udp socket 用于发送.
-// 		auto socket_ptr = m_udp_sockets[index++ % usize];
-// 		auto& udp_socket = socket_ptr->sock_;
+		// 直接发送, 仅在回调时释放packet.
+		udp_socket.async_send_to(
+			net::buffer(ptr->data(), ptr->size()),
+			remote,
+			[ptr, remote](boost::system::error_code ec, std::size_t) mutable
+			{
+				if (ec)
+				{
+					LOG_WARN << "udp_write"
+						<< ", send_to " << remote
+						<< ", error: " << ec.message();
+				}
+			});
 	}
 
 	void avpn_service::run_as_client()
@@ -1684,11 +1661,9 @@ namespace avpn {
 		auto pkt = make_handshake(src_vaddr, m_client_id, pubkey,
 			(uint8_t)params.data_shards_, (uint8_t)params.parity_shards_);
 
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-
 		// 发送udp握手包.
 		for (auto endp : m_server_udp_endps)
-			do_udp_write(ptr, endp);
+			do_udp_write(dup_vpn_packet(pkt), endp);
 
 		co_return;
 	}
@@ -1835,10 +1810,9 @@ namespace avpn {
 
 				// 规定 src为0 则表示认证失败.
 				// 规定client id原样返回.
-				auto response = make_handshake_reply(
-					client_id, 0, 0, 0, 0, false, 0, {});
-				auto ptr = std::make_shared<vpn_packet>(std::move(response));
-				co_await udp_write(ptr, remote);
+				do_udp_write(make_handshake_reply(
+					client_id, 0, 0, 0, 0, false, 0, {}), remote);
+
 				co_return;
 			}
 		}
@@ -1870,8 +1844,7 @@ namespace avpn {
 			params.passbyvpn_,
 			params.pushdns_,
 			params.pushroutes_);
-		auto ptr = std::make_shared<vpn_packet>(std::move(response));
-		co_await udp_write(ptr, remote);
+		do_udp_write(std::move(response), remote);
 
 		// 更新tunnel的远端udp的endpoint.
 		tunnel->remote_endpoint(remote);
@@ -2151,6 +2124,9 @@ namespace avpn {
 	avpn_service::udp_socket_ptr
 	avpn_service::pick_random_usock(int index/* = -1*/)
 	{
+		if (m_abort)
+			return {};
+
 		std::lock_guard lock(m_udp_sockets);
 		static uint32_t static_index = 0;
 

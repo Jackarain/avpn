@@ -130,16 +130,15 @@ namespace avpn {
 		void compute_speed(speed_stat& stat, const time_point& now);
 
 		// 通过udp/tcp协议发送数据包.
-		void udp_write_pkt(vpn_packet_ptr& pkt);
-		void tcp_write_pkt(vpn_packet_ptr& pkt);
+		void udp_write_pkt(vpn_packet&& pkt);
+		void tcp_write_pkt(vpn_packet&& pkt);
 
-		net::awaitable<void> internal_write_pkt(vpn_packet_ptr pkt);
+		void internal_write_pkt(vpn_packet&& pkt);
 
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(
 			tcp::socket& stream, vpn_packet& pkt);
-		net::awaitable<void> tcp_write_packet(
-			tcp::socket& stream, vpn_packet_ptr& pkt);
+		void tcp_write_packet(vpn_packet&& pkt);
 
 		// 速率限制.
 		net::awaitable<void> speed_limit(
@@ -218,7 +217,7 @@ namespace avpn {
 		// 与remote通信的tcp socket及tcp socket id.
 		tcp::socket m_tcp_socket;
 		size_t m_tcp_socket_id{ 0 };
-		std::deque<vpn_packet_ptr> m_tcp_deque;
+		std::deque<vpn_packet> m_tcp_oqe;
 		bool m_tcp_ready{ false };
 		net::streambuf m_tcp_buffer;
 

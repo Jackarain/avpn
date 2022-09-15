@@ -100,7 +100,7 @@ namespace avpn {
 				if (m_tcp_ready)
 					m_tcp_socket.close(ec);
 
-				m_tcp_deque = {};
+				m_tcp_oqe.clear();
 
 				co_return;
 			}, net::detached);
@@ -152,7 +152,7 @@ namespace avpn {
 			// 计算下载速率.
 			compute_speed(m_down_stat, pkt.size());
 			// 控制下载速率.
-			co_await speed_limit(pkt.payload_size(), false);
+			// co_await speed_limit(pkt.payload_size(), false);
 		}
 
 		m_tcp_ready = false;
@@ -185,7 +185,7 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);
-		m_tcp_deque.clear();
+		m_tcp_oqe.clear();
 
 		m_tcp_socket = std::move(s);
 		m_tcp_socket_id = id;
@@ -198,7 +198,7 @@ namespace avpn {
 
 		auto& params = m_config.tunnel_params_;
 
-		// 更新pkt数据.
+		// 更新pkt数据, 计算gid, pid等信息.
 		if (m_config.tunnel_params_.compress_ == "zstd")
 			m_feg.make_fec_zstd(pkt, m_self_vaddr);
 		else
@@ -212,54 +212,47 @@ namespace avpn {
 		{
 			int repeated = params.parity_shards_ + 1;
 
+			// 计算上行速率.
+			compute_speed(m_upload_stat, pkt->size() * repeated);
+
+#if 0
 			for (auto i = 0; i < repeated; i++)
 			{
-				auto dup = dup_vpn_packet(pkt);
+				auto dup = dup_vpn_packet_ptr(pkt);
 				if (i != 0)
 				{
+					// 多倍发送时, 也要更新gid, pid等信息.
 					if (m_config.tunnel_params_.compress_ == "zstd")
 						m_feg.make_fec_zstd(dup, m_self_vaddr);
 					else
 						m_feg.make_fec_normal(dup, m_self_vaddr);
 				}
 
-				net::co_spawn(m_io_context,
-					[this, self, pkt = std::move(dup)]
-					() mutable->net::awaitable<void>
-					{
-						// 计算上行速率.
-						compute_speed(m_upload_stat, pkt->size());
-
-						co_await internal_write_pkt(pkt);
-						co_return;
-					}, net::detached);
+				internal_write_pkt(std::move(*dup));
 			}
+#else
+			internal_write_pkt(std::move(*pkt));
+#endif
 
 			co_return;
 		}
 
-		// 发送pkt到对方.
-		net::co_spawn(m_io_context,
-			[this, self, pkt = std::move(pkt)]
-			() mutable->net::awaitable<void>
-			{
-				// 计算上行速率.
-				compute_speed(m_upload_stat, pkt->size());
+		// 计算上行速率.
+		compute_speed(m_upload_stat, pkt->size());
 
-				co_await internal_write_pkt(pkt);
-				co_return;
-			}, net::detached);
+		// 发送pkt到对方.
+		internal_write_pkt(std::move(*pkt));
 
 		// 循环发送已FEC编码部分.
 		for (auto& p : paritys)
 		{
 			BOOST_ASSERT(p != nullptr && "tun_forward");
 
-			// 发送到对方.
-			co_await internal_write_pkt(p);
-
 			// 计算上行速率.
 			compute_speed(m_upload_stat, p->size());
+
+			// 发送到对方.
+			internal_write_pkt(std::move(*p));
 		}
 
 		co_return;
@@ -276,7 +269,7 @@ namespace avpn {
 		m_num_recv_packet++;
 
 		compute_speed(m_down_stat, pkt->size());
-		co_await speed_limit(pkt->payload_size(), false);
+		// co_await speed_limit(pkt->payload_size(), false);
 
 		co_await process_udp_packet(pkt);
 		co_return;
@@ -448,9 +441,8 @@ namespace avpn {
 				uint64_t timestamp = now.time_since_epoch().count();
 				auto pkt = make_keepalive(m_self_vaddr, m_client_id,
 					m_num_recv_packet, m_num_send_packet, timestamp);
-				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
-				co_await internal_write_pkt(ptr);
+				internal_write_pkt(std::move(pkt));
 			}
 		}
 
@@ -471,7 +463,7 @@ namespace avpn {
 
 		if ((params.mode_ == Proto::avpn_tcp ||
 			ipproto == Proto::avpn_mix) &&
-			m_tcp_deque.empty() &&
+			m_tcp_oqe.empty() &&
 			std::rand() % 2 == 0)
 			return Proto::avpn_tcp;
 
@@ -519,47 +511,29 @@ namespace avpn {
 		stat.speeder_count_ = speeder_count;
 	}
 
-	void vpn_tunnel::udp_write_pkt(vpn_packet_ptr& pkt)
+	void vpn_tunnel::udp_write_pkt(vpn_packet&& pkt)
 	{
-		auto self = shared_from_this();
-		net::co_spawn(m_io_context,
-			[this, self, pkt]() mutable->net::awaitable<void>
-			{
-				auto service = m_serivce.lock();
-				if (!service)
-					co_return;
+		auto service = m_serivce.lock();
+		if (!service)
+			return;
 
-				co_await speed_limit(pkt->payload_size(), true);
-				m_num_send_packet++;
-
-				service->do_udp_write(pkt, m_remote_endpoint);
-				co_return;
-			}, net::detached);
+		m_num_send_packet++;
+		service->do_udp_write(std::move(pkt), m_remote_endpoint);
 	}
 
-	void vpn_tunnel::tcp_write_pkt(vpn_packet_ptr& pkt)
+	void vpn_tunnel::tcp_write_pkt(vpn_packet&& pkt)
 	{
-		auto self = shared_from_this();
-		net::co_spawn(m_io_context,
-			[this, self, pkt]() mutable -> net::awaitable<void>
-			{
-				co_await tcp_write_packet(m_tcp_socket, pkt);
-				co_return;
-			}, net::detached);
+		tcp_write_packet(std::move(pkt));
 	}
 
-	net::awaitable<void> vpn_tunnel::internal_write_pkt(vpn_packet_ptr pkt)
+	void vpn_tunnel::internal_write_pkt(vpn_packet&& pkt)
 	{
-		BOOST_ASSERT(pkt != nullptr && "internal_write_pkt");
-
 		auto pick = cherry_pick();
 
 		if (pick == Proto::avpn_tcp)
-			co_await tcp_write_packet(m_tcp_socket, pkt);
+			tcp_write_packet(std::move(pkt));
 		else
-			udp_write_pkt(pkt);
-
-		co_return;
+			udp_write_pkt(std::move(pkt));
 	}
 
 	net::awaitable<int> vpn_tunnel::tcp_read_packet(
@@ -618,74 +592,153 @@ namespace avpn {
 		co_return start_len_tag;
 	}
 
-	net::awaitable<void> vpn_tunnel::tcp_write_packet(
-		tcp::socket& stream, vpn_packet_ptr& pkt)
+	template<typename Handler>
+	struct write_packet_op
 	{
-		auto self = shared_from_this();
+		write_packet_op(tcp::socket& s,
+			vpn_packet_ptr pkt,
+//			size_t id,
+			Handler& h)
+			: stream_(s)
+			, pkt_(pkt)
+//			, socket_id_(id)
+			, handler_(static_cast<Handler&&>(h))
+		{
+			(*this)({}, 0);
+		}
 
+		void operator()(boost::system::error_code error,
+			std::size_t)
+		{
+			switch (start_)
+			{
+			case 0:
+			{
+				boost::system::error_code ec;
+				uint32_t start_len_tag =
+					htonl((uint32_t)pkt_->size());
+
+				start_ = 1;
+				net::async_write(stream_,
+					net::buffer(&start_len_tag, 4), *this);
+			}
+			return;
+			case 1:
+			{
+				if (error)
+				{
+// 					LOG_ERR << "tcp_write_packet"
+// 						<< ", id: " << socket_id_
+// 						<< ", async_write tag error: " << error.message();
+					break;
+				}
+
+				start_ = 2;
+				net::async_write(stream_,
+					net::buffer(pkt_->data(), pkt_->size()), *this);
+			}
+			return;
+			default:
+			{
+				if (error)
+				{
+// 					LOG_ERR << "tcp_write_packet"
+// 						<< ", id: " << socket_id_
+// 						<< ", async_write body error: " << error.message();
+				}
+				break;
+			}
+			}
+
+			handler_(static_cast<const boost::system::error_code&>(error));
+		}
+
+		tcp::socket& stream_;
+		vpn_packet_ptr pkt_;
+//		size_t socket_id_;
+		int start_{ 0 };
+		Handler handler_;
+	};
+
+	struct write_packet_qe
+	{
+		write_packet_qe(
+			tcp::socket& stream,
+			std::deque<vpn_packet>& qe,
+			boost::tribool& abort,
+			int& num_send_packet,
+			std::shared_ptr<vpn_tunnel>& self)
+			: stream_(stream)
+			, pkt_qe_(qe)
+			, abort_(abort)
+			, num_send_packet_(num_send_packet)
+			, self_(self)
+		{}
+
+		void operator()(boost::system::error_code error, int start = 0)
+		{
+			switch (start)
+			{
+			case 1:
+				while (!abort_ && !pkt_qe_.empty())
+				{
+					write_packet_op(stream_,
+						std::make_shared<vpn_packet>(
+							std::move(pkt_qe_.front())), *this);
+			return;  default:
+					if (abort_ || pkt_qe_.empty())
+						return;
+					pkt_qe_.pop_front();
+					if (error)
+					{
+						LOG_ERR << "write_packet_qe"
+							<< ", error: " << error.message();
+						return;
+					}
+					num_send_packet_++;
+				}
+			}
+		}
+
+		tcp::socket& stream_;
+		std::deque<vpn_packet>& pkt_qe_;
+		boost::tribool& abort_;
+		int& num_send_packet_;
+		std::shared_ptr<vpn_tunnel> self_;
+	};
+
+	void vpn_tunnel::tcp_write_packet(vpn_packet&& pkt)
+	{
+		// tcp 连接暂时不可用, 仅输出日志.
 		if (!m_tcp_ready)
 		{
 			static std::chrono::system_clock::time_point last_time;
+
 			auto cur_time = std::chrono::system_clock::now();
 			auto timeout = cur_time - last_time;
 
+			// 此处只是为了避免在同一时间里频繁输出日志.
 			if (timeout > std::chrono::seconds(1))
 			{
 				last_time = cur_time;
 				LOG_WARN << "tcp_write_packet, tcp socket not ready";
 			}
 
-			co_return;
+			return;
 		}
-
-		// 执行限速算法.
-		co_await speed_limit(pkt->payload_size(), true);
 
 		// 将pkt加入发送队列.
-		bool deque_writing = !m_tcp_deque.empty();
-		m_tcp_deque.push_back(pkt);
+		bool deque_writing = !m_tcp_oqe.empty();
+		m_tcp_oqe.emplace_back(std::move(pkt));
 
+		// 正在发送中, 返回.
 		if (deque_writing)
-			co_return;
+			return;
 
 		// 开始循环发送tcp wirte队列.
-		while (!m_abort && !m_tcp_deque.empty())
-		{
-			pkt = m_tcp_deque.front();
-
-			scoped_exit se([this] () mutable
-			{
-				if (!m_tcp_deque.empty())
-					m_tcp_deque.pop_front();
-			});
-
-			boost::system::error_code ec;
-			uint32_t start_len_tag = htonl((uint32_t)pkt->size());
-
-			co_await net::async_write(stream,
-				net::buffer(&start_len_tag, 4), uawaitable[ec]);
-			if (ec)
-			{
-				LOG_ERR << "tcp_write_packet"
-					<< ", id: " << m_tcp_socket_id
-					<< ", async_write tag error: " << ec.message();
-				co_return;
-			}
-
-			co_await net::async_write(stream,
-				net::buffer(pkt->data(), pkt->size()), uawaitable[ec]);
-			if (ec)
-			{
-				LOG_ERR << "tcp_write_packet"
-					<< ", id: " << m_tcp_socket_id
-					<< ", async_write body error: " << ec.message();
-				co_return;
-			}
-
-			m_num_send_packet++;
-		}
-
-		co_return;
+		auto self = shared_from_this();
+		write_packet_qe(m_tcp_socket, m_tcp_oqe,
+			m_abort, m_num_send_packet, self)({}, 1);
 	}
 
 	net::awaitable<void> vpn_tunnel::speed_limit(
@@ -797,15 +850,14 @@ namespace avpn {
 
 			unwrap_keepalive(*pkt, src, id, rx, tx, timestamp);
 
-			auto p = std::make_shared<vpn_packet>(
-				make_keepalive_reply(src, m_client_id,
-					m_num_recv_packet, m_num_send_packet, timestamp));
+			auto p = make_keepalive_reply(src, m_client_id,
+					m_num_recv_packet, m_num_send_packet, timestamp);
 
 			if (m_ipproto == Proto::avpn_tcp ||
 				m_ipproto == Proto::avpn_mix)
-				tcp_write_pkt(p);
+				tcp_write_packet(std::move(p));
 			else
-				udp_write_pkt(p);
+				udp_write_pkt(std::move(p));
 		}
 
 		last_see(steady_clock::now());

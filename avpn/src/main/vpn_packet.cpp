@@ -106,7 +106,7 @@ namespace avpn {
 		type_ = t;
 	}
 
-	vpn_packet_ptr dup_vpn_packet(const vpn_packet_ptr& p)
+	vpn_packet_ptr dup_vpn_packet_ptr(const vpn_packet_ptr& p)
 	{
 		auto ret = std::make_shared<vpn_packet>();
 
@@ -121,7 +121,7 @@ namespace avpn {
 		return ret;
 	}
 
-	vpn_packet_ptr dup_vpn_packet(const vpn_packet& p)
+	vpn_packet_ptr dup_vpn_packet_ptr(const vpn_packet& p)
 	{
 		auto ret = std::make_shared<vpn_packet>();
 
@@ -136,6 +136,35 @@ namespace avpn {
 		return ret;
 	}
 
+	vpn_packet dup_vpn_packet(const vpn_packet_ptr& p)
+	{
+		vpn_packet ret;
+
+		std::memcpy(ret.data(), p->data(), avpn_packet_size);
+		ret.gid_ = p->gid_;
+		ret.pid_ = p->pid_;
+		ret.payload_size_ = p->payload_size_;
+		ret.size_ = p->size_;
+		ret.type_ = p->type_;
+		ret.flag_ = p->flag_;
+
+		return static_cast<vpn_packet&&>(ret);
+	}
+
+	vpn_packet dup_vpn_packet(const vpn_packet& p)
+	{
+		vpn_packet ret;
+
+		std::memcpy(ret.data(), p.data(), avpn_packet_size);
+		ret.gid_ = p.gid_;
+		ret.pid_ = p.pid_;
+		ret.payload_size_ = p.payload_size_;
+		ret.size_ = p.size_;
+		ret.type_ = p.type_;
+		ret.flag_ = p.flag_;
+
+		return static_cast<vpn_packet&&>(ret);
+	}
 
 	//////////////////////////////////////////////////////////////////////////
 
