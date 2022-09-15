@@ -138,7 +138,6 @@ namespace avpn {
 		// 在tcp连接上读/写一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(
 			tcp::socket& stream, vpn_packet& pkt);
-		void tcp_write_packet(vpn_packet&& pkt);
 
 		// 速率限制.
 		net::awaitable<void> speed_limit(
