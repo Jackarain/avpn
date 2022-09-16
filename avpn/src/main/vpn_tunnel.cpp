@@ -757,7 +757,7 @@ namespace avpn {
 			}
 		}
 
-		if (m_tcp_buffer.size() < start_len_tag)
+		if (static_cast<int>(m_tcp_buffer.size()) < start_len_tag)
 		{
 			auto least = start_len_tag - m_tcp_buffer.size();
 			co_await net::async_read(stream,

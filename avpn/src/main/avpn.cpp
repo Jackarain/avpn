@@ -2141,7 +2141,7 @@ namespace avpn {
 		if (index == -1)
 			index = static_index++ % num_sockets;
 
-		if (index < 0 || index >= num_sockets)
+		if (index < 0 || index >= static_cast<int>(num_sockets))
 		{
 			BOOST_ASSERT(false && "index out of range!");
 			return {};
