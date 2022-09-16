@@ -26,7 +26,7 @@ namespace avpn {
 		{
 		}
 
-		write_packet_op(write_packet_op&& other)
+		write_packet_op(write_packet_op&& other) noexcept
 			: stream_(other.stream_)
 			, pkt_(std::move(other.pkt_))
 			, start_(other.start_)
@@ -92,7 +92,7 @@ namespace avpn {
 			, self_(self)
 		{}
 
-		write_packet_qe(write_packet_qe&& other)
+		write_packet_qe(write_packet_qe&& other) noexcept
 			: stream_(other.stream_)
 			, pkt_qe_(other.pkt_qe_)
 			, abort_(other.abort_)
