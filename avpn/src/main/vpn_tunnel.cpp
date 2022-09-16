@@ -140,6 +140,8 @@ namespace avpn {
 		std::shared_ptr<vpn_tunnel> self_;
 	};
 
+	//////////////////////////////////////////////////////////////////////////
+
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -211,6 +213,9 @@ namespace avpn {
 		m_tun_thread = std::thread(
 			[this, self]()
 			{
+				LOG_DBG << "start tun thread: "
+					<< std::this_thread::get_id()
+					<< ", this: " << this;
 				tun_forward();
 			});
 	}
@@ -744,6 +749,9 @@ namespace avpn {
 					process_tun_packet(std::move(pkt));
 				});
 		}
+
+		LOG_WARN << "Quit vpn_tunnel::tun_forward: " << this
+			<< ", thread id: " << std::this_thread::get_id();
 	}
 
 	void vpn_tunnel::process_tun_packet(vpn_packet pkt)

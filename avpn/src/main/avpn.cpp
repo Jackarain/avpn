@@ -93,6 +93,9 @@ namespace avpn {
 
 	void avpn_service::start()
 	{
+		LOG_DBG << "avpn_service::start, main thread id: "
+			<< std::this_thread::get_id();
+
 		m_abort = false;
 		m_client_reset_flag = vpn_tcp_loop_exit;
 		auto self = shared_from_this();
