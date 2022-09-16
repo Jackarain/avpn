@@ -19,13 +19,19 @@ namespace avpn {
 	{
 		write_packet_op(tcp::socket& s,
 			vpn_packet_ptr pkt,
-			Handler& h)
+			Handler&& h)
 			: stream_(s)
 			, pkt_(pkt)
 			, handler_(static_cast<Handler&&>(h))
 		{
 		}
-		~write_packet_op() = default;
+
+		write_packet_op(write_packet_op&& other)
+			: stream_(other.stream_)
+			, pkt_(std::move(other.pkt_))
+			, start_(other.start_)
+			, handler_(std::move(other.handler_))
+		{}
 
 		void operator()(boost::system::error_code error,
 			std::size_t)
@@ -40,7 +46,8 @@ namespace avpn {
 
 				start_ = 1;
 				net::async_write(stream_,
-					net::buffer(&start_len_tag, 4), *this);
+					net::buffer(&start_len_tag, 4),
+						static_cast<write_packet_op&&>(*this));
 			}
 			return;
 			case 1:
@@ -50,7 +57,8 @@ namespace avpn {
 
 				start_ = 2;
 				net::async_write(stream_,
-					net::buffer(pkt_->data(), pkt_->size()), *this);
+					net::buffer(pkt_->data(), pkt_->size()),
+						static_cast<write_packet_op&&>(*this));
 			}
 			return;
 			default:
@@ -84,6 +92,14 @@ namespace avpn {
 			, self_(self)
 		{}
 
+		write_packet_qe(write_packet_qe&& other)
+			: stream_(other.stream_)
+			, pkt_qe_(other.pkt_qe_)
+			, abort_(other.abort_)
+			, num_send_packet_(other.num_send_packet_)
+			, self_(std::move(other.self_))
+		{}
+
 		void operator()(boost::system::error_code error, int start = 0)
 		{
 			switch (start)
@@ -93,8 +109,9 @@ namespace avpn {
 				{
 					write_packet_op(stream_,
 						std::make_shared<vpn_packet>(
-							std::move(pkt_qe_.front())), *this)(
-								{}, 0);
+							std::move(pkt_qe_.front())),
+								static_cast<write_packet_qe&&>(*this))
+									({}, 0);
 			return;  default:
 					if (abort_ || pkt_qe_.empty())
 					{
