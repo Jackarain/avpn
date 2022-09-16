@@ -261,6 +261,12 @@ namespace avpn {
 			if (ret == -1)
 				break;
 
+			// 计算下载速率.
+			compute_speed(m_down_stat, pkt.size());
+
+			// 控制下载速率.
+			// co_await speed_limit(pkt.payload_size(), false);
+
 			// 创建packet指针再通过tun_forward传入协程.
 			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 			m_num_recv_packet++;
@@ -269,11 +275,6 @@ namespace avpn {
 				LOG_ERR << "process_tcp_packet, break tcp loop.";
 				break;
 			}
-
-			// 计算下载速率.
-			compute_speed(m_down_stat, pkt.size());
-			// 控制下载速率.
-			// co_await speed_limit(pkt.payload_size(), false);
 		}
 
 		m_tcp_ready = false;
