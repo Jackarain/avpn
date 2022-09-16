@@ -120,6 +120,8 @@ namespace avpn {
 		// Obtains the executor associated with the io_context.
 		net::any_io_executor get_executor();
 
+		std::thread::id m_tcp_thrd_id;
+
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();

@@ -28,6 +28,7 @@ namespace avpn {
 		{
 			(*this)({}, 0);
 		}
+		~write_packet_op() = default;
 
 		void operator()(boost::system::error_code error,
 			std::size_t)
@@ -112,7 +113,17 @@ namespace avpn {
 							std::move(pkt_qe_.front())), *this);
 			return;  default:
 					if (abort_ || pkt_qe_.empty())
+					{
+						LOG_ERR << "write_packet_qe"
+							<< ", error: " << error.message()
+							<< ", pkt_qe: " << pkt_qe_.size()
+							<< ", abort: " << abort_.value;
 						return;
+					}
+					if (std::this_thread::get_id() != self_->m_tcp_thrd_id)
+					{
+						LOG_WARN << "thread safe: " << std::this_thread::get_id();
+					}
 					pkt_qe_.pop_front();
 					if (error)
 					{
@@ -308,9 +319,21 @@ namespace avpn {
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);
 		m_tcp_oqe.clear();
-
-		m_tcp_socket = std::move(s);
 		m_tcp_socket_id = id;
+
+		// 如果socket的executor和当前vpn_tunnel的executor是同一个
+		// executor, 则直接move对象到当前vpn_tunnel中.
+		// 若不是, 则重新通过assign构造一个新的socket.
+		// 这样做是为了确保 socket 对象和vpn_tunnel的 executor 是
+		// 同一个, 避免vpn_tunnel运行在多线程上.
+		if (s.get_executor() == this->get_executor())
+		{
+			m_tcp_socket = std::move(s);
+			return;
+		}
+
+		auto endpoint = s.local_endpoint(ec);
+		m_tcp_socket.assign(endpoint.protocol(), s.release());
 	}
 
 	net::awaitable<void>
@@ -319,6 +342,11 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 
 		auto& params = m_config.tunnel_params_;
+
+		if (std::this_thread::get_id() != m_tcp_thrd_id)
+		{
+			LOG_WARN << "tun thread id: " << std::this_thread::get_id();
+		}
 
 		// 更新pkt数据, 计算gid, pid等信息.
 		if (m_config.tunnel_params_.compress_ == "zstd")
@@ -506,6 +534,8 @@ namespace avpn {
 		LOG_DBG << "Enter vpn_tunnel::tick: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
+		m_tcp_thrd_id = std::this_thread::get_id();
+
 		while (!m_abort.value)
 		{
 			boost::system::error_code ec;
@@ -526,6 +556,10 @@ namespace avpn {
 
 			auto now = std::chrono::steady_clock::now();
 
+			// 更新download/upload记录.
+			compute_speed(m_down_stat, 0);
+			compute_speed(m_upload_stat, 0);
+
 			// 计算上下行速率.
 			compute_speed(m_down_stat, now);
 			compute_speed(m_upload_stat, now);
@@ -537,7 +571,7 @@ namespace avpn {
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
 				LOG_IFMT("{}, {}c, {}w, {}e, {}g, {}r"
-					", {}tx, {}rx, {}d, {}u, {}rtt",
+					", {}tx, {}rx, {}d, {}u, {}q, {}rtt",
 					static_cast<const void*>(this),
 					m_num_corrected,
 					m_num_incorrect,
@@ -548,6 +582,7 @@ namespace avpn {
 					m_num_recv_packet,
 					m_down_stat.rate_,
 					m_upload_stat.rate_,
+					m_tcp_oqe.size(),
 					t.count());
 			}
 
@@ -594,7 +629,7 @@ namespace avpn {
 
 	void vpn_tunnel::compute_speed(speed_stat& stat, int bytes)
 	{
-		// 统计上传数据量用于计算上传速率.
+		// 统计上传/下载数据量用于计算上传/下载速率.
 		stat.bytes_ += (int64_t)bytes;
 		auto index = stat.speeder_count_ % speed_entries;
 		stat.speeder_[index] = stat.bytes_;
@@ -645,6 +680,11 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_write_pkt(vpn_packet&& pkt)
 	{
+		if (std::this_thread::get_id() != m_tcp_thrd_id)
+		{
+			LOG_WARN << "tun thread id: " << std::this_thread::get_id();
+		}
+
 		// tcp 连接暂时不可用, 仅输出日志.
 		if (!m_tcp_ready)
 		{
