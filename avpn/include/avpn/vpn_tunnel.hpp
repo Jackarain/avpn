@@ -77,10 +77,6 @@ namespace avpn {
 		// 重新绑定 tunnel 的 tcp socket 对象.
 		void rebind_tcp_socket(tcp::socket&& s, size_t id);
 
-		// forward tun packet to network.
-		net::awaitable<void>
-		tun_forward(vpn_packet_ptr pkt, endpoint_pair endp);
-
 		// forward udp packet from network.
 		net::awaitable<void>
 		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
@@ -119,8 +115,6 @@ namespace avpn {
 		// Obtains the executor associated with the io_context.
 		net::any_io_executor get_executor();
 
-		std::thread::id m_tcp_thrd_id;
-
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
@@ -143,6 +137,12 @@ namespace avpn {
 		// 速率限制.
 		net::awaitable<void> speed_limit(
 			const int& size, bool w = true);
+
+		// forward tun packet to network.
+		void tun_forward();
+
+		// 处理tun上的ip包.
+		void process_tun_packet(vpn_packet pkt);
 
 		// 处理tcp/udp协议.
 		net::awaitable<bool> process_tcp_packet(vpn_packet_ptr pkt);
@@ -187,6 +187,9 @@ namespace avpn {
 		// 本端解码时需要使用对方的ds,ps来进行fec解码.
 		uint8_t m_peer_ds{ 0 };
 		uint8_t m_peer_ps{ 0 };
+
+		// tun处理线程.
+		std::thread m_tun_thread;
 
 		// fec纠错相关统计信息.
 		uint32_t m_num_corrected{ 0 };

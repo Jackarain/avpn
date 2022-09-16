@@ -155,7 +155,7 @@ namespace avpn {
 		vpn_tun_packet& operator=(const vpn_tun_packet&) = delete;
 
 	public:
-		vpn_tun_packet() = default;
+		vpn_tun_packet(vpn_packet pkt, endpoint_pair endp);
 		~vpn_tun_packet() = default;
 
 		vpn_tun_packet(vpn_tun_packet&&);

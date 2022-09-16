@@ -121,10 +121,6 @@ namespace avpn {
 							<< ", abort: " << abort_.value;
 						return;
 					}
-					if (std::this_thread::get_id() != self_->m_tcp_thrd_id)
-					{
-						LOG_WARN << "thread safe: " << std::this_thread::get_id();
-					}
 					pkt_qe_.pop_front();
 					if (error)
 					{
@@ -179,6 +175,9 @@ namespace avpn {
 
 	vpn_tunnel::~vpn_tunnel()
 	{
+		if (m_tun_thread.joinable())
+			m_tun_thread.join();
+
 		auto serivce = m_serivce.lock();
 		if (serivce)
 			serivce->remove_tunnel(m_self_vaddr);
@@ -208,6 +207,12 @@ namespace avpn {
 				co_await tick();
 				co_return;
 			}, net::detached);
+
+		m_tun_thread = std::thread(
+			[this, self]()
+			{
+				tun_forward();
+			});
 	}
 
 	void vpn_tunnel::close_tunnel()
@@ -333,78 +338,6 @@ namespace avpn {
 	}
 
 	net::awaitable<void>
-	vpn_tunnel::tun_forward(vpn_packet_ptr pkt, endpoint_pair)
-	{
-		[[maybe_unused]] auto self = shared_from_this();
-
-		auto& params = m_config.tunnel_params_;
-
-		if (std::this_thread::get_id() != m_tcp_thrd_id)
-		{
-			LOG_WARN << "tun thread id: " << std::this_thread::get_id();
-		}
-
-		// 更新pkt数据, 计算gid, pid等信息.
-		if (m_config.tunnel_params_.compress_ == "zstd")
-			m_feg.make_fec_zstd(pkt, m_self_vaddr);
-		else
-			m_feg.make_fec_normal(pkt, m_self_vaddr);
-
-		// 从fec编码缓冲中获取已经fec编码.
-		std::vector<vpn_packet_ptr> paritys = m_feg.acquire();
-
-		// 重复发送模式.
-		if (params.data_shards_ == 1)
-		{
-			int repeated = params.parity_shards_ + 1;
-
-			// 计算上行速率.
-			compute_speed(m_upload_stat, pkt->size() * repeated);
-
-#if 0
-			for (auto i = 0; i < repeated; i++)
-			{
-				auto dup = dup_vpn_packet_ptr(pkt);
-				if (i != 0)
-				{
-					// 多倍发送时, 也要更新gid, pid等信息.
-					if (m_config.tunnel_params_.compress_ == "zstd")
-						m_feg.make_fec_zstd(dup, m_self_vaddr);
-					else
-						m_feg.make_fec_normal(dup, m_self_vaddr);
-				}
-
-				internal_write_pkt(std::move(*dup));
-			}
-#else
-			internal_write_pkt(std::move(*pkt));
-#endif
-
-			co_return;
-		}
-
-		// 计算上行速率.
-		compute_speed(m_upload_stat, pkt->size());
-
-		// 发送pkt到对方.
-		internal_write_pkt(std::move(*pkt));
-
-		// 循环发送已FEC编码部分.
-		for (auto& p : paritys)
-		{
-			BOOST_ASSERT(p != nullptr && "tun_forward");
-
-			// 计算上行速率.
-			compute_speed(m_upload_stat, p->size());
-
-			// 发送到对方.
-			internal_write_pkt(std::move(*p));
-		}
-
-		co_return;
-	}
-
-	net::awaitable<void>
 	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
 	{
 		[[maybe_unused]] auto self = shared_from_this();
@@ -413,9 +346,7 @@ namespace avpn {
 			m_remote_endpoint = remote;
 
 		m_num_recv_packet++;
-
 		compute_speed(m_down_stat, pkt->size());
-		// co_await speed_limit(pkt->payload_size(), false);
 
 		co_await process_udp_packet(pkt);
 		co_return;
@@ -529,8 +460,6 @@ namespace avpn {
 
 		LOG_DBG << "Enter vpn_tunnel::tick: " << this
 			<< ", thread: " << std::this_thread::get_id();
-
-		m_tcp_thrd_id = std::this_thread::get_id();
 
 		while (!m_abort.value)
 		{
@@ -676,11 +605,6 @@ namespace avpn {
 
 	void vpn_tunnel::tcp_write_pkt(vpn_packet&& pkt)
 	{
-		if (std::this_thread::get_id() != m_tcp_thrd_id)
-		{
-			LOG_WARN << "tun thread id: " << std::this_thread::get_id();
-		}
-
 		// tcp 连接暂时不可用, 仅输出日志.
 		if (!m_tcp_ready)
 		{
@@ -802,6 +726,89 @@ namespace avpn {
 
 		*bucket -= size;
 		co_return;
+	}
+
+	void vpn_tunnel::tun_forward()
+	{
+		auto self = shared_from_this();
+
+		while (!m_abort)
+		{
+			auto ret = m_tun_iqe.acquire();
+			if (!ret)
+				break;
+
+			net::post(m_io_context,
+				[this, self, pkt = std::move(ret->pkt_)]() mutable
+				{
+					process_tun_packet(std::move(pkt));
+				});
+		}
+	}
+
+	void vpn_tunnel::process_tun_packet(vpn_packet pkt)
+	{
+		auto& params = m_config.tunnel_params_;
+
+		// 更新pkt数据, 计算gid, pid等信息.
+		if (m_config.tunnel_params_.compress_ == "zstd")
+			m_feg.make_fec_zstd(pkt, m_self_vaddr);
+		else
+			m_feg.make_fec_normal(pkt, m_self_vaddr);
+
+		// 从fec编码缓冲中获取已经fec编码.
+		std::vector<vpn_packet_ptr> paritys = m_feg.acquire();
+
+		// 重复发送模式.
+		if (params.data_shards_ == 1)
+		{
+			int repeated = params.parity_shards_ + 1;
+
+			// 计算上行速率.
+			compute_speed(m_upload_stat, pkt.size() * repeated);
+
+			for (int i = 0; i < repeated; i++)
+			{
+				if (repeated == 1)
+				{
+					internal_write_pkt(std::move(pkt));
+					break;
+				}
+
+				auto dup = dup_vpn_packet(pkt);
+				if (i != 0)
+				{
+					if (m_config.tunnel_params_.compress_ == "zstd")
+						m_feg.make_fec_zstd(dup, m_self_vaddr);
+					else
+						m_feg.make_fec_normal(dup, m_self_vaddr);
+				}
+
+				internal_write_pkt(std::move(dup));
+			}
+
+			return;
+		}
+
+		// 计算上行速率.
+		compute_speed(m_upload_stat, pkt.size());
+
+		// 发送pkt到对方.
+		internal_write_pkt(std::move(pkt));
+
+		// 循环发送已FEC编码部分.
+		for (auto& p : paritys)
+		{
+			BOOST_ASSERT(p != nullptr && "tun_forward");
+
+			// 计算上行速率.
+			compute_speed(m_upload_stat, p->size());
+
+			// 发送到对方.
+			internal_write_pkt(std::move(*p));
+		}
+
+		return;
 	}
 
 	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
@@ -1003,7 +1010,8 @@ namespace avpn {
 				if (dst_tunnel)
 				{
 					// 内网转发.
-					co_await dst_tunnel->tun_forward(pkt, std::move(ep));
+					dst_tunnel->tun_submit(
+						vpn_tun_packet(std::move(*pkt), std::move(ep)));
 					co_return;
 				}
 			}
@@ -1117,7 +1125,8 @@ namespace avpn {
 				if (dst_tunnel)
 				{
 					// 内网转发.
-					co_await dst_tunnel->tun_forward(pkt, std::move(ep));
+					dst_tunnel->tun_submit(
+						vpn_tun_packet(std::move(*pkt), std::move(ep)));
 					co_return;
 				}
 			}

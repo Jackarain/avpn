@@ -136,30 +136,30 @@ namespace avpn
 		return paritys;
 	}
 
-	void fec_encode_group::make_fec_normal(vpn_packet_ptr& pkt, uint32_t src)
+	void fec_encode_group::make_fec_normal(vpn_packet& pkt, uint32_t src)
 	{
 		auto [gid, pid] = fetch_ids();
 
 		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
 		if (ds_ == 1 && pid != 0)
 		{
-			auto p = pkt->data();
+			auto p = pkt.data();
 			p[9] = pid;
-			pkt->pid_ = pid;
+			pkt.pid_ = pid;
 
 			return;
 		}
 
 		// 构造transfer数据包.
-		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
-		make_transfer(*pkt, src, gid, pid, sv);
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
+		make_transfer(pkt, src, gid, pid, sv);
 
 		// 倍发模式不再作fec编码.
 		if (ds_ <= 1)
 			return;
 
 		// 保存到fec编码缓冲.
-		pkts_[pid] = pkt;
+		pkts_[pid] = std::make_shared<vpn_packet>(dup_vpn_packet(pkt));
 
 		// 判断fec编码是否达到可实施fec编码大小要求.
 		// 如果达到, 则直接进行fec编码.
@@ -192,30 +192,30 @@ namespace avpn
 		}
 	}
 
-	void fec_encode_group::make_fec_zstd(vpn_packet_ptr& pkt, uint32_t src)
+	void fec_encode_group::make_fec_zstd(vpn_packet& pkt, uint32_t src)
 	{
 		auto [gid, pid] = fetch_ids();
 
 		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
 		if (ds_ == 1 && pid != 0)
 		{
-			auto p = pkt->data();
+			auto p = pkt.data();
 			p[9] = pid;
-			pkt->pid_ = pid;
+			pkt.pid_ = pid;
 
 			return;
 		}
 
 		// 构造transfer数据包.
-		std::string_view sv((char*)pkt->payload(), pkt->payload_size());
-		make_transfer_compress(*pkt, src, gid, pid, compress_zstd, sv);
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
+		make_transfer_compress(pkt, src, gid, pid, compress_zstd, sv);
 
 		// 倍发模式不再作fec编码.
 		if (ds_ <= 1)
 			return;
 
 		// 保存到fec编码缓冲.
-		pkts_[pid] = pkt;
+		pkts_[pid] = std::make_shared<vpn_packet>(dup_vpn_packet(pkt));
 
 		// 判断fec编码是否达到可实施fec编码大小要求.
 		// 如果达到, 则直接进行fec编码.

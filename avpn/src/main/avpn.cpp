@@ -292,21 +292,7 @@ namespace avpn {
 			}
 			else if (m_config.identity_ == Identity::avpn_client)
 			{
-// 				if (m_routes.lookup(endp.dst_.address())
-// 					== (acl_util::lpm_tag)0xa)
-// 				{
-// 					// TODO: 通过tun2socks模式转发.
-// 					if (!m_conntrack)
-// 						continue;
-//
-// 					auto& conntrack = *m_conntrack;
-// 					conntrack.forward_ip(std::move(pkt), std::move(endp));
-// 				}
-// 				else
-				{
-					do_client_tun_read(std::move(pkt), std::move(endp));
-				}
-
+				do_client_tun_read(std::move(pkt), std::move(endp));
 				continue;
 			}
 		}
@@ -341,18 +327,9 @@ namespace avpn {
 		if (!tunnel)
 			return;
 
-		// 创建packet指针再通过tun_forward传入协程.
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-		auto executor = tunnel->get_executor();
-
-		// 转发到对应的vp对象.
-		net::co_spawn(executor,
-			[tunnel, ptr, endp = std::move(endp)]()
-			mutable -> net::awaitable<void>
-			{
-				co_await tunnel->tun_forward(ptr, std::move(endp));
-				co_return;
-			}, net::detached);
+		// 提交到tunnel的队列进行处理.
+		tunnel->tun_submit(vpn_tun_packet(
+			std::move(pkt), std::move(endp)));
 	}
 
 	void avpn_service::do_client_tun_read(vpn_packet pkt, endpoint_pair endp)
@@ -362,21 +339,9 @@ namespace avpn {
 		if (!tunnel)
 			return;
 
-		// 创建packet指针再通过tun_forward传入协程.
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-		auto self = shared_from_this();
-
-		// 透传到tunnel.
-		net::co_spawn(tunnel->get_executor(),
-			[this, self, ptr, endp = std::move(endp)]()
-			mutable->net::awaitable<void>
-		{
-			auto tunnel = m_tunnel.lock();
-			if (!tunnel)
-				co_return;
-			co_await tunnel->tun_forward(ptr, std::move(endp));
-			co_return;
-		}, net::detached);
+		// 提交到tunnel的队列进行处理.
+		tunnel->tun_submit(vpn_tun_packet(
+			std::move(pkt), std::move(endp)));
 	}
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
@@ -471,7 +436,7 @@ namespace avpn {
 				// 更新ipproto.
 				tunnel->ipproto(Proto::avpn_udp);
 
-				// 创建packet指针再通过tun_forward传入协程.
+				// 创建packet指针再通过udp_forward传入协程.
 				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 				// 将UDP消息转发到对应的tunnel连接中处理.

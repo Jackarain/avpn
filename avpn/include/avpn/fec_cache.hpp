@@ -93,10 +93,10 @@ namespace avpn {
 		std::vector<vpn_packet_ptr> acquire();
 
 		// 生成正常fec数据.
-		void make_fec_normal(vpn_packet_ptr& pkt, uint32_t src);
+		void make_fec_normal(vpn_packet& pkt, uint32_t src);
 
 		// 生成压缩fec数据.
-		void make_fec_zstd(vpn_packet_ptr& pkt, uint32_t src);
+		void make_fec_zstd(vpn_packet& pkt, uint32_t src);
 
 	private:
 		std::tuple<uint32_t, uint8_t> fetch_ids();
