@@ -19,14 +19,11 @@ namespace avpn {
 	{
 		write_packet_op(tcp::socket& s,
 			vpn_packet_ptr pkt,
-			//			size_t id,
 			Handler& h)
 			: stream_(s)
 			, pkt_(pkt)
-			//			, socket_id_(id)
 			, handler_(static_cast<Handler&&>(h))
 		{
-			(*this)({}, 0);
 		}
 		~write_packet_op() = default;
 
@@ -49,12 +46,7 @@ namespace avpn {
 			case 1:
 			{
 				if (error)
-				{
-					// LOG_ERR << "tcp_write_packet"
-					//	<< ", id: " << socket_id_
-					//	<< ", async_write tag error: " << error.message();
 					break;
-				}
 
 				start_ = 2;
 				net::async_write(stream_,
@@ -62,15 +54,7 @@ namespace avpn {
 			}
 			return;
 			default:
-			{
-				if (error)
-				{
-					// LOG_ERR << "tcp_write_packet"
-					//	<< ", id: " << socket_id_
-					//	<< ", async_write body error: " << error.message();
-				}
 				break;
-			}
 			}
 
 			handler_(static_cast<const boost::system::error_code&>(error));
@@ -78,7 +62,6 @@ namespace avpn {
 
 		tcp::socket& stream_;
 		vpn_packet_ptr pkt_;
-		//		size_t socket_id_;
 		int start_{ 0 };
 		Handler handler_;
 	};
@@ -110,7 +93,8 @@ namespace avpn {
 				{
 					write_packet_op(stream_,
 						std::make_shared<vpn_packet>(
-							std::move(pkt_qe_.front())), *this);
+							std::move(pkt_qe_.front())), *this)(
+								{}, 0);
 			return;  default:
 					if (abort_ || pkt_qe_.empty())
 					{
