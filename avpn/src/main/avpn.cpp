@@ -1515,7 +1515,7 @@ namespace avpn {
 		se.cancel();
 
 		// 替换为新的tcp socket对象.
-		tunnel->tcp_socket(std::move(stream), 0);
+		tunnel->rebind_tcp_socket(std::move(stream), 0);
 
 		// 设置ipproto.
 		tunnel->ipproto(Proto::avpn_tcp);
@@ -1757,7 +1757,7 @@ namespace avpn {
 		co_await tcp_write_packet(stream, response, id);
 
 		// 替换为新的tcp socket, 然后用新的tcp socket 用于tcp通信.
-		tunnel->tcp_socket(std::move(stream), id);
+		tunnel->rebind_tcp_socket(std::move(stream), id);
 		tunnel->ipproto(Proto::avpn_tcp);
 		tunnel->start_tunnel(ds, ps);
 

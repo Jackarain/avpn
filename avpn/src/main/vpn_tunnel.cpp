@@ -309,12 +309,7 @@ namespace avpn {
 		co_return;
 	}
 
-	tcp::socket& vpn_tunnel::tcp_socket()
-	{
-		return m_tcp_socket;
-	}
-
-	void vpn_tunnel::tcp_socket(tcp::socket&& s, size_t id)
+	void vpn_tunnel::rebind_tcp_socket(tcp::socket&& s, size_t id)
 	{
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);

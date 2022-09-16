@@ -74,9 +74,8 @@ namespace avpn {
 		// tcp消息循环.
 		net::awaitable<void> tcp_loop();
 
-		// 设置/返回该tunnel的tcp socket引用.
-		tcp::socket& tcp_socket();
-		void tcp_socket(tcp::socket&& s, size_t id);
+		// 重新绑定 tunnel 的 tcp socket 对象.
+		void rebind_tcp_socket(tcp::socket&& s, size_t id);
 
 		// forward tun packet to network.
 		net::awaitable<void>
