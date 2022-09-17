@@ -131,12 +131,6 @@ namespace avpn {
 		net::awaitable<void> speed_limit(
 			const int& size, bool w = true);
 
-		// forward tun packet to network.
-		void tun_forward();
-
-		// forward net packet to tun.
-		void net_forward();
-
 		// forward tcp packet to tun.
 		void tcp_forward();
 
@@ -189,11 +183,6 @@ namespace avpn {
 		// 当前context运行线程.
 		std::thread::id m_thread_id;
 
-		// tun处理线程.
-		std::thread m_tun_thread;
-		// net处理线程.
-		std::thread m_net_thread;
-
 		// fec纠错相关统计信息.
 		uint32_t m_num_corrected{ 0 };
 		uint32_t m_num_incorrect{ 0 };
@@ -228,12 +217,6 @@ namespace avpn {
 
 		// tcp 连接状态.
 		bool m_tcp_connect_ready{ false };
-
-		// tun input数据包队列.
-		vpn_queue<vpn_tun_packet> m_tun_iqe;
-
-		// net input数据包队列.
-		vpn_queue<vpn_packet> m_net_iqe;
 
 		// 用于密钥交换.
 		crypto_util::keyexchange m_keyexchange;

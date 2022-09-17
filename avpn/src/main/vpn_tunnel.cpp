@@ -257,15 +257,6 @@ namespace avpn {
 
 	vpn_tunnel::~vpn_tunnel()
 	{
-		// Resource deadlock avoided
-		std::thread j([this]() mutable {
-			if (m_tun_thread.joinable())
-				m_tun_thread.join();
-			if (m_net_thread.joinable())
-				m_net_thread.join();
-			});
-		j.join();
-
 		auto serivce = m_serivce.lock();
 		if (serivce)
 			serivce->remove_tunnel(m_self_vaddr);
@@ -295,25 +286,6 @@ namespace avpn {
 				co_await tick();
 				co_return;
 			}, net::detached);
-
-		// 启动tun线程.
-		m_tun_thread = std::thread(
-			[this, self]()
-			{
-				LOG_DBG << "start tun thread: "
-					<< std::this_thread::get_id()
-					<< ", this: " << this;
-				tun_forward();
-			});
-
-		m_net_thread = std::thread(
-			[this, self]()
-			{
-				LOG_DBG << "start net thread: "
-					<< std::this_thread::get_id()
-					<< ", this: " << this;
-				net_forward();
-			});
 	}
 
 	void vpn_tunnel::close_tunnel()
@@ -329,9 +301,6 @@ namespace avpn {
 
 				m_upload_stat = {};
 				m_down_stat = {};
-
-				m_net_iqe.close();
-				m_tun_iqe.close();
 
 				boost::system::error_code ec;
 				m_tick_timer.cancel(ec);
@@ -401,8 +370,6 @@ namespace avpn {
 			{
 				process_tun_packet(pkt.pkt_);
 			});
-
-		// m_tun_iqe.submit(std::move(pkt));
 	}
 
 	void vpn_tunnel::net_submit(vpn_packet&& pkt,
@@ -414,16 +381,19 @@ namespace avpn {
 				m_remote_endpoint = *remote;
 		}
 
-// 		m_num_recv_packet++;
-// 		compute_speed(m_down_stat, pkt.size());
-
 		if (m_thread_id == std::this_thread::get_id())
 		{
 			process_net_packet(pkt);
 			return;
 		}
 
-		m_net_iqe.submit(std::move(pkt));
+		auto self = shared_from_this();
+		net::post(m_io_context,
+		[this, self, pkt = std::move(pkt)]
+		() mutable
+		{
+			process_net_packet(pkt);
+		});
 	}
 
 	void vpn_tunnel::start_tcp_loop()
@@ -740,66 +710,6 @@ namespace avpn {
 		co_return;
 	}
 
-	void vpn_tunnel::tun_forward()
-	{
-		auto self = shared_from_this();
-
-		// 及时从 tun 数据包队列中获取ip包并转发到 tunnel 的
-		// process_tun_packet函数中处理.
-		// TODO: 可能需要考虑TUN设备产生ip数据包速率过快, 而
-		// process_tun_packet处理不过来时, asio队列堆积的问题.
-		while (!m_abort)
-		{
-			auto ret = m_tun_iqe.acquire();
-			if (!ret)
-				break;
-
-			net::post(m_io_context,
-				[this, self, pkt = std::move(ret->pkt_)]() mutable
-				{
-#if 0
-					// TODO: 当队列堆积过多时, 丢弃队列中最先进入队列的
-					// 数据包, 也就是当前数据包pkt.
-					if (m_tun_iqe.size() > 1024 * 512)
-						return;
-#endif
-					process_tun_packet(pkt);
-				});
-		}
-
-		LOG_WARN << "Quit vpn_tunnel::tun_forward: " << this
-			<< ", thread id: " << std::this_thread::get_id();
-	}
-
-	void vpn_tunnel::net_forward()
-	{
-		auto self = shared_from_this();
-
-		// 及时从 net 数据包队列中获取ip包并转发到 tunnel 的
-		// process_net_packet函数中处理.
-		while (!m_abort)
-		{
-			auto ret = m_net_iqe.acquire();
-			if (!ret)
-				break;
-
-			net::post(m_io_context,
-				[this, self, pkt = std::move(*ret)]() mutable
-			{
-#if 0
-				// TODO: 当队列堆积过多时, 丢弃队列中最先进入队列的
-				// 数据包, 也就是当前数据包pkt.
-				if (m_net_iqe.size() > 1024 * 512)
-					return;
-#endif
-				process_net_packet(pkt);
-			});
-		}
-
-		LOG_WARN << "Quit vpn_tunnel::net_forward: " << this
-			<< ", thread id: " << std::this_thread::get_id();
-	}
-
 	void vpn_tunnel::tcp_forward()
 	{
 		m_tcp_connect_ready = true;
@@ -926,6 +836,9 @@ namespace avpn {
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
+
+		m_num_recv_packet++;
+ 		compute_speed(m_down_stat, pkt.size());
 
 		int ret = unwrap_common_header(pkt, enc, type, src);
 		if (ret == -1)
