@@ -792,7 +792,8 @@ namespace avpn {
 						m_num_recv_packet++;
 
 						// 将接收到的packet提交到队列.
-						net_submit(std::move(*ptr), {});
+						// net_submit(std::move(*ptr), {});
+						process_net_packet(*ptr);
 
 						// 继续下一次tcp接收转发.
 						tcp_forward();
