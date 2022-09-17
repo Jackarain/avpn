@@ -77,7 +77,7 @@ namespace avpn {
 		}
 
 	private:
-		boost::mutex m_mutex;
+		mutable boost::mutex m_mutex;
 		boost::condition_variable m_condition_var;
 		std::deque<T> m_queue;
 		std::atomic_bool m_abort{ false };
