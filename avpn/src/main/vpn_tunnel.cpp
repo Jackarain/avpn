@@ -341,12 +341,6 @@ namespace avpn {
 
 				m_tcp_oqe.clear();
 
-// 				if (m_tun_thread.joinable())
-// 				{
-// 					LOG_DBG << "tun thread is joining...";
-// 					m_tun_thread.join();
-// 				}
-
 				co_return;
 			}, net::detached);
 	}
@@ -400,7 +394,15 @@ namespace avpn {
 			return;
 		}
 
-		m_tun_iqe.submit(std::move(pkt));
+		auto self = shared_from_this();
+		net::post(m_io_context,
+			[this, self, pkt = std::move(pkt)]
+			() mutable
+			{
+				process_tun_packet(pkt.pkt_);
+			});
+
+		// m_tun_iqe.submit(std::move(pkt));
 	}
 
 	void vpn_tunnel::net_submit(vpn_packet&& pkt,
@@ -773,10 +775,8 @@ namespace avpn {
 	{
 		auto self = shared_from_this();
 
-		// 及时从 tun 数据包队列中获取ip包并转发到 tunnel 的
-		// process_tun_packet函数中处理.
-		// TODO: 可能需要考虑TUN设备产生ip数据包速率过快, 而
-		// process_tun_packet处理不过来时, asio队列堆积的问题.
+		// 及时从 net 数据包队列中获取ip包并转发到 tunnel 的
+		// process_net_packet函数中处理.
 		while (!m_abort)
 		{
 			auto ret = m_net_iqe.acquire();
@@ -789,7 +789,7 @@ namespace avpn {
 #if 0
 				// TODO: 当队列堆积过多时, 丢弃队列中最先进入队列的
 				// 数据包, 也就是当前数据包pkt.
-				if (m_tun_iqe.size() > 1024 * 512)
+				if (m_net_iqe.size() > 1024 * 512)
 					return;
 #endif
 				process_net_packet(pkt);
