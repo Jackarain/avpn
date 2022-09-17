@@ -189,15 +189,48 @@ inline bool global_logging___ = true;
 
 namespace logger_aux__ {
 
+	constexpr long long epoch___ = 0x19DB1DED53E8000LL;
+
 	inline int64_t gettime()
 	{
-		using std::chrono::system_clock;
+#ifdef WIN32
+		static std::tuple<LONGLONG, LONGLONG, LONGLONG>
+			static_start = []() ->
+			std::tuple<LONGLONG, LONGLONG, LONGLONG>
+		{
+			LARGE_INTEGER f;
+			QueryPerformanceFrequency(&f);
 
+			FILETIME ft;
+			GetSystemTimePreciseAsFileTime(&ft);
+
+			auto now = (((static_cast<long long>(ft.dwHighDateTime)) << 32)
+				+ static_cast<long long>(ft.dwLowDateTime) - epoch___)
+				/ 10000;
+
+			LARGE_INTEGER start;
+			QueryPerformanceCounter(&start);
+
+			return { f.QuadPart / 1000, start.QuadPart, now };
+		}();
+
+		auto [freq, start, now] = static_start;
+
+		LARGE_INTEGER current;
+		QueryPerformanceCounter(&current);
+
+		auto elapsed = current.QuadPart - start;
+		elapsed /= freq;
+
+		return static_cast<int64_t>(now + elapsed);
+#else
+		using std::chrono::system_clock;
 		auto now = system_clock::now() -
 			system_clock::time_point(std::chrono::milliseconds(0));
 
 		return std::chrono::duration_cast<
 			std::chrono::milliseconds>(now).count();
+#endif
 	}
 
 	namespace internal {
