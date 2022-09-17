@@ -1720,6 +1720,7 @@ namespace avpn {
 		tunnel->rebind_tcp_socket(std::move(stream));
 		tunnel->ipproto(Proto::avpn_tcp);
 		tunnel->start_tunnel(ds, ps);
+		tunnel->start_tcp_loop();
 
 		co_return;
 	}
@@ -1802,6 +1803,7 @@ namespace avpn {
 		tunnel->remote_endpoint(remote);
 		tunnel->ipproto(Proto::avpn_udp);
 		tunnel->start_tunnel(ds, ps);
+		tunnel->start_tcp_loop();
 
 		co_return;
 	}
@@ -1915,6 +1917,7 @@ namespace avpn {
 		tunnel->ipproto(Proto::avpn_udp);
 		tunnel->remote_endpoint(remote);
 		tunnel->start_tunnel(ds, ps);
+		tunnel->start_tcp_loop();
 
 		co_return;
 	}
