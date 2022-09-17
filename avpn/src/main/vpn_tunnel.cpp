@@ -166,7 +166,7 @@ namespace avpn {
 		{}
 
 		void operator()(boost::system::error_code error,
-			std::size_t bytes)
+			[[maybe_unused]] std::size_t bytes)
 		{
 			switch (start_)
 			{
@@ -236,7 +236,13 @@ namespace avpn {
 		, m_feg(cfg.tunnel_params_.data_shards_,
 			cfg.tunnel_params_.parity_shards_)
 	{
-		m_crypto = std::make_unique<crypto_util::stream_crypto>(m_shared_key);
+		m_io_context.post([this]() mutable
+		{
+			m_thread_id = std::this_thread::get_id();
+		});
+
+		m_crypto = std::make_unique<
+			crypto_util::stream_crypto>(m_shared_key);
 	}
 
 	std::shared_ptr<vpn_tunnel>
@@ -388,6 +394,12 @@ namespace avpn {
 
 	void vpn_tunnel::tun_submit(vpn_tun_packet&& pkt)
 	{
+		if (m_thread_id == std::this_thread::get_id())
+		{
+			process_tun_packet(pkt.pkt_);
+			return;
+		}
+
 		m_tun_iqe.submit(std::move(pkt));
 	}
 
@@ -402,6 +414,12 @@ namespace avpn {
 
 // 		m_num_recv_packet++;
 // 		compute_speed(m_down_stat, pkt.size());
+
+		if (m_thread_id == std::this_thread::get_id())
+		{
+			process_net_packet(pkt);
+			return;
+		}
 
 		m_net_iqe.submit(std::move(pkt));
 	}

@@ -186,6 +186,9 @@ namespace avpn {
 		uint8_t m_peer_ds{ 0 };
 		uint8_t m_peer_ps{ 0 };
 
+		// 当前context运行线程.
+		std::thread::id m_thread_id;
+
 		// tun处理线程.
 		std::thread m_tun_thread;
 		// net处理线程.
