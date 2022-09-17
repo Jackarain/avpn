@@ -64,6 +64,12 @@ namespace avpn {
 			return { std::move(pkt) };
 		}
 
+		inline size_t size() const noexcept
+		{
+			boost::lock_guard lock(m_mutex);
+			return m_queue.size();
+		}
+
 		inline void close() noexcept
 		{
 			m_abort = true;

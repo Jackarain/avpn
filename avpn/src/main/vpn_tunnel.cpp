@@ -140,7 +140,75 @@ namespace avpn {
 		std::shared_ptr<vpn_tunnel> self_;
 	};
 
+
 	//////////////////////////////////////////////////////////////////////////
+	template<typename Handler>
+	struct read_packet_op
+	{
+		read_packet_op(tcp::socket& s,
+			vpn_packet_ptr pkt,
+			Handler&& h)
+			: stream_(s)
+			, pkt_(pkt)
+			, handler_(static_cast<Handler&&>(h))
+		{}
+
+		read_packet_op(read_packet_op&& other) noexcept
+			: stream_(other.stream_)
+			, pkt_(std::move(other.pkt_))
+			, start_(other.start_)
+			, start_len_tag_(std::move(other.start_len_tag_))
+			, handler_(std::move(other.handler_))
+		{}
+
+		void operator()(boost::system::error_code error,
+			std::size_t)
+		{
+			switch (start_)
+			{
+			case 0:
+			{
+				boost::system::error_code ec;
+				start_ = 1;
+				net::async_read(stream_,
+					net::buffer(start_len_tag_.get(), 4),
+						static_cast<read_packet_op&&>(*this));
+			}
+			return;
+			case 1:
+			{
+				if (error)
+					break;
+
+				*start_len_tag_ = ntohl(*start_len_tag_);
+				if ((uint32_t)*start_len_tag_ > (uint32_t)avpn_packet_size)
+				{
+					error = net::error::invalid_argument;
+					break;
+				}
+
+				start_ = 2;
+				net::async_read(stream_,
+					net::buffer(pkt_->data(), *start_len_tag_),
+						static_cast<read_packet_op&&>(*this));
+			}
+			return;
+			default:
+				if (!error)
+					pkt_->resize(*start_len_tag_);
+				break;
+			}
+
+			handler_(static_cast<const boost::system::error_code&>(error));
+		}
+
+		tcp::socket& stream_;
+		vpn_packet_ptr pkt_;
+		int start_{ 0 };
+		std::unique_ptr<uint32_t> start_len_tag_{
+			std::make_unique<uint32_t>(0) };
+		Handler handler_;
+	};
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -162,7 +230,6 @@ namespace avpn {
 			cfg.tunnel_params_.parity_shards_)
 	{
 		m_crypto = std::make_unique<crypto_util::stream_crypto>(m_shared_key);
-		m_tcp_buffer.prepare(1024 * 1024 * 10);
 	}
 
 	std::shared_ptr<vpn_tunnel>
@@ -177,8 +244,14 @@ namespace avpn {
 
 	vpn_tunnel::~vpn_tunnel()
 	{
-		if (m_tun_thread.joinable())
-			m_tun_thread.join();
+		// Resource deadlock avoided
+		std::thread j([this]() mutable {
+			if (m_tun_thread.joinable())
+				m_tun_thread.join();
+			if (m_net_thread.joinable())
+				m_net_thread.join();
+			});
+		j.join();
 
 		auto serivce = m_serivce.lock();
 		if (serivce)
@@ -210,6 +283,7 @@ namespace avpn {
 				co_return;
 			}, net::detached);
 
+		// 启动tun线程.
 		m_tun_thread = std::thread(
 			[this, self]()
 			{
@@ -217,6 +291,15 @@ namespace avpn {
 					<< std::this_thread::get_id()
 					<< ", this: " << this;
 				tun_forward();
+			});
+
+		m_net_thread = std::thread(
+			[this, self]()
+			{
+				LOG_DBG << "start net thread: "
+					<< std::this_thread::get_id()
+					<< ", this: " << this;
+				net_forward();
 			});
 	}
 
@@ -240,10 +323,16 @@ namespace avpn {
 				boost::system::error_code ec;
 				m_tick_timer.cancel(ec);
 
-				if (m_tcp_ready)
+				if (m_tcp_connect_ready)
 					m_tcp_socket.close(ec);
 
 				m_tcp_oqe.clear();
+
+// 				if (m_tun_thread.joinable())
+// 				{
+// 					LOG_DBG << "tun thread is joining...";
+// 					m_tun_thread.join();
+// 				}
 
 				co_return;
 			}, net::detached);
@@ -269,63 +358,11 @@ namespace avpn {
 		m_download_limit = limit;
 	}
 
-	net::awaitable<void> vpn_tunnel::tcp_loop()
-	{
-		[[maybe_unused]] auto self = shared_from_this();
-		LOG_DBG << "Enter tcp loop: " << this;
-		m_tcp_ready = true;
-
-		while (!m_abort)
-		{
-			vpn_packet pkt;
-
-			auto ret = co_await tcp_read_packet(m_tcp_socket, pkt);
-			if (ret == -1)
-				break;
-
-			// 计算下载速率.
-			compute_speed(m_down_stat, pkt.size());
-
-			// 控制下载速率.
-			// co_await speed_limit(pkt.payload_size(), false);
-
-			// 创建packet指针再通过tun_forward传入协程.
-			auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
-			m_num_recv_packet++;
-			if (!co_await process_tcp_packet(ptr))
-			{
-				LOG_ERR << "process_tcp_packet, break tcp loop.";
-				break;
-			}
-		}
-
-		m_tcp_ready = false;
-
-		std::string suffix;
-		scoped_exit se([&]() mutable {
-			LOG_WARN << "Quit tcp loop: " << this << suffix;
-			});
-
-		// 当运行身份为client时, 尝试重连服务器.
-		if (!m_abort && m_identity == Identity::avpn_client)
-		{
-			auto service = m_serivce.lock();
-			if (!service)
-				co_return;
-
-			// 重置tcp重连计数, 等待tcp重连.
-			suffix = " with reconnect";
-			service->reset_tcp_cnt(1);
-		}
-		co_return;
-	}
-
-	void vpn_tunnel::rebind_tcp_socket(tcp::socket&& s, size_t id)
+	void vpn_tunnel::rebind_tcp_socket(tcp::socket&& s)
 	{
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);
 		m_tcp_oqe.clear();
-		m_tcp_socket_id = id;
 
 		// 如果socket的executor和当前vpn_tunnel的executor是同一个
 		// executor, 则直接move对象到当前vpn_tunnel中.
@@ -342,35 +379,32 @@ namespace avpn {
 		m_tcp_socket.assign(endpoint.protocol(), s.release());
 	}
 
-	net::awaitable<void>
-	vpn_tunnel::udp_forward(vpn_packet_ptr pkt, udp::endpoint remote)
-	{
-		[[maybe_unused]] auto self = shared_from_this();
-
-		if (m_identity == Identity::avpn_server)
-			m_remote_endpoint = remote;
-
-		m_num_recv_packet++;
-		compute_speed(m_down_stat, pkt->size());
-
-		co_await process_udp_packet(pkt);
-		co_return;
-	}
-
 	void vpn_tunnel::tun_submit(vpn_tun_packet&& pkt)
 	{
 		m_tun_iqe.submit(std::move(pkt));
 	}
 
-	void vpn_tunnel::net_submit(vpn_packet&& pkt, udp::endpoint remote)
+	void vpn_tunnel::net_submit(vpn_packet&& pkt,
+		std::optional<udp::endpoint> remote)
 	{
 		if (m_identity == Identity::avpn_server)
-			m_remote_endpoint = remote;
+		{
+			if (remote && *remote != m_remote_endpoint)
+				m_remote_endpoint = *remote;
+		}
 
-		m_num_recv_packet++;
-		compute_speed(m_down_stat, pkt.size());
+// 		m_num_recv_packet++;
+// 		compute_speed(m_down_stat, pkt.size());
 
 		m_net_iqe.submit(std::move(pkt));
+	}
+
+	void vpn_tunnel::start_tcp_loop()
+	{
+		BOOST_ASSERT(!m_tcp_connect_ready);
+
+		// 启动网络转发.
+		tcp_forward();
 	}
 
 	std::string vpn_tunnel::client_id() const
@@ -545,7 +579,7 @@ namespace avpn {
 		if (m_remote_endpoint.port() == 0)
 			return Proto::avpn_tcp;
 
-		if (!m_tcp_ready)
+		if (!m_tcp_connect_ready)
 			return Proto::avpn_udp;
 
 		if ((params.mode_ == Proto::avpn_tcp ||
@@ -611,7 +645,7 @@ namespace avpn {
 	void vpn_tunnel::tcp_write_pkt(vpn_packet&& pkt)
 	{
 		// tcp 连接暂时不可用, 仅输出日志.
-		if (!m_tcp_ready)
+		if (!m_tcp_connect_ready)
 		{
 			static std::chrono::system_clock::time_point last_time;
 
@@ -652,62 +686,6 @@ namespace avpn {
 			udp_write_pkt(std::move(pkt));
 	}
 
-	net::awaitable<int> vpn_tunnel::tcp_read_packet(
-		tcp::socket& stream, vpn_packet& pkt)
-	{
-		boost::system::error_code ec;
-		int start_len_tag = -1;
-
-		if (m_tcp_buffer.size() < 4)
-		{
-			co_await net::async_read(
-				stream,
-				m_tcp_buffer,
-				asio_util::transfer_at_least(4),
-				uawaitable[ec]);
-			if (ec)
-			{
-				LOG_ERR << "tcp_read_packet"
-					<< ", id: " << m_tcp_socket_id
-					<< ", read tag error: " << ec.message();
-				co_return -1;
-			}
-		}
-
-		{
-			m_tcp_buffer.sgetn((char*)&start_len_tag, 4);
-			start_len_tag = ntohl(start_len_tag);
-			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
-			{
-				LOG_ERR << "tcp_read_packet"
-					<< ", id: " << m_tcp_socket_id
-					<< ", verify size fail: " << start_len_tag;
-				co_return -1;
-			}
-		}
-
-		if (static_cast<int>(m_tcp_buffer.size()) < start_len_tag)
-		{
-			auto least = start_len_tag - m_tcp_buffer.size();
-			co_await net::async_read(stream,
-				m_tcp_buffer,
-				asio_util::transfer_at_least(least),
-				uawaitable[ec]);
-			if (ec)
-			{
-				LOG_ERR << "tcp_read_packet"
-					<< ", id: " << m_tcp_socket_id
-					<< ", read tag error: " << ec.message();
-				co_return -1;
-			}
-		}
-
-		m_tcp_buffer.sgetn((char*)pkt.data(), start_len_tag);
-		pkt.resize(start_len_tag);
-
-		co_return start_len_tag;
-	}
-
 	net::awaitable<void> vpn_tunnel::speed_limit(
 		const int& size, bool w /*= true*/)
 	{
@@ -737,6 +715,10 @@ namespace avpn {
 	{
 		auto self = shared_from_this();
 
+		// 及时从 tun 数据包队列中获取ip包并转发到 tunnel 的
+		// process_tun_packet函数中处理.
+		// TODO: 可能需要考虑TUN设备产生ip数据包速率过快, 而
+		// process_tun_packet处理不过来时, asio队列堆积的问题.
 		while (!m_abort)
 		{
 			auto ret = m_tun_iqe.acquire();
@@ -746,7 +728,13 @@ namespace avpn {
 			net::post(m_io_context,
 				[this, self, pkt = std::move(ret->pkt_)]() mutable
 				{
-					process_tun_packet(std::move(pkt));
+#if 0
+					// TODO: 当队列堆积过多时, 丢弃队列中最先进入队列的
+					// 数据包, 也就是当前数据包pkt.
+					if (m_tun_iqe.size() > 1024 * 512)
+						return;
+#endif
+					process_tun_packet(pkt);
 				});
 		}
 
@@ -754,7 +742,93 @@ namespace avpn {
 			<< ", thread id: " << std::this_thread::get_id();
 	}
 
-	void vpn_tunnel::process_tun_packet(vpn_packet pkt)
+	void vpn_tunnel::net_forward()
+	{
+		auto self = shared_from_this();
+
+		// 及时从 tun 数据包队列中获取ip包并转发到 tunnel 的
+		// process_tun_packet函数中处理.
+		// TODO: 可能需要考虑TUN设备产生ip数据包速率过快, 而
+		// process_tun_packet处理不过来时, asio队列堆积的问题.
+		while (!m_abort)
+		{
+			auto ret = m_net_iqe.acquire();
+			if (!ret)
+				break;
+
+			net::post(m_io_context,
+				[this, self, pkt = std::move(*ret)]() mutable
+			{
+#if 0
+				// TODO: 当队列堆积过多时, 丢弃队列中最先进入队列的
+				// 数据包, 也就是当前数据包pkt.
+				if (m_tun_iqe.size() > 1024 * 512)
+					return;
+#endif
+				process_net_packet(pkt);
+			});
+		}
+
+		LOG_WARN << "Quit vpn_tunnel::net_forward: " << this
+			<< ", thread id: " << std::this_thread::get_id();
+	}
+
+	void vpn_tunnel::tcp_forward()
+	{
+		m_tcp_connect_ready = true;
+		auto self = shared_from_this();
+
+		if (!m_abort)
+		{
+			auto ptr = std::make_shared<vpn_packet>();
+
+			read_packet_op(m_tcp_socket, ptr,
+				[this, self, ptr](boost::system::error_code ec) mutable
+				{
+					if (!ec)
+					{
+						// 计算下载速率.
+						compute_speed(m_down_stat, ptr->size());
+						m_num_recv_packet++;
+
+						// 将接收到的packet提交到队列.
+						net_submit(std::move(*ptr), {});
+
+						// 继续下一次tcp接收转发.
+						tcp_forward();
+
+						return;
+					}
+
+					// tcp出错, 状态设置为未就绪.
+					m_tcp_connect_ready = false;
+
+					// 准备重连.
+					std::string suffix;
+					scoped_exit se([&]() mutable
+						{
+							// 输出日志信息.
+							LOG_WARN << "Quit tcp loop: "
+								<< this << suffix;
+						});
+
+					// 当运行身份为client时, 尝试重连服务器.
+					if (!m_abort &&
+						m_identity == Identity::avpn_client)
+					{
+						auto service = m_serivce.lock();
+						if (!service)
+							return;
+
+						// 重置tcp重连计数, 等待tcp重连.
+						suffix = " with reconnect";
+						service->tcp_reconnect(1);
+					}
+				})({}, 0);
+		}
+	}
+
+	void vpn_tunnel::process_tun_packet(vpn_packet& pkt)
 	{
 		auto& params = m_config.tunnel_params_;
 
@@ -819,15 +893,15 @@ namespace avpn {
 		return;
 	}
 
-	net::awaitable<bool> vpn_tunnel::process_tcp_packet(vpn_packet_ptr pkt)
+	void vpn_tunnel::process_net_packet(vpn_packet& pkt)
 	{
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src;
 
-		int ret = unwrap_common_header(*pkt, enc, type, src);
+		int ret = unwrap_common_header(pkt, enc, type, src);
 		if (ret == -1)
-			co_return false;
+			return;
 
 		switch (type)
 		{
@@ -837,63 +911,22 @@ namespace avpn {
 			break;
 
 		case vpt_keepalive:
-			co_await on_vpn_keepalive(std::move(pkt));
+			on_vpn_keepalive(pkt);
 			break;
 		case vpt_keepalive_reply:
-			co_await on_vpn_keepalive_reply(std::move(pkt));
+			on_vpn_keepalive_reply(pkt);
 			break;
 
 		case vpt_transfer:
-			pkt->flag_ = 2;
-			co_await on_vpn_transfer(std::move(pkt));
+			on_vpn_transfer(pkt);
 			break;
 		case vpt_transfer_compress:
-			pkt->flag_ = 2;
-			co_await on_vpn_transfer_compress(std::move(pkt));
+			on_vpn_transfer_compress(pkt);
 			break;
 		}
-
-		co_return true;
 	}
 
-	net::awaitable<void> vpn_tunnel::process_udp_packet(vpn_packet_ptr pkt)
-	{
-		bool enc = false;
-		uint8_t type = 0;
-		uint32_t src;
-
-		int ret = unwrap_common_header(*pkt, enc, type, src);
-		if (ret == -1)
-			co_return;
-
-		switch (type)
-		{
-		case vpt_handshake:
-			break;
-		case vpt_handshake_reply:
-			break;
-
-		case vpt_keepalive:
-			co_await on_vpn_keepalive(std::move(pkt));
-			break;
-		case vpt_keepalive_reply:
-			co_await on_vpn_keepalive_reply(std::move(pkt));
-			break;
-
-		case vpt_transfer:
-			pkt->flag_ = 0;
-			co_await on_vpn_transfer(std::move(pkt));
-			break;
-		case vpt_transfer_compress:
-			pkt->flag_ = 0;
-			co_await on_vpn_transfer_compress(std::move(pkt));
-			break;
-		}
-
-		co_return;
-	}
-
-	net::awaitable<void> vpn_tunnel::on_vpn_keepalive(vpn_packet_ptr pkt)
+	void vpn_tunnel::on_vpn_keepalive(vpn_packet& pkt)
 	{
 		if (m_identity == Identity::avpn_server)
 		{
@@ -901,7 +934,7 @@ namespace avpn {
 			std::string id;
 			uint64_t timestamp;
 
-			unwrap_keepalive(*pkt, src, id, rx, tx, timestamp);
+			unwrap_keepalive(pkt, src, id, rx, tx, timestamp);
 
 			auto p = make_keepalive_reply(src, m_client_id,
 					m_num_recv_packet, m_num_send_packet, timestamp);
@@ -914,10 +947,9 @@ namespace avpn {
 		}
 
 		last_see(steady_clock::now());
-		co_return;
 	}
 
-	net::awaitable<void> vpn_tunnel::on_vpn_keepalive_reply(vpn_packet_ptr pkt)
+	void vpn_tunnel::on_vpn_keepalive_reply(vpn_packet& pkt)
 	{
 		uint32_t src = 0;
 		uint32_t rx = 0;
@@ -925,7 +957,7 @@ namespace avpn {
 		uint64_t timestamp = 0;
 		std::string id;
 
-		unwrap_keepalive_reply(*pkt, src, id, rx, tx, timestamp);
+		unwrap_keepalive_reply(pkt, src, id, rx, tx, timestamp);
 
 		auto now = steady_clock::now();
 		auto rtt = now.time_since_epoch().count() - timestamp;
@@ -941,36 +973,31 @@ namespace avpn {
 		}
 
 		last_see(now);
-
-		co_return;
 	}
 
-	net::awaitable<void>
-	vpn_tunnel::on_vpn_transfer(vpn_packet_ptr pkt)
+	void vpn_tunnel::on_vpn_transfer(vpn_packet& pkt)
 	{
 		auto service = m_serivce.lock();
 		if (!service)
-			co_return;
+			return;
 
 		uint32_t src = 0;
 		uint32_t gid = 0;
 		uint8_t pid = 0;
-		auto flag = pkt->flag_;
 
-		int ret = unwrap_transfer(*pkt, src, gid, pid);
+		int ret = unwrap_transfer(pkt, src, gid, pid);
 		if (ret < 0)
-			co_return;
+			return;
 
 		auto shards = m_peer_ds + m_peer_ps;
 		if (pid >= shards)
 		{
 			LOG_ERR << this << ", transfer pkt"
-				<< ", proto: " << pkt->flag_
 				<< ", gid: " << gid
 				<< ", pid: " << pid
 				<< ", shards: " << shards;
 			m_num_incorrect++;
-			co_return;
+			return;
 		}
 
 		BOOST_ASSERT(gid > 0 && "on_vpn_transfer");
@@ -985,18 +1012,16 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
 
-		auto write_pkt = [this, service](vpn_packet_ptr pkt)
-			mutable -> net::awaitable<void>
+		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
-			auto endp = check_packet(pkt->payload(), avpn_static_mtu);
+			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
 			if (!endp)
 			{
 				m_num_incorrect++;
 				LOG_ERR << this << ", incorrect pkt"
-					<< ", gid: " << pkt->gid_
-					<< ", pid: " << pkt->pid_
-					<< ", flag: " << pkt->flag_;
-				co_return;
+					<< ", gid: " << pkt.gid_
+					<< ", pid: " << pkt.pid_;
+				return;
 			}
 
 			auto& ep = *endp;
@@ -1010,7 +1035,7 @@ namespace avpn {
 			{
 				// 不允许内网互通.
 				if (!m_config.tunnel_params_.c2c_)
-					co_return;
+					return;
 
 				// 通过avpn service查找对应的tunnel
 				// 然后转发内网数据到这个tunnel.
@@ -1019,20 +1044,20 @@ namespace avpn {
 				{
 					// 内网转发.
 					dst_tunnel->tun_submit(
-						vpn_tun_packet(std::move(*pkt), std::move(ep)));
-					co_return;
+						vpn_tun_packet(std::move(pkt), std::move(ep)));
+					return;
 				}
 			}
 
 			// 转发到tun设备.
-			service->do_tun_write(pkt);
-
-			co_return;
+			service->do_tun_write(std::move(pkt));
+			return;
 		};
 
 		// 更新fec recover.
+		auto ptr = dup_vpn_packet_ptr(pkt);
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, pkt);
+			gid, pid, m_peer_ds, m_peer_ps, ptr);
 
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
@@ -1040,23 +1065,23 @@ namespace avpn {
 			m_num_received++;
 
 			if (pid < m_peer_ds || m_peer_ds == 1)
-				co_await write_pkt(pkt);
+				write_pkt(pkt);
 
 			// 对方重复发送模式时, 只要接收到任何1个包, 则表示
 			// 可以退出recover逻辑.
 			if (m_peer_ds == 1)
-				co_return;
+				return;
 		}
 		else
 		{
 			m_num_expired++;
-			co_return;
+			return;
 		}
 
 		// group还不完整, 表示还不能恢复丢失的数据包
 		// 需要更新多的数据包.
 		if (!whole)
-			co_return;
+			return;
 
 		// 运行到这里如果触发断言, 则表示 recover 在处理
 		// 对方重复发送模式时有问题.
@@ -1069,32 +1094,27 @@ namespace avpn {
 			if (!p)
 				continue;
 
-			p->flag_ = flag + 10;
-			co_await write_pkt(p);
+			write_pkt(*p);
 		}
 
 		// 更新统计信息.
 		m_num_corrected += (int)results.size();
-
-		co_return;
 	}
 
-	net::awaitable<void>
-	vpn_tunnel::on_vpn_transfer_compress(vpn_packet_ptr pkt)
+	void vpn_tunnel::on_vpn_transfer_compress(vpn_packet& pkt)
 	{
 		auto service = m_serivce.lock();
 		if (!service)
-			co_return;
+			return;
 
 		uint32_t src = 0;
 		uint32_t gid;
 		uint8_t pid;
 		uint8_t ctype;
-		auto flag = pkt->flag_;
 
-		auto dst_ptr = unwrap_transfer_compress(*pkt, src, gid, pid, ctype);
+		auto dst_ptr = unwrap_transfer_compress(pkt, src, gid, pid, ctype);
 		if (!dst_ptr)
-			co_return;
+			return;
 
 		BOOST_ASSERT(gid > 0 && "on_vpn_transfer_compress");
 		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps)
@@ -1104,14 +1124,13 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
 
-		auto write_pkt = [this, service](vpn_packet_ptr pkt)
-			mutable -> net::awaitable<void>
+		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
-			auto endp = check_packet(pkt->payload(), avpn_static_mtu);
+			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
 			if (!endp)
 			{
 				m_num_incorrect++;
-				co_return;
+				return;
 			}
 
 			auto& ep = *endp;
@@ -1125,7 +1144,7 @@ namespace avpn {
 			{
 				// 不允许内网互通.
 				if (!m_config.tunnel_params_.c2c_)
-					co_return;
+					return;
 
 				// 通过avpn service查找对应的tunnel
 				// 然后转发内网数据到这个tunnel.
@@ -1134,20 +1153,19 @@ namespace avpn {
 				{
 					// 内网转发.
 					dst_tunnel->tun_submit(
-						vpn_tun_packet(std::move(*pkt), std::move(ep)));
-					co_return;
+						vpn_tun_packet(std::move(pkt), std::move(ep)));
+					return;
 				}
 			}
 
 			// 转发到tun设备.
-			service->do_tun_write(pkt);
-
-			co_return;
+			service->do_tun_write(std::move(pkt));
 		};
 
 		// 更新fec recover.
+		auto ptr = dup_vpn_packet_ptr(pkt);
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, pkt);
+			gid, pid, m_peer_ds, m_peer_ps, ptr);
 
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
@@ -1155,23 +1173,23 @@ namespace avpn {
 			m_num_received++;
 
 			if (pid < m_peer_ds || m_peer_ds == 1)
-				co_await write_pkt(pkt);
+				write_pkt(pkt);
 
 			// 对方重复发送模式时, 只要接收到任何1个包, 则表示
 			// 可以退出recover逻辑.
 			if (m_peer_ds == 1)
-				co_return;
+				return;
 		}
 		else
 		{
 			m_num_expired++;
-			co_return;
+			return;
 		}
 
 		// group还不完整, 表示还不能恢复丢失的数据包
 		// 需要更新多的数据包.
 		if (!whole)
-			co_return;
+			return;
 
 		// 运行到这里如果触发断言, 则表示 recover 在处理
 		// 对方重复发送模式时有问题.
@@ -1183,19 +1201,16 @@ namespace avpn {
 		{
 			if (!p)
 				continue;
-			p->flag_ = flag + 10;
 
 			auto dst = unwrap_transfer_compress(*p, src, gid, pid, ctype);
 			if (!dst)
 				continue;
 
-			co_await write_pkt(dst);
+			write_pkt(*dst);
 		}
 
 		// 更新统计信息.
 		m_num_corrected += (int)results.size();
-
-		co_return;
 	}
 
 	std::optional<endpoint_pair>

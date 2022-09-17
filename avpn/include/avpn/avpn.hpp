@@ -260,7 +260,7 @@ namespace avpn {
 
 		// tun相关的读取与发送.
 		net::awaitable<void> start_tun_read_loop();
-		void do_tun_write(vpn_packet_ptr);
+		void do_tun_write(vpn_packet);
 
 		// 处理server/client上的tun设备pkt.
 		void do_server_tun_read(vpn_packet, endpoint_pair);
@@ -301,7 +301,7 @@ namespace avpn {
 
 		// 作为client时, 开始进行tcp连接.
 		net::awaitable<void> start_tcp_client();
-		net::awaitable<bool> connect_server(tcp::socket&);
+		net::awaitable<bool> connect_tcp_server(tcp::socket&);
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
@@ -338,10 +338,9 @@ namespace avpn {
 
 		// 创建隧道对象.
 		vpn_tunnel_ptr make_tunnel(uint32_t, std::string, std::string);
-		net::awaitable<void> start_tunnel_tcp(vpn_tunnel_ptr);
 
 		// 作为client时, 重置tcp连接计数.
-		void reset_tcp_cnt(int);
+		void tcp_reconnect(int);
 
 		// 随机选择一个udp socket指针.
 		udp_socket_ptr pick_random_usock(int index = -1);
@@ -374,17 +373,19 @@ namespace avpn {
 		std::vector<tcp::endpoint> m_server_tcp_endps;
 
 		// client连接超时计数.
-		int m_client_tcp_cnt{ 0 };
+		int m_tcp_reconnect_cnt{ 0 };
 
-		// client重启计数.
+		// client状态.
 		enum {
-			vpn_restart       = 0b00000001,
-			vpn_tcp_loop_exit = 0b00000010,
-			vpn_tun_loop_exit = 0b00000100,
-			vpn_restart_ready = 0b00000111,
-			vpn_restart_busy  = 0b00001000,
+			vst_none     = 0b00000000, // 无状态, 初始状态.
+			vst_starting = 0b00000001, // 进入启动状态.
+			vst_tcping   = 0b00000010, // 正在开始tcp连接状态.
+			vst_tcped    = 0b00000100, // tcp连接退出状态.
+			vst_restart  = 0b00001000, // 进入重新运行client状态.
+			vst_running  = 0b00010000, // 进入运行状态.
+			vst_stopped  = 0b10000000, // 已经完全停止状态.
 		};
-		int m_client_reset_flag{ 0 };
+		int m_client_state{ vst_none };
 
 		// 作为client时, server推送的路由, dns, passbyvpn信息.
 		tunnel_params m_push_params;

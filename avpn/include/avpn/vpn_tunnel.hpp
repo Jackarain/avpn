@@ -71,21 +71,18 @@ namespace avpn {
 		void upload_limit(int limit);
 		void download_limit(int limit);
 
-		// tcp消息循环.
-		net::awaitable<void> tcp_loop();
-
 		// 重新绑定 tunnel 的 tcp socket 对象.
-		void rebind_tcp_socket(tcp::socket&& s, size_t id);
-
-		// forward udp packet from network.
-		net::awaitable<void>
-		udp_forward(vpn_packet_ptr pkt, udp::endpoint remote);
+		void rebind_tcp_socket(tcp::socket&& s);
 
 		// 提交一个tun读取的packet到队列.
 		void tun_submit(vpn_tun_packet&& pkt);
 
 		// 提交一个网络数据包到队列.
-		void net_submit(vpn_packet&& pkt, udp::endpoint remote);
+		void net_submit(vpn_packet&& pkt,
+			std::optional<udp::endpoint> remote);
+
+		// 启动tcp消息.
+		void start_tcp_loop();
 
 		// 设置/返回client的id.
 		std::string client_id() const;
@@ -130,10 +127,6 @@ namespace avpn {
 
 		void internal_write_pkt(vpn_packet&& pkt);
 
-		// 在tcp连接上读/写一个vpn_packet消息.
-		net::awaitable<int> tcp_read_packet(
-			tcp::socket& stream, vpn_packet& pkt);
-
 		// 速率限制.
 		net::awaitable<void> speed_limit(
 			const int& size, bool w = true);
@@ -141,21 +134,26 @@ namespace avpn {
 		// forward tun packet to network.
 		void tun_forward();
 
-		// 处理tun上的ip包.
-		void process_tun_packet(vpn_packet pkt);
+		// forward net packet to tun.
+		void net_forward();
 
-		// 处理tcp/udp协议.
-		net::awaitable<bool> process_tcp_packet(vpn_packet_ptr pkt);
-		net::awaitable<void> process_udp_packet(vpn_packet_ptr pkt);
+		// forward tcp packet to tun.
+		void tcp_forward();
+
+		// 处理tun上的ip包.
+		void process_tun_packet(vpn_packet& pkt);
+
+		// process net packet.
+		void process_net_packet(vpn_packet& pkt);
 
 		// 作为server时, 接收到keepalive消息.
-		net::awaitable<void> on_vpn_keepalive(vpn_packet_ptr pkt);
+		void on_vpn_keepalive(vpn_packet& pkt);
 		// 作为client时, 接收到keepalive_reply消息.
-		net::awaitable<void> on_vpn_keepalive_reply(vpn_packet_ptr pkt);
+		void on_vpn_keepalive_reply(vpn_packet& pkt);
 
 		// 接收到transfer/compress消息.
-		net::awaitable<void> on_vpn_transfer(vpn_packet_ptr pkt);
-		net::awaitable<void> on_vpn_transfer_compress(vpn_packet_ptr pkt);
+		void on_vpn_transfer(vpn_packet& pkt);
+		void on_vpn_transfer_compress(vpn_packet& pkt);
 
 		// 检查packet.
 		std::optional<endpoint_pair>
@@ -190,6 +188,8 @@ namespace avpn {
 
 		// tun处理线程.
 		std::thread m_tun_thread;
+		// net处理线程.
+		std::thread m_net_thread;
 
 		// fec纠错相关统计信息.
 		uint32_t m_num_corrected{ 0 };
@@ -217,12 +217,14 @@ namespace avpn {
 		// rtt估值.
 		int64_t m_rtt{ 0 };
 
-		// 与remote通信的tcp socket及tcp socket id.
+		// 与remote通信的tcp socket id及tcp socket.
 		tcp::socket m_tcp_socket;
-		size_t m_tcp_socket_id{ 0 };
+
+		// tcp write 队列.
 		std::deque<vpn_packet> m_tcp_oqe;
-		bool m_tcp_ready{ false };
-		net::streambuf m_tcp_buffer;
+
+		// tcp 连接状态.
+		bool m_tcp_connect_ready{ false };
 
 		// tun input数据包队列.
 		vpn_queue<vpn_tun_packet> m_tun_iqe;

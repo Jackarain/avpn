@@ -97,7 +97,7 @@ namespace avpn {
 		uint8_t pid_{ 0 };
 
 		vpn_packet_t type_;
-		int flag_{ -1 };
+		int debug_flag_{ -1 };
 	};
 
 	// avpn数据包整个占用内存大小.
@@ -133,6 +133,9 @@ namespace avpn {
 
 		avpn_static_mtu =
 			avpn_packet_size - avpn_payload_header_size;
+
+		avpn_packet_memory_size =
+			avpn_packet_size + sizeof(vpn_packet);
 
 		return true;
 	}
