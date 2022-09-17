@@ -12,12 +12,30 @@
 #include <atomic>
 #include <deque>
 
+#include <mutex>
+#include <condition_variable>
+
 #include <boost/chrono.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/lock_types.hpp>
 
 namespace avpn {
+	inline namespace v1 {
+
+#if 0
+	using boost::chrono::milliseconds;
+	using boost::unique_lock;
+	using boost::lock_guard;
+	using boost::mutex;
+	using boost::condition_variable;
+#else
+	using std::chrono::milliseconds;
+	using std::unique_lock;
+	using std::lock_guard;
+	using std::mutex;
+	using std::condition_variable;
+#endif
 
 	template <typename T>
 	class vpn_queue
@@ -38,7 +56,7 @@ namespace avpn {
 		inline void submit(T&& pkt) noexcept
 		{
 			{
-				boost::unique_lock lock(m_mutex);
+				unique_lock lock(m_mutex);
 				m_queue.emplace_back(std::move(pkt));
 			}
 
@@ -47,15 +65,14 @@ namespace avpn {
 
 		inline std::optional<T> acquire() noexcept
 		{
-			boost::unique_lock lock(m_mutex);
+			unique_lock lock(m_mutex);
 
 			while (m_queue.empty())
 			{
 				if (m_abort)
 					return {};
 
-				m_condition_var.wait_for(lock,
-					boost::chrono::milliseconds(128));
+				m_condition_var.wait_for(lock, milliseconds(128));
 			}
 
 			auto pkt = std::move(m_queue.front());
@@ -66,7 +83,7 @@ namespace avpn {
 
 		inline size_t size() const noexcept
 		{
-			boost::lock_guard lock(m_mutex);
+			lock_guard lock(m_mutex);
 			return m_queue.size();
 		}
 
@@ -77,10 +94,10 @@ namespace avpn {
 		}
 
 	private:
-		mutable boost::mutex m_mutex;
-		boost::condition_variable m_condition_var;
+		mutable mutex m_mutex;
+		condition_variable m_condition_var;
 		std::deque<T> m_queue;
 		std::atomic_bool m_abort{ false };
 	};
-
+	}
 }
