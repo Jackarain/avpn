@@ -9,6 +9,8 @@
 
 #include "utils/misc.hpp"
 
+#include <boost/thread/lockable_adapter.hpp>
+
 
 namespace avpn
 {
@@ -48,6 +50,7 @@ namespace avpn
 	>;
 
 	class vpn_client_table
+		: public boost::lockable_adapter<std::mutex>
 	{
 		// c++11 noncopyable.
 		vpn_client_table(const vpn_client_table&) = delete;

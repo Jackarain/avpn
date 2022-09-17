@@ -161,6 +161,7 @@ namespace avpn {
 
 		if (m_identity == Identity::avpn_server)
 		{
+			std::lock_guard lock(m_clients);
 			auto& tab = m_clients.table();
 			for (auto& c : tab)
 			{
@@ -217,6 +218,7 @@ namespace avpn {
 
 	void avpn_service::remove_tunnel(uint32_t vaddr)
 	{
+		std::lock_guard lock(m_clients);
 		m_clients.remove(vaddr);
 	}
 
@@ -420,8 +422,7 @@ namespace avpn {
 
 				// 根据src寻找对应的client, 找到后转入相应client
 				// 的处理流程中.
-				auto tunnel = co_await net::co_spawn(m_main_context,
-					async_lookup_tunnel(src_vaddr), net::use_awaitable);
+				auto tunnel = lookup_tunnel(src_vaddr);
 				if (!tunnel)
 				{
 					net::ip::address_v4 src_addr(src_vaddr);
@@ -623,6 +624,8 @@ namespace avpn {
 		// 检查所有tunnel是否超时, 超时2分钟则关闭并释放.
 		auto check_all_tunnel = [&](time_point& now) mutable
 		{
+			std::lock_guard lock(m_clients);
+
 			auto& clients = m_clients.table();
 			for (auto it = clients.begin();
 				it != clients.end();)
@@ -761,6 +764,7 @@ namespace avpn {
 				int64_t urate = 0;
 				int64_t drate = 0;
 
+				std::lock_guard lock(m_clients);
 				auto& tab = m_clients.table();
 				for (auto& c : tab)
 				{
@@ -2000,13 +2004,17 @@ namespace avpn {
 	{
 		vpn_tunnel_ptr vp;
 
+		std::lock_guard lock(m_clients);
 		auto vc = m_clients.lookup_by_addr(vaddr);
+
 		return vc.tunnel_.lock();
 	}
 
 	vpn_tunnel_ptr avpn_service::lookup_tunnel(std::string id)
 	{
+		std::lock_guard lock(m_clients);
 		auto vc = m_clients.lookup_by_id(id);
+
 		return vc.tunnel_.lock();
 	}
 
@@ -2070,7 +2078,10 @@ namespace avpn {
 		vc.vnet_addr_ = vaddr;
 		vc.tunnel_ = tunnel;
 
-		m_clients.make(vc);
+		{
+			std::lock_guard lock(m_clients);
+			m_clients.make(vc);
+		}
 
 		return tunnel;
 	}
