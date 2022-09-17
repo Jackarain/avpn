@@ -25,6 +25,9 @@
 #include <chrono>
 #include <iomanip>
 
+#include <boost/stacktrace.hpp>
+
+
 
 namespace avpn {
 	using namespace std::chrono_literals;
@@ -2085,6 +2088,10 @@ namespace avpn {
 			m_client_state &= ~vst_tcping;
 			m_client_state |= vst_tcped;
 		}
+
+		std::ostringstream oss;
+		oss << boost::stacktrace::stacktrace();
+		LOG_DBG << "Callstack:\n" << oss.str();
 
 		LOG_WARN << "Tcp reconnect: " << cnt;
 		m_tcp_reconnect_cnt = cnt;
