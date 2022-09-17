@@ -12,6 +12,7 @@
 #include "utils/scoped_exit.hpp"
 
 
+
 namespace avpn {
 
 	template<typename Handler>
@@ -30,6 +31,7 @@ namespace avpn {
 			: stream_(other.stream_)
 			, pkt_(std::move(other.pkt_))
 			, start_(other.start_)
+			, start_len_tag_(std::move(other.start_len_tag_))
 			, handler_(std::move(other.handler_))
 		{}
 
@@ -41,12 +43,12 @@ namespace avpn {
 			case 0:
 			{
 				boost::system::error_code ec;
-				uint32_t start_len_tag =
+				*start_len_tag_ =
 					htonl((uint32_t)pkt_->size());
 
 				start_ = 1;
 				net::async_write(stream_,
-					net::buffer(&start_len_tag, 4),
+					net::buffer(start_len_tag_.get(), 4),
 						static_cast<write_packet_op&&>(*this));
 			}
 			return;
@@ -71,6 +73,8 @@ namespace avpn {
 		tcp::socket& stream_;
 		vpn_packet_ptr pkt_;
 		int start_{ 0 };
+		std::unique_ptr<uint32_t> start_len_tag_{
+			std::make_unique<uint32_t>(0) };
 		Handler handler_;
 	};
 
@@ -162,7 +166,7 @@ namespace avpn {
 		{}
 
 		void operator()(boost::system::error_code error,
-			std::size_t)
+			std::size_t bytes)
 		{
 			switch (start_)
 			{
@@ -195,7 +199,10 @@ namespace avpn {
 			return;
 			default:
 				if (!error)
+				{
+					BOOST_ASSERT(bytes == *start_len_tag_);
 					pkt_->resize(*start_len_tag_);
+				}
 				break;
 			}
 
@@ -402,6 +409,8 @@ namespace avpn {
 	void vpn_tunnel::start_tcp_loop()
 	{
 		BOOST_ASSERT(!m_tcp_connect_ready);
+		if (m_tcp_connect_ready)
+			return;
 
 		// 启动网络转发.
 		tcp_forward();
@@ -791,12 +800,12 @@ namespace avpn {
 						compute_speed(m_down_stat, ptr->size());
 						m_num_recv_packet++;
 
+						// 继续下一次tcp接收转发.
+						tcp_forward();
+
 						// 将接收到的packet提交到队列.
 						// net_submit(std::move(*ptr), {});
 						process_net_packet(*ptr);
-
-						// 继续下一次tcp接收转发.
-						tcp_forward();
 
 						return;
 					}
