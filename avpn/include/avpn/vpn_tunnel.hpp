@@ -22,7 +22,6 @@
 #include "avpn/reedsolomon.hpp"
 #include "avpn/fec_cache.hpp"
 #include "avpn/avpn.hpp"
-#include "avpn/vpn_queue.hpp"
 
 
 namespace avpn {

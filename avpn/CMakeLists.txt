@@ -45,7 +45,6 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_conntrack.hpp
 	include/avpn/vpn_tcp_stream.hpp
 	include/avpn/chksum.hpp
-	include/avpn/vpn_queue.hpp
 
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
