@@ -420,6 +420,9 @@ namespace avpn
 		int ds, int ps,
 		vpn_packet_ptr& pkt)
 	{
+		if (ds == 1 && ps == 0)
+			return {true, false};
+
 		auto clean_gops =
 		[this](uint32_t& gid) mutable -> void
 		{
