@@ -73,7 +73,7 @@ namespace avpn {
 		net::post(m_main_context, [this]() mutable
 			{
 				auto id = std::this_thread::get_id();
-				BOOST_ASSERT(m_main_thread_id == id);
+				// BOOST_ASSERT(m_main_thread_id == id);
 				m_main_thread_id = id;
 			});
 		init_ssl_context();
@@ -376,7 +376,6 @@ namespace avpn {
 
 		auto socket_ptr = pick_random_usock(index);
 		auto thread_id = std::this_thread::get_id();
-		auto self = shared_from_this();
 
 		while (!m_abort)
 		{
@@ -409,6 +408,8 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 			{
+				auto self = shared_from_this();
+
 				if (thread_id == m_main_thread_id)
 				{
 					server_dispatch_udp(std::move(pkt), std::move(remote));
@@ -427,6 +428,8 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_client)
 			{
+				auto self = shared_from_this();
+
 				if (thread_id == m_main_thread_id)
 				{
 					client_dispatch_udp(std::move(pkt), std::move(remote));

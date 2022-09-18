@@ -14,11 +14,12 @@ namespace avpn {
 	//////////////////////////////////////////////////////////////////////////
 	void packet_free::operator()(void* p)
 	{
-		static_packet_allocator()->free_packet((uint8_t*)p);
+		std::free(p);
+		// static_packet_allocator()->free_packet((uint8_t*)p);
 	}
 
 	vpn_packet::vpn_packet()
-		: data_(static_packet_allocator()->alloc_packet())
+		: data_((uint8_t*)std::calloc(1, avpn_packet_size)/*static_packet_allocator()->alloc_packet()*/)
 	{}
 
 	vpn_packet::vpn_packet(vpn_packet&& p)
