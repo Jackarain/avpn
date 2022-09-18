@@ -11,6 +11,20 @@
 
 namespace util {
 
+template <typename native_handle_type>
+void set_thread_affinity(int i, native_handle_type h)
+{
+#ifdef _GNU_SOURCE
+	cpu_set_t mask;
+	CPU_ZERO(&mask);
+	CPU_SET(i, &mask);
+	pthread_setaffinity_np(h, sizeof(mask), &mask);
+#endif
+#ifdef _WIN32
+	SetThreadAffinityMask(h, 1UL << i);
+#endif
+}
+
 io_context_pool::io_context_pool(std::size_t pool_size)
 	: next_io_context_(0)
 {
@@ -41,15 +55,23 @@ void io_context_pool::run()
         std::shared_ptr<std::thread> thread(new std::thread(
 			[this, i]() mutable { io_contexts_[i]->run();  }));
 			set_thread_name(thread.get(), "round-robin io runner");
+			set_thread_affinity(i, thread->native_handle());
 		threads.push_back(thread);
 	}
 
 	// main_io_context_ have no worker, so will exit if no more pending IO left.
-	main_io_context_.run();
+	std::thread main_thread([this]() mutable
+		{
+			main_io_context_.run();
+		});
+
+	set_thread_affinity((int)io_contexts_.size(), main_thread.native_handle());
 
 	// Wait for all threads in the pool to exit.
 	for (auto& thread : threads)
 		thread->join();
+
+	main_thread.join();
 }
 
 void io_context_pool::stop()
