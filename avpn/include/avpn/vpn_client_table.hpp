@@ -57,7 +57,7 @@ namespace avpn
 		vpn_client_table& operator=(const vpn_client_table&) = delete;
 
 	public:
-		vpn_client_table() = default;
+		vpn_client_table();
 		~vpn_client_table() = default;
 
 	public:
@@ -78,6 +78,7 @@ namespace avpn
 		client_table& table();
 
 	private:
+		std::thread::id m_thread_id;
 		client_table m_clients;
 	};
 }

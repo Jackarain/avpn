@@ -168,7 +168,6 @@ namespace avpn {
 
 		if (m_identity == Identity::avpn_server)
 		{
-			std::lock_guard lock(m_clients);
 			auto& tab = m_clients.table();
 			for (auto& c : tab)
 			{
@@ -225,8 +224,18 @@ namespace avpn {
 
 	void avpn_service::remove_tunnel(uint32_t vaddr)
 	{
-		std::lock_guard lock(m_clients);
-		m_clients.remove(vaddr);
+		if (std::this_thread::get_id() == m_main_thread_id)
+		{
+			m_clients.remove(vaddr);
+			return;
+		}
+
+		auto self = shared_from_this();
+		net::post(m_main_context,
+			[this, self, vaddr]() mutable
+			{
+				m_clients.remove(vaddr);
+			});
 	}
 
 	void avpn_service::init_ssl_context()
@@ -571,8 +580,6 @@ namespace avpn {
 		// 检查所有tunnel是否超时, 超时2分钟则关闭并释放.
 		auto check_all_tunnel = [&](time_point& now) mutable
 		{
-			std::lock_guard lock(m_clients);
-
 			auto& clients = m_clients.table();
 			for (auto it = clients.begin();
 				it != clients.end();)
@@ -691,6 +698,29 @@ namespace avpn {
 			}
 		};
 
+		// 计算上下行总带宽.
+		auto compute_bandwidth = [&]() mutable
+		{
+			// 计算上下行总带宽.
+			int64_t urate = 0;
+			int64_t drate = 0;
+
+			auto& tab = m_clients.table();
+			for (auto& c : tab)
+			{
+				auto client = c.tunnel_.lock();
+				if (!client)
+					continue;
+
+				urate += client->upload_rate();
+				drate += client->download_rate();
+			}
+
+			m_upload_speed = urate;
+			m_down_speed = drate;
+		};
+
+
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
@@ -707,24 +737,7 @@ namespace avpn {
 			if (m_identity == Identity::avpn_server)
 			{
 				check_all_tunnel(now);
-
-				int64_t urate = 0;
-				int64_t drate = 0;
-
-				std::lock_guard lock(m_clients);
-				auto& tab = m_clients.table();
-				for (auto& c : tab)
-				{
-					auto client = c.tunnel_.lock();
-					if (!client)
-						continue;
-
-					urate += client->upload_rate();
-					drate += client->download_rate();
-				}
-
-				m_upload_speed = urate;
-				m_down_speed = drate;
+				compute_bandwidth();
 			}
 
 			if (m_identity == Identity::avpn_client)
@@ -2058,19 +2071,13 @@ namespace avpn {
 
 	vpn_tunnel_ptr avpn_service::lookup_tunnel(uint32_t vaddr)
 	{
-		vpn_tunnel_ptr vp;
-
-		std::lock_guard lock(m_clients);
 		auto vc = m_clients.lookup_by_addr(vaddr);
-
 		return vc.tunnel_.lock();
 	}
 
 	vpn_tunnel_ptr avpn_service::lookup_tunnel(std::string id)
 	{
-		std::lock_guard lock(m_clients);
 		auto vc = m_clients.lookup_by_id(id);
-
 		return vc.tunnel_.lock();
 	}
 
@@ -2122,10 +2129,7 @@ namespace avpn {
 		vc.vnet_addr_ = vaddr;
 		vc.tunnel_ = tunnel;
 
-		{
-			std::lock_guard lock(m_clients);
-			m_clients.make(vc);
-		}
+		m_clients.make(vc);
 
 		return tunnel;
 	}

@@ -9,9 +9,17 @@
 
 namespace avpn {
 
+
+	vpn_client_table::vpn_client_table()
+	{
+		m_thread_id = std::this_thread::get_id();
+	}
+
 	vpn_client
 	vpn_client_table::lookup_by_id(const std::string& id) const
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		using cid_type = typename
 			boost::multi_index::index<client_table, cid>::type;
 
@@ -28,6 +36,8 @@ namespace avpn {
 	vpn_client
 	vpn_client_table::lookup_by_addr(uint32_t vaddr) const
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		using caddr_type = typename
 			boost::multi_index::index<client_table, caddr>::type;
 
@@ -43,6 +53,8 @@ namespace avpn {
 
 	std::vector<vpn_tunnel_weak_ptr> vpn_client_table::all() const
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		std::vector<vpn_tunnel_weak_ptr> result;
 
 		for (auto& it : m_clients)
@@ -53,18 +65,24 @@ namespace avpn {
 
 	bool vpn_client_table::make(const vpn_client& client)
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		auto ret = m_clients.insert(client);
 		return ret.second;
 	}
 
 	bool vpn_client_table::remove(const std::string& id)
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		auto ret = m_clients.erase(id);
 		return !!ret;
 	}
 
 	bool vpn_client_table::remove(uint32_t vaddr)
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		using caddr_type = typename
 			boost::multi_index::index<client_table, caddr>::type;
 
@@ -83,6 +101,8 @@ namespace avpn {
 
 	client_table& vpn_client_table::table()
 	{
+		BOOST_ASSERT(std::this_thread::get_id() == m_thread_id);
+
 		return m_clients;
 	}
 
