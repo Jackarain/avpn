@@ -332,7 +332,7 @@ namespace avpn {
 		m_download_limit = limit;
 	}
 
-	void vpn_tunnel::rebind_tcp_socket(tcp::socket&& s)
+	void vpn_tunnel::rebind_tcp_socket(tcp::socket s)
 	{
 		boost::system::error_code ec;
 		m_tcp_socket.close(ec);
@@ -353,7 +353,7 @@ namespace avpn {
 		m_tcp_socket.assign(endpoint.protocol(), s.release());
 	}
 
-	void vpn_tunnel::tun_submit(vpn_tun_packet&& pkt)
+	void vpn_tunnel::tun_submit(vpn_tun_packet pkt)
 	{
 		if (m_thread_id == std::this_thread::get_id())
 		{
@@ -370,7 +370,7 @@ namespace avpn {
 			});
 	}
 
-	void vpn_tunnel::net_submit(vpn_packet&& pkt,
+	void vpn_tunnel::net_submit(vpn_packet pkt,
 		std::optional<udp::endpoint> remote)
 	{
 		if (m_identity == Identity::avpn_server)
@@ -629,7 +629,7 @@ namespace avpn {
 		stat.speeder_count_ = speeder_count;
 	}
 
-	void vpn_tunnel::udp_write_pkt(vpn_packet&& pkt)
+	void vpn_tunnel::udp_write_pkt(vpn_packet pkt)
 	{
 		auto service = m_serivce.lock();
 		if (!service)
@@ -639,7 +639,7 @@ namespace avpn {
 		service->do_udp_write(std::move(pkt), m_remote_endpoint);
 	}
 
-	void vpn_tunnel::tcp_write_pkt(vpn_packet&& pkt)
+	void vpn_tunnel::tcp_write_pkt(vpn_packet pkt)
 	{
 		// tcp 连接暂时不可用, 仅输出日志.
 		if (!m_tcp_connect_ready)
@@ -673,7 +673,7 @@ namespace avpn {
 			m_abort, m_num_send_packet, self)({}, 1);
 	}
 
-	void vpn_tunnel::internal_write_pkt(vpn_packet&& pkt)
+	void vpn_tunnel::internal_write_pkt(vpn_packet pkt)
 	{
 		auto pick = cherry_pick();
 

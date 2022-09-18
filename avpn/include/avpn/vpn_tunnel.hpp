@@ -71,13 +71,13 @@ namespace avpn {
 		void download_limit(int limit);
 
 		// 重新绑定 tunnel 的 tcp socket 对象.
-		void rebind_tcp_socket(tcp::socket&& s);
+		void rebind_tcp_socket(tcp::socket s);
 
 		// 提交一个tun读取的packet到队列.
-		void tun_submit(vpn_tun_packet&& pkt);
+		void tun_submit(vpn_tun_packet pkt);
 
 		// 提交一个网络数据包到队列.
-		void net_submit(vpn_packet&& pkt,
+		void net_submit(vpn_packet pkt,
 			std::optional<udp::endpoint> remote);
 
 		// 启动tcp消息.
@@ -121,10 +121,10 @@ namespace avpn {
 		void compute_speed(speed_stat& stat, const time_point& now);
 
 		// 通过udp/tcp协议发送数据包.
-		void udp_write_pkt(vpn_packet&& pkt);
-		void tcp_write_pkt(vpn_packet&& pkt);
+		void udp_write_pkt(vpn_packet pkt);
+		void tcp_write_pkt(vpn_packet pkt);
 
-		void internal_write_pkt(vpn_packet&& pkt);
+		void internal_write_pkt(vpn_packet pkt);
 
 		// 速率限制.
 		net::awaitable<void> speed_limit(
