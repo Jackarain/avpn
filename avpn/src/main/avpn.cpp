@@ -234,7 +234,7 @@ namespace avpn {
 
 		if (std::filesystem::exists(pwd))
 			m_ssl_ctx.set_password_callback(
-				[this, &pwd]([[maybe_unused]] auto... args) {
+				[&pwd]([[maybe_unused]] auto... args) {
 					std::string password;
 					fileop::read(pwd, password);
 					return password;
