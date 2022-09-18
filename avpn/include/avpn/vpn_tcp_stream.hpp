@@ -130,7 +130,7 @@ namespace avpn {
 		closed_handler m_closed_handler;
 
 		// 连接接受状态.
-		bool m_accepted{ false };
+		// bool m_accepted{ false };
 
 		// 关闭连接状态.
 		bool m_closed{ false };
