@@ -442,6 +442,8 @@ namespace avpn {
 			}
 		}
 
+		LOG_WARN << "Quit avpn_service::start_udp_read_loop: " << this;
+
 		co_return;
 	}
 
@@ -1306,8 +1308,6 @@ namespace avpn {
 		// 并加入到 vpn tunnel连接池中, 直到认证完成, 则能将
 		// 其从连接池中移动到已经完成的连接列表.
 
-		auto self = shared_from_this();
-
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src_vaddr = 0;
@@ -1320,6 +1320,8 @@ namespace avpn {
 		// client握手认证请求, 转入handshake处理流程.
 		if (type == vpt_handshake)
 		{
+			auto self = shared_from_this();
+
 			net::co_spawn(m_main_context,
 				[this, self,
 				src_vaddr,
@@ -1366,8 +1368,6 @@ namespace avpn {
 
 	void avpn_service::client_dispatch_udp(vpn_packet pkt, udp::endpoint remote)
 	{
-		auto self = shared_from_this();
-
 		bool enc = false;
 		uint8_t type = 0;
 		uint32_t src_vaddr = 0;
@@ -1380,6 +1380,8 @@ namespace avpn {
 		// server握手认证请求回复, 转入handshake处理流程.
 		if (type == vpt_handshake_reply)
 		{
+			auto self = shared_from_this();
+
 			net::co_spawn(m_main_context,
 				[this, self,
 				remote,
