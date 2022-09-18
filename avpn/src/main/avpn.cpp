@@ -69,6 +69,13 @@ namespace avpn {
 		, m_ip_assigner(m_subnet.hosts())
 		, m_ip_iterator(++m_ip_assigner.begin())
 	{
+		m_main_thread_id = std::this_thread::get_id();
+		net::post(m_main_context, [this]() mutable
+			{
+				auto id = std::this_thread::get_id();
+				BOOST_ASSERT(m_main_thread_id == id);
+				m_main_thread_id = id;
+			});
 		init_ssl_context();
 	}
 
@@ -353,9 +360,12 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
 	{
-		udp::endpoint remote;
 		boost::system::error_code ec;
+		udp::endpoint remote;
+
 		auto socket_ptr = pick_random_usock(index);
+		auto thread_id = std::this_thread::get_id();
+		auto self = shared_from_this();
 
 		while (!m_abort)
 		{
@@ -388,99 +398,36 @@ namespace avpn {
 
 			if (m_identity == Identity::avpn_server)
 			{
-				// 根据协议中的虚拟ip信息, 找到相应vpn连接进行相应数
-				// 据处理.
-
-				// 如果是认证请求, 则根据client的id, 先查询client连
-				// 接池中是否已有相同id存在的请求, 如果有则直接使用池
-				// 中vpn tunnel, 如果没有, 则创建新的 vpn tunnel,
-				// 并加入到 vpn tunnel连接池中, 直到认证完成, 则能将
-				// 其从连接池中移动到已经完成的连接列表.
-				bool enc = false;
-				uint8_t type = 0;
-				uint32_t src_vaddr = 0;
-
-				int ret = unwrap_common_header(pkt,
-					enc, type, src_vaddr);
-				if (!ret)
-					continue;
-
-				// client握手认证请求, 转入handshake处理流程.
-				if (type == vpt_handshake)
+				if (thread_id == m_main_thread_id)
 				{
-					auto self = shared_from_this();
-					net::co_spawn(m_main_context,
-						[this, self, remote, pkt = std::move(pkt), src_vaddr]
-					() mutable->net::awaitable<void>
-					{
-						co_await on_udp_handshake(
-							remote, std::move(pkt), src_vaddr);
-						co_return;
-					}, net::detached);
+					server_dispatch_udp(std::move(pkt), std::move(remote));
 					continue;
 				}
 
-				// 根据src寻找对应的client, 找到后转入相应client
-				// 的处理流程中.
-				auto tunnel = lookup_tunnel(src_vaddr);
-				if (!tunnel)
+				net::post(m_main_context, [this, self,
+					pkt = std::move(pkt),
+					remote = std::move(remote)]() mutable
 				{
-					net::ip::address_v4 src_addr(src_vaddr);
-					LOG_WARN << "Not found client via loop: "
-						<< src_addr.to_string();
-
-					// 若不为同一网络段, 则有可能是错误的数据包, 忽略掉.
-					if (!same_ipv4_network(m_subnet, src_vaddr))
-						continue;
-
-					// 没找到src对应的client, 则返回空handshake reply消息.
-					do_udp_write(make_handshake_reply(
-						{}, 0, 0, 0, 0, false, 0, {}), remote);
-					continue;
-				}
-
-				// 更新ipproto.
-				tunnel->ipproto(Proto::avpn_udp);
-
-				// 将UDP消息转发到对应的tunnel连接中处理.
-				tunnel->net_submit(std::move(pkt), {remote});
+					server_dispatch_udp(std::move(pkt), std::move(remote));
+				});
 
 				continue;
 			}
 
 			if (m_identity == Identity::avpn_client)
 			{
-				bool enc = false;
-				uint8_t type = 0;
-				uint32_t src_vaddr = 0;
-
-				int ret = unwrap_common_header(pkt,
-					enc, type, src_vaddr);
-				if (!ret)
-					continue;
-
-				// server握手认证请求回复, 转入handshake处理流程.
-				if (type == vpt_handshake_reply)
+				if (thread_id == m_main_thread_id)
 				{
-					auto self = shared_from_this();
-					net::co_spawn(m_main_context,
-						[this, self, remote, pkt = std::move(pkt)]
-						() mutable -> net::awaitable<void>
-						{
-							co_await on_udp_handshake_reply(
-								remote, std::move(pkt));
-							co_return;
-						}, net::detached);
+					client_dispatch_udp(std::move(pkt), std::move(remote));
 					continue;
 				}
 
-				// client的tunnel还没建立好, 忽略所有非vpt_handshake_reply消息.
-				auto tunnel = m_tunnel.lock();
-				if (!tunnel)
-					continue;
-
-				// 转发到client连接, 让client对象处理相应的协议数据.
-				tunnel->net_submit(std::move(pkt), { remote });
+				net::post(m_main_context, [this, self,
+					pkt = std::move(pkt),
+					remote = std::move(remote)]() mutable
+				{
+					client_dispatch_udp(std::move(pkt), std::move(remote));
+				});
 
 				continue;
 			}
@@ -489,7 +436,7 @@ namespace avpn {
 		co_return;
 	}
 
-	void avpn_service::do_udp_write(vpn_packet&& pkt, udp::endpoint remote)
+	void avpn_service::do_udp_write(vpn_packet pkt, udp::endpoint remote)
 	{
 		// 选择一个可用的udp socket准备用于数据发送.
 		auto socket_ptr = pick_random_usock();
@@ -1335,6 +1282,115 @@ namespace avpn {
 		co_return;
 	}
 
+	void avpn_service::server_dispatch_udp(vpn_packet pkt, udp::endpoint remote)
+	{
+		// 根据协议中的虚拟ip信息, 找到相应vpn连接进行相应数
+		// 据处理.
+
+		// 如果是认证请求, 则根据client的id, 先查询client连
+		// 接池中是否已有相同id存在的请求, 如果有则直接使用池
+		// 中vpn tunnel, 如果没有, 则创建新的 vpn tunnel,
+		// 并加入到 vpn tunnel连接池中, 直到认证完成, 则能将
+		// 其从连接池中移动到已经完成的连接列表.
+
+		auto self = shared_from_this();
+
+		bool enc = false;
+		uint8_t type = 0;
+		uint32_t src_vaddr = 0;
+
+		int ret = unwrap_common_header(pkt,
+			enc, type, src_vaddr);
+		if (!ret)
+			return;
+
+		// client握手认证请求, 转入handshake处理流程.
+		if (type == vpt_handshake)
+		{
+			net::co_spawn(m_main_context,
+				[this, self,
+				src_vaddr,
+				remote,
+				pkt = std::move(pkt)]
+			() mutable->net::awaitable<void>
+			{
+				co_await on_udp_handshake(
+					remote,
+					std::move(pkt),
+					src_vaddr);
+				co_return;
+			}, net::detached);
+
+			return;
+		}
+
+		// 根据src寻找对应的client, 找到后转入相应client
+		// 的处理流程中.
+		auto tunnel = lookup_tunnel(src_vaddr);
+		if (!tunnel)
+		{
+			net::ip::address_v4 src_addr(src_vaddr);
+			LOG_WARN << "Not found client via loop: "
+				<< src_addr.to_string();
+
+			// 若不为同一网络段, 则有可能是错误的数据包, 忽略掉.
+			if (!same_ipv4_network(m_subnet, src_vaddr))
+				return;
+
+			// 没找到src对应的client, 则返回空handshake reply消息.
+			do_udp_write(make_handshake_reply(
+				{}, 0, 0, 0, 0, false, 0, {}), remote);
+
+			return;
+		}
+
+		// 更新ipproto.
+		tunnel->ipproto(Proto::avpn_udp);
+
+		// 将UDP消息转发到对应的tunnel连接中处理.
+		tunnel->net_submit(std::move(pkt), { remote });
+	}
+
+	void avpn_service::client_dispatch_udp(vpn_packet pkt, udp::endpoint remote)
+	{
+		auto self = shared_from_this();
+
+		bool enc = false;
+		uint8_t type = 0;
+		uint32_t src_vaddr = 0;
+
+		int ret = unwrap_common_header(pkt,
+			enc, type, src_vaddr);
+		if (!ret)
+			return;
+
+		// server握手认证请求回复, 转入handshake处理流程.
+		if (type == vpt_handshake_reply)
+		{
+			net::co_spawn(m_main_context,
+				[this, self,
+				remote,
+				pkt = std::move(pkt)]
+			() mutable->net::awaitable<void>
+			{
+				co_await on_udp_handshake_reply(
+					remote,
+					std::move(pkt));
+				co_return;
+			}, net::detached);
+
+			return;
+		}
+
+		// client的tunnel还没建立好, 忽略所有非vpt_handshake_reply消息.
+		auto tunnel = m_tunnel.lock();
+		if (!tunnel)
+			return;
+
+		// 转发到client连接, 让client对象处理相应的协议数据.
+		tunnel->net_submit(std::move(pkt), { remote });
+	}
+
 	net::awaitable<void> avpn_service::start_tcp_client()
 	{
 		auto self = shared_from_this();
@@ -2016,18 +2072,6 @@ namespace avpn {
 		auto vc = m_clients.lookup_by_id(id);
 
 		return vc.tunnel_.lock();
-	}
-
-	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::async_lookup_tunnel(uint32_t vaddr)
-	{
-		co_return lookup_tunnel(vaddr);
-	}
-
-	net::awaitable<vpn_tunnel_ptr>
-	avpn_service::async_lookup_tunnel(std::string id)
-	{
-		co_return lookup_tunnel(id);
 	}
 
 	net::awaitable<avpn::vpn_tunnel_ptr>

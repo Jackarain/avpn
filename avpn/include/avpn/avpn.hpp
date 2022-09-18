@@ -268,7 +268,7 @@ namespace avpn {
 
 		// udp相关的读取与发送.
 		net::awaitable<void> start_udp_read_loop(int);
-		void do_udp_write(vpn_packet&&, udp::endpoint);
+		void do_udp_write(vpn_packet, udp::endpoint);
 
 		// 启动avpn服务.
 		void run_as_client();
@@ -298,6 +298,12 @@ namespace avpn {
 		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
 		net::awaitable<void> start_udp_server();
+
+		// 作为server时, 处理udp数据包.
+		void server_dispatch_udp(vpn_packet, udp::endpoint);
+
+		// 作为client时, 处理udp数据包.
+		void client_dispatch_udp(vpn_packet, udp::endpoint);
 
 		// 作为client时, 开始进行tcp连接.
 		net::awaitable<void> start_tcp_client();
@@ -330,9 +336,6 @@ namespace avpn {
 		vpn_tunnel_ptr lookup_tunnel(uint32_t);
 		vpn_tunnel_ptr lookup_tunnel(std::string);
 
-		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(uint32_t);
-		net::awaitable<vpn_tunnel_ptr> async_lookup_tunnel(std::string);
-
 		net::awaitable<vpn_tunnel_ptr>
 			async_make_tunnel(std::string, std::string);
 
@@ -358,6 +361,9 @@ namespace avpn {
 
 		// 运行的身份.
 		Identity m_identity{ Identity::avpn_server };
+
+		// 主线程id.
+		std::thread::id m_main_thread_id;
 
 		// 随机id, 用于client连接前标识身份, 避免server重复在同一个
 		// client分配资源.
