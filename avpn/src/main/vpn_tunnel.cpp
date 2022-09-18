@@ -42,7 +42,6 @@ namespace avpn {
 			{
 			case 0:
 			{
-				boost::system::error_code ec;
 				*start_len_tag_ =
 					htonl((uint32_t)pkt_->size());
 
@@ -172,7 +171,6 @@ namespace avpn {
 			{
 			case 0:
 			{
-				boost::system::error_code ec;
 				start_ = 1;
 				net::async_read(stream_,
 					net::buffer(start_len_tag_.get(), 4),
