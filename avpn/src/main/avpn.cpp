@@ -324,7 +324,9 @@ namespace avpn {
 		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
-		LOG_WARN << "Quit tun loop";
+		LOG_WARN << "Quit start_tun_read_loop"
+			<< ", this: " << this
+			<< ", thread: " << std::this_thread::get_id();
 
 		co_return;
 	}
@@ -442,7 +444,9 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "Quit avpn_service::start_udp_read_loop: " << this;
+		LOG_WARN << "Quit avpn_service::start_udp_read_loop"
+			<< ", this: " << this
+			<< ", thread: " << std::this_thread::get_id();
 
 		co_return;
 	}
@@ -761,8 +765,9 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "Quit avpn_service::tick "
-			<< std::this_thread::get_id();
+		LOG_WARN << "Quit avpn_service::tick"
+			<< ", this: " << this
+			<< ", thread: " << std::this_thread::get_id();
 		co_return;
 	}
 
@@ -1222,7 +1227,9 @@ namespace avpn {
 				}, net::detached);
 		}
 
-		LOG_WARN << "start_tcp_listen exit ...";
+		LOG_WARN << "Quit avpn_service::start_tcp_listen"
+			<< ", this: " << this
+			<< ", thread: " << std::this_thread::get_id();
 		co_return;
 	}
 
