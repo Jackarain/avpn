@@ -56,7 +56,7 @@ namespace asio_util
 	{
 		inline net::redirect_error_t<
 			typename boost::decay<decltype(net::use_awaitable)>::type>
-			operator[](boost::system::error_code& ec) noexcept
+			operator[](boost::system::error_code& ec) const noexcept
 		{
 			return net::redirect_error(net::use_awaitable, ec);
 		}
@@ -70,5 +70,5 @@ namespace asio_util
 // stream.async_read(buffer, uawaitable[ec]);
 //
 
-[[maybe_unused]] inline asio_util::uawaitable_t uawaitable;
+[[maybe_unused]] inline constexpr asio_util::uawaitable_t uawaitable;
 
