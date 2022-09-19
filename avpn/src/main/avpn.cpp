@@ -462,6 +462,9 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
+		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+
+#if 0
 		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
 
 		// 直接发送, 仅在回调时释放packet.
@@ -477,6 +480,7 @@ namespace avpn {
 						<< ", error: " << ec.message();
 				}
 			});
+#endif
 	}
 
 	void avpn_service::run_as_client()
