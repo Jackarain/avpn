@@ -393,6 +393,7 @@ namespace avpn {
 
 		auto socket_ptr = pick_random_usock(index);
 		auto thread_id = std::this_thread::get_id();
+		bool same_thread = m_main_thread_id == thread_id;
 
 		while (!m_abort)
 		{
@@ -427,7 +428,7 @@ namespace avpn {
 			{
 				auto self = shared_from_this();
 
-				if (thread_id == m_main_thread_id)
+				if (same_thread)
 				{
 					server_dispatch_udp(std::move(pkt), std::move(remote));
 					continue;
@@ -447,7 +448,7 @@ namespace avpn {
 			{
 				auto self = shared_from_this();
 
-				if (thread_id == m_main_thread_id)
+				if (same_thread)
 				{
 					client_dispatch_udp(std::move(pkt), std::move(remote));
 					continue;
