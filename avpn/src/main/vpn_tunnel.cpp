@@ -532,7 +532,7 @@ namespace avpn {
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
 				LOG_IFMT("{}, {}c, {}w, {}e, {}g, {}r"
-					", {}tx, {}rx, {}d, {}u, {}q, {}rtt",
+					", {}tx, {}rx, {}d, {}u, {}race, {}rtt",
 					static_cast<const void*>(this),
 					m_num_corrected,
 					m_num_incorrect,
@@ -543,7 +543,7 @@ namespace avpn {
 					m_num_recv_packet,
 					m_down_stat.rate_,
 					m_upload_stat.rate_,
-					m_tcp_oqe.size(),
+					static_packet_allocator()->race() ,
 					t.count());
 			}
 
