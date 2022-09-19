@@ -88,6 +88,9 @@ namespace avpn {
 		vpn_packet_t type() const;
 		void type(vpn_packet_t t);
 
+		// 释放数据指针, 手工管理内存, 使用free释放.
+		void* release();
+
 	public:
 		std::unique_ptr<uint8_t, packet_free> data_;
 		uint16_t size_{ 0 };

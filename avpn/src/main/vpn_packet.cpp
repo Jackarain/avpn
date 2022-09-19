@@ -107,6 +107,11 @@ namespace avpn {
 		type_ = t;
 	}
 
+	void* vpn_packet::release()
+	{
+		data_.release();
+	}
+
 	vpn_packet_ptr dup_vpn_packet_ptr(const vpn_packet_ptr& p)
 	{
 		auto ret = std::make_shared<vpn_packet>();
