@@ -64,13 +64,23 @@ namespace avpn
 
 		// 放入垃圾站, 用以重复利用.
 		while (!garbage_pool_.push(p))
-			;
+			race_++;
 		garbage_size_++;
+	}
+
+	std::size_t packet_allocator::race() const
+	{
+		return race_;
 	}
 
 	std::size_t packet_allocator::total_size() const
 	{
 		return memory_size_;
+	}
+
+	void packet_allocator::release()
+	{
+		memory_size_ -= avpn_packet_memory_size;
 	}
 
 	void packet_allocator::set_max_size(size_t max_size)

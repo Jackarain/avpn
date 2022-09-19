@@ -58,7 +58,9 @@ namespace avpn {
 	public:
 		uint8_t* alloc_packet();
 		void free_packet(uint8_t* p);
+		std::size_t race() const;
 		std::size_t total_size() const;
+		void release();
 		void set_max_size(size_t max_size);
 
 	private:
@@ -66,6 +68,7 @@ namespace avpn {
 		std::atomic_int64_t garbage_size_{ 0 };
 		std::size_t max_size_;
 		std::atomic_int64_t memory_size_{ 0 };
+		std::size_t race_{ 0 };
 	};
 
 	// 设置分配器大小.
