@@ -1288,13 +1288,18 @@ namespace avpn {
 			m_udp_sockets.emplace_back(std::move(sockptr));
 		}
 
+		auto self = shared_from_this();
 		for (int fast = 0; fast < 8; fast++)
 		{
-			std::lock_guard lock(m_udp_sockets);
-
-			for (int n = 0; n < (int)m_udp_sockets.size(); n++)
+			std::vector<udp_socket_ptr> sockets;
 			{
-				auto socket_ptr = m_udp_sockets[n];
+				std::lock_guard lock(m_udp_sockets);
+				sockets = m_udp_sockets;
+			}
+
+			for (int n = 0; n < (int)sockets.size(); n++)
+			{
+				auto socket_ptr = sockets[n];
 				auto local_endp = socket_ptr->sock_.local_endpoint();
 
 				LOG_DBG << "start_udp_server"
@@ -1303,8 +1308,11 @@ namespace avpn {
 					<< "]:"
 					<< local_endp.port();
 
-				net::co_spawn(m_ioc_pool.get_io_context(),
-					start_udp_read_loop(n), net::detached);
+				net::co_spawn(m_main_context,// m_ioc_pool.get_io_context(),
+					[this, self, n]() mutable -> net::awaitable<void> {
+						co_await start_udp_read_loop(n);
+						co_return;
+					}, net::detached);
 			}
 		}
 
@@ -1682,11 +1690,16 @@ namespace avpn {
 		auto self = shared_from_this();
 		// for (int fast = 0; fast < 8; fast++)
 		{
-			std::lock_guard lock(m_udp_sockets);
+			std::vector<udp_socket_ptr> sockets;
 
-			for (int n = 0; n < (int)m_udp_sockets.size(); n++)
 			{
-				auto socket_ptr = m_udp_sockets[n];
+				std::lock_guard lock(m_udp_sockets);
+				sockets = m_udp_sockets;
+			}
+
+			for (int n = 0; n < (int)sockets.size(); n++)
+			{
+				auto socket_ptr = sockets[n];
 				net::co_spawn(m_main_context, //m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void>
 					{
