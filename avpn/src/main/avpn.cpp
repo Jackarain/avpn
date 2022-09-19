@@ -334,13 +334,30 @@ namespace avpn {
 	void avpn_service::do_tun_write(vpn_packet pkt)
 	{
 		auto self = shared_from_this();
+
+		if (std::this_thread::get_id() == m_main_thread_id)
+		{
+			uint8_t* ptr = (uint8_t*)pkt.release();
+
+			m_tundev.async_write_some(
+				net::buffer(ptr + avpn_payload_header_size,
+					pkt.payload_size()), [ptr](auto, auto) mutable {
+						free(ptr);
+				});
+
+			return;
+		}
+
 		net::post(m_main_context,
 			[this, self, pkt = std::move(pkt)]() mutable
 			{
-				auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+				uint8_t* ptr = (uint8_t*)pkt.release();
+
 				m_tundev.async_write_some(
-					net::buffer(ptr->payload(),
-						ptr->payload_size()), [ptr](auto, auto) {});
+					net::buffer(ptr + avpn_payload_header_size,
+						pkt.payload_size()), [ptr](auto, auto) mutable {
+							free(ptr);
+					});
 			});
 	}
 
