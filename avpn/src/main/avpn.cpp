@@ -2167,8 +2167,7 @@ namespace avpn {
 	{
 		auto self = shared_from_this();
 
-		auto& ioc = m_ioc_pool.get_io_context();
-		auto tunnel = vpn_tunnel::make(ioc, self, m_config,
+		auto tunnel = vpn_tunnel::make(m_main_context, self, m_config,
 			pubkey, m_config.private_key_);
 
 		auto ipaddr = net::ip::address_v4(vaddr);
