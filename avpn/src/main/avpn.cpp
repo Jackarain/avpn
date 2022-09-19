@@ -1686,7 +1686,7 @@ namespace avpn {
 		}
 
 		auto self = shared_from_this();
-		// for (int fast = 0; fast < 8; fast++)
+		for (int fast = 0; fast < 4; fast++)
 		{
 			int num_socket;
 
