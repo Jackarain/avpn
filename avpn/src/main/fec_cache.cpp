@@ -474,7 +474,9 @@ namespace avpn
 			return { false, false };
 
 		// gop可用后, 标记为过期.
-		gop.set_expired();
+		scoped_exit expired([&gop]() mutable {
+			gop.set_expired();
+			});
 
 		// 在完成解码后, 清理过期大于64的gop.
 		scoped_exit se(std::bind(clean_gops, std::ref(gid)));
