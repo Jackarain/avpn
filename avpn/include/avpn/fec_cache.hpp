@@ -171,7 +171,7 @@ namespace avpn {
 		void reset();
 
 		std::tuple<bool, bool> update(uint32_t gid, uint16_t pid,
-			int ds, int ps, vpn_packet_ptr& pkt);
+			int ds, int ps, vpn_packet& pkt);
 
 		int64_t garbage_clean();
 		std::vector<vpn_packet_ptr> acquire();

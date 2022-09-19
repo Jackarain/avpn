@@ -418,10 +418,12 @@ namespace avpn
 	std::tuple<bool, bool> fec_recover::update(
 		uint32_t gid, uint16_t pid,
 		int ds, int ps,
-		vpn_packet_ptr& pkt)
+		vpn_packet& pkt)
 	{
 		if (ds == 1 && ps == 0)
 			return {true, false};
+
+		auto ptr = dup_vpn_packet_ptr(pkt);
 
 		auto clean_gops =
 		[this](uint32_t& gid) mutable -> void
@@ -446,7 +448,7 @@ namespace avpn
 		if (it == groups_.end())
 		{
 			fec_decode_group gop(ds, ps);
-			gop.update(gid, pid, pkt);
+			gop.update(gid, pid, ptr);
 
 			scoped_exit se(std::bind(clean_gops, std::ref(gid)));
 
@@ -467,7 +469,7 @@ namespace avpn
 			return { false, true };
 
 		// 更新gop.
-		gop.update(gid, pid, pkt);
+		gop.update(gid, pid, ptr);
 		if (!gop.available())
 			return { false, false };
 

@@ -775,7 +775,10 @@ namespace avpn {
 			m_feg.make_fec_normal(pkt, m_self_vaddr);
 
 		// 从fec编码缓冲中获取已经fec编码.
-		std::vector<vpn_packet_ptr> paritys = m_feg.acquire();
+		std::vector<vpn_packet_ptr> paritys;
+
+		if (params.data_shards_ > 1)
+			paritys = m_feg.acquire();
 
 		// 重复发送模式.
 		if (params.data_shards_ == 1)
@@ -994,9 +997,8 @@ namespace avpn {
 		};
 
 		// 更新fec recover.
-		auto ptr = dup_vpn_packet_ptr(pkt);
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, ptr);
+			gid, pid, m_peer_ds, m_peer_ps, pkt);
 
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
@@ -1102,9 +1104,8 @@ namespace avpn {
 		};
 
 		// 更新fec recover.
-		auto ptr = dup_vpn_packet_ptr(pkt);
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, ptr);
+			gid, pid, m_peer_ds, m_peer_ps, pkt);
 
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
