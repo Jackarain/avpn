@@ -378,7 +378,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	auto concurrency = std::thread::hardware_concurrency() + 2;
+	size_t concurrency = 1; // std::thread::hardware_concurrency() + 2;
 	util::io_context_pool ios{concurrency};
 
 	net::signal_set terminator_signal(ios.get_io_context());
