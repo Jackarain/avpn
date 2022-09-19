@@ -1675,11 +1675,6 @@ namespace avpn {
 				continue;
 			}
 
-			auto address_string = local_endp.address().to_string();
-			LOG_DBG << "make_udp_client"
-				<< ", create udp socket: [" << address_string
-				<< "]:" << local_endp.port();
-
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
 
@@ -1690,16 +1685,28 @@ namespace avpn {
 		auto self = shared_from_this();
 		// for (int fast = 0; fast < 8; fast++)
 		{
-			std::vector<udp_socket_ptr> sockets;
+			int num_socket;
 
 			{
 				std::lock_guard lock(m_udp_sockets);
-				sockets = m_udp_sockets;
+				num_socket = (int)m_udp_sockets.size();
 			}
 
-			for (int n = 0; n < (int)sockets.size(); n++)
+			for (int n = 0; n < (int)num_socket; n++)
 			{
-				auto socket_ptr = sockets[n];
+				{
+					std::lock_guard lock(m_udp_sockets);
+
+					auto socket_ptr = m_udp_sockets[n];
+					auto local_endp = socket_ptr->sock_.local_endpoint();
+
+					LOG_DBG << "start_udp_client"
+						<< ", local endpoint: ["
+						<< local_endp.address().to_string()
+						<< "]:"
+						<< local_endp.port();
+				}
+
 				net::co_spawn(m_main_context, //m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void>
 					{
