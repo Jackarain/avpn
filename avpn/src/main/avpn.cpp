@@ -480,9 +480,6 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
-		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
-
-#if 0
 		auto ptr = pkt.release();
 
 		// 直接发送, 仅在回调时释放packet.
@@ -496,12 +493,11 @@ namespace avpn {
 
 				if (ec)
 				{
-					LOG_WARN << "udp_write"
+					LOG_WARN << "do_udp_write"
 						<< ", send_to " << remote
 						<< ", error: " << ec.message();
 				}
 			});
-#endif
 	}
 
 	void avpn_service::run_as_client()
