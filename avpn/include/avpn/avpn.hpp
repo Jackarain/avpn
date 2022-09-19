@@ -297,6 +297,7 @@ namespace avpn {
 
 		// 作为server时, 监听client的tcp/udp连接.
 		net::awaitable<void> start_tcp_listen(tcp::acceptor&);
+		void build_server_udp_sockets();
 		net::awaitable<void> start_udp_server();
 
 		// 作为server时, 处理udp数据包.
@@ -311,7 +312,7 @@ namespace avpn {
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
-		net::awaitable<void> make_udp_client();
+		void build_client_udp_sockets(size_t);
 		// 作为client时, 发起udp握手请求.
 		net::awaitable<void> start_udp_handshake();
 

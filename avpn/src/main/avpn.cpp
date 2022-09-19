@@ -1267,7 +1267,7 @@ namespace avpn {
 		co_return;
 	}
 
-	net::awaitable<void> avpn_service::start_udp_server()
+	void avpn_service::build_server_udp_sockets()
 	{
 		BOOST_ASSERT(m_identity == Identity::avpn_server);
 
@@ -1280,7 +1280,7 @@ namespace avpn {
 			bool ipv6only = make_listen_endpoint(listen, endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "start_udp_server"
+				LOG_ERR << "build_server_udp_sockets"
 					<< ", make udp: " << listen
 					<< ", ec: " << ec.message();
 				continue;
@@ -1292,7 +1292,7 @@ namespace avpn {
 				sock.set_option(net::ip::v6_only(true), ec);
 				if (ec)
 				{
-					LOG_ERR << "start_udp_server"
+					LOG_ERR << "build_server_udp_sockets"
 						<< ", make udp: " << listen
 						<< ", setsockopt v6only: " << ec.message();
 					continue;
@@ -1302,7 +1302,7 @@ namespace avpn {
 			sock.bind(endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "start_udp_server"
+				LOG_ERR << "build_server_udp_sockets"
 					<< ", make udp: " << listen
 					<< ", bind error: " << ec.message();
 				continue;
@@ -1320,7 +1320,16 @@ namespace avpn {
 			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
 		}
+	}
 
+	net::awaitable<void> avpn_service::start_udp_server()
+	{
+		BOOST_ASSERT(m_identity == Identity::avpn_server);
+
+		// 为 server 创建udp socket.
+		build_server_udp_sockets();
+
+		// 并发启动udp socket上的数据读取.
 		auto self = shared_from_this();
 		for (int fast = 0; fast < 8; fast++)
 		{
@@ -1678,22 +1687,60 @@ namespace avpn {
 	{
 		// 只有在第1次启动client时创建好所有udp socket对象.
 		if (m_udp_sockets.empty())
-			co_await make_udp_client();
+		{
+			// 创建udp socket, 使用随机端口, 创建4倍个数的udp socket用于
+			// 与vpn服务端通信以提高收发效率.
+			auto num_udp_sockets = m_server_udp_endps.size() * 4;
+
+			// 创建 udp socket.
+			build_client_udp_sockets(num_udp_sockets);
+
+			// udp socket创建完成后, 则可以进入循环读取udp上的数据.
+			auto self = shared_from_this();
+			for (int fast = 0; fast < 4; fast++)
+			{
+				int num_sockets;
+
+				{
+					std::lock_guard lock(m_udp_sockets);
+					num_sockets = (int)m_udp_sockets.size();
+				}
+
+				for (int n = 0; n < (int)num_sockets; n++)
+				{
+					{
+						std::lock_guard lock(m_udp_sockets);
+
+						auto socket_ptr = m_udp_sockets[n];
+						auto local_endp = socket_ptr->sock_.local_endpoint();
+
+						LOG_DBG << "start_udp_client"
+							<< ", local endpoint: ["
+							<< local_endp.address().to_string()
+							<< "]:"
+							<< local_endp.port();
+					}
+
+					net::co_spawn(m_ioc_pool.main_io_context(),
+						[this, self, n]() mutable -> net::awaitable<void>
+						{
+							co_await start_udp_read_loop(n);
+							co_return;
+						}, net::detached);
+				}
+			}
+		}
 
 		// 发起UDP握手请求.
 		co_await start_udp_handshake();
 		co_return;
 	}
 
-	net::awaitable<void> avpn_service::make_udp_client()
+	void avpn_service::build_client_udp_sockets(size_t num_udp_sockets)
 	{
 		boost::system::error_code ec;
 
-		// 创建udp socket, 使用随机端口, 创建4倍个数的udp socket用于
-		// 与vpn服务端通信以提高收发效率.
-		const static int max_client_udp_socket = 4;
-		auto size = m_server_udp_endps.size() * max_client_udp_socket;
-		for (size_t i = 0; i < size; i++)
+		for (size_t i = 0; i < num_udp_sockets; i++)
 		{
 			auto& endp = m_server_udp_endps[i % m_server_udp_endps.size()];
 
@@ -1703,7 +1750,7 @@ namespace avpn {
 			[[maybe_unused]] auto local_endp = sock.local_endpoint(ec);
 			if (ec)
 			{
-				LOG_ERR << "make_udp_client"
+				LOG_ERR << "build_udp_sockets"
 					<< ", udp open error: " << ec.message();
 				continue;
 			}
@@ -1720,42 +1767,6 @@ namespace avpn {
 			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
 		}
-
-		auto self = shared_from_this();
-		for (int fast = 0; fast < 4; fast++)
-		{
-			int num_socket;
-
-			{
-				std::lock_guard lock(m_udp_sockets);
-				num_socket = (int)m_udp_sockets.size();
-			}
-
-			for (int n = 0; n < (int)num_socket; n++)
-			{
-				{
-					std::lock_guard lock(m_udp_sockets);
-
-					auto socket_ptr = m_udp_sockets[n];
-					auto local_endp = socket_ptr->sock_.local_endpoint();
-
-					LOG_DBG << "start_udp_client"
-						<< ", local endpoint: ["
-						<< local_endp.address().to_string()
-						<< "]:"
-						<< local_endp.port();
-				}
-
-				net::co_spawn(m_ioc_pool.main_io_context(),
-					[this, self, n]() mutable -> net::awaitable<void>
-					{
-						co_await start_udp_read_loop(n);
-						co_return;
-					}, net::detached);
-			}
-		}
-
-		co_return;
 	}
 
 	net::awaitable<void> avpn_service::start_udp_handshake()
