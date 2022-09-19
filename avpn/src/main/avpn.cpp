@@ -480,9 +480,9 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
-//		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
 
-#if 1
+#if 0
 		auto ptr = pkt.release();
 
 		// 直接发送, 仅在回调时释放packet.
@@ -727,6 +727,12 @@ namespace avpn {
 
 				auto new_udp_socket = std::make_shared<udp_socket>(
 					udp_socket{ now, std::move(new_usock) });
+
+				net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
+				net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+
+				new_udp_socket->sock_.set_option(rbo);
+				new_udp_socket->sock_.set_option(sbo);
 
 				m_udp_sockets[i] = new_udp_socket;
 			}
@@ -1302,11 +1308,17 @@ namespace avpn {
 				continue;
 			}
 
-			auto sockptr = std::make_shared<udp_socket>(
+			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
 
+			net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
+			net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+
+			socket_ptr->sock_.set_option(rbo);
+			socket_ptr->sock_.set_option(sbo);
+
 			std::lock_guard lock(m_udp_sockets);
-			m_udp_sockets.emplace_back(std::move(sockptr));
+			m_udp_sockets.emplace_back(std::move(socket_ptr));
 		}
 
 		auto self = shared_from_this();
@@ -1698,6 +1710,12 @@ namespace avpn {
 
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
+
+			net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
+			net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+
+			socket_ptr->sock_.set_option(rbo);
+			socket_ptr->sock_.set_option(sbo);
 
 			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
