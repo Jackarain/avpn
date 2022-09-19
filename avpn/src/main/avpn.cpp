@@ -1332,7 +1332,7 @@ namespace avpn {
 
 		// 并发启动udp socket上的数据读取.
 		auto self = shared_from_this();
-		for (int fast = 0; fast < 8; fast++)
+		for (int fast = 0; fast < 800; fast++)
 		{
 			std::vector<udp_socket_ptr> sockets;
 			{
@@ -1698,7 +1698,7 @@ namespace avpn {
 
 			// udp socket创建完成后, 则可以进入循环读取udp上的数据.
 			auto self = shared_from_this();
-			for (int fast = 0; fast < 4; fast++)
+			for (int fast = 0; fast < 400; fast++)
 			{
 				int num_sockets;
 
