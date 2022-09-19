@@ -982,7 +982,7 @@ namespace avpn {
 				return false;
 			}
 
-			tcp::acceptor a{ m_ioc_pool.get_io_context() };
+			tcp::acceptor a{ m_ioc_pool.main_io_context() };
 
 			a.open(endp.protocol(), ec);
 			if (ec)
@@ -1101,7 +1101,7 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			tcp::socket socket(m_ioc_pool.get_io_context());
+			tcp::socket socket(m_ioc_pool.main_io_context());
 			co_await a.async_accept(socket, uawaitable[error]);
 			if (error)
 			{
