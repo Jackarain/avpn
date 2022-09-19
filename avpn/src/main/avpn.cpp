@@ -462,17 +462,20 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
-		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+		// udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
 
-#if 0
-		auto ptr = std::make_shared<vpn_packet>(std::move(pkt));
+#if 1
+		auto ptr = pkt.release();
 
 		// 直接发送, 仅在回调时释放packet.
 		udp_socket.async_send_to(
-			net::buffer(ptr->data(), ptr->size()),
+			net::buffer(ptr, pkt.size()),
 			remote,
 			[ptr, remote](boost::system::error_code ec, std::size_t) mutable
 			{
+				if (ptr)
+					std::free(ptr);
+
 				if (ec)
 				{
 					LOG_WARN << "udp_write"
