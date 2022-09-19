@@ -55,23 +55,23 @@ void io_context_pool::run()
         std::shared_ptr<std::thread> thread(new std::thread(
 			[this, i]() mutable { io_contexts_[i]->run();  }));
 			set_thread_name(thread.get(), "round-robin io runner");
-			set_thread_affinity(i, thread->native_handle());
+	//		set_thread_affinity(i, thread->native_handle());
 		threads.push_back(thread);
 	}
 
 	// main_io_context_ have no worker, so will exit if no more pending IO left.
-	std::thread main_thread([this]() mutable
-		{
+	// std::thread main_thread([this]() mutable
+	//	{
 			main_io_context_.run();
-		});
+	//	});
 
-	set_thread_affinity((int)io_contexts_.size(), main_thread.native_handle());
+	// set_thread_affinity((int)io_contexts_.size(), main_thread.native_handle());
 
 	// Wait for all threads in the pool to exit.
 	for (auto& thread : threads)
 		thread->join();
 
-	main_thread.join();
+	// main_thread.join();
 }
 
 void io_context_pool::stop()
