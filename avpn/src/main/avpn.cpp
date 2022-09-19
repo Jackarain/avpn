@@ -1311,7 +1311,7 @@ namespace avpn {
 					<< "]:"
 					<< local_endp.port();
 
-				net::co_spawn(m_main_context,// m_ioc_pool.get_io_context(),
+				net::co_spawn(m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void> {
 						co_await start_udp_read_loop(n);
 						co_return;
@@ -1710,7 +1710,7 @@ namespace avpn {
 						<< local_endp.port();
 				}
 
-				net::co_spawn(m_main_context, //m_ioc_pool.get_io_context(),
+				net::co_spawn(m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void>
 					{
 						co_await start_udp_read_loop(n);
