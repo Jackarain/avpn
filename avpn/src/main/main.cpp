@@ -381,7 +381,7 @@ int main(int argc, char** argv)
 	size_t concurrency = 1; // std::thread::hardware_concurrency() + 2;
 	util::io_context_pool ios{concurrency};
 
-	net::signal_set terminator_signal(ios.get_io_context());
+	net::signal_set terminator_signal(ios.main_io_context());
 	terminator_signal.add(SIGINT);
 	terminator_signal.add(SIGTERM);
 #ifdef __linux__

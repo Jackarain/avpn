@@ -143,58 +143,63 @@ namespace avpn {
 		for (auto& a : m_tcp_acceptors)
 			a.cancel(ignore_ec);
 
-		{
-			std::lock_guard lock(m_udp_sockets);
-			for (auto& socket_ptr : m_udp_sockets)
-			{
-				if (!socket_ptr) continue;
+		auto self = shared_from_this();
+		net::post(m_main_context, [this, self]() mutable {
+			boost::system::error_code ignore_ec;
 
-				auto& udp_socket = *socket_ptr;
-				udp_socket.sock_.close(ignore_ec);
-			}
-			m_udp_sockets.clear();
-		}
-
-		// 根据client/server身份关闭相应隧道.
-		if (m_identity == Identity::avpn_client)
-		{
-			auto tunnel = m_tunnel.lock();
-			if (tunnel)
 			{
-				tunnel->close_tunnel();
-				m_tunnel = {};
-			}
-		}
+				std::lock_guard lock(m_udp_sockets);
+				for (auto& socket_ptr : m_udp_sockets)
+				{
+					if (!socket_ptr) continue;
 
-		if (m_identity == Identity::avpn_server)
-		{
-			auto& tab = m_clients.table();
-			for (auto& c : tab)
-			{
-				auto client = c.tunnel_.lock();
-				if (!client)
-					continue;
-				client->close_tunnel();
+					auto& udp_socket = *socket_ptr;
+					udp_socket.sock_.close(ignore_ec);
+				}
+				m_udp_sockets.clear();
 			}
 
-			auto& clients = m_socks_clients;
-			for (auto& c : clients)
+			// 根据client/server身份关闭相应隧道.
+			if (m_identity == Identity::avpn_client)
 			{
-				auto client = c.second.lock();
-				if (!client)
-					continue;
-				client->close();
+				auto tunnel = m_tunnel.lock();
+				if (tunnel)
+				{
+					tunnel->close_tunnel();
+					m_tunnel = {};
+				}
 			}
-		}
 
-		// TODO: 退出时删除路由.
-		LOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
-		m_tundev.close();
-		m_tick_timer.cancel(ignore_ec);
-		m_tun_wait_timer.cancel(ignore_ec);
-		m_subnet = {};
-		m_upload_speed = 0;
-		m_down_speed = 0;
+			if (m_identity == Identity::avpn_server)
+			{
+				auto& tab = m_clients.table();
+				for (auto& c : tab)
+				{
+					auto client = c.tunnel_.lock();
+					if (!client)
+						continue;
+					client->close_tunnel();
+				}
+
+				auto& clients = m_socks_clients;
+				for (auto& c : clients)
+				{
+					auto client = c.second.lock();
+					if (!client)
+						continue;
+					client->close();
+				}
+			}
+
+			// TODO: 退出时删除路由.
+			LOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
+			m_tundev.close();
+			m_tick_timer.cancel(ignore_ec);
+			m_tun_wait_timer.cancel(ignore_ec);
+			m_subnet = {};
+			m_upload_speed = 0;
+			m_down_speed = 0;
+			});
 	}
 
 	int64_t avpn_service::upload_rate() const
