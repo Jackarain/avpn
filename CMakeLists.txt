@@ -23,7 +23,13 @@ math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
+include(CheckIPOSupported)
 
+check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
+if (lto_supported)
+    message(STATUS "IPO / LTO enabled")
+	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 ################################################################################
 
 # Disable in-source builds to prevent source tree corruption.
