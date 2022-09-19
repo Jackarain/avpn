@@ -1969,6 +1969,34 @@ bool set_default_route(const std::string&, const std::string&,
 	return false;
 }
 
+#elif defined(__OpenBSD__)
+
+uint64_t get_process_id()
+{
+	return (uint64_t)getpid();
+}
+
+void set_thread_name(std::thread* thread, const char* name)
+{
+	auto handle = thread->native_handle();
+	pthread_set_name_np(handle, name);
+}
+
+void set_thread_name(const char*/* name*/)
+{
+}
+
+bool set_dns(const std::string&/* dns*/, std::string/* local_ip = ""*/)
+{
+	return false;
+}
+
+bool set_default_route(const std::string&, const std::string&,
+	const std::string&, const std::string&)
+{
+	return false;
+}
+
 #else
 
 uint64_t get_process_id()
