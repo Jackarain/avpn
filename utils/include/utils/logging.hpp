@@ -519,6 +519,7 @@ public:
 	}
 	~auto_logger_file__()
 	{
+		m_last_time = 0;
 	}
 
 	typedef std::shared_ptr<std::ofstream> ofstream_ptr;
