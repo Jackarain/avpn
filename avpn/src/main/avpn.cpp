@@ -1680,14 +1680,14 @@ namespace avpn {
 		}
 
 		auto self = shared_from_this();
-		for (int fast = 0; fast < 8; fast++)
+		// for (int fast = 0; fast < 8; fast++)
 		{
 			std::lock_guard lock(m_udp_sockets);
 
 			for (int n = 0; n < (int)m_udp_sockets.size(); n++)
 			{
 				auto socket_ptr = m_udp_sockets[n];
-				net::co_spawn(m_ioc_pool.get_io_context(),
+				net::co_spawn(m_main_context, //m_ioc_pool.get_io_context(),
 					[this, self, n]() mutable -> net::awaitable<void>
 					{
 						co_await start_udp_read_loop(n);
