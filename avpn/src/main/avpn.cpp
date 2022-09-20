@@ -922,12 +922,15 @@ namespace avpn {
 
 		// 开始读取tun上的数据包.
 		auto self = shared_from_this();
-		net::co_spawn(m_main_context,
-			[this, self]() mutable -> net::awaitable<void>
-			{
-				co_await start_tun_read_loop();
-				co_return;
-			}, net::detached);
+		for (int n = 0; n < 32; n++)
+		{
+			net::co_spawn(m_main_context,
+				[this, self]() mutable -> net::awaitable<void>
+				{
+					co_await start_tun_read_loop();
+					co_return;
+				}, net::detached);
+		}
 
 		co_return;
 	}
