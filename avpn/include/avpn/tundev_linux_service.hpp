@@ -249,7 +249,7 @@ namespace avpn
 			memset(&ifr, 0, sizeof(ifr));
 			ifr.ifr_flags = IFF_NO_PI;
 			ifr.ifr_flags |= IFF_TUN;
-			ifr.ifr_flags |= ~IFF_DEBUG;
+			// ifr.ifr_flags |= ~IFF_DEBUG;
 
 			if (!cfg.dev_name_.empty() && cfg.dev_name_.size() < IFNAMSIZ)
 				strncpy(ifr.ifr_name, cfg.dev_name_.data(), IFNAMSIZ);
