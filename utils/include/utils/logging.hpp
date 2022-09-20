@@ -851,7 +851,8 @@ namespace logger_aux__ {
 		~async_logger___()
 		{
 			m_abort = true;
-			m_bg_thread.join();
+			if (m_bg_thread.joinable())
+				m_bg_thread.join();
 		}
 
 	public:
