@@ -30,6 +30,9 @@
 
 
 namespace avpn {
+	int64_t tun_tick = 0;
+	int64_t total = 0;
+
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
 
@@ -281,12 +284,19 @@ namespace avpn {
 		boost::system::error_code ec;
 		LOG_DBG << "Enter tun read loop: " << std::this_thread::get_id();
 
+		using util::logger_aux__::gettime;
+		uint64_t t1 = 0, t2 = 0;
+
 		while (!m_abort)
 		{
 			vpn_packet pkt;
 
 			auto payload = pkt.data() + avpn_payload_header_size;
 			auto size = avpn_packet_size - avpn_payload_header_size;
+
+			t2 = gettime();
+			tun_tick++;
+			total += (t2 - t1);
 
 			auto bytes = co_await m_tundev.async_read_some(
 				net::buffer(payload, size), uawaitable[ec]);
@@ -295,6 +305,8 @@ namespace avpn {
 				LOG_ERR << "start_tun_read_loop, read: " << ec.message();
 				break;
 			}
+
+			t1 = gettime();
 
 			// 重置 pkt 的 payload size.
 			pkt.resize(bytes + avpn_payload_header_size);
@@ -780,6 +792,14 @@ namespace avpn {
 			}
 
 			auto now = std::chrono::steady_clock::now();
+
+			if (tun_tick != 0)
+			{
+				auto msavg = total / tun_tick;
+				LOG_DBG << "Total : " << total
+						<< ", avg : " << msavg
+						<< ", tick : " << tun_tick;
+			}
 
 			// 检查超时连接, 清除超时的连接.
 			if (m_identity == Identity::avpn_server)
