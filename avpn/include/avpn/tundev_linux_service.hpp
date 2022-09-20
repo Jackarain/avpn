@@ -249,6 +249,7 @@ namespace avpn
 			memset(&ifr, 0, sizeof(ifr));
 			ifr.ifr_flags = IFF_NO_PI;
 			ifr.ifr_flags |= IFF_TUN;
+			ifr.ifr_flags |= ~IFF_DEBUG;
 
 			if (!cfg.dev_name_.empty() && cfg.dev_name_.size() < IFNAMSIZ)
 				strncpy(ifr.ifr_name, cfg.dev_name_.data(), IFNAMSIZ);
@@ -282,6 +283,14 @@ namespace avpn
 			m_frame_mtu = ifr.ifr_mtu = 1450;
 
 			if (ioctl(sock, SIOCSIFMTU, (void *)&ifr) < 0)
+			{
+				::close(sock);
+				::close(fd);
+				return false;
+			}
+
+			ifr.ifr_qlen = 2000;
+			if (ioctl(sock, SIOCSIFTXQLEN, (void *)&ifr) < 0)
 			{
 				::close(sock);
 				::close(fd);
