@@ -52,9 +52,8 @@ namespace avpn {
 	}
 
 	avpn_service::avpn_service(
-		io_context_pool& ios, const service_config& config)
-		: m_ioc_pool(ios)
-		, m_main_context(m_ioc_pool.main_io_context())
+		net::io_context& ioc, const service_config& config)
+		: m_main_context(ioc)
 		, m_config(config)
 		, m_client_id(gen_unique_string(32))
 		, m_client_key(
@@ -80,9 +79,9 @@ namespace avpn {
 	}
 
 	std::shared_ptr<avpn_service> avpn_service::make_avpn_service(
-			io_context_pool& ioc_pool, avpn::service_config cfg)
+		net::io_context& ioc, avpn::service_config cfg)
 	{
-		return std::shared_ptr<avpn_service>(new avpn_service(ioc_pool, cfg));
+		return std::shared_ptr<avpn_service>(new avpn_service(ioc, cfg));
 	}
 
 	avpn_service::~avpn_service()
@@ -556,8 +555,7 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this, self]() mutable -> net::awaitable<void>
 			{
-				int pool_size = static_cast<int>(m_ioc_pool.pool_size());
-				for (int i = 0; i < pool_size; i++)
+				for (int i = 0; i < 32; i++)
 				{
 					for (auto& a : m_tcp_acceptors)
 					{
@@ -991,7 +989,7 @@ namespace avpn {
 				return false;
 			}
 
-			tcp::acceptor a{ m_ioc_pool.main_io_context() };
+			tcp::acceptor a{ m_main_context };
 
 			a.open(endp.protocol(), ec);
 			if (ec)
@@ -1110,7 +1108,7 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			tcp::socket socket(m_ioc_pool.main_io_context());
+			tcp::socket socket(m_main_context);
 			co_await a.async_accept(socket, uawaitable[error]);
 			if (error)
 			{
@@ -1359,7 +1357,7 @@ namespace avpn {
 					<< "]:"
 					<< local_endp.port();
 
-				net::co_spawn(m_ioc_pool.main_io_context(),
+				net::co_spawn(m_main_context,
 					[this, self, n]() mutable -> net::awaitable<void> {
 						co_await start_udp_read_loop(n);
 						co_return;
@@ -1730,7 +1728,7 @@ namespace avpn {
 							<< local_endp.port();
 					}
 
-					net::co_spawn(m_ioc_pool.main_io_context(),
+					net::co_spawn(m_main_context,
 						[this, self, n]() mutable -> net::awaitable<void>
 						{
 							co_await start_udp_read_loop(n);

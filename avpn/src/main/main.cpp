@@ -14,7 +14,6 @@
 #include "avpn/avpn.hpp"
 #include "avpn/vpn_controller.hpp"
 
-#include "utils/io_context_pool.hpp"
 #include "utils/misc.hpp"
 #include "socks/socks_server.hpp"
 #include "socks/socks_client.hpp"
@@ -378,10 +377,9 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	size_t concurrency = 1; // std::thread::hardware_concurrency() + 2;
-	util::io_context_pool ios{concurrency};
+	net::io_context ioc;
 
-	net::signal_set terminator_signal(ios.main_io_context());
+	net::signal_set terminator_signal(ioc);
 	terminator_signal.add(SIGINT);
 	terminator_signal.add(SIGTERM);
 #ifdef __linux__
@@ -457,7 +455,7 @@ int main(int argc, char** argv)
 		for (auto& stream : cfg.upstreams_)
 		{
 			auto url = urls::url_view(stream);
-			udp::resolver resolver{ ios.main_io_context() };
+			udp::resolver resolver{ ioc };
 			boost::system::error_code ec;
 			auto results = resolver.resolve(url.host(), url.port(), ec);
 			for (auto endp : results)
@@ -537,11 +535,8 @@ int main(int argc, char** argv)
 			}
 		}
 
-		net::any_io_executor executor =
-			ios.get_io_context().get_executor();
-
 		auto server = std::make_shared<socks::socks_server>(
-			executor, endp, opt);
+			ioc.get_executor(), endp, opt);
 		server->start();
 
 		socks_servers.emplace_back(std::move(server));
@@ -550,14 +545,14 @@ int main(int argc, char** argv)
 	if (controller.empty())
 	{
 		using  avpn::avpn_service;
-		auto avpn_srv = avpn_service::make_avpn_service(ios, cfg);
+		auto avpn_srv = avpn_service::make_avpn_service(ioc, cfg);
 		auto& srv = *avpn_srv;
 
 		srv.start();
 
 		// 处理中止信号.
 		terminator_signal.async_wait(
-			[&ios, &srv, &socks_servers](const boost::system::error_code&, int)
+			[&ioc, &srv, &socks_servers](const boost::system::error_code&, int)
 			{
 				LOG_DBG << "terminator is called!";
 
@@ -569,18 +564,17 @@ int main(int argc, char** argv)
 				}
 
 				srv.stop();
-				ios.stop();
 			});
 
-		ios.run();
+		ioc.run();
 	}
 	else
 	{
 		// 构造vpn_controller对象, 在内部发起对controller的连接.
-		avpn::vpn_controller control{ ios, cfg };
+		avpn::vpn_controller control{ ioc, cfg };
 		control.start();
 
-		ios.run();
+		ioc.run();
 	}
 
 	LOG_DBG << "avpn system exiting...";

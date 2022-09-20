@@ -204,7 +204,7 @@ namespace avpn {
 
 		// avoid direct call construct object...
 		avpn_service() = delete;
-		avpn_service(io_context_pool&, const service_config&);
+		avpn_service(net::io_context&, const service_config&);
 
 		friend class vpn_tunnel;
 
@@ -226,7 +226,7 @@ namespace avpn {
 		// 函数设置为private, 只能通过make_avpn_service创建shared_ptr对象
 		// 以避免误用.
 		static std::shared_ptr<avpn_service>
-			make_avpn_service(io_context_pool&, avpn::service_config);
+			make_avpn_service(net::io_context&, avpn::service_config);
 		virtual ~avpn_service();
 
 		// socks server相关.
@@ -350,10 +350,6 @@ namespace avpn {
 		udp_socket_ptr pick_random_usock(int index = -1);
 
 	private:
-		// io context pool
-		// 用于使用不同的io_context为不同的client服务.
-		io_context_pool& m_ioc_pool;
-
 		// 主线程io_context, 用于统一调度之类.
 		net::io_context& m_main_context;
 

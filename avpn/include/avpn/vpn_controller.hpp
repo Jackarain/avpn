@@ -35,7 +35,7 @@ namespace avpn {
 		using ws_stream = websocket::stream<boost::beast::tcp_stream>;
 
 	public:
-		vpn_controller(io_context_pool&, const service_config&);
+		vpn_controller(net::io_context&, const service_config&);
 		~vpn_controller() = default;
 
 	public:
@@ -48,9 +48,6 @@ namespace avpn {
 		net::awaitable<void> keepalive();
 
 	private:
-		// io pool, 通过控制io pool以响应
-		// 停止消息.
-		io_context_pool& m_ioc_pool;
 
 		// 用于本vpn_controller相关操作.
 		net::io_context& m_main_context;

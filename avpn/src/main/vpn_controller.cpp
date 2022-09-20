@@ -30,12 +30,11 @@ namespace avpn {
 	namespace beast = boost::beast;
 
 	vpn_controller::vpn_controller(
-		io_context_pool& ioc_pool, const service_config& cfg)
-		: m_ioc_pool(ioc_pool)
-		, m_main_context(ioc_pool.main_io_context())
+		net::io_context& ioc, const service_config& cfg)
+		: m_main_context(ioc)
 		, m_signal(m_main_context)
 		, m_config(cfg)
-		, m_avpn_service(avpn_service::make_avpn_service(ioc_pool, cfg))
+		, m_avpn_service(avpn_service::make_avpn_service(ioc, cfg))
 		, m_service(*m_avpn_service)
 		, m_ws_stream(m_main_context)
 		, m_timer(m_main_context)
@@ -80,7 +79,7 @@ namespace avpn {
 		m_timer.cancel(ec);
 
 		m_service.stop();
-		m_ioc_pool.stop();
+		m_main_context.stop();
 	}
 
 	net::awaitable<void> vpn_controller::start_connect()
@@ -106,7 +105,7 @@ namespace avpn {
 				<< ", error: " << ec.message();
 
 			// 全部退出.
-			m_ioc_pool.stop();
+			m_main_context.stop();
 			co_return;
 		}
 
@@ -128,7 +127,7 @@ namespace avpn {
 				", handshake: " << ec.message();
 
 			// 全部退出.
-			m_ioc_pool.stop();
+			m_main_context.stop();
 			co_return;
 		}
 
