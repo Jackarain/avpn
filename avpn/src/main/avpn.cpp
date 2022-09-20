@@ -486,6 +486,9 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
+		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+
+#if 0
 		auto ptr = pkt.release();
 
 		// 直接发送, 仅在回调时释放packet.
@@ -507,6 +510,7 @@ namespace avpn {
 						<< ", error: " << ec.message();
 				}
 			});
+#endif
 	}
 
 	void avpn_service::run_as_client()
@@ -1338,7 +1342,7 @@ namespace avpn {
 
 		// 并发启动udp socket上的数据读取.
 		auto self = shared_from_this();
-		for (int fast = 0; fast < 800; fast++)
+		for (int fast = 0; fast < 200; fast++)
 		{
 			std::vector<udp_socket_ptr> sockets;
 			{
@@ -1704,7 +1708,7 @@ namespace avpn {
 
 			// udp socket创建完成后, 则可以进入循环读取udp上的数据.
 			auto self = shared_from_this();
-			for (int fast = 0; fast < 400; fast++)
+			for (int fast = 0; fast < 32; fast++)
 			{
 				int num_sockets;
 
