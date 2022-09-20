@@ -847,11 +847,6 @@ namespace logger_aux__ {
 			signal(SIGFPE, signalHandler);
 			signal(SIGSEGV, signalHandler);
 			signal(SIGILL, signalHandler);
-
-			m_bg_thread = std::thread([this]()
-				{
-					internal_work();
-				});
 		}
 		~async_logger___()
 		{
@@ -897,6 +892,12 @@ namespace logger_aux__ {
 		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
+			static auto runthread =
+				&(m_bg_thread = std::thread([this]()
+					{
+						internal_work();
+					}));
+
 			auto time = logger_aux__::gettime();
 			std::unique_lock lock(m_bg_mutex);
 
