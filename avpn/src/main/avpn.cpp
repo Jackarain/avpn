@@ -803,13 +803,14 @@ namespace avpn {
 
 			if (tun_tick != 0)
 			{
-				auto msavg = total / tun_tick;
+				auto msavg = (double)total / tun_tick;
 				std::cerr
 					<< "Total : " << total
 					<< ", ip(s): " << numips
 					<< ", tick : " << tun_tick
 					<< ", inwriten: " << m_udp_writen
-					<< ", avg : " << msavg;
+					<< ", avg : " << msavg
+					<< std::endl;
 				numips = 0;
 			}
 

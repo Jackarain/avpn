@@ -55,7 +55,7 @@ public:
 		average_++;
 
 		if (total_ > 5592) {
-			int ret = socket_.send_to(net::buffer(data_, 1422), remote_);
+			auto ret = socket_.send_to(net::buffer(data_, 1422), remote_);
 			if (ret != 1422)
 				fail_++;
 			return;
