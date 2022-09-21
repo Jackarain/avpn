@@ -396,7 +396,11 @@ namespace avpn {
 
 	void vpn_tunnel::start_tcp_loop()
 	{
-		BOOST_ASSERT(!m_tcp_connect_ready);
+		LOG_DBG << "tunnel: " << this
+			<< ", start tcp loop"
+			<< (m_tcp_connect_ready ?
+				", already running" : "");
+
 		if (m_tcp_connect_ready)
 			return;
 
@@ -735,6 +739,8 @@ namespace avpn {
 
 						return;
 					}
+
+					LOG_ERR << "read_packet_op, error: " << ec.message();
 
 					// tcp出错, 状态设置为未就绪.
 					m_tcp_connect_ready = false;

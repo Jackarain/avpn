@@ -25,8 +25,6 @@
 #include <chrono>
 #include <iomanip>
 
-#include <boost/stacktrace.hpp>
-
 
 
 namespace avpn {
@@ -283,8 +281,6 @@ namespace avpn {
 	net::awaitable<void> avpn_service::start_tun_read_loop()
 	{
 		boost::system::error_code ec;
-		LOG_DBG << "Enter tun read loop: " << std::this_thread::get_id();
-
 		using util::logger_aux__::gettime;
 		uint64_t t1 = 0, t2 = 0;
 
@@ -343,9 +339,9 @@ namespace avpn {
 		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
-		LOG_WARN << "Quit start_tun_read_loop"
-			<< ", this: " << this
-			<< ", thread: " << std::this_thread::get_id();
+//		LOG_WARN << "Quit start_tun_read_loop"
+//			<< ", this: " << this
+//			<< ", thread: " << std::this_thread::get_id();
 
 		co_return;
 	}
@@ -756,11 +752,11 @@ namespace avpn {
 				auto new_udp_socket = std::make_shared<udp_socket>(
 					udp_socket{ now, std::move(new_usock) });
 
-				net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
-				net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+				net::socket_base::receive_buffer_size rbo(16 * 1024 * 1024);
+				net::socket_base::send_buffer_size sbo(16 * 1024 * 1024);
 
-				new_udp_socket->sock_.set_option(rbo);
-				new_udp_socket->sock_.set_option(sbo);
+				new_udp_socket->sock_.set_option(rbo, ec);
+				new_udp_socket->sock_.set_option(sbo, ec);
 
 				m_udp_sockets[i] = new_udp_socket;
 			}
@@ -803,6 +799,7 @@ namespace avpn {
 
 			if (tun_tick != 0)
 			{
+#if 0
 				auto msavg = (double)total / tun_tick;
 				std::cerr
 					<< "Total : " << total
@@ -811,6 +808,7 @@ namespace avpn {
 					<< ", inwriten: " << m_udp_writen
 					<< ", avg : " << msavg
 					<< std::endl;
+#endif
 				numips = 0;
 			}
 
@@ -1171,7 +1169,7 @@ namespace avpn {
 
 			{
 				net::ip::tcp::no_delay option(true);
-				socket.set_option(option);
+				socket.set_option(option, error);
 			}
 
 			static std::atomic_size_t id{ 1 };
@@ -1358,8 +1356,8 @@ namespace avpn {
 			net::socket_base::receive_buffer_size rbo(16 * 1024 * 1024);
 			net::socket_base::send_buffer_size sbo(16 * 1024 * 1024);
 
-			socket_ptr->sock_.set_option(rbo);
-			socket_ptr->sock_.set_option(sbo);
+			socket_ptr->sock_.set_option(rbo, ec);
+			socket_ptr->sock_.set_option(sbo, ec);
 
 			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
@@ -1388,7 +1386,7 @@ namespace avpn {
 				auto socket_ptr = sockets[n];
 				auto local_endp = socket_ptr->sock_.local_endpoint();
 
-				LOG_DBG << "start_udp_server"
+				LOG_FILE << "start_udp_server"
 					<< ", listen endpoint: ["
 					<< local_endp.address().to_string()
 					<< "]:"
@@ -1758,7 +1756,7 @@ namespace avpn {
 						auto socket_ptr = m_udp_sockets[n];
 						auto local_endp = socket_ptr->sock_.local_endpoint();
 
-						LOG_DBG << "start_udp_client"
+						LOG_FILE << "start_udp_client"
 							<< ", local endpoint: ["
 							<< local_endp.address().to_string()
 							<< "]:"
@@ -1805,8 +1803,8 @@ namespace avpn {
 			net::socket_base::receive_buffer_size rbo(16 * 1024 * 1024);
 			net::socket_base::send_buffer_size sbo(16 * 1024 * 1024);
 
-			socket_ptr->sock_.set_option(rbo);
-			socket_ptr->sock_.set_option(sbo);
+			socket_ptr->sock_.set_option(rbo, ec);
+			socket_ptr->sock_.set_option(sbo, ec);
 
 			std::lock_guard lock(m_udp_sockets);
 			m_udp_sockets.emplace_back(std::move(socket_ptr));
@@ -2276,10 +2274,6 @@ namespace avpn {
 			m_client_state &= ~vst_tcping;
 			m_client_state |= vst_tcped;
 		}
-
-		std::ostringstream oss;
-		oss << boost::stacktrace::stacktrace();
-		LOG_DBG << "Callstack:\n" << oss.str();
 
 		LOG_WARN << "Tcp reconnect: " << cnt;
 		m_tcp_reconnect_cnt = cnt;
