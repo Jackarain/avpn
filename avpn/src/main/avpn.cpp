@@ -32,6 +32,7 @@
 namespace avpn {
 	int64_t tun_tick = 0;
 	int64_t total = 0;
+	int64_t numips = 0;
 
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
@@ -295,8 +296,8 @@ namespace avpn {
 			auto size = avpn_packet_size - avpn_payload_header_size;
 
 			t2 = gettime();
-			tun_tick++;
-			total += (t2 - t1);
+			if (t1 != 0)
+				total += (t2 - t1);
 
 			auto bytes = co_await m_tundev.async_read_some(
 				net::buffer(payload, size), uawaitable[ec]);
@@ -307,6 +308,8 @@ namespace avpn {
 			}
 
 			t1 = gettime();
+			tun_tick++;
+			numips++;
 
 			// 重置 pkt 的 payload size.
 			pkt.resize(bytes + avpn_payload_header_size);
@@ -498,17 +501,23 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
-		udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+		if (m_udp_writen > 5592)
+		{
+			udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+			return;
+		}
 
-#if 0
 		auto ptr = pkt.release();
+		m_udp_writen++;
 
 		// 直接发送, 仅在回调时释放packet.
 		udp_socket.async_send_to(
 			net::buffer(ptr, pkt.size()),
 			remote,
-			[ptr, remote](boost::system::error_code ec, std::size_t) mutable
+			[this, ptr, remote](boost::system::error_code ec, std::size_t) mutable
 			{
+				m_udp_writen--;
+
 				if (ptr)
 				{
 					static_packet_allocator()->release();
@@ -522,7 +531,6 @@ namespace avpn {
 						<< ", error: " << ec.message();
 				}
 			});
-#endif
 	}
 
 	void avpn_service::run_as_client()
@@ -796,9 +804,13 @@ namespace avpn {
 			if (tun_tick != 0)
 			{
 				auto msavg = total / tun_tick;
-				LOG_DBG << "Total : " << total
-						<< ", avg : " << msavg
-						<< ", tick : " << tun_tick;
+				std::cerr
+					<< "Total : " << total
+					<< ", ip(s): " << numips
+					<< ", tick : " << tun_tick
+					<< ", inwriten: " << m_udp_writen
+					<< ", avg : " << msavg;
+				numips = 0;
 			}
 
 			// 检查超时连接, 清除超时的连接.

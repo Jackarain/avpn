@@ -425,6 +425,9 @@ namespace avpn {
 		// 时则可创建新的udp_socket替代超时的udp_socket.
 		safe_vector<udp_socket_ptr> m_udp_sockets;
 
+		// 正在发送的udp数据包数量.
+		uint64_t m_udp_writen{ 0 };
+
 		// 作为server时, 保存client连接的容器.
 		// 所有client连接将保存到这个容器, 这个容器不管理client的生命
 		// 期, 在client的生命期后, 需要从该容器手工清除.
