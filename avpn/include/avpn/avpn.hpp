@@ -318,7 +318,7 @@ namespace avpn {
 
 		// 处理tcp/udp连接握手认证.
 		net::awaitable<void> on_tcp_handshake(
-			tcp::socket, size_t);
+			tcp::socket);
 		net::awaitable<void> on_udp_handshake(
 			udp::endpoint, vpn_packet, uint32_t);
 
@@ -328,10 +328,10 @@ namespace avpn {
 
 		// 在tcp连接上读取一个vpn_packet消息.
 		net::awaitable<int> tcp_read_packet(tcp::socket&,
-			vpn_packet&, size_t);
+			vpn_packet&);
 		// 在tcp连接上发送一个vpn_packet消息.
 		net::awaitable<void> tcp_write_packet(tcp::socket&,
-			vpn_packet&, size_t);
+			vpn_packet&);
 
 		// 根据虚拟ip/client id查询对应的tunnel信息.
 		vpn_tunnel_ptr lookup_tunnel(uint32_t);

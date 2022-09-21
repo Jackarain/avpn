@@ -299,7 +299,7 @@ namespace avpn {
 				net::buffer(payload, size), uawaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "start_tun_read_loop, read: " << ec.message();
+				LOG_FILE << "start_tun_read_loop, read: " << ec.message();
 				break;
 			}
 
@@ -339,9 +339,10 @@ namespace avpn {
 		// 在重启tun设备时, 当前这个tun read loop退出时以唤醒新的
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
-//		LOG_WARN << "Quit start_tun_read_loop"
-//			<< ", this: " << this
-//			<< ", thread: " << std::this_thread::get_id();
+
+		LOG_FILE << "Quit start_tun_read_loop"
+			<< ", this: " << this
+			<< ", thread: " << std::this_thread::get_id();
 
 		co_return;
 	}
@@ -482,7 +483,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "Quit avpn_service::start_udp_read_loop"
+		LOG_FILE << "Quit avpn_service::start_udp_read_loop"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -791,7 +792,7 @@ namespace avpn {
 			co_await m_tick_timer.async_wait(uawaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "avpn_service::tick, ec: " << ec.message();
+				LOG_WARN << "avpn_service::tick, ec: " << ec.message();
 				break;
 			}
 
@@ -838,9 +839,10 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "Quit avpn_service::tick"
+		LOG_FILE << "Quit avpn_service::tick"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
+
 		co_return;
 	}
 
@@ -1295,17 +1297,18 @@ namespace avpn {
 			// 证失败消息, 以快速触发client进行完整重新协商认证过程
 			// (或者server端沉默, 等client直到超时重新协商通信key).
 			net::co_spawn(m_main_context,
-				[this, self, socket = std::move(socket), connection_id]
+				[this, self, socket = std::move(socket)]
 				() mutable -> net::awaitable<void>
 				{
-					co_await on_tcp_handshake(std::move(socket), connection_id);
+					co_await on_tcp_handshake(std::move(socket));
 					co_return;
 				}, net::detached);
 		}
 
-		LOG_WARN << "Quit avpn_service::start_tcp_listen"
+		LOG_FILE << "Quit avpn_service::start_tcp_listen"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
+
 		co_return;
 	}
 
@@ -1548,10 +1551,10 @@ namespace avpn {
 			(uint8_t)params.parity_shards_);
 
 		// 发送handshake到server.
-		co_await tcp_write_packet(stream, pkt, 0);
+		co_await tcp_write_packet(stream, pkt);
 
 		// 就地等待server回复.
-		auto bytes = co_await tcp_read_packet(stream, pkt, 0);
+		auto bytes = co_await tcp_read_packet(stream, pkt);
 		if (bytes == -1)
 			co_return;
 
@@ -1640,13 +1643,13 @@ namespace avpn {
 				tunnel->ipproto(Proto::avpn_udp);
 			}
 
-			LOG_DBG << "Handshake by tcp"
-				<< ", make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id()
-				<< ", cid: " << m_client_id;
+			LOG_DBG << "Tcp handshake"
+				<< ", tunnel: " << tunnel.get()
+				<< ", thread: " << std::this_thread::get_id();
 
-			LOG_DBG << "Shared key: "
-				<< base64_encode(tunnel->shared_key());
+			LOG_INFO << "Shared key: "
+				<< base64_encode(tunnel->shared_key())
+				<< ", cid: " << m_client_id;
 
 			m_subnet = make_network(src_vaddr, (unsigned short)prefix_length);
 			tunnel->vnet_addr(m_subnet);
@@ -1655,8 +1658,11 @@ namespace avpn {
 			// 进行tun设备配置.
 			co_await setup_tun(m_subnet);
 		}
-
-		LOG_DBG << "Tcp connected to "<< remote << " successfully!";
+		else
+		{
+			LOG_INFO << "Tcp client rehandshake to "
+				<< remote << " successfully!";
+		}
 
 		// 成功握手, 去掉一些标志状态.
 		m_client_state &= ~vst_restart;
@@ -1718,8 +1724,13 @@ namespace avpn {
 
 			net::ip::tcp::no_delay option(true);
 			stream.set_option(option, ec);
-			if (!ec)
-				co_return true;
+			if (ec)
+				LOG_WARN << "connect_server, set_option: " << ec.message();
+
+			LOG_INFO << "connect_server, connect to: "
+				<< endp << " successfully!";
+
+			co_return true;
 		}
 
 		co_return false;
@@ -1831,11 +1842,12 @@ namespace avpn {
 	}
 
 	net::awaitable<void> avpn_service::on_tcp_handshake(
-		tcp::socket stream, size_t id)
+		tcp::socket stream)
 	{
 		vpn_packet pkt;
 
-		int ret = co_await tcp_read_packet(stream, pkt, id);
+		// 读取client传过来的handshake消息.
+		int ret = co_await tcp_read_packet(stream, pkt);
 		if (ret == -1)
 			co_return;
 
@@ -1879,7 +1891,7 @@ namespace avpn {
 				// 规定client id原样返回.
 				auto response = make_handshake_reply(
 					client_id, 0, 0, 0, 0, false, 0, {});
-				co_await tcp_write_packet(stream, response, id);
+				co_await tcp_write_packet(stream, response);
 				co_return;
 			}
 		}
@@ -1901,11 +1913,10 @@ namespace avpn {
 		uint32_t vaddr = vnetaddr.address().to_uint();
 
 		// 输出协商的加密密钥到日志.
-		LOG_DBG << "Shared key via tcp: "
+		LOG_INFO << "Shared key via tcp: "
 			<< base64_encode(tunnel->shared_key())
 			<< ", ip: " << vaddr
 			<< ", remote: " << remote
-			<< ", socket id: " << id
 			<< ", tunnel: " << tunnel.get();
 
 		// 回复认证消息.
@@ -1918,7 +1929,7 @@ namespace avpn {
 			params.passbyvpn_,
 			params.pushdns_,
 			params.pushroutes_);
-		co_await tcp_write_packet(stream, response, id);
+		co_await tcp_write_packet(stream, response);
 
 		// 替换为新的tcp socket, 然后用新的tcp socket 用于tcp通信.
 		tunnel->rebind_tcp_socket(std::move(stream));
@@ -1989,7 +2000,8 @@ namespace avpn {
 		LOG_DBG << "Shared key via udp: "
 			<< base64_encode(tunnel->shared_key())
 			<< ", ip: " << vaddr
-			<< ", remote: " << remote;
+			<< ", remote: " << remote
+			<< ", tunnel: " << tunnel.get();
 
 		// 回复认证消息.
 		auto response = make_handshake_reply(
@@ -2093,13 +2105,13 @@ namespace avpn {
 			// 更新为对方的endpoint.
 			tunnel->remote_endpoint(remote);
 
-			LOG_DBG << "Handshake by udp"
-				<< ", make tunnel: " << tunnel.get()
-				<< ", thread: " << std::this_thread::get_id()
-				<< ", cid: " << m_client_id;
+			LOG_INFO << "Udp handshake"
+				<< ", tunnel: " << tunnel.get()
+				<< ", thread: " << std::this_thread::get_id();
 
-			LOG_DBG << "Shared key via udp: "
-				<< base64_encode(tunnel->shared_key());
+			LOG_INFO << "Shared key via udp: "
+				<< base64_encode(tunnel->shared_key())
+				<< ", cid: " << m_client_id;
 
 			m_subnet = make_network(addr, (unsigned short)prefix_length);
 			tunnel->vnet_addr(m_subnet);
@@ -2107,6 +2119,11 @@ namespace avpn {
 
 			// 进行tun设备配置.
 			co_await setup_tun(m_subnet);
+		}
+		else
+		{
+			LOG_INFO << "Udp client rehandshake to "
+				<< remote << " successfully!";
 		}
 
 		// 成功握手, 去掉一些标志状态.
@@ -2127,7 +2144,7 @@ namespace avpn {
 	}
 
 	net::awaitable<int> avpn_service::tcp_read_packet(
-		tcp::socket& stream, vpn_packet& pkt, size_t id)
+		tcp::socket& stream, vpn_packet& pkt)
 	{
 		boost::system::error_code ec;
 		int start_len_tag = -1;
@@ -2138,8 +2155,8 @@ namespace avpn {
 				net::transfer_exactly(4), uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, id: "
-				<< id << ", read tag error: " << ec.message();
+			LOG_ERR << "tcp_read_packet, read tag error: "
+				<< ec.message();
 			co_return -1;
 		}
 
@@ -2147,8 +2164,8 @@ namespace avpn {
 			start_len_tag = ntohl(start_len_tag);
 			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
-				LOG_ERR << "tcp_read_packet, id: "
-					<< id << ", verify size fail: " << start_len_tag;
+				LOG_ERR << "tcp_read_packet, verify size fail: "
+					<< start_len_tag;
 				co_return -1;
 			}
 		}
@@ -2159,8 +2176,8 @@ namespace avpn {
 				net::transfer_exactly(start_len_tag), uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, id: "
-				<< id << ", read body error: " << ec.message();
+			LOG_ERR << "tcp_read_packet, id, read body error: "
+				<< ec.message();
 			co_return -1;
 		}
 
@@ -2171,7 +2188,7 @@ namespace avpn {
 
 	net::awaitable<void>
 	avpn_service::tcp_write_packet(tcp::socket& stream,
-		vpn_packet& pkt, size_t id)
+		vpn_packet& pkt)
 	{
 		boost::system::error_code ec;
 		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
@@ -2180,8 +2197,8 @@ namespace avpn {
 			net::buffer(&start_len_tag, 4), uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, id: " << id
-				<< " async_write tag error: " << ec.message();
+			LOG_ERR << "tcp_write_packet, async_write tag error: "
+				<< ec.message();
 			co_return;
 		}
 
@@ -2189,8 +2206,8 @@ namespace avpn {
 			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, id: " << id
-				<< " async_write body error: " << ec.message();
+			LOG_ERR << "tcp_write_packet, async_write body error: "
+				<< ec.message();
 			co_return;
 		}
 
