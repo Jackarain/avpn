@@ -955,7 +955,7 @@ namespace avpn {
 
 		// 开始读取tun上的数据包.
 		auto self = shared_from_this();
-		for (int n = 0; n < 2000; n++)
+		for (int n = 0; n < 16; n++)
 		{
 			net::co_spawn(m_main_context,
 				[this, self]() mutable -> net::awaitable<void>
