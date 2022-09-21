@@ -2138,7 +2138,6 @@ namespace avpn {
 		tunnel->ipproto(Proto::avpn_udp);
 		tunnel->remote_endpoint(remote);
 		tunnel->start_tunnel(ds, ps);
-		tunnel->start_tcp_loop();
 
 		co_return;
 	}
