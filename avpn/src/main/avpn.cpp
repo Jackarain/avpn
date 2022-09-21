@@ -1342,8 +1342,8 @@ namespace avpn {
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
 
-			net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
-			net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+			net::socket_base::receive_buffer_size rbo(16 * 1024 * 1024);
+			net::socket_base::send_buffer_size sbo(16 * 1024 * 1024);
 
 			socket_ptr->sock_.set_option(rbo);
 			socket_ptr->sock_.set_option(sbo);
@@ -1789,8 +1789,8 @@ namespace avpn {
 			auto socket_ptr = std::make_shared<udp_socket>(
 				udp_socket{ steady_clock::now(), std::move(sock) });
 
-			net::socket_base::receive_buffer_size rbo(2 * 1024 * 1024);
-			net::socket_base::send_buffer_size sbo(2 * 1024 * 1024);
+			net::socket_base::receive_buffer_size rbo(16 * 1024 * 1024);
+			net::socket_base::send_buffer_size sbo(16 * 1024 * 1024);
 
 			socket_ptr->sock_.set_option(rbo);
 			socket_ptr->sock_.set_option(sbo);
