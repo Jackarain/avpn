@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DENABLE_L
 set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -DENABLE_LOGGER -DDISABLE_LOGGER_TO_CONSOLE -DLOGGER_DBG_VIEW")
 
 add_subdirectory(fec_cache)
+add_subdirectory(network_test)
 add_subdirectory(reedsolomon)
 add_subdirectory(mimalloc)
 add_subdirectory(acl)
