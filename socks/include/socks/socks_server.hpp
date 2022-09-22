@@ -85,6 +85,8 @@ namespace socks {
 	};
 
 	// socks session 虚基类.
+	// 主要用于其它模块管理session时, 只需要管理和操作这个基类指针而不
+	// 必关心具体实现部分.
 	class socks_session_base {
 	public:
 		virtual ~socks_session_base() {}
