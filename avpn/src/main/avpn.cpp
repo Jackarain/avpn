@@ -277,7 +277,7 @@ namespace avpn {
 			m_ssl_ctx.use_tmp_dh_file(dh.string());
 	}
 
-	net::awaitable<void> avpn_service::start_tun_read_loop()
+	net::awaitable<void> avpn_service::tun_read_loop()
 	{
 		boost::system::error_code ec;
 		using util::logger_aux__::gettime;
@@ -298,7 +298,7 @@ namespace avpn {
 				net::buffer(payload, size), uawaitable[ec]);
 			if (ec)
 			{
-				LOG_FILE << "start_tun_read_loop, read: " << ec.message();
+				LOG_FILE << "tun_read_loop, read: " << ec.message();
 				break;
 			}
 
@@ -339,7 +339,7 @@ namespace avpn {
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
 
-		LOG_FILE << "Quit start_tun_read_loop"
+		LOG_FILE << "Quit tun_read_loop"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -404,7 +404,7 @@ namespace avpn {
 			std::move(pkt), std::move(endp)));
 	}
 
-	net::awaitable<void> avpn_service::start_udp_read_loop(int index)
+	net::awaitable<void> avpn_service::udp_read_loop(int index)
 	{
 		boost::system::error_code ec;
 		udp::endpoint remote;
@@ -483,7 +483,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_FILE << "Quit avpn_service::start_udp_read_loop"
+		LOG_FILE << "Quit avpn_service::udp_read_loop"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -963,7 +963,7 @@ namespace avpn {
 			net::co_spawn(m_main_context,
 				[this, self]() mutable -> net::awaitable<void>
 				{
-					co_await start_tun_read_loop();
+					co_await tun_read_loop();
 					co_return;
 				}, net::detached);
 		}
@@ -1398,7 +1398,7 @@ namespace avpn {
 
 				net::co_spawn(m_main_context,
 					[this, self, n]() mutable -> net::awaitable<void> {
-						co_await start_udp_read_loop(n);
+						co_await udp_read_loop(n);
 						co_return;
 					}, net::detached);
 			}
@@ -1778,7 +1778,7 @@ namespace avpn {
 					net::co_spawn(m_main_context,
 						[this, self, n]() mutable -> net::awaitable<void>
 						{
-							co_await start_udp_read_loop(n);
+							co_await udp_read_loop(n);
 							co_return;
 						}, net::detached);
 				}

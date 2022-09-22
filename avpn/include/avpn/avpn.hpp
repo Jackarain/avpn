@@ -272,7 +272,7 @@ namespace avpn {
 		void init_ssl_context();
 
 		// tun相关的读取与发送.
-		net::awaitable<void> start_tun_read_loop();
+		net::awaitable<void> tun_read_loop();
 		void do_tun_write(vpn_packet);
 
 		// 处理server/client上的tun设备pkt.
@@ -280,7 +280,7 @@ namespace avpn {
 		void do_client_tun_read(vpn_packet, endpoint_pair);
 
 		// udp相关的读取与发送.
-		net::awaitable<void> start_udp_read_loop(int);
+		net::awaitable<void> udp_read_loop(int);
 		void do_udp_write(vpn_packet, udp::endpoint);
 
 		// 启动avpn服务.
