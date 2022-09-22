@@ -894,11 +894,7 @@ namespace avpn {
 			auto p = make_keepalive_reply(src, m_client_id,
 					m_num_recv_packet, m_num_send_packet, timestamp);
 
-			if (m_ipproto == Proto::avpn_tcp ||
-				m_ipproto == Proto::avpn_mix)
-				tcp_write_pkt(std::move(p));
-			else
-				udp_write_pkt(std::move(p));
+			internal_write_pkt(std::move(pkt), true);
 		}
 
 		last_see(steady_clock::now());
