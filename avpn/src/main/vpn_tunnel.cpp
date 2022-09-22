@@ -559,12 +559,12 @@ namespace avpn {
 				keepalive = 1;
 			if (tick_interval % keepalive == 0)
 			{
-				// keepalive, 随机使用tcp/udp发送.
+				// keepalive, 随机使用tcp/udp发送, 优先使用udp发送.
 				uint64_t timestamp = now.time_since_epoch().count();
 				auto pkt = make_keepalive(m_self_vaddr, m_client_id,
 					m_num_recv_packet, m_num_send_packet, timestamp);
 
-				internal_write_pkt(std::move(pkt));
+				internal_write_pkt(std::move(pkt), true);
 			}
 		}
 
@@ -572,7 +572,7 @@ namespace avpn {
 		co_return;
 	}
 
-	Proto vpn_tunnel::cherry_pick() const
+	Proto vpn_tunnel::cherry_pick(bool default_udp/* = false*/) const
 	{
 		auto& params = m_config.tunnel_params_;
 		auto ipproto = m_ipproto;
@@ -588,7 +588,12 @@ namespace avpn {
 			ipproto == Proto::avpn_mix) &&
 			m_tcp_oqe.empty() &&
 			++round_robin % 2 == 0)
+		{
+			if (default_udp)
+				return Proto::avpn_udp;
+
 			return Proto::avpn_tcp;
+		}
 
 		return Proto::avpn_udp;
 	}
@@ -678,9 +683,10 @@ namespace avpn {
 			m_abort, m_num_send_packet, self)({}, 1);
 	}
 
-	void vpn_tunnel::internal_write_pkt(vpn_packet pkt)
+	void vpn_tunnel::internal_write_pkt(
+		vpn_packet pkt, bool defalut_udp/* = false*/)
 	{
-		auto pick = cherry_pick();
+		auto pick = cherry_pick(defalut_udp);
 
 		if (pick == Proto::avpn_tcp)
 			tcp_write_pkt(std::move(pkt));

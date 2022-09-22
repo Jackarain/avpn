@@ -114,7 +114,7 @@ namespace avpn {
 	private:
 		// 定时任务处理, 如keepalive等相关处理.
 		net::awaitable<void> tick();
-		Proto cherry_pick() const;
+		Proto cherry_pick(bool default_udp = false) const;
 
 		// 速率计算.
 		void compute_speed(speed_stat& stat, int bytes);
@@ -124,7 +124,7 @@ namespace avpn {
 		void udp_write_pkt(vpn_packet pkt);
 		void tcp_write_pkt(vpn_packet pkt);
 
-		void internal_write_pkt(vpn_packet pkt);
+		void internal_write_pkt(vpn_packet pkt, bool defalut_udp = false);
 
 		// 速率限制.
 		net::awaitable<void> speed_limit(
