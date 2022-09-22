@@ -805,11 +805,11 @@ namespace avpn {
 						m_internal_stat.tun_rx_;
 
 				LOG_FILE
-					<< "Total(ms) : " << m_internal_stat.packet_spent_time_
+					<< "Total(ms): " << m_internal_stat.packet_spent_time_
 					<< ", ip/s: " << m_internal_stat.tun_rx_perseconds_
-					<< ", tun rx : " << m_internal_stat.tun_rx_
+					<< ", tun rx: " << m_internal_stat.tun_rx_
 					<< ", udp writing: " << m_udp_writing
-					<< ", tun average : " << average;
+					<< ", tun average: " << average;
 
 				m_internal_stat.tun_rx_perseconds_ = 0;
 			}
