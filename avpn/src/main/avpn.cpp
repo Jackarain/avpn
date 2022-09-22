@@ -32,6 +32,8 @@ namespace avpn {
 	int64_t total = 0;
 	int64_t numips = 0;
 
+	const size_t global_op_concurrency = 128;
+
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
 
@@ -957,7 +959,7 @@ namespace avpn {
 
 		// 开始读取tun上的数据包.
 		auto self = shared_from_this();
-		for (int n = 0; n < 64; n++)
+		for (int n = 0; n < global_op_concurrency; n++)
 		{
 			net::co_spawn(m_main_context,
 				[this, self]() mutable -> net::awaitable<void>
@@ -1376,7 +1378,7 @@ namespace avpn {
 
 		// 并发启动udp socket上的数据读取.
 		auto self = shared_from_this();
-		for (int fast = 0; fast < 200; fast++)
+		for (int fast = 0; fast < global_op_concurrency; fast++)
 		{
 			std::vector<udp_socket_ptr> sockets;
 			{
@@ -1750,7 +1752,7 @@ namespace avpn {
 
 			// udp socket创建完成后, 则可以进入循环读取udp上的数据.
 			auto self = shared_from_this();
-			for (int fast = 0; fast < 32; fast++)
+			for (int fast = 0; fast < global_op_concurrency; fast++)
 			{
 				int num_sockets;
 
