@@ -208,6 +208,7 @@ namespace avpn {
 
 		friend class vpn_tunnel;
 
+		// udp socket定义.
 		struct udp_socket
 		{
 			udp_socket(time_point now, udp::socket&& sock)
@@ -219,6 +220,18 @@ namespace avpn {
 			udp::socket sock_;
 		};
 		using udp_socket_ptr = std::shared_ptr<udp_socket>;
+
+		// avpn_service 内部信息相关统计.
+		struct internal_stat
+		{
+			int64_t packet_spent_time_{ 0 };
+
+			int64_t tun_rx_{ 0 };
+			int64_t tun_tx_{ 0 };
+
+			int64_t tun_rx_perseconds_{ 0 };
+			int64_t tun_tx_perseconds_{ 0 }; // 暂不统计.
+		};
 
 	public:
 		// 创建apvn service对象, 因为avpn_service必须是一个shared_ptr对象
@@ -401,6 +414,9 @@ namespace avpn {
 		asio_timer m_tick_timer;
 		asio_timer m_tun_wait_timer;
 
+		// 内部部分信息统计.
+		internal_stat m_internal_stat;
+
 		// 专门用于退出时取消asio_util::async_connect.
 		net::cancellation_signal m_cancel_sig;
 
@@ -426,7 +442,7 @@ namespace avpn {
 		safe_vector<udp_socket_ptr> m_udp_sockets;
 
 		// 正在发送的udp数据包数量.
-		uint64_t m_udp_writen{ 0 };
+		uint64_t m_udp_writing{ 0 };
 
 		// 作为server时, 保存client连接的容器.
 		// 所有client连接将保存到这个容器, 这个容器不管理client的生命

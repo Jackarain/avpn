@@ -28,9 +28,6 @@
 
 
 namespace avpn {
-	int64_t tun_tick = 0;
-	int64_t total = 0;
-	int64_t numips = 0;
 
 	const size_t global_op_concurrency = 128;
 
@@ -295,7 +292,7 @@ namespace avpn {
 
 			t2 = gettime();
 			if (t1 != 0)
-				total += (t2 - t1);
+				m_internal_stat.packet_spent_time_ += (t2 - t1);
 
 			auto bytes = co_await m_tundev.async_read_some(
 				net::buffer(payload, size), uawaitable[ec]);
@@ -306,8 +303,8 @@ namespace avpn {
 			}
 
 			t1 = gettime();
-			tun_tick++;
-			numips++;
+			m_internal_stat.tun_rx_++;
+			m_internal_stat.tun_rx_perseconds_++;
 
 			// 重置 pkt 的 payload size.
 			pkt.resize(bytes + avpn_payload_header_size);
@@ -352,6 +349,7 @@ namespace avpn {
 	void avpn_service::do_tun_write(vpn_packet pkt)
 	{
 		auto self = shared_from_this();
+		m_internal_stat.tun_tx_++;
 
 		if (std::this_thread::get_id() == m_main_thread_id)
 		{
@@ -500,14 +498,14 @@ namespace avpn {
 			return;
 
  		auto& udp_socket = socket_ptr->sock_;
-		if (m_udp_writen > 5592)
+		if (m_udp_writing > 5592)
 		{
 			udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
 			return;
 		}
 
 		auto ptr = pkt.release();
-		m_udp_writen++;
+		m_udp_writing++;
 
 		// 直接发送, 仅在回调时释放packet.
 		udp_socket.async_send_to(
@@ -515,7 +513,7 @@ namespace avpn {
 			remote,
 			[this, ptr, remote](boost::system::error_code ec, std::size_t) mutable
 			{
-				m_udp_writen--;
+				m_udp_writing--;
 
 				if (ptr)
 				{
@@ -800,19 +798,20 @@ namespace avpn {
 
 			auto now = std::chrono::steady_clock::now();
 
-			if (tun_tick != 0)
+			if (m_internal_stat.tun_rx_ != 0)
 			{
-#if 0
-				auto msavg = (double)total / tun_tick;
-				std::cerr
-					<< "Total : " << total
-					<< ", ip(s): " << numips
-					<< ", tick : " << tun_tick
-					<< ", inwriten: " << m_udp_writen
-					<< ", avg : " << msavg
-					<< std::endl;
-#endif
-				numips = 0;
+				auto average =
+					(double)m_internal_stat.packet_spent_time_ /
+						m_internal_stat.tun_rx_;
+
+				LOG_FILE
+					<< "Total(ms) : " << m_internal_stat.packet_spent_time_
+					<< ", ip/s: " << m_internal_stat.tun_rx_perseconds_
+					<< ", tun rx : " << m_internal_stat.tun_rx_
+					<< ", udp writing: " << m_udp_writing
+					<< ", tun average : " << average;
+
+				m_internal_stat.tun_rx_perseconds_ = 0;
 			}
 
 			// 检查超时连接, 清除超时的连接.
