@@ -583,10 +583,11 @@ namespace avpn {
 		if (!m_tcp_connect_ready)
 			return Proto::avpn_udp;
 
+		static uint64_t round_robin = 0;
 		if ((params.mode_ == Proto::avpn_tcp ||
 			ipproto == Proto::avpn_mix) &&
 			m_tcp_oqe.empty() &&
-			std::rand() % 2 == 0)
+			++round_robin % 2 == 0)
 			return Proto::avpn_tcp;
 
 		return Proto::avpn_udp;
