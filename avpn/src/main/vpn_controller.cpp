@@ -9,6 +9,12 @@
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
 
+#include <fmt/ostream.h>
+#include <fmt/printf.h>
+#include <fmt/format.h>
+
+#include <boost/json/src.hpp>
+
 #include <iterator>
 #include <string>
 #include <regex>
@@ -85,13 +91,14 @@ namespace avpn {
 	net::awaitable<void> vpn_controller::start_connect()
 	{
 		boost::system::error_code ec;
+		std::string real_contorller;
 
 		// 构造控制服务器的endpoint.
 		tcp::endpoint endp;
 		make_listen_endpoint(m_config.controller_, endp, ec);
 		if (ec)
 		{
-			auto real_contorller = "127.0.0.1:" + m_config.controller_;
+			real_contorller = "127.0.0.1:" + m_config.controller_;
 			make_listen_endpoint(real_contorller, endp, ec);
 		}
 		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
@@ -109,7 +116,9 @@ namespace avpn {
 			co_return;
 		}
 
-		LOG_DBG << "controller::start_connect, connect successfully!";
+		LOG_DBG << "controller::start_connect"
+			<< ", connect " << real_contorller
+			<< " successfully!";
 
 		std::string origin = "all";
 
@@ -196,8 +205,16 @@ namespace avpn {
 
 			if (!std::regex_match(bufptr, match, ctrl_regex))
 			{
-				LOG_WARN << "start_client_read, regex match faild: "
-					<< std::string_view(bufptr, bytes);
+				auto sv = std::string_view(bufptr, bytes);
+				auto ret = co_await on_json_rpc(sv);
+
+				if (!ret)
+				{
+					LOG_WARN << "start_client_read, regex match faild: "
+						<< std::string_view(bufptr, bytes);
+					break;
+				}
+
 				continue;
 			}
 
@@ -284,6 +301,100 @@ namespace avpn {
 			m_ws_stream.next_layer().socket().close(ec);
 
 		co_return;
+	}
+
+	net::awaitable<bool> vpn_controller::on_json_rpc(std::string_view sv)
+	{
+		boost::system::error_code ec;
+		auto jv = boost::json::parse(sv, ec);
+		if (ec)
+			co_return false;
+
+		try
+		{
+			auto& content = jv.as_object();
+			std::string_view version = content["jsonrpc"].as_string();
+			if (version != "2.0")
+				co_return false;
+
+			std::string_view method = content["method"].as_string();
+			int64_t id = content["id"].as_int64();
+
+			if (method == "stop")
+			{
+				std::string result = fmt::format(
+					R"({{"jsonrpc":"2.0", "id": {}, "result": {}}})",
+					id,
+					"completed");
+
+				co_await m_ws_stream.async_write(
+					net::buffer(result), net::use_awaitable);
+
+				if (!m_start)
+				{
+					LOG_DBG << "on_json_rpc, do vpn already stoped";
+					co_return true;
+				}
+
+				LOG_DBG << "on_json_rpc, do vpn stop";
+				m_service.stop();
+				m_start = false;
+
+				co_return true;
+			}
+
+			if (method == "start")
+			{
+				std::string result = fmt::format(
+					R"({{"jsonrpc":"2.0", "id": {}, "result": {}}})",
+					id,
+					"completed");
+
+				co_await m_ws_stream.async_write(
+					net::buffer(result), net::use_awaitable);
+
+				if (m_start)
+				{
+					LOG_WARN << "on_json_rpc, do vpn already started";
+					co_return true;
+				}
+
+				LOG_DBG << "on_json_rpc, do vpn start";
+				m_service.start();
+				m_start = true;
+			}
+
+			if (method == "method")
+			{
+				auto urate = m_service.upload_rate();
+				auto drate = m_service.download_rate();
+
+				if (!m_start)
+				{
+					urate = 0;
+					drate = 0;
+				}
+
+				LOG_DBG << "on_json_rpc, "
+					<< "do vpn speed, upload: " << urate
+					<< ", download: " << drate;
+
+				std::string result = fmt::format(
+					R"({{"jsonrpc":"2.0", "id": {}, "result": [{}, {}]}})",
+					id, urate, drate);
+
+				co_await m_ws_stream.async_write(
+					net::buffer(result), net::use_awaitable);
+
+				co_return true;
+			}
+		}
+		catch (const std::exception& e)
+		{
+			LOG_DBG << "jsonrpc exception: " << e.what();
+		}
+
+		co_return false;
 	}
 
 }

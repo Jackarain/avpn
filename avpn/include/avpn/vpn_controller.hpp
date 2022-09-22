@@ -47,6 +47,8 @@ namespace avpn {
 		net::awaitable<void> start_client_read();
 		net::awaitable<void> keepalive();
 
+		net::awaitable<bool> on_json_rpc(std::string_view);
+
 	private:
 
 		// 用于本vpn_controller相关操作.
