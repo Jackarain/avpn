@@ -128,6 +128,20 @@ set(CMAKE_C_STANDARD 11)
 ################################################################################
 
 if (MSVC)
+	set(MSVC_DISABLED_WARNINGS_LIST
+		"C4702" # unreachable code
+	)
+	set(MSVC_LEVEL4_WARNINGS_LIST
+		"C4265" # class has virtual functions, but destructor is not virtual
+	)
+	string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR
+		${MSVC_DISABLED_WARNINGS_LIST})
+	string(REPLACE "C" " -w4" MSVC_LEVEL4_WARNINGS_STR
+		${MSVC_LEVEL4_WARNINGS_LIST})
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
+	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
+
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 	add_definitions(
