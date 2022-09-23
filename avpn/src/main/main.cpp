@@ -552,9 +552,11 @@ int main(int argc, char** argv)
 
 		// 处理中止信号.
 		terminator_signal.async_wait(
-			[&ioc, &srv, &socks_servers](const boost::system::error_code&, int)
+			[&ioc, &srv, &socks_servers, &terminator_signal]
+			(const boost::system::error_code&, int sig) mutable
 			{
 				LOG_DBG << "terminator is called!";
+				terminator_signal.remove(sig);
 
 				for (auto& s : socks_servers)
 				{
@@ -564,6 +566,7 @@ int main(int argc, char** argv)
 				}
 
 				srv.stop();
+				ioc.stop();
 			});
 
 		ioc.run();
