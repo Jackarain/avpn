@@ -893,8 +893,14 @@ namespace avpn {
 		}
 #endif // WIN32
 
-		auto defgw = get_default_gateway();
-		auto defgw_string = defgw->address().to_string();
+		auto default_gateway = get_default_gateway();
+		if (!default_gateway)
+		{
+			LOG_ERR << "Get default gateway fail!";
+			co_return;
+		}
+
+		auto default_gw = default_gateway->address().to_string();
 
 		if (!m_tundev.open(dc))
 		{
@@ -909,11 +915,11 @@ namespace avpn {
 			(m_push_params.passbyvpn_ &&
 			m_config.identity_ == Identity::avpn_client))
 		{
-			auto vgateway = gateway.to_string();
+			auto vpn_gw = gateway.to_string();
 
-			add_route(m_push_params.server_ip_ + "/32 " + defgw_string);
-			add_route("0.0.0.0/1 " + vgateway);
-			add_route("128.0.0.0/1 " + vgateway);
+			add_route(m_push_params.server_ip_ + "/32 " + default_gw);
+			add_route("0.0.0.0/1 " + vpn_gw);
+			add_route("128.0.0.0/1 " + vpn_gw);
 		}
 
 		if (!params.ignore_push_)
