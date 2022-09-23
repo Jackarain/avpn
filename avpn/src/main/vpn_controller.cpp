@@ -8,6 +8,7 @@
 #include "avpn/vpn_controller.hpp"
 #include "utils/logging.hpp"
 #include "utils/scoped_exit.hpp"
+#include "avpn/avpn.hpp"
 
 #include <fmt/ostream.h>
 #include <fmt/printf.h>
@@ -32,14 +33,12 @@ namespace avpn {
 		ct_test = 4,
 	};
 
-	using namespace boost::asio;
-	namespace beast = boost::beast;
-
 	vpn_controller::vpn_controller(
 		net::io_context& ioc, const service_config& cfg)
 		: m_main_context(ioc)
 		, m_signal(m_main_context)
-		, m_config(cfg)
+		, m_avpn_config(std::make_unique<service_config>(cfg))
+		, m_config(*m_avpn_config)
 		, m_avpn_service(avpn_service::make_avpn_service(ioc, cfg))
 		, m_service(*m_avpn_service)
 		, m_ws_stream(m_main_context)

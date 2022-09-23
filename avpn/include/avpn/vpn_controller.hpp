@@ -5,11 +5,10 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#include "utils/misc.hpp"
 #include "utils/asio_util.hpp"
 
-#include "avpn/avpn.hpp"
-
+#include <memory>
+#include <string_view>
 #include <functional>
 #include <cstring> // for std::memcpy
 
@@ -23,8 +22,16 @@
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 
+#include <boost/beast/websocket.hpp>
+
+namespace net = boost::asio;
+namespace beast = boost::beast;
+
 
 namespace avpn {
+
+	struct service_config;
+	class avpn_service;
 
 	class vpn_controller
 	{
@@ -32,7 +39,7 @@ namespace avpn {
 		vpn_controller(const vpn_controller&) = delete;
 		vpn_controller& operator=(const vpn_controller&) = delete;
 
-		using ws_stream = websocket::stream<boost::beast::tcp_stream>;
+		using ws_stream = websocket::stream<beast::tcp_stream>;
 
 	public:
 		vpn_controller(net::io_context&, const service_config&);
@@ -60,7 +67,8 @@ namespace avpn {
 
 		// vpn服务相关配置, 启用vpn服务时
 		// 用此配置启动vpn服务.
-		service_config m_config;
+		std::unique_ptr<service_config> m_avpn_config;
+		service_config& m_config;
 
 		// vpn服务对象.
 		std::shared_ptr<avpn_service> m_avpn_service;
