@@ -47,6 +47,7 @@ namespace avpn {
 		net::awaitable<void> start_client_read();
 		net::awaitable<void> keepalive();
 
+		net::awaitable<bool> on_legacy_rpc(std::string_view);
 		net::awaitable<bool> on_json_rpc(std::string_view);
 
 	private:

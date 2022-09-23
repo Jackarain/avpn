@@ -98,7 +98,8 @@ namespace avpn {
 		make_listen_endpoint(m_config.controller_, endp, ec);
 		if (ec)
 		{
-			real_contorller = "127.0.0.1:" + m_config.controller_;
+			real_contorller = controller_server_host +
+				":" + m_config.controller_;
 			make_listen_endpoint(real_contorller, endp, ec);
 		}
 		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
@@ -174,10 +175,9 @@ namespace avpn {
 		boost::system::error_code ec;
 		std::vector<char> data;
 		net::dynamic_vector_buffer buffer{ data };
-		bool exit = false;
 		auto& stream = m_ws_stream;
 
-		while (!m_abort || exit)
+		while (!m_abort)
 		{
 			auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
 			if (ec == beast::websocket::error::closed)
@@ -218,58 +218,8 @@ namespace avpn {
 				continue;
 			}
 
-			auto type = controller_type(atoi(match[1].str().c_str()));
-
-			switch (type)
-			{
-			case controller_type::ct_stop:
-				if (!m_start)
-				{
-					LOG_DBG << "start_client_read, do vpn already stoped";
-					break;
-				}
-				LOG_DBG << "start_client_read, do vpn stop";
-				m_service.stop();
-				m_start = false;
+			if (!co_await on_legacy_rpc(match[1].str()))
 				break;
-			case controller_type::ct_start:
-				if (m_start)
-				{
-					LOG_WARN << "start_client_read, do vpn already started";
-					break;
-				}
-				LOG_DBG << "start_client_read, do vpn start";
-				m_service.start();
-				m_start = true;
-				break;
-			case controller_type::ct_speed:
-				if (!m_start)
-					break;
-				LOG_DBG << "start_client_read, "
-					<< "do vpn speed: " << m_service.upload_rate()
-					<< ", " << m_service.download_rate();
-				{
-					auto str = std::to_string((int)type) + " "
-						+ std::to_string(m_service.upload_rate())
-						+ " "
-						+ std::to_string(m_service.download_rate());
-
-					co_await stream.async_write(
-						net::buffer(str), uawaitable[ec]);
-					if (ec)
-					{
-						LOG_ERR << "start_client_read, "
-							<< "ct_speed async_write error: " << ec.message();
-						exit = true;
-					}
-				}
-				break;
-			case controller_type::ct_remote:
-			case controller_type::ct_test:
-				break;
-			default:
-				break;
-			}
 		}
 
 		// 一旦ws退出, 则退出整个程序.
@@ -301,6 +251,65 @@ namespace avpn {
 			m_ws_stream.next_layer().socket().close(ec);
 
 		co_return;
+	}
+
+	net::awaitable<bool> vpn_controller::on_legacy_rpc(std::string_view sv)
+	{
+		boost::system::error_code ec;
+		auto type = controller_type(atoi(sv.data()));
+
+		switch (type)
+		{
+		case controller_type::ct_stop:
+			if (!m_start)
+			{
+				LOG_DBG << "start_client_read, do vpn already stoped";
+				break;
+			}
+			LOG_DBG << "start_client_read, do vpn stop";
+			m_service.stop();
+			m_start = false;
+			break;
+		case controller_type::ct_start:
+			if (m_start)
+			{
+				LOG_WARN << "start_client_read, do vpn already started";
+				break;
+			}
+			LOG_DBG << "start_client_read, do vpn start";
+			m_service.start();
+			m_start = true;
+			break;
+		case controller_type::ct_speed:
+			if (!m_start)
+				break;
+			LOG_DBG << "start_client_read, "
+				<< "do vpn speed: " << m_service.upload_rate()
+				<< ", " << m_service.download_rate();
+			{
+				auto str = std::to_string((int)type) + " "
+					+ std::to_string(m_service.upload_rate())
+					+ " "
+					+ std::to_string(m_service.download_rate());
+
+				co_await m_ws_stream.async_write(
+					net::buffer(str), uawaitable[ec]);
+				if (ec)
+				{
+					LOG_ERR << "start_client_read, "
+						<< "ct_speed async_write error: " << ec.message();
+					co_return false;
+				}
+			}
+			break;
+		case controller_type::ct_remote:
+		case controller_type::ct_test:
+			break;
+		default:
+			break;
+		}
+
+		co_return true;
 	}
 
 	net::awaitable<bool> vpn_controller::on_json_rpc(std::string_view sv)
