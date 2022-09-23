@@ -911,17 +911,9 @@ namespace avpn {
 		{
 			auto vgateway = gateway.to_string();
 
-			del_route("0.0.0.0/0 " + vgateway);
-
-			if (set_default_route(ipaddr,
-				vgateway,
-				defgw_string,
-				m_push_params.server_ip_))
-				LOG_DBG << "Default gateway: "
-					<< defgw_string << " change successfully!";
-			else
-				LOG_INFO << "Default gateway: "
-					<< defgw_string << ", change faild!";
+			add_route(m_push_params.server_ip_ + "/32 " + defgw_string);
+			add_route("0.0.0.0/1 " + vgateway);
+			add_route("128.0.0.0/1 " + vgateway);
 		}
 
 		if (!params.ignore_push_)

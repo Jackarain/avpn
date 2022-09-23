@@ -1040,101 +1040,6 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 	return ret;
 }
 
-bool set_default_route(const std::string& vaddr, const std::string& vgateway,
-	const std::string& gateway, const std::string& server_ip)
-{
-	// 先为vaddr设置的METRIC为一个很小的值.
-	// 再添加一条server_ip的路由通过gateway.
-	// 再添加一条默认路由为vaddr通过vgateway.
-
-	if (vaddr.empty()
-		|| vgateway.empty()
-		|| gateway.empty()
-		|| server_ip.empty())
-	{
-		LOG_WARN << "set_default_route, params invalid!";
-		return false;
-	}
-
-	int i = 0;
-	int ifindex = 0;
-
-	for (; i < 10; i++)
-	{
-		ULONG size = 0;
-		DWORD status;
-
-		auto pip_free = [](PIP_ADAPTER_INFO p) { free(p); };
-		using ip_adapter_info_ptr = std::unique_ptr < IP_ADAPTER_INFO, decltype(pip_free)>;
-
-		if ((status = GetAdaptersInfo(NULL, &size)) != ERROR_BUFFER_OVERFLOW)
-		{
-			LOG_WARN << "set_default_route, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
-			return false;
-		}
-
-		auto pi = (PIP_ADAPTER_INFO)::malloc(size);
-		ip_adapter_info_ptr spi(pi, pip_free);
-
-		if ((status = GetAdaptersInfo(pi, &size)) != NO_ERROR)
-		{
-			LOG_WARN << "set_default_route, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
-			return false;
-		}
-
-		PIP_ADAPTER_INFO it = pi;
-		for (; it != NULL; it = it->Next)
-		{
-			std::string ip(it->IpAddressList.IpAddress.String);
-			if (ip == vaddr)
-			{
-				ifindex = it->Index;
-				break;
-			}
-		}
-
-		if (it)
-			break;
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
-	}
-	if (i == 10)
-	{
-		LOG_WARN << "set_default_route, Not found local ip: " << vaddr;
-		return false;
-	}
-
-	// 设置interface的metric, windows上的metric计算方法
-	// 是interface的metric加上route的metric的和. 我们在
-	// 这里全采用1, 也就是最大metric为2, 基本上都小于原来
-	// 默认路由的metric, 除非默认路由被用户自己修改了. 这
-	// 里不建议修改原interface的默认metric.
-	// 相关命令为:
-	// netsh interface ipv4 set interface <index> metric=<metric>
-	auto [netsh, ret] = run_command("netsh interface ipv4 set interface " + std::to_string(ifindex) + " metric=1");
-	if (!ret)
-	{
-		LOG_WARN << "set_default_route, set interface " << ifindex << " metric faild!";
-		return false;
-	}
-
-	auto [sadd, sret] = add_route(server_ip + "/32 " + gateway);
-	if (!sret)
-	{
-		LOG_WARN << "set_default_route, add server "
-			<< server_ip << " for route: " << sadd;
-		return false;
-	}
-	auto [dadd, dret] = add_route("0.0.0.0/0 " + vgateway + " 1");
-	if (!dret)
-	{
-		LOG_WARN << "set_default_route, add default for route: " << dadd;
-		return false;
-	}
-
-	return true;
-}
-
 static SECURITY_ATTRIBUTES SecurityAttributes = { .nLength = sizeof(SECURITY_ATTRIBUTES) };
 
 #if defined(AVPN_USE_WINTUN)
@@ -1914,12 +1819,6 @@ bool set_dns(const std::string&/* dns*/, std::string/* local_ip = ""*/)
 	return false;
 }
 
-bool set_default_route(const std::string&, const std::string&,
-	const std::string&, const std::string&)
-{
-	return false;
-}
-
 #elif defined(__APPLE__)
 
 uint64_t get_process_id()
@@ -1963,12 +1862,6 @@ bool set_dns(const std::string&/* dns*/, std::string/* local_ip = ""*/)
 	return false;
 }
 
-bool set_default_route(const std::string&, const std::string&,
-	const std::string&, const std::string&)
-{
-	return false;
-}
-
 #elif defined(__OpenBSD__)
 
 uint64_t get_process_id()
@@ -1991,12 +1884,6 @@ bool set_dns(const std::string&/* dns*/, std::string/* local_ip = ""*/)
 	return false;
 }
 
-bool set_default_route(const std::string&, const std::string&,
-	const std::string&, const std::string&)
-{
-	return false;
-}
-
 #else
 
 uint64_t get_process_id()
@@ -2013,12 +1900,6 @@ void set_thread_name(const char*/* name*/)
 }
 
 bool set_dns(const std::string&/* dns*/, std::string/* local_ip = ""*/)
-{
-	return false;
-}
-
-bool set_default_route(const std::string&, const std::string&,
-	const std::string&, const std::string&)
 {
 	return false;
 }

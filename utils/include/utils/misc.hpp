@@ -103,10 +103,6 @@ make_network(uint32_t u32_addr, unsigned short prefix_length);
 // 设置local_ip所指定的设备的dns, 若local_ip为空, 则设定全局dns.
 bool set_dns(const std::string& dns, std::string local_ip = "");
 
-// 设置默认网络通过虚拟网络.
-bool set_default_route(const std::string& vaddr, const std::string& vgateway,
-	const std::string& gateway, const std::string& server_ip);
-
 // 运行一个命令, 返回命令输出的信息.
 std::tuple<std::string, bool> run_command(const std::string& cmd) noexcept;
 
