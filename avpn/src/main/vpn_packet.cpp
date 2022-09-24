@@ -28,11 +28,11 @@ namespace avpn {
 		, gid_(p.gid_)
 		, pid_(p.pid_)
 		, type_(p.type_)
-		, debug_flag_(p.debug_flag_)
+		, pkt_flag_(p.pkt_flag_)
 	{
 		p.size_ = 0;
 		p.payload_size_ = 0;
-		p.debug_flag_ = -1;
+		p.pkt_flag_ = 0;
 	}
 
 	vpn_packet& vpn_packet::operator=(vpn_packet&& p)
@@ -43,13 +43,13 @@ namespace avpn {
 		gid_ = p.gid_;
 		pid_ = p.pid_;
 		type_ = p.type_;
-		debug_flag_ = p.debug_flag_;
+		pkt_flag_ = p.pkt_flag_;
 
 		p.size_ = 0;
 		p.payload_size_ = 0;
 		p.gid_ = 0;
 		p.pid_ = 0;
-		p.debug_flag_ = -1;
+		p.pkt_flag_ = 0;
 
 		return *this;
 	}
@@ -121,7 +121,7 @@ namespace avpn {
 		ret->payload_size_ = p->payload_size_;
 		ret->size_ = p->size_;
 		ret->type_ = p->type_;
-		ret->debug_flag_ = p->debug_flag_;
+		ret->pkt_flag_ = p->pkt_flag_;
 
 		return ret;
 	}
@@ -136,7 +136,7 @@ namespace avpn {
 		ret->payload_size_ = p.payload_size_;
 		ret->size_ = p.size_;
 		ret->type_ = p.type_;
-		ret->debug_flag_ = p.debug_flag_;
+		ret->pkt_flag_ = p.pkt_flag_;
 
 		return ret;
 	}
@@ -151,7 +151,7 @@ namespace avpn {
 		ret.payload_size_ = p->payload_size_;
 		ret.size_ = p->size_;
 		ret.type_ = p->type_;
-		ret.debug_flag_ = p->debug_flag_;
+		ret.pkt_flag_ = p->pkt_flag_;
 
 		return static_cast<vpn_packet&&>(ret);
 	}
@@ -166,7 +166,7 @@ namespace avpn {
 		ret.payload_size_ = p.payload_size_;
 		ret.size_ = p.size_;
 		ret.type_ = p.type_;
-		ret.debug_flag_ = p.debug_flag_;
+		ret.pkt_flag_ = p.pkt_flag_;
 
 		return static_cast<vpn_packet&&>(ret);
 	}

@@ -100,7 +100,7 @@ namespace avpn {
 		uint8_t pid_{ 0 };
 
 		vpn_packet_t type_;
-		int debug_flag_{ -1 };
+		uint32_t pkt_flag_{ 0 };
 	};
 
 	// avpn数据包整个占用内存大小.
