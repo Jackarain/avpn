@@ -81,7 +81,7 @@ include(CheckCXXLinkerFlag)
 
 ################################################################################
 
-option(ENABLE_USE_IO_URING "Enable auto use io_uring" ON)
+option(ENABLE_USE_IO_URING "Enable auto use io_uring" OFF)
 if (WIN32)
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
 	option(REQUIRE_ADMINISTRATOR "Require administrator" OFF)
