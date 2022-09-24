@@ -194,6 +194,8 @@ int main(int argc, char** argv)
 	int keepalive;
 	std::string subnet;
 	std::string ifdev;
+	std::string ptun;
+	std::string utun;
 	std::string identity;
 	std::string config;
 	std::string controller;
@@ -225,6 +227,10 @@ int main(int argc, char** argv)
 		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
 		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
+
+		("ptun", po::value<std::string>(&ptun)->default_value("")->value_name("unix domain socket path"), "Send Tun fd over unix domain socket.")
+		("utun", po::value<std::string>(&utun)->default_value("")->value_name("unix domain socket path"), "Send Tun packet over unix domain socket.")
+
 		("mtu", po::value<int>(&mtu_size)->default_value(0)->value_name("mtu"), "Tun mtu size(default: 0).")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")

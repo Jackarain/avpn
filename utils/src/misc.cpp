@@ -1955,6 +1955,70 @@ uint64_t check_pid(std::string suffix)
 	return (uint64_t)std::atoll(bufs.c_str());
 }
 
+#if defined(__APPLE__) || \
+	defined(__FreeBSD__) || \
+	defined(__linux__) || \
+	defined(__ANDROID__)
+
+int avpn_recv_fd(std::string_view unix_path)
+{
+	struct sockaddr_un address;
+	int socket_fd;
+	int evfd;
+
+	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (socket_fd < 0)
+	{
+		LOG_ERR << "avpn_recv_fd, socket() failed: " << strerror(errno);
+		return -1;
+	}
+
+	memset(&address, 0, sizeof(struct sockaddr_un));
+
+	address.sun_family = AF_UNIX;
+	strcpy(address.sun_path, unix_path.data());
+
+	if (connect(socket_fd, (struct sockaddr*)&address,
+		sizeof(struct sockaddr_un)) != 0)
+	{
+		LOG_ERR << "avpn_recv_fd, connect() failed: " << strerror(errno);
+		return -1;
+	}
+
+	auto recv_size = sizeof(struct cmsghdr) + sizeof(uint32_t);
+	std::vector<uint8_t> buffer(recv_size, 0);
+
+	struct iovec nothing_ptr;
+	char nothing;
+	nothing_ptr.iov_base = &nothing;
+	nothing_ptr.iov_len = 1;
+
+	struct msghdr msghdr;
+	msghdr.msg_name = nullptr;
+	msghdr.msg_namelen = 0;
+	msghdr.msg_iov = &nothing_ptr;
+	msghdr.msg_iovlen = 1;
+	msghdr.msg_flags = 0;
+	msghdr.msg_control = buffer.data();
+	msghdr.msg_controllen = recv_size;
+
+	struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msghdr);
+	cmsg->cmsg_len = msghdr.msg_controllen;
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+
+	*((int*)CMSG_DATA(cmsg)) = -1;
+
+	if (recvmsg(socket_fd, &msghdr, 0) < 0)
+	{
+		LOG_ERR << "avpn_recv_fd, recvmsg() failed: " << strerror(errno);
+		return(-1);
+	}
+
+	return *((int*)CMSG_DATA(cmsg));
+}
+
+#endif
 
 std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = false)
 {

@@ -77,6 +77,15 @@ void create_pid(std::string suffix, std::filesystem::path pidfile = {});
 // 检查pid文件.
 uint64_t check_pid(std::string suffix);
 
+#if defined(__APPLE__) || \
+	defined(__FreeBSD__) || \
+	defined(__linux__) || \
+	defined(__ANDROID__)
+
+int avpn_recv_fd(std::string_view unix_path);
+
+#endif
+
 // 随机字符串相关.
 int gen_random_int(int start, int end);
 std::string gen_unique_string(const unsigned int len);
