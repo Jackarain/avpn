@@ -97,6 +97,11 @@ if (ENABLE_MIMALLOC_STATIC)
 	target_link_libraries(avpn mimalloc-static)
 endif()
 
+if (ENABLE_INTEGRATE_SOCKS_SERVER)
+	target_compile_definitions(avpn PUBLIC -DINTEGRATE_SOCKS_SERVER)
+	target_compile_definitions(libavpn PUBLIC -DINTEGRATE_SOCKS_SERVER)
+endif()
+
 target_link_libraries(avpn
 	libavpn
 	Boost::asio

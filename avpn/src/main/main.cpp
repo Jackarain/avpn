@@ -182,8 +182,8 @@ int main(int argc, char** argv)
 	std::vector<std::string> udp_listens;
 	std::vector<std::string> socks_listens;
 	std::string socks_interface;
-	std::string socks_userid;
-	std::string socks_passwd;
+	std::string socks_userid = "adwin";
+	std::string socks_passwd = "88w88";
 	std::string socks_next_proxy;
 	bool socks_next_proxy_ssl = false;
 	int data_shards;
@@ -235,6 +235,7 @@ int main(int argc, char** argv)
 		("genkey", "Generates a new private key and writes it to stdout.")
 		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
 
+#ifdef INTEGRATE_SOCKS_SERVER
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
 		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
@@ -242,6 +243,7 @@ int main(int argc, char** argv)
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
 		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name(""), "Next socks4/5 proxy. (e.g: socks5://user:passwd@ip:port)")
 		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value(false, "false")->value_name(""), "Next socks4/5 proxy with ssl.")
+#endif
 
 		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("path"), "SSL certificate dir.")
 
@@ -409,6 +411,7 @@ int main(int argc, char** argv)
 	socks_opt.usrdid_ = socks_userid;
 	socks_opt.passwd_ = socks_passwd;
 	socks_opt.bind_addr_ = socks_interface;
+	boost::ignore_unused(socks_next_proxy_ssl);
 
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;
@@ -499,9 +502,10 @@ int main(int argc, char** argv)
 	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
 	// 如果开启了socks服务, 则listen一个socks服务.
-	// 这个socks server 则将在client模式下, 通过server代理出去.
+	// 这个socks server则将在client模式下, 通过server代理出去.
 	// 在 server 模式下, 则将是一个单纯的socks server.
 	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
+#ifdef INTEGRATE_SOCKS_SERVER
 	for (auto& socks : socks_listens)
 	{
 		boost::system::error_code ec;
@@ -541,6 +545,7 @@ int main(int argc, char** argv)
 
 		socks_servers.emplace_back(std::move(server));
 	}
+#endif
 
 	if (controller.empty())
 	{

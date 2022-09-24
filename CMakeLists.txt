@@ -81,6 +81,7 @@ include(CheckCXXLinkerFlag)
 
 ################################################################################
 
+option(ENABLE_INTEGRATE_SOCKS_SERVER "Enable integrate socks server" OFF)
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" OFF)
 if (WIN32)
 	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
