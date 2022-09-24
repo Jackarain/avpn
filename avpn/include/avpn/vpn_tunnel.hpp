@@ -214,6 +214,9 @@ namespace avpn {
 		// tcp write 队列.
 		std::deque<vpn_packet> m_tcp_oqe;
 
+		// tcp read 缓冲.
+		net::streambuf m_tcp_rbuf;
+
 		// tcp 连接状态.
 		bool m_tcp_connect_ready{ false };
 

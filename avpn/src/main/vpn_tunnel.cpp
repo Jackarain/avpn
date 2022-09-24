@@ -149,18 +149,21 @@ namespace avpn {
 	struct read_packet_op
 	{
 		read_packet_op(tcp::socket& s,
+			net::streambuf& buf,
 			vpn_packet_ptr pkt,
 			Handler&& h)
 			: stream_(s)
+			, tcp_rbuf_(buf)
 			, pkt_(pkt)
 			, handler_(static_cast<Handler&&>(h))
 		{}
 
 		read_packet_op(read_packet_op&& other) noexcept
 			: stream_(other.stream_)
+			, tcp_rbuf_(other.tcp_rbuf_)
 			, pkt_(std::move(other.pkt_))
 			, start_(other.start_)
-			, start_len_tag_(std::move(other.start_len_tag_))
+			, start_len_tag_(other.start_len_tag_)
 			, handler_(std::move(other.handler_))
 		{}
 
@@ -172,34 +175,48 @@ namespace avpn {
 			case 0:
 			{
 				start_ = 1;
-				net::async_read(stream_,
-					net::buffer(start_len_tag_.get(), 4),
-						static_cast<read_packet_op&&>(*this));
+				if (tcp_rbuf_.size() < 4)
+				{
+					net::async_read(stream_,
+						tcp_rbuf_,
+						asio_util::transfer_at_least(4),
+							static_cast<read_packet_op&&>(*this));
+					return;
+				}
 			}
-			return;
 			case 1:
 			{
 				if (error)
 					break;
 
-				*start_len_tag_ = ntohl(*start_len_tag_);
-				if ((uint32_t)*start_len_tag_ > (uint32_t)avpn_packet_size)
+				tcp_rbuf_.sgetn((char*)&start_len_tag_, 4);
+				start_len_tag_ = ntohl(start_len_tag_);
+
+				if ((uint32_t)start_len_tag_ > (uint32_t)avpn_packet_size)
 				{
 					error = net::error::invalid_argument;
 					break;
 				}
 
 				start_ = 2;
-				net::async_read(stream_,
-					net::buffer(pkt_->data(), *start_len_tag_),
-						static_cast<read_packet_op&&>(*this));
+
+				if (tcp_rbuf_.size() < start_len_tag_)
+				{
+					auto least = start_len_tag_ - tcp_rbuf_.size();
+					net::async_read(stream_,
+						tcp_rbuf_,
+						asio_util::transfer_at_least(least),
+							static_cast<read_packet_op&&>(*this));
+					return;
+				}
 			}
-			return;
 			default:
 				if (!error)
 				{
-					BOOST_ASSERT(bytes == *start_len_tag_);
-					pkt_->resize(*start_len_tag_);
+					BOOST_ASSERT(tcp_rbuf_.size() >= start_len_tag_);
+
+					tcp_rbuf_.sgetn((char*)pkt_->data(), start_len_tag_);
+					pkt_->resize(start_len_tag_);
 				}
 				break;
 			}
@@ -208,10 +225,10 @@ namespace avpn {
 		}
 
 		tcp::socket& stream_;
+		net::streambuf& tcp_rbuf_;
 		vpn_packet_ptr pkt_;
 		int start_{ 0 };
-		std::unique_ptr<uint32_t> start_len_tag_{
-			std::make_unique<uint32_t>(0) };
+		uint32_t start_len_tag_{ 0 };
 		Handler handler_;
 	};
 
@@ -727,7 +744,7 @@ namespace avpn {
 		{
 			auto ptr = std::make_shared<vpn_packet>();
 
-			read_packet_op(m_tcp_socket, ptr,
+			read_packet_op(m_tcp_socket, m_tcp_rbuf, ptr,
 				[this, self, ptr](boost::system::error_code ec) mutable
 				{
 					if (!ec)
