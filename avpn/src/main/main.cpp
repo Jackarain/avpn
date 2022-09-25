@@ -405,6 +405,28 @@ int main(int argc, char** argv)
 	cfg.udp_listens_ = udp_listens;
 
 	cfg.ifdev_ = ifdev;
+	if (ifdev.empty())
+	{
+		if (!utun.empty())
+		{
+			cfg.utun_fd_  = avpn_recv_fd(utun);
+			if (cfg.utun_fd_ == -1)
+			{
+				LOG_ERR << "Recv utun fd from: " << utun << " failed!";
+				return EXIT_FAILURE;
+			}
+		}
+		else if (!ptun.empty())
+		{
+			cfg.ptun_fd_ = avpn_recv_fd(ptun);
+			if (cfg.ptun_fd_ == -1)
+			{
+				LOG_ERR << "Recv ptun fd from: " << ptun << " failed!";
+				return EXIT_FAILURE;
+			}
+		}
+	}
+
 	cfg.controller_ = controller;
 	cfg.private_key_ = privatekey;
 	cfg.public_key_ = publickey;
