@@ -25,11 +25,6 @@ include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
 include(CheckIPOSupported)
 
-check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
-if (lto_supported)
-    message(STATUS "IPO / LTO enabled")
-	set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
 ################################################################################
 
 # Disable in-source builds to prevent source tree corruption.
@@ -80,7 +75,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SO
 include(CheckCXXLinkerFlag)
 
 ################################################################################
-
+option(ENABLE_INTERPROCEDURAL_OPTIMIZATION "Enable Interprocedural Optimization" OFF)
 option(ENABLE_INTEGRATE_SOCKS_SERVER "Enable integrate socks server" OFF)
 option(ENABLE_USE_IO_URING "Enable auto use io_uring" OFF)
 if (WIN32)
@@ -109,6 +104,16 @@ option(ENABLE_LLD "build using lld" OFF)
 
 option(ENABLE_BUILD_TESTS "build avpn's unit tests" OFF)
 option(LINKE_TO_LIBATOMIC "link to libatomic.so - some platform requires it" OFF)
+
+################################################################################
+
+if (ENABLE_INTERPROCEDURAL_OPTIMIZATION)
+	check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
+	if (lto_supported)
+		message(STATUS "IPO / LTO enabled")
+		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+	endif()
+endif()
 
 ################################################################################
 
