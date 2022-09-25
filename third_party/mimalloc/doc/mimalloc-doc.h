@@ -56,7 +56,7 @@ Notable aspects of the design include:
 - __first-class heaps__: efficiently create and use multiple heaps to allocate across different regions.
   A heap can be destroyed at once instead of deallocating each object separately.
 - __bounded__: it does not suffer from _blowup_ \[1\], has bounded worst-case allocation
-  times (_wcat_), bounded space overhead (~0.2% meta-data, with at most 12.5% waste in allocation sizes),
+  times (_wcat_), bounded space overhead (~0.2% meta-data, with low internal fragmentation),
   and has no internal points of contention using only atomic operations.
 - __fast__: In our benchmarks (see [below](#performance)),
   _mimalloc_ outperforms all other leading allocators (_jemalloc_, _tcmalloc_, _Hoard_, etc),
@@ -1080,7 +1080,7 @@ or via environment variables.
 - `MIMALLOC_PAGE_RESET=0`: by default, mimalloc will reset (or purge) OS pages when not in use to signal to the OS
    that the underlying physical memory can be reused. This can reduce memory fragmentation in long running (server)
    programs. By setting it to `0` no such page resets will be done which can improve performance for programs that are not long
-   running. As an alternative, the `MIMALLOC_RESET_DELAY=`<msecs> can be set higher (100ms by default) to make the page
+   running. As an alternative, the `MIMALLOC_DECOMMIT_DELAY=`<msecs> can be set higher (100ms by default) to make the page
    reset occur less frequently instead of turning it off completely.
 - `MIMALLOC_LARGE_OS_PAGES=1`: use large OS pages (2MiB) when available; for some workloads this can significantly
    improve performance. Use `MIMALLOC_VERBOSE` to check if the large OS pages are enabled -- usually one needs

@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.0)
 project(libmimalloc C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -13,7 +13,7 @@ option(MI_SHOW_ERRORS       "Show error and warning messages by default (only en
 option(MI_USE_CXX           "Use the C++ compiler to compile the library (instead of the C compiler)" OFF)
 option(MI_SEE_ASM           "Generate assembly files" OFF)
 option(MI_OSX_INTERPOSE     "Use interpose to override standard malloc on macOS" ON)
-option(MI_OSX_ZONE          "Use malloc zone to override standard malloc on macOS" ON)
+option(MI_OSX_ZONE          "Use malloc zone to override standard malloc on macOS" ON) 
 option(MI_LOCAL_DYNAMIC_TLS "Use slightly slower, dlopen-compatible TLS mechanism (Unix)" OFF)
 option(MI_BUILD_SHARED      "Build shared library" ON)
 option(MI_BUILD_STATIC      "Build static library" ON)
@@ -37,7 +37,7 @@ set(mi_sources
     src/os.c
     src/bitmap.c
     src/arena.c
-    src/region.c
+    src/segment-cache.c
     src/segment.c
     src/page.c
     src/alloc.c
@@ -45,16 +45,14 @@ set(mi_sources
     src/alloc-posix.c
     src/heap.c
     src/options.c
-    src/init.c
-    src/mimalloc-new-delete.cpp
-    )
+    src/init.c)
 
 
 # -----------------------------------------------------------------------------
 # Convenience: set default build type depending on the build directory
 # -----------------------------------------------------------------------------
 
-message(STATUS "")
+message(STATUS "")    
 if (NOT CMAKE_BUILD_TYPE)
   if ("${CMAKE_BINARY_DIR}" MATCHES ".*(D|d)ebug$" OR  MI_DEBUG_FULL)
     message(STATUS "No build type selected, default to: Debug")
@@ -86,7 +84,7 @@ if(MI_OVERRIDE)
       # use zone's on macOS
       message(STATUS "  Use malloc zone to override malloc (MI_OSX_ZONE=ON)")
       list(APPEND mi_sources src/alloc-override-osx.c)
-      list(APPEND mi_defines MI_OSX_ZONE=1)
+      list(APPEND mi_defines MI_OSX_ZONE=1)      
       if (NOT MI_OSX_INTERPOSE)
         message(STATUS "  WARNING: zone overriding usually also needs interpose (use -DMI_OSX_INTERPOSE=ON)")
       endif()
@@ -99,8 +97,8 @@ if(MI_OVERRIDE)
         message(STATUS "  WARNING: interpose usually also needs zone overriding (use -DMI_OSX_INTERPOSE=ON)")
       endif()
     endif()
-    if((NOT MI_USE_CXX) AND MI_OVERRIDE)
-      message(STATUS "  WARNING: if overriding C++ new/delete, it is best to build mimalloc with a C++ compiler (use -DMI_USE_CXX=ON)")
+    if(MI_USE_CXX AND MI_OSX_INTERPOSE)
+      message(STATUS "  WARNING: if dynamically overriding malloc/free, it is more reliable to build mimalloc as C code (use -DMI_USE_CXX=OFF)")
     endif()
   endif()
 endif()
@@ -152,12 +150,12 @@ if(MI_DEBUG_TSAN)
     list(APPEND mi_cflags -fsanitize=thread -g -O1)
     list(APPEND CMAKE_EXE_LINKER_FLAGS -fsanitize=thread)
   else()
-    message(WARNING "Can only use thread sanitizer with clang (MI_DEBUG_TSAN=ON but ignored)")
-  endif()
+    message(WARNING "Can only use thread sanitizer with clang (MI_DEBUG_TSAN=ON but ignored)")    
+  endif()  
 endif()
 
 if(MI_DEBUG_UBSAN)
-  if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  if(CMAKE_BUILD_TYPE MATCHES "Debug")    
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       message(STATUS "Build with undefined-behavior sanitizer (MI_DEBUG_UBSAN=ON)")
       list(APPEND mi_cflags -fsanitize=undefined -g -fno-sanitize-recover=undefined)
@@ -167,10 +165,10 @@ if(MI_DEBUG_UBSAN)
         set(MI_USE_CXX "ON")
       endif()
     else()
-      message(WARNING "Can only use undefined-behavior sanitizer with clang++ (MI_DEBUG_UBSAN=ON but ignored)")
-    endif()
+      message(WARNING "Can only use undefined-behavior sanitizer with clang++ (MI_DEBUG_UBSAN=ON but ignored)")    
+    endif()  
   else()
-    message(WARNING "Can only use thread sanitizer with a debug build (CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")
+    message(WARNING "Can only use thread sanitizer with a debug build (CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE})")    
   endif()
 endif()
 
@@ -191,7 +189,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
   list(APPEND mi_cflags -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden)
   if(NOT MI_USE_CXX)
     list(APPEND mi_cflags -Wstrict-prototypes)
-  endif()
+  endif()  
   if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
     list(APPEND mi_cflags -Wpedantic -Wno-static-in-inline)
   endif()
@@ -221,15 +219,15 @@ if(WIN32)
   list(APPEND mi_libraries psapi shell32 user32 advapi32 bcrypt)
 else()
   find_library(MI_LIBPTHREAD pthread)
-  if (MI_LIBPTHREAD)
+  if (MI_LIBPTHREAD)                      
     list(APPEND mi_libraries ${MI_LIBPTHREAD})
   endif()
   find_library(MI_LIBRT rt)
   if(MI_LIBRT)
     list(APPEND mi_libraries ${MI_LIBRT})
-  endif()
+  endif()  
   find_library(MI_LIBATOMIC atomic)
-  if (MI_LIBATOMIC OR MI_USE_LIBATOMIC)
+  if (MI_LIBATOMIC OR MI_USE_LIBATOMIC) 
     list(APPEND mi_libraries atomic)
   endif()
 endif()
@@ -245,7 +243,7 @@ set(mi_install_libdir   "${CMAKE_INSTALL_LIBDIR}")
 # are either installed at top level, or use versioned directories for side-by-side installation (default)
 if (MI_INSTALL_TOPLEVEL)
   set(mi_install_objdir     "${CMAKE_INSTALL_LIBDIR}")
-  set(mi_install_incdir     "${CMAKE_INSTALL_INCLUDEDIR}")
+  set(mi_install_incdir     "${CMAKE_INSTALL_INCLUDEDIR}")        
   set(mi_install_cmakedir   "${CMAKE_INSTALL_LIBDIR}/cmake/mimalloc")
 else()
   set(mi_install_objdir     "${CMAKE_INSTALL_LIBDIR}/mimalloc-${mi_version}")       # for static library and object files
@@ -321,7 +319,7 @@ if(MI_BUILD_SHARED)
     install(FILES "$<TARGET_FILE_DIR:mimalloc>/mimalloc-redirect${MIMALLOC_REDIRECT_SUFFIX}.dll" DESTINATION ${mi_install_libdir})
   endif()
 
-  install(TARGETS mimalloc EXPORT mimalloc DESTINATION ${mi_install_libdir} LIBRARY)
+  install(TARGETS mimalloc EXPORT mimalloc DESTINATION ${mi_install_libdir} LIBRARY)  
   install(EXPORT mimalloc DESTINATION ${mi_install_cmakedir})
 endif()
 

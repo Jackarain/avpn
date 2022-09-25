@@ -24,7 +24,7 @@ static mi_decl_noinline void* mi_heap_malloc_zero_aligned_at_fallback(mi_heap_t*
   const size_t padsize = size + MI_PADDING_SIZE;
 
   // use regular allocation if it is guaranteed to fit the alignment constraints
-  if (offset==0 && alignment<=padsize && padsize<=MI_MEDIUM_OBJ_SIZE_MAX && (padsize&align_mask)==0) {
+  if (offset==0 && alignment<=padsize && padsize<=MI_MAX_ALIGN_GUARANTEE && (padsize&align_mask)==0) {
     void* p = _mi_heap_malloc_zero(heap, size, zero);
     mi_assert_internal(p == NULL || ((uintptr_t)p % alignment) == 0);
     return p;
