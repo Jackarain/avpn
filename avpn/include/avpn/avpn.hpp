@@ -139,6 +139,15 @@ namespace avpn {
 		// 指定tun设备名称.
 		std::string ifdev_;
 
+		// 外部传递tun fd到avpn中.
+		// avpn将使用ptun_fd_构造一个对象直接访问tun设备.
+		int ptun_fd_{ -1 };
+
+		// 外部传递的unix domain socket的fd.
+		// avpn将通过这个unix domain socket读取或发出ip数据包, 这个
+		// socket只是一个与tun设备的ipc通信.
+		int utun_fd_{ -1 };
+
 		// 用于控制avpn的controller的信息.avpn将自动连接controller,
 		// 并等待controller发送控制信息：开启或关闭, 或获取avpn实时速
 		// 率等信息.
