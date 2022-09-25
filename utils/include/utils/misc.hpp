@@ -84,6 +84,10 @@ uint64_t check_pid(std::string suffix);
 
 int avpn_recv_fd(std::string_view unix_path);
 
+#else
+
+int avpn_recv_fd(std::string_view);
+
 #endif
 
 // 随机字符串相关.

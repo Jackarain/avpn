@@ -2018,6 +2018,13 @@ int avpn_recv_fd(std::string_view unix_path)
 	return *((int*)CMSG_DATA(cmsg));
 }
 
+#else
+
+int avpn_recv_fd(std::string_view)
+{
+	return -1;
+}
+
 #endif
 
 std::tuple<std::string, bool> route_ops(const std::string& route, bool flag = false)
