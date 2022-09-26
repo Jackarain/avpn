@@ -283,19 +283,20 @@ namespace avpn {
 		using util::logger_aux__::gettime;
 		uint64_t t1 = 0, t2 = 0;
 
+		const auto usable_size = avpn_packet_size - avpn_payload_header_size;
+
 		while (!m_abort)
 		{
 			vpn_packet pkt;
 
 			auto payload = pkt.data() + avpn_payload_header_size;
-			auto size = avpn_packet_size - avpn_payload_header_size;
 
 			t2 = gettime();
 			if (t1 != 0)
 				m_internal_stat.packet_spent_time_ += (t2 - t1);
 
 			auto bytes = co_await m_tundev.async_read_some(
-				net::buffer(payload, size), uawaitable[ec]);
+				net::buffer(payload, usable_size), uawaitable[ec]);
 			if (ec)
 			{
 				LOG_FILE << "tun_read_loop, read: " << ec.message();
@@ -306,9 +307,9 @@ namespace avpn {
 			m_internal_stat.tun_rx_++;
 			m_internal_stat.tun_rx_perseconds_++;
 
-			// 重置 pkt 的 payload size.
-			pkt.resize(bytes + avpn_payload_header_size);
-			pkt.payload_size(bytes);
+			// 重新计算 pkt 的 size 及 payload size.
+			pkt.size_ = (uint16_t)(bytes + avpn_payload_header_size);
+			pkt.payload_size_ = (uint16_t)bytes;
 
 			// 解析ip相关的信息.
 			auto endp = parser_endpoint(payload, bytes);
@@ -318,7 +319,7 @@ namespace avpn {
 				continue;
 
 			// 保存数据包类型.
-			pkt.type((vpn_packet_t)endp.type_);
+			pkt.type_ = (vpn_packet_t)endp.type_;
 
 			// 根据程序的身份, 准备透传.
 			if (m_config.identity_ == Identity::avpn_server)
@@ -500,7 +501,7 @@ namespace avpn {
  		auto& udp_socket = socket_ptr->sock_;
 		if (m_udp_writing > 5592)
 		{
-			udp_socket.send_to(net::buffer(pkt.data(), pkt.size()), remote);
+			udp_socket.send_to(net::buffer(pkt.data(), pkt.size_), remote);
 			return;
 		}
 
@@ -509,7 +510,7 @@ namespace avpn {
 
 		// 直接发送, 仅在回调时释放packet.
 		udp_socket.async_send_to(
-			net::buffer(ptr, pkt.size()),
+			net::buffer(ptr, pkt.size_),
 			remote,
 			[this, ptr, remote](boost::system::error_code ec, std::size_t) mutable
 			{

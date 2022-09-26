@@ -54,6 +54,7 @@ BOOST_AUTO_TEST_CASE(test_handshake)
 	BOOST_TEST(len == bytes);
 }
 
+#if 0
 BOOST_AUTO_TEST_CASE(test_transfer)
 {
 	uint32_t src = 167772225;
@@ -87,3 +88,4 @@ BOOST_AUTO_TEST_CASE(test_transfer)
 
 	BOOST_TEST(d1 == d2);
 }
+#endif

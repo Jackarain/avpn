@@ -50,7 +50,7 @@ namespace avpn {
 		compress_deflate,
 	};
 
-	const inline uint16_t avpn_protocol_version = 1;
+	const inline uint16_t avpn_protocol_version = 2;
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -61,6 +61,7 @@ namespace avpn {
 	// rsv  (1b)
 	// type (6b)
 	// src  (1)
+
 	vpn_packet make_common_header(
 		bool enc, uint8_t type, uint32_t src);
 
@@ -81,6 +82,7 @@ namespace avpn {
 	// pubkey(pubkey_len)
 	// ds(8)
 	// ps(8)
+
 	vpn_packet make_handshake(uint32_t src,
 		std::string_view id, std::string_view pubkey,
 		uint8_t ds, uint8_t ps);
@@ -104,6 +106,7 @@ namespace avpn {
 	// pushdns(32)
 	// routes(8)
 	// {size(u8), string[size]}[routes]
+
 	vpn_packet make_handshake_reply(std::string_view id,
 		uint8_t ds, uint8_t ps,
 		uint32_t addr, uint8_t prefix_length,
@@ -127,6 +130,7 @@ namespace avpn {
 	// port(16)
 	// pubkey_len(8)
 	// pubkey(pubkey_len)
+
 	vpn_packet make_tun2socks(
 		std::string_view target, uint16_t port,
 		std::string_view pubkey);
@@ -143,6 +147,7 @@ namespace avpn {
 	// status(8)
 	// reason_len(8)
 	// reason(reason_len)
+
 	vpn_packet make_tun2socks_reply(
 		uint8_t status, std::string_view reason);
 
@@ -158,6 +163,7 @@ namespace avpn {
 	// id(id_len)
 	// rx(32)
 	// tx(32)
+
 	vpn_packet make_keepalive(uint32_t src,
 		std::string_view id,
 		uint32_t rx, uint32_t tx,
@@ -178,6 +184,7 @@ namespace avpn {
 	// id(id_len)
 	// rx(32)
 	// tx(32)
+
 	vpn_packet make_keepalive_reply(uint32_t src,
 		std::string_view id,
 		uint32_t rx, uint32_t tx,
@@ -194,57 +201,50 @@ namespace avpn {
 
 	// 传输数据消息, c <-> s.
 	// 协议格式
-	// gid(32)
-	// pid(8)
+	// index(64)
 	// rsv(8)
-	// rsv(8)
-	// data_len(16)
-	// data(data_len)
+	// data(payload_size)
+
 	vpn_packet make_transfer(uint32_t src,
-		uint32_t gid, uint8_t pid, std::string_view data);
+		uint64_t index, std::string_view data);
 
 	void make_transfer(vpn_packet& pkt,
-		uint32_t src, uint32_t gid, uint8_t pid,
-		std::string_view data);
+		uint32_t src, uint64_t index, std::string_view data);
 
-	int unwrap_transfer(vpn_packet& pkt,
-		uint32_t& src, uint32_t& gid, uint8_t& pid);
+	int unwrap_transfer(vpn_packet& pkt, uint32_t& src, uint64_t& index);
 
 
 	//////////////////////////////////////////////////////////////////////////
 
 	// 传输数据消息, c <-> s.
 	// 协议格式
-	// gid(32)
-	// pid(8)
+	// index(64)
 	// compress_type(8)
-	// rsv(8)
-	// data_len(16)
-	// data(data_len)
+	// data(payload_size)
+
 	vpn_packet make_transfer_compress(uint32_t src,
-		uint32_t gid, uint8_t pid,
+		uint64_t index,
 		uint8_t ctype, std::string_view data);
 
 	void make_transfer_compress(vpn_packet& pkt,
-		uint32_t src, uint32_t gid, uint8_t pid,
+		uint32_t src,
+		uint64_t index,
 		uint8_t ctype, std::string_view data);
 
-	vpn_packet_ptr unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
-		uint32_t& gid, uint8_t& pid, uint8_t& ctype);
+	vpn_packet_ptr unwrap_transfer_compress(
+		vpn_packet& pkt, uint32_t& src,
+		uint64_t& index, uint8_t& ctype);
 
 
 	//////////////////////////////////////////////////////////////////////////
 
 	// ack消息, s <-> c.
 	// 协议格式
-	// gid(32)
-	// pid(8)
-	// rsv(16)
-	// rsv(8)
+	// index(64)
 
 	vpn_packet make_transfer_ack(uint32_t src,
-		uint32_t gid);
+		uint64_t index);
 
 	int unwrap_transfer_ack(vpn_packet& pkt,
-		uint32_t& src, uint32_t& gid);
+		uint32_t& src, uint64_t& index);
 }

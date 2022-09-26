@@ -204,7 +204,7 @@ namespace avpn {
 			if (len < (size_t)ihl + 4)
 				return {};
 
-			[[maybe_unused]] uint16_t total = ntohs(*(uint16_t*)(buf + 2));
+			uint16_t total = ntohs(*(uint16_t*)(buf + 2));
 			uint16_t id = ntohs(*(uint16_t*)(buf + 4));
 			uint8_t type = *(uint8_t*)(buf + 9);
 			uint32_t src_ip = (*(uint32_t*)(buf + 12));

@@ -96,8 +96,7 @@ namespace avpn {
 		uint16_t size_{ 0 };
 		uint16_t payload_size_{ 0 };
 
-		uint32_t gid_{ 0 };
-		uint8_t pid_{ 0 };
+		uint64_t index_{ 0 };
 
 		vpn_packet_t type_;
 		uint32_t pkt_flag_{ 0 };

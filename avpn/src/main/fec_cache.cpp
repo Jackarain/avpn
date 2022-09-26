@@ -148,28 +148,29 @@ namespace avpn
 
 	void fec_encode_group::make_fec_normal(vpn_packet& pkt, uint32_t src)
 	{
-		auto [gid, pid] = fetch_ids();
+		// 获取当前fec编码index以及gid,pid值.
+		auto [index, gid, pid] = fetch_ids();
+
+		// 获取ip包数据用于计算transfer协议.
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 
 		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
 		if (ds_ == 1 && pid != 0)
 		{
-			auto p = pkt.data();
-			p[9] = pid;
-			pkt.pid_ = pid;
-
+			make_transfer(pkt, src, index, sv);
+			pkt.index_ = index;
 			return;
 		}
 
 		// 构造transfer数据包.
-		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
-		make_transfer(pkt, src, gid, pid, sv);
+		make_transfer(pkt, src, index, sv);
 
 		// 倍发模式不再作fec编码.
 		if (ds_ <= 1)
 			return;
 
 		// 保存到fec编码缓冲.
-		pkts_[pid] = std::make_shared<vpn_packet>(dup_vpn_packet(pkt));
+		pkts_[pid] = dup_vpn_packet_ptr(pkt);
 
 		// 判断fec编码是否达到可实施fec编码大小要求.
 		// 如果达到, 则直接进行fec编码.
@@ -190,35 +191,37 @@ namespace avpn
 				ptr->resize(avpn_packet_size);
 				ptr->payload_size(avpn_static_mtu);
 
-				auto [fgid, fpid] = fetch_ids();
+				auto [findex, fgid, fpid] = fetch_ids();
+				ptr->index_ = findex;
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
 					(char*)ptr->payload(),
 					avpn_static_mtu);
 
-				make_transfer(*ptr, src, fgid, fpid, fsv);
+				make_transfer(*ptr, src, findex, fsv);
 			}
 		}
 	}
 
 	void fec_encode_group::make_fec_zstd(vpn_packet& pkt, uint32_t src)
 	{
-		auto [gid, pid] = fetch_ids();
+		// 获取当前fec编码index以及gid,pid值.
+		auto [index, gid, pid] = fetch_ids();
+
+		// 获取ip包数据用于计算transfer协议.
+		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 
 		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
 		if (ds_ == 1 && pid != 0)
 		{
-			auto p = pkt.data();
-			p[9] = pid;
-			pkt.pid_ = pid;
-
+			make_transfer(pkt, src, index, sv);
+			pkt.index_ = index;
 			return;
 		}
 
 		// 构造transfer数据包.
-		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
-		make_transfer_compress(pkt, src, gid, pid, compress_zstd, sv);
+		make_transfer_compress(pkt, src, index, compress_zstd, sv);
 
 		// 倍发模式不再作fec编码.
 		if (ds_ <= 1)
@@ -246,7 +249,8 @@ namespace avpn
 				ptr->resize(avpn_packet_size);
 				ptr->payload_size(avpn_static_mtu);
 
-				auto [fgid, fpid] = fetch_ids();
+				auto [findex, fgid, fpid] = fetch_ids();
+				ptr->index_ = findex;
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
@@ -254,16 +258,17 @@ namespace avpn
 					avpn_static_mtu);
 
 				make_transfer_compress(*ptr,
-					src, fgid, fpid, compress_zstd, fsv);
+					src, findex, compress_zstd, fsv);
 			}
 		}
 	}
 
-	std::tuple<uint32_t, uint8_t> fec_encode_group::fetch_ids()
+	std::tuple<uint64_t, uint32_t, uint8_t> fec_encode_group::fetch_ids()
 	{
 		scoped_exit se([this]() { index_++; });
 
 		return {
+			index_,
 			static_cast<uint32_t>((index_ / shards_) + 1),
 			static_cast<uint8_t>(index_ % shards_)
 		};
@@ -332,9 +337,8 @@ namespace avpn
 	}
 
 	void fec_decode_group::update(
-		uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt)
+		uint64_t gid, uint64_t pid, vpn_packet_ptr& pkt)
 	{
-		BOOST_ASSERT(gid > 0);
 		gid_ = gid;
 
 		pkts_[pid] = pkt;
@@ -426,7 +430,7 @@ namespace avpn
 	}
 
 	std::tuple<bool, bool> fec_recover::update(
-		uint32_t gid, uint16_t pid,
+		uint64_t gid, uint64_t pid,
 		int ds, int ps,
 		vpn_packet& pkt)
 	{
@@ -436,10 +440,9 @@ namespace avpn
 		auto ptr = dup_vpn_packet_ptr(pkt);
 
 		auto clean_gops =
-		[this](uint32_t& gid) mutable -> void
+		[this](uint64_t& gid) mutable -> void
 		{
-			// 作gop清理工作, 清理gid大于当前gid + 64的
-			// gop.
+			// 作gop清理工作, 清理gid大于当前gid + 64的gop.
 			for (auto it = groups_.begin();
 				it != groups_.end();)
 			{
@@ -452,8 +455,7 @@ namespace avpn
 			}
 		};
 
-		// 查找是否已存在创建的gop, 如果不存在则创建
-		// 新的gop.
+		// 查找是否已存在创建的gop, 如果不存在则创建新的gop.
 		auto it = groups_.find(gid);
 		if (it == groups_.end())
 		{
@@ -506,12 +508,13 @@ namespace avpn
 			return { false, false };
 
 		// 解码出丢失的pkt后, 将其放入result容器中.
+		auto shards = ds + ps;
+		auto start_index = gop.gid_ * shards;
 		for (auto& index : lost_pkts)
 		{
 			auto& p = gop.pkts_[index];
 
-			p->gid_ = gid;
-			p->pid_ = (uint8_t)index;
+			p->index_ = start_index + index;
 
 			results_.emplace_back(std::move(p));
 		}

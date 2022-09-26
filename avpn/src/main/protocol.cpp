@@ -26,7 +26,7 @@ namespace avpn {
 		writer.WriteUInt32(src);
 
 		auto bytes = writer.ByteOffset();
-		pkt.resize(bytes);
+		pkt.size_ = (uint16_t)bytes;
 
 		return pkt;
 	}
@@ -45,7 +45,7 @@ namespace avpn {
 	int unwrap_common_header(vpn_packet& pkt,
 		bool& enc, uint8_t& type, uint32_t& src)
 	{
-		bitstream reader(pkt.data(), pkt.size());
+		bitstream reader(pkt.data(), pkt.size_);
 		uint32_t t = 0;
 
 		bool ret = reader.ReadBits(&t, 1);
@@ -100,8 +100,8 @@ namespace avpn {
 			return -1;
 		if (type != vpt_handshake)
 			return -1;
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto remainder = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, remainder);
 		uint8_t length = 0;
 
 		bool ret = reader.ReadUInt8(&length);
@@ -189,8 +189,8 @@ namespace avpn {
 			return -1;
 		if (type != vpt_handshake_reply)
 			return -1;
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto remainder = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, remainder);
 		uint8_t v8 = 0;
 
 		bool ret = reader.ReadUInt8(&v8);
@@ -274,8 +274,8 @@ namespace avpn {
 		if (type != vpt_tun2socks)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto remainder = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, remainder);
 		uint8_t length = 0;
 
 		bool ret = reader.ReadUInt8(&length);
@@ -329,8 +329,8 @@ namespace avpn {
 		if (type != vpt_tun2socks_reply)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto remainder = pkt.size() - bytes;
+		bitstream reader(pkt.data() + bytes, remainder);
 
 		bool ret = reader.ReadUInt8(&status);
 		if (!ret) return -1;
@@ -385,34 +385,34 @@ namespace avpn {
 		if (type != vpt_keepalive)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
+		auto remainder = pkt.size() - bytes;
 		auto r = pkt.data() + bytes;
 		const auto base = r;
 
-		surplus -= sizeof(uint8_t);
-		if (surplus < 0)
+		remainder -= sizeof(uint8_t);
+		if (remainder < 0)
 			return -1;
 		uint8_t length = stream_endian::read_uint8(r);
 		BOOST_ASSERT(length <= 32);
 		if (length > 32)
 			return -1;
 
-		surplus -= length;
-		if (surplus < 0)
+		remainder -= length;
+		if (remainder < 0)
 			return -1;
 		id.assign((const char*)r, length);
 		r += length;
 
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint32_t);
+		if (remainder < 0) return -1;
 		rx = stream_endian::read_uint32(r);
 
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint32_t);
+		if (remainder < 0) return -1;
 		tx = stream_endian::read_uint32(r);
 
-		surplus -= sizeof(uint64_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint64_t);
+		if (remainder < 0) return -1;
 		timestamp = stream_endian::read_uint64(r);
 
 		bytes = static_cast<int>(r - base);
@@ -458,34 +458,34 @@ namespace avpn {
 		if (type != vpt_keepalive_reply)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
+		auto remainder = pkt.size() - bytes;
 		auto r = pkt.data() + bytes;
 		const auto base = r;
 
-		surplus -= sizeof(uint8_t);
-		if (surplus < 0)
+		remainder -= sizeof(uint8_t);
+		if (remainder < 0)
 			return -1;
 		uint8_t length = stream_endian::read_uint8(r);
 		BOOST_ASSERT(length <= 32);
 		if (length > 32)
 			return -1;
 
-		surplus -= length;
-		if (surplus < 0)
+		remainder -= length;
+		if (remainder < 0)
 			return -1;
 		id.assign((const char*)r, length);
 		r += length;
 
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint32_t);
+		if (remainder < 0) return -1;
 		rx = stream_endian::read_uint32(r);
 
-		surplus -= sizeof(uint32_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint32_t);
+		if (remainder < 0) return -1;
 		tx = stream_endian::read_uint32(r);
 
-		surplus -= sizeof(uint64_t);
-		if (surplus < 0) return -1;
+		remainder -= sizeof(uint64_t);
+		if (remainder < 0) return -1;
 		timestamp = stream_endian::read_uint64(r);
 
 		bytes = static_cast<int>(r - base);
@@ -493,52 +493,42 @@ namespace avpn {
 	}
 
 	vpn_packet make_transfer(uint32_t src,
-		uint32_t gid, uint8_t pid, std::string_view data)
+		uint64_t index, std::string_view data)
 	{
 		auto pkt = make_common_header(false, vpt_transfer, src);
-		bitstream writer(pkt.data() + pkt.size(),
-			avpn_packet_size - pkt.size());
+		auto p = pkt.data() + avpn_pkt_header_size;
 
-		pkt.gid_ = gid;
-		pkt.pid_ = pid;
+		pkt.index_ = index;
+		stream_endian::write_uint64(index, p); // index
+		stream_endian::write_uint8(0, p); // rsv
+		stream_endian::write_string(data, p);	// payload
 
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(pid);
-		writer.WriteUInt8(0);
-		writer.WriteUInt8(0);
+		pkt.payload_size_ = (uint16_t)data.size();
 
-		writer.WriteUInt16((uint16_t)data.size());
-		writer.WriteString(data.data(), data.size());
-
-		auto bytes = writer.ByteOffset();
-		pkt.resize(pkt.size() + bytes);
+		auto bytes = (p - pkt.data());
+		pkt.size_ = (uint16_t)bytes;
 
 		return pkt;
 	}
 
 	void make_transfer(vpn_packet& pkt, uint32_t src,
-		uint32_t gid, uint8_t pid, std::string_view data)
+		uint64_t index, std::string_view data)
 	{
 		make_common_header(pkt, false, vpt_transfer, src);
-		bitstream writer(pkt.data() + avpn_pkt_header_size,
-			avpn_packet_size - avpn_pkt_header_size);
+		auto p = pkt.data() + avpn_pkt_header_size;
 
-		pkt.gid_ = gid;
-		pkt.pid_ = pid;
+		pkt.index_ = index;
+		stream_endian::write_uint64(index, p); // index
+		stream_endian::write_uint8(0, p); // rsv
+		stream_endian::write_string(data, p);	// payload
 
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(pid);
-		writer.WriteUInt8(0);
-		writer.WriteUInt8(0);
+		pkt.payload_size_ = (uint16_t)data.size();
 
-		writer.WriteUInt16((uint16_t)data.size());
-
-		auto bytes = writer.ByteOffset() + data.size();
-		pkt.resize(avpn_pkt_header_size + bytes);
+		auto bytes = (p - pkt.data());
+		pkt.size_ = (uint16_t)bytes;
 	}
 
-	int unwrap_transfer(vpn_packet& pkt,
-		uint32_t& src, uint32_t& gid, uint8_t& pid)
+	int unwrap_transfer(vpn_packet& pkt, uint32_t& src, uint64_t& index)
 	{
 		bool enc;
 		uint8_t type;
@@ -549,130 +539,115 @@ namespace avpn {
 		if (type != vpt_transfer)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto remainder = pkt.size_ - bytes;
+		auto start = pkt.data() + bytes;
+		auto end = pkt.data() + pkt.size_;
 
-		auto ret = reader.ReadUInt32(&gid);
-		if (!ret) return -1;
+		if (start + sizeof(uint64_t) > end)
+			return -1;
+		index = stream_endian::read_uint64(start); // index
+		pkt.index_ = index;
 
-		ret = reader.ReadUInt8(&pid);
-		if (!ret) return -1;
+		if (start + sizeof(uint8_t) > end)
+			return -1;
+		stream_endian::read_uint8(start); // rsv
 
-		uint8_t rsv = 0;
-		ret = reader.ReadUInt8(&rsv);
-		if (!ret) return -1;
-		ret = reader.ReadUInt8(&rsv);
-		if (!ret) return -1;
+		pkt.payload_size_ = pkt.size_ - avpn_payload_header_size;
 
-		pkt.gid_ = gid;
-		pkt.pid_ = pid;
-
-		uint16_t length = 0;
-		ret = reader.ReadUInt16(&length);
-		if (!ret) return -1;
-
-		BOOST_ASSERT(length <= surplus);
-		length = std::min<uint16_t>(length, (uint16_t)surplus);
-
-		pkt.payload_size(length);
-
-		bytes += (int)reader.ByteOffset() + length;
+		BOOST_ASSERT(pkt.payload_size_ <= remainder);
+		bytes += pkt.payload_size_;
 
 		return bytes;
 	}
 
 	vpn_packet make_transfer_compress(uint32_t src,
-		uint32_t gid, uint8_t pid,
+		uint64_t index,
 		uint8_t ctype, std::string_view data)
 	{
 		auto pkt = make_common_header(
 			false, vpt_transfer_compress, src);
 
-		bitstream writer(pkt.data() + pkt.size(),
-			avpn_packet_size - pkt.size());
+		auto start = pkt.data() + pkt.size_;
 
 		bool fallback = false;
 		auto dst_size = ZSTD_compressBound(data.size());
+
 		std::vector<uint8_t> dst(dst_size, 0);
 		auto ret = ZSTD_compress(dst.data(), dst_size,
 			data.data(), data.size(), ZSTD_CLEVEL_DEFAULT);
 		if (ZSTD_isError(ret) || dst_size >= data.size())
 			fallback = true;
 
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(pid);
-		if (fallback)
-			writer.WriteUInt8(0);
-		else
-			writer.WriteUInt8(ctype);
-
-		writer.WriteUInt8(0);
+		pkt.index_ = index;
+		stream_endian::write_uint64(index, start);
 
 		if (fallback)
 		{
-			writer.WriteUInt16((uint16_t)data.size());
-			writer.WriteString(data.data(), data.size());
+			pkt.payload_size_ = (uint16_t)data.size();
+			stream_endian::write_uint8(0, start);
+			stream_endian::write_string(data, start);
 		}
 		else
 		{
-			writer.WriteUInt16((uint16_t)ret);
-			writer.WriteString((char*)dst.data(), ret);
+			pkt.payload_size_ = (uint16_t)ret;
+			stream_endian::write_uint8(ctype, start);
+			stream_endian::write_string(
+				std::string_view((char*)dst.data(), ret), start);
 		}
 
-		auto bytes = writer.ByteOffset();
-		pkt.resize(pkt.size() + bytes);
+		auto bytes  = start - pkt.data();
+		pkt.size_ = (uint16_t)(pkt.size_ + bytes);
 
 		return pkt;
 	}
 
 	void make_transfer_compress(vpn_packet& pkt, uint32_t src,
-		uint32_t gid, uint8_t pid, uint8_t ctype, std::string_view data)
+		uint64_t index,
+		uint8_t ctype, std::string_view data)
 	{
 		make_common_header(pkt, false, vpt_transfer_compress, src);
-		bitstream writer(pkt.data() + avpn_pkt_header_size,
-			avpn_packet_size - avpn_pkt_header_size);
+
+		auto start = pkt.data() + avpn_pkt_header_size;
 
 		bool fallback = false;
 		auto dst_size = ZSTD_compressBound(data.size());
 		dst_size = std::max<size_t>(avpn_static_mtu, dst_size);
+
 		std::vector<uint8_t> dst(dst_size, 0);
 		dst_size = ZSTD_compress(dst.data(), dst_size,
 			data.data(), data.size(), ZSTD_CLEVEL_DEFAULT);
 		if (ZSTD_isError(dst_size) || dst_size >= data.size())
 			fallback = true;
 
-		pkt.gid_ = gid;
-		pkt.pid_ = pid;
-
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(pid);
-
-		if (fallback)
-			writer.WriteUInt8(0);
-		else
-			writer.WriteUInt8(ctype);
-
-		writer.WriteUInt8(0);
+		pkt.index_ = index;
+		stream_endian::write_uint64(index, start);
 
 		if (fallback)
 		{
-			writer.WriteUInt16((uint16_t)data.size());
+			pkt.payload_size_ = (uint16_t)data.size();
+			stream_endian::write_uint8(0, start);
+
 			dst_size = data.size();
 		}
 		else
 		{
-			writer.WriteUInt16((uint16_t)dst_size);
+			pkt.payload_size_ = (uint16_t)dst_size;
+			stream_endian::write_uint8(ctype, start);
+
 			std::memcpy(pkt.payload(), dst.data(), dst_size);
 			std::memset(pkt.payload() + dst_size,
-				0, avpn_static_mtu - dst_size);
+				0,
+				avpn_packet_size - dst_size);
 		}
 
-		auto bytes = writer.ByteOffset() + dst_size;
-		pkt.resize(avpn_pkt_header_size + bytes);
+		auto bytes = avpn_payload_header_size + dst_size;
+		pkt.size_ = (uint16_t)bytes;
 	}
 
-	vpn_packet_ptr unwrap_transfer_compress(vpn_packet& pkt, uint32_t& src,
-		uint32_t& gid, uint8_t& pid, uint8_t& ctype)
+	vpn_packet_ptr unwrap_transfer_compress(
+		vpn_packet& pkt, uint32_t& src,
+		uint64_t& index,
+		uint8_t& ctype)
 	{
 		bool enc;
 		uint8_t type;
@@ -680,71 +655,63 @@ namespace avpn {
 		auto bytes = unwrap_common_header(pkt, enc, type, src);
 		if (bytes == -1)
 			return {};
-		if (type != vpt_transfer_compress)
+
+		// if (type != vpt_transfer_compress)
+		//	 return {};
+
+		auto start = pkt.data() + bytes;
+		auto end = pkt.data() + pkt.size_;
+
+		if (start + sizeof(uint64_t) > end)
 			return {};
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		index = stream_endian::read_uint64(start); // index
+		pkt.index_ = index;
 
-		auto ret = reader.ReadUInt32(&gid);
-		if (!ret) return {};
+		if (start + sizeof(uint8_t) > end)
+			return {};
+		ctype = stream_endian::read_uint8(start); // ctype
 
-		ret = reader.ReadUInt8(&pid);
-		if (!ret) return {};
-
-		pkt.gid_ = gid;
-		pkt.pid_ = pid;
-
-		ret = reader.ReadUInt8(&ctype);
-		if (!ret) return {};
-		uint8_t rsv = 0;
-		ret = reader.ReadUInt8(&rsv);
-		if (!ret) return {};
-
-		uint16_t length = 0;
-		ret = reader.ReadUInt16(&length);
-		if (!ret) return {};
-
-		BOOST_ASSERT(length <= surplus);
-		length = std::min<uint16_t>(length, (uint16_t)surplus);
-		size_t rawsize = length;
+		pkt.payload_size_ = pkt.size_ - avpn_payload_header_size;
 
 		if (ctype != 0)
 		{
 			auto tmp = std::make_shared<vpn_packet>();
-			rawsize = ZSTD_decompress(tmp->payload(),
-				avpn_static_mtu, pkt.payload(), length);
+
+			size_t rawsize = ZSTD_decompress(tmp->payload(),
+				avpn_static_mtu, pkt.payload(), pkt.payload_size_);
 			if (ZSTD_isError(rawsize))
 				return {};
-			tmp->payload_size(rawsize);
+
+			make_common_header(*tmp, enc, type, src);
+
+			tmp->index_ = index;
+			tmp->payload_size_ = (uint16_t)rawsize;
+			tmp->size_ = (uint16_t)(avpn_payload_header_size + rawsize);
+
 			return tmp;
 		}
-		pkt.payload_size(rawsize);
+
 		return dup_vpn_packet_ptr(pkt);
 	}
 
-	vpn_packet make_transfer_ack(uint32_t src, uint32_t gid)
+	vpn_packet make_transfer_ack(uint32_t src, uint64_t index)
 	{
 		auto pkt = make_common_header(
 			false, vpt_transfer_ack, src);
 
-		bitstream writer(pkt.data() + pkt.size(),
-			avpn_packet_size - pkt.size());
+		auto start = pkt.data() + pkt.size();
+		pkt.index_ = index;
 
-		pkt.gid_ = gid;
+		stream_endian::write_uint64(index, start);
 
-		writer.WriteUInt32(gid);
-		writer.WriteUInt8(0);
-		writer.WriteUInt16(0);
-		writer.WriteUInt8(0);
-
-		auto bytes = writer.ByteOffset();
-		pkt.resize(pkt.size() + bytes);
+		auto bytes = avpn_pkt_header_size + sizeof(uint64_t);
+		pkt.size_ = (uint16_t)bytes;
 
 		return pkt;
 	}
 
 	int unwrap_transfer_ack(vpn_packet& pkt,
-		uint32_t& src, uint32_t& gid)
+		uint32_t& src, uint64_t& index)
 	{
 		bool enc;
 		uint8_t type;
@@ -755,15 +722,14 @@ namespace avpn {
 		if (type != vpt_transfer_ack)
 			return -1;
 
-		auto surplus = pkt.size() - bytes;
-		bitstream reader(pkt.data() + bytes, surplus);
+		auto start = pkt.data() + bytes;
+		auto end = pkt.data() + pkt.size_;
 
-		auto ret = reader.ReadUInt32(&gid);
-		if (!ret) return -1;
+		if (start + sizeof(uint64_t) > end)
+			return {};
+		index = stream_endian::read_uint64(start); // index
 
-		pkt.gid_ = gid;
-
-		bytes += (int)reader.ByteOffset();
+		bytes = avpn_pkt_header_size + sizeof(uint64_t);
 
 		return bytes;
 	}

@@ -586,7 +586,7 @@ namespace stream_endian {
 		// 01	2	14	0-16383
 		// 10	4	30	0-1073741823
 		// 11	8	62	0-4611686018427387903
-		inline bool WriteVariantInt(uint64_t val)
+		inline bool WriteVariantInt(uint64_t val, uint64_t expand = 0)
 		{
 			if (!WriteTail())
 				return false;
@@ -595,13 +595,16 @@ namespace stream_endian {
 			if (remainder < 1)
 				return false;
 
+			if (expand == 0)
+				expand = val;
 			uint8_t* bytes = writable_bytes_ + byte_offset_;
-			if (val < 64)
+
+			if (expand < 64)
 			{
 				*bytes = static_cast<uint8_t>(val);
 				byte_offset_ += 1;
 			}
-			else if (val < 16384)
+			else if (expand < 16384)
 			{
 				if (remainder < 2)
 					return false;
@@ -612,7 +615,7 @@ namespace stream_endian {
 
 				byte_offset_ += 2;
 			}
-			else if (val < 1073741824)
+			else if (expand < 1073741824)
 			{
 				if (remainder < 4)
 					return false;
@@ -664,7 +667,7 @@ namespace stream_endian {
 				return false;
 
 			const uint8_t* bytes = bytes_ + byte_offset_;
-			auto len = static_cast<size_t>(1u << (*bytes >> 6));
+			auto len = static_cast<size_t>((uint8_t)(1u << (*bytes >> 6)));
 			assert(len <= 8);
 
 			if (remainder < len)

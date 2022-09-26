@@ -25,8 +25,7 @@ namespace avpn {
 		: data_(std::move(p.data_))
 		, size_(p.size_)
 		, payload_size_(p.payload_size_)
-		, gid_(p.gid_)
-		, pid_(p.pid_)
+		, index_(p.index_)
 		, type_(p.type_)
 		, pkt_flag_(p.pkt_flag_)
 	{
@@ -40,15 +39,13 @@ namespace avpn {
 		data_ = std::move(p.data_);
 		size_ = p.size_;
 		payload_size_ = p.payload_size_;
-		gid_ = p.gid_;
-		pid_ = p.pid_;
+		index_ = p.index_;
 		type_ = p.type_;
 		pkt_flag_ = p.pkt_flag_;
 
 		p.size_ = 0;
 		p.payload_size_ = 0;
-		p.gid_ = 0;
-		p.pid_ = 0;
+		p.index_ = 0;
 		p.pkt_flag_ = 0;
 
 		return *this;
@@ -116,8 +113,7 @@ namespace avpn {
 		auto ret = std::make_shared<vpn_packet>();
 
 		std::memcpy(ret->data(), p->data(), avpn_packet_size);
-		ret->gid_ = p->gid_;
-		ret->pid_ = p->pid_;
+		ret->index_ = p->index_;
 		ret->payload_size_ = p->payload_size_;
 		ret->size_ = p->size_;
 		ret->type_ = p->type_;
@@ -131,8 +127,7 @@ namespace avpn {
 		auto ret = std::make_shared<vpn_packet>();
 
 		std::memcpy(ret->data(), p.data(), avpn_packet_size);
-		ret->gid_ = p.gid_;
-		ret->pid_ = p.pid_;
+		ret->index_ = p.index_;
 		ret->payload_size_ = p.payload_size_;
 		ret->size_ = p.size_;
 		ret->type_ = p.type_;
@@ -146,8 +141,7 @@ namespace avpn {
 		vpn_packet ret;
 
 		std::memcpy(ret.data(), p->data(), avpn_packet_size);
-		ret.gid_ = p->gid_;
-		ret.pid_ = p->pid_;
+		ret.index_ = p->index_;
 		ret.payload_size_ = p->payload_size_;
 		ret.size_ = p->size_;
 		ret.type_ = p->type_;
@@ -161,8 +155,7 @@ namespace avpn {
 		vpn_packet ret;
 
 		std::memcpy(ret.data(), p.data(), avpn_packet_size);
-		ret.gid_ = p.gid_;
-		ret.pid_ = p.pid_;
+		ret.index_ = p.index_;
 		ret.payload_size_ = p.payload_size_;
 		ret.size_ = p.size_;
 		ret.type_ = p.type_;

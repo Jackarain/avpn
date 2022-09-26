@@ -946,26 +946,15 @@ namespace avpn {
 			return;
 
 		uint32_t src = 0;
-		uint32_t gid = 0;
-		uint8_t pid = 0;
+		uint64_t index = 0;
 
-		int ret = unwrap_transfer(pkt, src, gid, pid);
+		int ret = unwrap_transfer(pkt, src, index);
 		if (ret < 0)
 			return;
 
 		auto shards = m_peer_ds + m_peer_ps;
-		if (pid >= shards)
-		{
-			LOG_ERR << this << ", transfer pkt"
-				<< ", gid: " << gid
-				<< ", pid: " << pid
-				<< ", shards: " << shards;
-			m_num_incorrect++;
-			return;
-		}
-
-		BOOST_ASSERT(gid > 0 && "on_vpn_transfer");
-		BOOST_ASSERT(pid < shards && "on_vpn_transfer");
+		uint64_t gid = index / shards; // 1 start?
+		uint64_t pid = index % shards;
 
 		if (std::abs(static_cast<std::intmax_t>(m_fec_group_id - gid)) < 1000)
 			m_fec_group_id = gid;
@@ -982,14 +971,16 @@ namespace avpn {
 			if (!endp)
 			{
 				m_num_incorrect++;
-				LOG_ERR << this << ", incorrect pkt"
-					<< ", gid: " << pkt.gid_
-					<< ", pid: " << pkt.pid_;
+				LOG_ERR << this
+					<< ", incorrect pkt"
+					<< ", index: " << pkt.index_;
 				return;
 			}
 
 			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
+
+			BOOST_ASSERT(pkt.payload_size_ == endp->size_);
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
@@ -1071,17 +1062,16 @@ namespace avpn {
 			return;
 
 		uint32_t src = 0;
-		uint32_t gid;
-		uint8_t pid;
+		uint64_t index;
 		uint8_t ctype;
 
-		auto dst_ptr = unwrap_transfer_compress(pkt, src, gid, pid, ctype);
+		auto dst_ptr = unwrap_transfer_compress(pkt, src, index, ctype);
 		if (!dst_ptr)
 			return;
 
-		BOOST_ASSERT(gid > 0 && "on_vpn_transfer_compress");
-		BOOST_ASSERT(pid < (m_peer_ds + m_peer_ps)
-			&& "on_vpn_transfer_compress");
+		auto shards = m_peer_ds + m_peer_ps;
+		uint64_t gid = index / shards; // 1 start?
+		uint64_t pid = index % shards;
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)
@@ -1098,6 +1088,8 @@ namespace avpn {
 
 			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
+
+			BOOST_ASSERT(pkt.payload_size_ == endp->size_);
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
@@ -1164,7 +1156,7 @@ namespace avpn {
 			if (!p)
 				continue;
 
-			auto dst = unwrap_transfer_compress(*p, src, gid, pid, ctype);
+			auto dst = unwrap_transfer_compress(*p, src, p->index_, ctype);
 			if (!dst)
 				continue;
 

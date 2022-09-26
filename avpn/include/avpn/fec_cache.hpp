@@ -102,7 +102,7 @@ namespace avpn {
 		void make_fec_zstd(vpn_packet& pkt, uint32_t src);
 
 	private:
-		std::tuple<uint32_t, uint8_t> fetch_ids();
+		std::tuple<uint64_t, uint32_t, uint8_t> fetch_ids();
 		bool do_encode();
 
 	public:
@@ -133,7 +133,7 @@ namespace avpn {
 		// pid 表示 packet id, 即在这个group中的index;
 		// pkt 实际数据, 作为右值移动到fec_group中存储
 		//     以备将来使用;
-		void update(uint32_t gid, uint16_t pid, vpn_packet_ptr& pkt);
+		void update(uint64_t gid, uint64_t pid, vpn_packet_ptr& pkt);
 
 		// 可用, 只要能完整解码此gop, 则表示可用.
 		bool available() const;
@@ -149,7 +149,7 @@ namespace avpn {
 
 	public:
 		std::vector<vpn_packet_ptr> pkts_;
-		uint32_t gid_{ 0 };
+		uint64_t gid_{ 0 };
 		int ds_{ 0 };
 		int ps_{ 0 };
 		int64_t total_{ 0 };
@@ -173,7 +173,7 @@ namespace avpn {
 
 		void reset();
 
-		std::tuple<bool, bool> update(uint32_t gid, uint16_t pid,
+		std::tuple<bool, bool> update(uint64_t gid, uint64_t pid,
 			int ds, int ps, vpn_packet& pkt);
 
 		int64_t garbage_clean();
@@ -181,7 +181,7 @@ namespace avpn {
 
 	public:
 		int64_t cache_size_limit_;
-		std::map<uint32_t, fec_decode_group> groups_;
+		std::map<uint64_t, fec_decode_group> groups_;
 		std::vector<vpn_packet_ptr> results_;
 	};
 }
