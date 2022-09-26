@@ -13,6 +13,7 @@
 
 #include <string>
 #include <algorithm>
+#include <cassert>
 
 namespace stream_endian {
 
@@ -573,9 +574,111 @@ namespace stream_endian {
 			if (size > remainder)
 				return false;
 
-			uint8_t* bytes = writable_bytes_ + byte_offset_;
+			const uint8_t* bytes = bytes_ + byte_offset_;
 			std::memcpy((void*)str, (const void*)bytes, size);
 			byte_offset_ += size;
+
+			return true;
+		}
+
+		// 2Bit	Length	Usable Bits	Range
+		// 00	1	6	0-63
+		// 01	2	14	0-16383
+		// 10	4	30	0-1073741823
+		// 11	8	62	0-4611686018427387903
+		inline bool WriteVariantInt(uint64_t val)
+		{
+			if (!WriteTail())
+				return false;
+
+			auto remainder = RemainingBitCount() / 8;
+			if (remainder < 1)
+				return false;
+
+			uint8_t* bytes = writable_bytes_ + byte_offset_;
+			if (val < 64)
+			{
+				*bytes = (uint8_t)val;
+				byte_offset_ += 1;
+			}
+			else if (val < 16384)
+			{
+				if (remainder < 2)
+					return false;
+
+				*(bytes + 0) = static_cast<unsigned char>((val >> 8) & 0xff);
+				*(bytes + 1) = static_cast<unsigned char>((val >> 0) & 0xff);
+				*bytes |= 0x40;
+
+				byte_offset_ += 2;
+			}
+			else if (val < 1073741824)
+			{
+				if (remainder < 4)
+					return false;
+
+				*(bytes + 0) = static_cast<unsigned char>((val >> 24) & 0xff);
+				*(bytes + 1) = static_cast<unsigned char>((val >> 16) & 0xff);
+				*(bytes + 2) = static_cast<unsigned char>((val >>  8) & 0xff);
+				*(bytes + 3) = static_cast<unsigned char>((val >>  0) & 0xff);
+				*bytes |= 0x80;
+
+				byte_offset_ += 4;
+			}
+			else
+			{
+				if (remainder < 8)
+					return false;
+
+				assert(val < 4611686018427387904ULL);
+
+				*(bytes + 0) = static_cast<unsigned char>((val >> 56) & 0xff);
+				*(bytes + 1) = static_cast<unsigned char>((val >> 48) & 0xff);
+				*(bytes + 2) = static_cast<unsigned char>((val >> 40) & 0xff);
+				*(bytes + 3) = static_cast<unsigned char>((val >> 32) & 0xff);
+				*(bytes + 4) = static_cast<unsigned char>((val >> 24) & 0xff);
+				*(bytes + 5) = static_cast<unsigned char>((val >> 16) & 0xff);
+				*(bytes + 6) = static_cast<unsigned char>((val >>  8) & 0xff);
+				*(bytes + 7) = static_cast<unsigned char>((val >>  0) & 0xff);
+
+				*bytes |= 0xc0;
+
+				byte_offset_ += 8;
+			}
+
+			return true;
+		}
+
+		// 2Bit	Length	Usable Bits	Range
+		// 00	1	6	0-63
+		// 01	2	14	0-16383
+		// 10	4	30	0-1073741823
+		// 11	8	62	0-4611686018427387903
+		inline bool ReadVariantInt(uint64_t& val)
+		{
+			if (!ReadTail())
+				return false;
+
+			auto remainder = RemainingBitCount() / 8;
+			if (remainder < 1)
+				return false;
+
+			const uint8_t* bytes = bytes_ + byte_offset_;
+			auto len = (size_t)(1u << (*bytes >> 6));
+			assert(len <= 8);
+
+			if (remainder < len)
+				return false;
+
+			val = static_cast<uint8_t>(*bytes++ & 0x3f);
+
+			for (int n = 1; n < len; n++)
+			{
+				val <<= 8;
+				val |= static_cast<uint8_t>(*bytes++);
+			}
+
+			byte_offset_ += len;
 
 			return true;
 		}
