@@ -212,10 +212,11 @@ namespace avpn
 		// 获取ip包数据用于计算transfer协议.
 		std::string_view sv((char*)pkt.payload(), pkt.payload_size());
 
-		// pid不为0, 倍发模式不再作fec编码, 仅更新pid即可.
+		// pid不为0, 多倍模式不再作fec编码, 因为pkt是copy, 仅更新pid即可.
 		if (ds_ == 1 && pid != 0)
 		{
-			make_transfer(pkt, src, index, sv);
+			auto start = pkt.data() + avpn_pkt_header_size;
+			stream_endian::write_uint64(index, start);
 			pkt.index_ = index;
 			return;
 		}
@@ -234,7 +235,7 @@ namespace avpn
 		// 如果达到, 则直接进行fec编码.
 		if (pid + 1 == ds_)
 		{
-			// 执行fec编码.
+			// 执行fec编码, 对压缩数据执行fec.
 			if (!do_encode())
 				return;
 

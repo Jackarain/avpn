@@ -1117,17 +1117,17 @@ namespace avpn {
 			service->do_tun_write(std::move(pkt));
 		};
 
-		// 更新fec recover.
+		// 更新fec recover, 使用压缩的数据执行fec解码.
 		auto [whole, expired] = m_recover.update(
 			gid, pid, m_peer_ds, m_peer_ps, pkt);
 
-		// 将接收到的ip包write到tun设备.
+		// 将接收到的解压ip包write到tun设备.
 		if (!expired)
 		{
 			m_num_received++;
 
 			if (pid < m_peer_ds || m_peer_ds == 1)
-				write_pkt(pkt);
+				write_pkt(*dst_ptr);
 
 			// 对方重复发送模式时, 只要接收到任何1个包, 则表示
 			// 可以退出recover逻辑.
