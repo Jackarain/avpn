@@ -539,7 +539,6 @@ namespace avpn {
 		if (type != vpt_transfer)
 			return -1;
 
-		auto remainder = pkt.size_ - bytes;
 		auto start = pkt.data() + bytes;
 		auto end = pkt.data() + pkt.size_;
 
@@ -553,8 +552,6 @@ namespace avpn {
 		stream_endian::read_uint8(start); // rsv
 
 		pkt.payload_size_ = pkt.size_ - avpn_payload_header_size;
-
-		BOOST_ASSERT(pkt.payload_size_ <= remainder);
 		bytes += pkt.payload_size_;
 
 		return bytes;
