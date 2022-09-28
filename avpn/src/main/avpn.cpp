@@ -501,7 +501,9 @@ namespace avpn {
  		auto& udp_socket = socket_ptr->sock_;
 		if (m_udp_writing > 5592)
 		{
-			udp_socket.send_to(net::buffer(pkt.data(), pkt.size_), remote);
+			boost::system::error_code ec;
+			udp_socket.send_to(net::buffer(pkt.data(), pkt.size_),
+				remote, 0, ec);
 			return;
 		}
 
@@ -524,9 +526,24 @@ namespace avpn {
 
 				if (ec)
 				{
-					LOG_WARN << "do_udp_write"
-						<< ", send_to " << remote
-						<< ", error: " << ec.message();
+					static steady_clock::time_point last_time;
+					static int64_t msg_repeat = 0;
+					auto now = steady_clock::now();
+
+					msg_repeat++;
+					auto duration = now - last_time;
+					if (now - last_time > std::chrono::seconds(1))
+					{
+						LOG_WARN << "do_udp_write"
+							<< ", send_to " << remote
+							<< ", error(" << msg_repeat
+							<< "): " << ec.message();
+
+						last_time = now;
+						msg_repeat = 0;
+
+						return;
+					}
 				}
 			});
 	}
@@ -797,7 +814,7 @@ namespace avpn {
 				break;
 			}
 
-			auto now = std::chrono::steady_clock::now();
+			auto now = steady_clock::now();
 
 			if (m_internal_stat.tun_rx_ != 0)
 			{
@@ -1708,7 +1725,8 @@ namespace avpn {
 				net::redirect_error(
 					net::bind_cancellation_slot(
 						m_cancel_sig.slot(), net::use_awaitable), ec));
-			m_cancel_sig.slot().clear();
+			if (m_cancel_sig.slot().has_handler())
+				m_cancel_sig.slot().clear();
 			if (m_abort)
 			{
 				LOG_ERR << "connect_server, async_connect abort";
