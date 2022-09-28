@@ -504,9 +504,7 @@ namespace avpn {
 		stream_endian::write_string(data, p);	// payload
 
 		pkt.payload_size_ = (uint16_t)data.size();
-
-		auto bytes = (p - pkt.data());
-		pkt.size_ = (uint16_t)bytes;
+		pkt.size_ = (uint16_t)(pkt.payload_size_ + avpn_payload_header_size);
 
 		return pkt;
 	}
@@ -520,12 +518,12 @@ namespace avpn {
 		pkt.index_ = index;
 		stream_endian::write_uint64(index, p); // index
 		stream_endian::write_uint8(0, p); // rsv
-		stream_endian::write_string(data, p);	// payload
+		BOOST_ASSERT((char*)p == data.data());
+		if ((char*)p != data.data())
+			stream_endian::write_string(data, p);	// payload
 
 		pkt.payload_size_ = (uint16_t)data.size();
-
-		auto bytes = (p - pkt.data());
-		pkt.size_ = (uint16_t)bytes;
+		pkt.size_ = (uint16_t)(pkt.payload_size_ + avpn_payload_header_size);
 	}
 
 	int unwrap_transfer(vpn_packet& pkt, uint32_t& src, uint64_t& index)
