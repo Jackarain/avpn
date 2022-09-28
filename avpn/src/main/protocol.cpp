@@ -343,6 +343,8 @@ namespace avpn {
 		if (!ret) return -1;
 
 		bytes += (int)reader.ByteOffset();
+		pkt.size_ = (uint16_t)bytes;
+		pkt.index_ = std::numeric_limits<uint64_t>::max();
 
 		return bytes;
 	}
@@ -365,7 +367,8 @@ namespace avpn {
 		stream_endian::write_uint64(timestamp, w);
 
 		auto bytes = w - base;
-		pkt.resize(pkt.size() + bytes);
+		pkt.size_ = (uint16_t)(pkt.size() + bytes);
+		pkt.index_ = std::numeric_limits<uint64_t>::max();
 
 		return pkt;
 	}
@@ -438,7 +441,7 @@ namespace avpn {
 		stream_endian::write_uint64(timestamp, w);
 
 		auto bytes = w - base;
-		pkt.resize(pkt.size() + bytes);
+		pkt.size_ = (uint16_t)(pkt.size() + bytes);
 
 		return pkt;
 	}
