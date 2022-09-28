@@ -187,9 +187,6 @@ namespace avpn
 				if (!ptr)
 					continue;
 
-				ptr->resize(avpn_packet_size);
-				ptr->payload_size(avpn_static_mtu);
-
 				auto [findex, fgid, fpid] = fetch_ids();
 
 				// 更新fec冗余数据包的pid, gid等信息.
@@ -244,9 +241,6 @@ namespace avpn
 				auto& ptr = pkts_[pid];
 				if (!ptr)
 					continue;
-
-				ptr->resize(avpn_packet_size);
-				ptr->payload_size(avpn_static_mtu);
 
 				auto [findex, fgid, fpid] = fetch_ids();
 				ptr->index_ = findex;
