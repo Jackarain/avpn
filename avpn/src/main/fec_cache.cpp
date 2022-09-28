@@ -116,13 +116,13 @@ namespace avpn
 		: ds_(pg.ds_)
 		, ps_(pg.ps_)
 		, shards_(ds_ + ps_)
-		, index_(pg.index_)
+		, current_index_(pg.current_index_)
 		, pkts_(std::move(pg.pkts_))
 	{
 		pg.ds_ = 0;
 		pg.ps_ = 0;
 		pg.shards_ = 0;
-		pg.index_ = 0;
+		pg.current_index_ = 0;
 	}
 
 	std::vector<avpn::vpn_packet_ptr> fec_encode_group::acquire()
@@ -158,7 +158,6 @@ namespace avpn
 		if (ds_ == 1 && pid != 0)
 		{
 			make_transfer(pkt, src, index, sv);
-			pkt.index_ = index;
 			return;
 		}
 
@@ -192,7 +191,6 @@ namespace avpn
 				ptr->payload_size(avpn_static_mtu);
 
 				auto [findex, fgid, fpid] = fetch_ids();
-				ptr->index_ = findex;
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
@@ -266,12 +264,12 @@ namespace avpn
 
 	std::tuple<uint64_t, uint32_t, uint8_t> fec_encode_group::fetch_ids()
 	{
-		scoped_exit se([this]() { index_++; });
+		scoped_exit se([this]() { current_index_++; });
 
 		return {
-			index_,
-			static_cast<uint32_t>((index_ / shards_) + 1),
-			static_cast<uint8_t>(index_ % shards_)
+			current_index_,
+			static_cast<uint32_t>((current_index_ / shards_) + 1),
+			static_cast<uint8_t>(current_index_ % shards_)
 		};
 	}
 

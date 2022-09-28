@@ -69,7 +69,7 @@ namespace avpn {
 		virtual ~codingloop() = default;
 		virtual void encode(
 			const std::vector<std::vector<uint8_t>>&,
-			const std::vector<std::string_view>&,
+			const std::vector<std::span<uint8_t>>&,
 			size_t,
 			std::vector<std::span<uint8_t>>&) = 0;
 	};
@@ -82,7 +82,7 @@ namespace avpn {
 	public:
 		virtual void encode(
 			const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs,
+			const std::vector<std::span<uint8_t>>& inputs,
 			size_t data_shard_count,
 			std::vector<std::span<uint8_t>>& outputs) override;
 	};

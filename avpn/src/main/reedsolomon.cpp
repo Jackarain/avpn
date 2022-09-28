@@ -1078,7 +1078,7 @@ namespace avpn {
 
 		void io_table_codingloop::encode(
 			const std::vector<std::vector<uint8_t>>& parity_rows,
-			const std::vector<std::string_view>& inputs,
+			const std::vector<std::span<uint8_t>>& inputs,
 			size_t data_shard_count,
 			std::vector<std::span<uint8_t>>& outputs)
 		{
@@ -1173,10 +1173,10 @@ namespace avpn {
 				outputs.push_back(std::span<uint8_t>(data, avpn_static_mtu));
 			}
 
-			std::vector<std::string_view> sv;
+			std::vector<std::span<uint8_t>> sv;
 			for (size_t i = 0; i < (size_t)m_data_shards; i++) {
 				auto data = shards[i]->payload();
-				sv.emplace_back(std::string_view((const char*)data, avpn_static_mtu));
+				sv.emplace_back(std::span<uint8_t>(data, avpn_static_mtu));
 			}
 
 			// do the coding.
@@ -1204,7 +1204,7 @@ namespace avpn {
 				throw std::runtime_error("not enough shards present");
 			}
 
-			std::vector<std::string_view> sub_shards;
+			std::vector<std::span<uint8_t>> sub_shards;
 			sub_shards.resize(m_data_shards);
 
 			std::vector<int> valid_indices;
@@ -1221,7 +1221,7 @@ namespace avpn {
 				auto data = shards[matrix_row]->payload();
 
 				sub_shards[sub_matrix_row] =
-					std::string_view((char*)data, avpn_static_mtu);
+					std::span<uint8_t>(data, avpn_static_mtu);
 
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
