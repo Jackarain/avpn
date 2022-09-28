@@ -1247,10 +1247,10 @@ namespace avpn {
 			for (size_t ishard = 0; ishard < (size_t)m_data_shards; ishard++) {
 				if (!shards[ishard] || shards[ishard]->size() == 0) {
 					shards[ishard] = std::make_shared<vpn_packet>();
-					shards[ishard]->resize(avpn_packet_size);
-					shards[ishard]->payload_size(avpn_static_mtu);
+					shards[ishard]->size_ = (uint16_t)avpn_packet_size;
+					shards[ishard]->payload_size_ = 0;
 					outputs[output_count] = std::span(shards[ishard]->payload(),
-						shards[ishard]->payload() + shards[ishard]->payload_size());
+						shards[ishard]->payload() + avpn_static_mtu);
 					matrix_rows[output_count] = data_decode_matrix[ishard];
 					output_count++;
 				}
