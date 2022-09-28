@@ -419,6 +419,8 @@ namespace avpn {
 		timestamp = stream_endian::read_uint64(r);
 
 		bytes = static_cast<int>(r - base);
+		pkt.index_ = std::numeric_limits<uint64_t>::max();
+
 		return bytes;
 	}
 
@@ -442,6 +444,7 @@ namespace avpn {
 
 		auto bytes = w - base;
 		pkt.size_ = (uint16_t)(pkt.size() + bytes);
+		pkt.index_ = std::numeric_limits<uint64_t>::max();
 
 		return pkt;
 	}
