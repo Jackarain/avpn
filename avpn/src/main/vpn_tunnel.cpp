@@ -982,6 +982,7 @@ namespace avpn {
 
 			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
+			BOOST_ASSERT(pkt.payload_size_ == ep.size_);
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
@@ -1092,6 +1093,7 @@ namespace avpn {
 
 			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
+			BOOST_ASSERT(pkt.payload_size_ == ep.size_);
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
