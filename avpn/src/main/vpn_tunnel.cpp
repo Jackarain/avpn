@@ -699,15 +699,6 @@ namespace avpn {
 	void vpn_tunnel::internal_write_pkt(
 		vpn_packet pkt, bool defalut_udp/* = false*/)
 	{
-		if (pkt.index_ != std::numeric_limits<uint64_t>::max())
-		{
-			LOG_INFO << "network send pkt"
-				<< ", index: " << pkt.index_
-				<< ", payload: " << pkt.payload_size_
-				<< ", size: " << pkt.size_
-				;
-		}
-
 		auto pick = cherry_pick(defalut_udp);
 
 		if (pick == Proto::avpn_tcp)
@@ -974,7 +965,7 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
 
-		auto write_pkt = [this, service, shards](vpn_packet& pkt) mutable
+		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
 			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
 			if (!endp)
@@ -992,14 +983,6 @@ namespace avpn {
 			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
 			BOOST_ASSERT(pkt.payload_size_ == ep.size_);
-
-			LOG_INFO << "network recv pkt"
-				<< ", index: " << pkt.index_
-				<< ", gid: " << (pkt.index_ / shards)
-				<< ", pid: " << (pkt.index_ % shards)
-				<< ", payload: " << pkt.payload_size_
-				<< ", size: " << pkt.size_
-				;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
@@ -1096,7 +1079,7 @@ namespace avpn {
 		if (m_identity == Identity::avpn_server)
 			last_see(steady_clock::now());
 
-		auto write_pkt = [this, service, shards](vpn_packet& pkt) mutable
+		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
 			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
 			if (!endp)
@@ -1111,14 +1094,6 @@ namespace avpn {
 			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
 			BOOST_ASSERT(pkt.payload_size_ == ep.size_);
-
-			LOG_INFO << "network recv pkt"
-				<< ", index: " << pkt.index_
-				<< ", gid: " << (pkt.index_ / shards)
-				<< ", pid: " << (pkt.index_ % shards)
-				<< ", payload: " << pkt.payload_size_
-				<< ", size: " << pkt.size_
-				;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
 			udp::endpoint uendp(dst_addr.address(), 0);
