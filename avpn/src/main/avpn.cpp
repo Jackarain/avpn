@@ -501,28 +501,32 @@ namespace avpn {
  		auto& udp_socket = socket_ptr->sock_;
 		if (m_udp_writing > 5592)
 		{
+			// 异步发送队列已经达到上限5592个, 为什么是5592?因为5592个
+			// 数据包大致是8M左右, 8M异步发送列队是一个还算比较适当的值
+			// 当超过这个值, 则换用同步发送udp数据包,这样以避免过快的生
+			// 产者导致OOM.
 			boost::system::error_code ec;
 			udp_socket.send_to(net::buffer(pkt.data(), pkt.size_),
 				remote, 0, ec);
 			return;
 		}
 
-		auto ptr = pkt.release();
+		// 保存到指针和数据包大小, 用于udp_socket.async_send_to, 因为
+		// lambda中的move操作会提前执行, 原来的packet对象在move后将会
+		// 被清空, 所以在此提前保存起来用于udp异步发送.
+		auto ptr = pkt.data();
+		auto size = pkt.size_;
+
 		m_udp_writing++;
 
 		// 直接发送, 仅在回调时释放packet.
 		udp_socket.async_send_to(
-			net::buffer(ptr, pkt.size_),
+			net::buffer(ptr, size),
 			remote,
-			[this, ptr, remote](boost::system::error_code ec, std::size_t) mutable
+			[this, pkt = std::move(pkt), remote]
+			(boost::system::error_code ec, std::size_t) mutable
 			{
 				m_udp_writing--;
-
-				if (ptr)
-				{
-					static_packet_allocator()->release();
-					std::free(ptr);
-				}
 
 				if (ec)
 				{
