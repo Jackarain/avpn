@@ -358,7 +358,7 @@ namespace avpn {
 
 			m_tundev.async_write_some(
 				net::buffer(ptr + avpn_payload_header_size,
-					pkt.payload_size()), [ptr](auto, auto) mutable {
+					pkt.payload_size_), [ptr](auto, auto) mutable {
 						static_packet_allocator()->release();
 						free(ptr);
 				});
@@ -373,7 +373,7 @@ namespace avpn {
 
 				m_tundev.async_write_some(
 					net::buffer(ptr + avpn_payload_header_size,
-						pkt.payload_size()), [ptr](auto, auto) mutable {
+						pkt.payload_size_), [ptr](auto, auto) mutable {
 							static_packet_allocator()->release();
 							free(ptr);
 					});
