@@ -980,7 +980,7 @@ namespace avpn {
 			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
 
-			if (pkt.payload_size_ != ep.size_)
+			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
@@ -1090,7 +1090,7 @@ namespace avpn {
 			auto& ep = *endp;
 			auto& dst_addr = ep.dst_;
 
-			if (pkt.payload_size_ != ep.size_)
+			if (pkt.payload_size_ == 0)
 				pkt.payload_size_ = (uint16_t)ep.size_;
 
 			auto uint_dst = dst_addr.address().to_v4().to_uint();
