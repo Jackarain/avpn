@@ -194,12 +194,7 @@ namespace avpn
 					(char*)ptr->payload(),
 					avpn_static_mtu);
 
-#if 1
-				make_transfer_compress(*ptr,
-					src, findex, compress_zstd, fsv);
-#else
 				make_transfer(*ptr, src, findex, fsv);
-#endif
 			}
 		}
 	}
