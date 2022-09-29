@@ -354,13 +354,13 @@ namespace avpn {
 
 		if (std::this_thread::get_id() == m_main_thread_id)
 		{
-			uint8_t* ptr = (uint8_t*)pkt.release();
+			uint8_t* ptr = (uint8_t*)pkt.data() + avpn_payload_header_size;
+			auto size = pkt.payload_size_;
 
 			m_tundev.async_write_some(
-				net::buffer(ptr + avpn_payload_header_size,
-					pkt.payload_size_), [ptr](auto, auto) mutable {
-						static_packet_allocator()->release();
-						free(ptr);
+				net::buffer(ptr, size),
+				[pkt = std::move(pkt)]
+				(auto, auto) mutable {
 				});
 
 			return;
@@ -369,13 +369,12 @@ namespace avpn {
 		net::post(m_main_context,
 			[this, self, pkt = std::move(pkt)]() mutable
 			{
-				uint8_t* ptr = (uint8_t*)pkt.release();
+				uint8_t* ptr = (uint8_t*)pkt.data() + avpn_payload_header_size;
+				auto size = pkt.payload_size_;
 
 				m_tundev.async_write_some(
-					net::buffer(ptr + avpn_payload_header_size,
-						pkt.payload_size_), [ptr](auto, auto) mutable {
-							static_packet_allocator()->release();
-							free(ptr);
+					net::buffer(ptr, size),
+					[pkt = std::move(pkt)](auto, auto) mutable {
 					});
 			});
 	}
