@@ -475,6 +475,9 @@ namespace avpn {
 		net::ip::address_v4_range m_ip_assigner;
 		net::ip::address_v4_range::iterator m_ip_iterator;
 
+		// 退出时路由清理操作表.
+		std::vector<std::string> m_cl_routes;
+
 		// 作为server时, client的pubkey所对应的ip分配表.
 		// 通过此表固定分配ip.
 		// 这里key表示pubkey, value表示ip, 双向唯一且可索引.

@@ -191,7 +191,22 @@ namespace avpn {
 				}
 			}
 
-			// TODO: 退出时删除路由.
+			// 退出时删除路由.
+			for (auto& route : m_cl_routes)
+			{
+				auto [ret, ok] = del_route(route);
+				if (ok)
+				{
+					LOG_DBG << "Del route: " << route
+						<< " route deleted successfully!";
+					continue;
+				}
+
+				LOG_ERR << "Del route: " << route
+					<< " route deleted fail, reason: "
+					<< boost::trim_copy(ret);
+			}
+
 			LOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
 			m_tundev.close();
 			m_tick_timer.cancel(ignore_ec);
@@ -938,9 +953,17 @@ namespace avpn {
 		{
 			auto vpn_gw = gateway.to_string();
 
-			add_route(m_push_params.server_ip_ + "/32 " + default_gw);
-			add_route("0.0.0.0/1 " + vpn_gw);
+			std::string route = m_push_params.server_ip_ + "/32 " + default_gw;
+			add_route(route);
+			m_cl_routes.push_back(route);
+
+			route = "0.0.0.0/1 " + vpn_gw;
+			add_route(route);
+			m_cl_routes.push_back(route);
+
+			route = "128.0.0.0/1 " + vpn_gw;
 			add_route("128.0.0.0/1 " + vpn_gw);
+			m_cl_routes.push_back(route);
 		}
 
 		if (!params.ignore_push_)
@@ -949,12 +972,16 @@ namespace avpn {
 			{
 				auto [ret, ok] = add_route(route);
 				if (ok)
+				{
+					m_cl_routes.push_back(route);
 					LOG_DBG << "Add route: " << route
 						<< " route added successfully!";
-				else
-					LOG_ERR << "Add route: " << route
-						<< " route added fail, reason: "
-						<< boost::trim_copy(ret);
+					continue;
+				}
+
+				LOG_ERR << "Add route: " << route
+					<< " route added fail, reason: "
+					<< boost::trim_copy(ret);
 			}
 		}
 
