@@ -549,13 +549,13 @@ namespace avpn {
 				auto duration = std::chrono::nanoseconds(m_rtt);
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
-				LOG_IFMT("{}, {}c, {}w, {}e, {}g, {}r"
+				LOG_IFMT("{}, {}c, {}w, {}e, {}p, {}r"
 					", {}tx, {}rx, {}d, {}u, {}rtt",
 					static_cast<const void*>(this),
 					m_num_corrected,
 					m_num_incorrect,
 					m_num_expired,
-					m_fec_group_id,
+					m_packet_id,
 					m_num_received,
 					m_num_send_packet,
 					m_num_recv_packet,
@@ -956,10 +956,10 @@ namespace avpn {
 		uint64_t gid = index / shards; // 1 start?
 		uint64_t pid = index % shards;
 
-		if (std::abs(static_cast<std::intmax_t>(m_fec_group_id - gid)) < 1000)
-			m_fec_group_id = gid;
+		if (std::abs(static_cast<std::intmax_t>(m_packet_id - index)) < 1000)
+			m_packet_id = index;
 		else
-			m_fec_group_id = std::max(gid, m_fec_group_id);
+			m_packet_id = std::max(index, m_packet_id);
 
 		// 更新最后可见时间.
 		if (m_identity == Identity::avpn_server)

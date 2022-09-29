@@ -187,7 +187,7 @@ namespace avpn {
 		uint32_t m_num_incorrect{ 0 };
 		uint32_t m_num_received{ 0 };
 		uint32_t m_num_expired{ 0 };
-		uint64_t m_fec_group_id{ 0 };
+		uint64_t m_packet_id{ 0 };
 
 		// 网络统计信息.
 		int m_num_send_packet{ 0 };
