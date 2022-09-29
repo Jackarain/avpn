@@ -1553,10 +1553,15 @@ namespace avpn {
 				m_tcp_reconnect_cnt = 1;
 			});
 
+		LOG_DBG << "Start connect to server...";
+
 		tcp::socket stream(m_main_context);
 		auto ret = co_await connect_tcp_server(stream);
 		if (!ret)
+		{
+			LOG_DBG << "Connect to tcp server return";
 			co_return;
+		}
 
 		auto& params = m_config.tunnel_params_;
 
@@ -1565,6 +1570,7 @@ namespace avpn {
 		auto pubkey = ke.StaticPublicKey();
 		auto src_vaddr = m_subnet.address().to_uint();
 
+		LOG_DBG << "Start tcp handshake...";
 		auto pkt = make_handshake(src_vaddr,
 			m_client_id,
 			pubkey,
@@ -1604,7 +1610,7 @@ namespace avpn {
 		auto tunnel = m_tunnel.lock();
 		if (src_vaddr == 0)
 		{
-			LOG_WARN << "tcp handshake reply: '" << id
+			LOG_WARN << "Tcp handshake reply: '" << id
 				<< "' detected server reboot!";
 
 			// 如果tunnel对象为空, 则表示重启已经开始.
@@ -1639,7 +1645,7 @@ namespace avpn {
 		}
 		if (bytes < 0)
 		{
-			LOG_WARN << "unwrap_handshake_reply detected invalid!!!";
+			LOG_WARN << "Unwrap_handshake_reply detected invalid!!!";
 			co_return;
 		}
 
@@ -1749,7 +1755,7 @@ namespace avpn {
 			if (ec)
 				LOG_WARN << "connect_server, set_option: " << ec.message();
 
-			LOG_INFO << "connect_server, connect to: "
+			LOG_INFO << "Connect tcp server, connect to: "
 				<< endp << " successfully!";
 
 			co_return true;
@@ -1760,6 +1766,8 @@ namespace avpn {
 
 	net::awaitable<void> avpn_service::start_udp_client()
 	{
+		LOG_DBG << "Start udp client, udp sockets: " << m_udp_sockets.size();
+
 		// 只有在第1次启动client时创建好所有udp socket对象.
 		if (m_udp_sockets.empty())
 		{
@@ -1806,6 +1814,7 @@ namespace avpn {
 			}
 		}
 
+		LOG_DBG << "Start udp handshake...";
 		// 发起UDP握手请求.
 		co_await start_udp_handshake();
 		co_return;
