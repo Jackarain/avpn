@@ -73,7 +73,6 @@ namespace avpn {
 		net::post(m_main_context, [this]() mutable
 			{
 				auto id = std::this_thread::get_id();
-				// BOOST_ASSERT(m_main_thread_id == id);
 				m_main_thread_id = id;
 			});
 		init_ssl_context();
@@ -87,7 +86,6 @@ namespace avpn {
 
 	avpn_service::~avpn_service()
 	{
-		// TODO: 退出时删除所有添加的路由.
 		LOG_DBG << "avpn_service::~avpn_service()";
 	}
 
