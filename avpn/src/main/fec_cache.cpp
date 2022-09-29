@@ -365,7 +365,6 @@ namespace avpn
 	void fec_decode_group::set_expired()
 	{
 		used_ = true;
-		pkts_.clear();
 	}
 
 	bool fec_decode_group::expired() const
@@ -410,8 +409,12 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
+	constexpr auto group_memory_8mbytes = 1024 * 1024 * 8;
+
 	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
 		: cache_size_limit_(max_size)
+		, group_memory_limit_(max_size < group_memory_8mbytes ?
+			group_memory_8mbytes : max_size / 2)
 	{
 		set_global_allocator_size(max_size);
 	}
@@ -427,23 +430,30 @@ namespace avpn
 		int ds, int ps,
 		vpn_packet& pkt)
 	{
+		// 对端没有启用fec, 直接返回完整的数据包.
 		if (ds == 1 && ps == 0)
-			return {true, false};
+			return { true, false };
+
+		// 太早的数据包, 返回已过期.
+		if (early_packet_index_ != 0 && pkt.index_ <= early_packet_index_)
+			return { false, true };
 
 		auto ptr = dup_vpn_packet_ptr(pkt);
 
 		auto clean_gops =
-		[this](uint64_t& gid) mutable -> void
+		[this]() mutable -> void
 		{
-			// 作gop清理工作, 清理gid大于当前gid + 64的gop.
+			// 作gop清理工作, 根据内存设定做清理.
 			for (auto it = groups_.begin();
 				it != groups_.end();)
 			{
 				auto& [i, g] = *it;
 
-				if (g.gid_ + 64 > gid)
+				if (group_memory_ < group_memory_limit_)
 					break;
 
+				early_packet_index_ = i;
+				group_memory_ -= avpn_packet_memory_size;
 				it = groups_.erase(it);
 			}
 		};
@@ -455,7 +465,7 @@ namespace avpn
 			fec_decode_group gop(ds, ps);
 			gop.update(gid, pid, ptr);
 
-			scoped_exit se(std::bind(clean_gops, std::ref(gid)));
+			scoped_exit se(std::bind(clean_gops));
 
 			// 对方ds为1的时候, 任何pkt返回即过期.
 			if (ds == 1)
@@ -463,6 +473,7 @@ namespace avpn
 			else
 				se.cancel();
 
+			group_memory_ += avpn_packet_memory_size;
 			groups_.emplace(gid, std::move(gop));
 
 			return { false, false };
@@ -479,12 +490,10 @@ namespace avpn
 			return { false, false };
 
 		// gop可用后, 标记为过期.
-		scoped_exit expired([&gop]() mutable {
-			gop.set_expired();
-			});
+		gop.set_expired();
 
 		// 在完成解码后, 清理过期大于64的gop.
-		scoped_exit se(std::bind(clean_gops, std::ref(gid)));
+		scoped_exit se(std::bind(clean_gops));
 
 		// 是否丢包, 如果没丢包则返回 true 以表示完成.
 		auto lost_pkts = gop.lost();
@@ -515,36 +524,11 @@ namespace avpn
 		return { true, false };
 	}
 
-	int64_t fec_recover::garbage_clean()
-	{
-		auto memory_used = [this]()
-		{
-			return (int64_t)(global_allocator.total_size()
-				+ groups_.size() * sizeof(fec_decode_group));
-		};
-
-		int64_t total = memory_used();
-
-		if (total <= cache_size_limit_ && groups_.size() < 40000)
-			return 0;
-
-		int64_t bytes = 0;
-		for (auto it = groups_.begin(); it != groups_.end();)
-		{
-			groups_.erase(it++);
-			bytes = memory_used();
-
-			if (bytes <= cache_size_limit_ && groups_.size() < 40000)
-				break;
-		}
-
-		return total - bytes;
-	}
-
 	std::vector<vpn_packet_ptr> fec_recover::acquire()
 	{
 		// 必须调用 std::move 以清空recover的结果
 		// 避免被重复获取.
 		return std::move(results_);
 	}
+
 }
