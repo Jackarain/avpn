@@ -409,8 +409,6 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
-	constexpr auto group_memory_8mbytes = 1024 * 1024 * 8;
-
 	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
 		: cache_size_limit_(max_size)
 	{
