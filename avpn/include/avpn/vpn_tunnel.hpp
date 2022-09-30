@@ -241,6 +241,7 @@ namespace avpn {
 		// timer, 处理本tunnel相关定时工作.
 		// 如: keepalive等工作.
 		asio_timer m_tick_timer;
+		time_point m_time_now{ steady_clock::now() };
 
 		// fec解码器.
 		fec_recover m_recover;

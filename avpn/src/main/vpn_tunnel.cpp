@@ -533,7 +533,8 @@ namespace avpn {
 			if (m_download_limit > 0)
 				m_dlimit_bucket = m_download_limit;
 
-			auto now = std::chrono::steady_clock::now();
+			m_time_now = std::chrono::steady_clock::now();
+			auto& now = m_time_now;
 
 			// 更新download/upload记录.
 			compute_speed(m_down_stat, 0);
@@ -962,8 +963,9 @@ namespace avpn {
 			m_packet_id = std::max(index, m_packet_id);
 
 		// 更新最后可见时间.
+		auto now = steady_clock::now();
 		if (m_identity == Identity::avpn_server)
-			last_see(steady_clock::now());
+			last_see(now);
 
 		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
@@ -1013,7 +1015,7 @@ namespace avpn {
 
 		// 更新fec recover.
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, pkt);
+			gid, pid, m_peer_ds, m_peer_ps, now, pkt);
 
 		// 将接收到的ip包write到tun设备.
 		if (!expired)
@@ -1076,8 +1078,9 @@ namespace avpn {
 		uint64_t pid = index % shards;
 
 		// 更新最后可见时间.
+		auto& now = m_time_now;
 		if (m_identity == Identity::avpn_server)
-			last_see(steady_clock::now());
+			last_see(now);
 
 		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
@@ -1123,7 +1126,7 @@ namespace avpn {
 
 		// 更新fec recover, 使用压缩的数据执行fec解码.
 		auto [whole, expired] = m_recover.update(
-			gid, pid, m_peer_ds, m_peer_ps, pkt);
+			gid, pid, m_peer_ds, m_peer_ps, now, pkt);
 
 		// 将接收到的解压ip包write到tun设备.
 		if (!expired)

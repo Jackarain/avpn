@@ -178,14 +178,12 @@ namespace avpn {
 		// 出已丢的数据包.
 		// 第2个bool表示这个index是否过期, 如果过期则可直接跳过.
 		std::tuple<bool, bool> update(uint64_t gid, uint64_t pid,
-			int ds, int ps, vpn_packet& pkt);
+			int ds, int ps, time_point now, vpn_packet& pkt);
 
 		std::vector<vpn_packet_ptr> acquire();
 
 	public:
 		int64_t cache_size_limit_;
-		int64_t group_memory_{ 0 };
-		int64_t group_memory_limit_;
 		uint64_t early_packet_index_{ 0 };
 		std::map<uint64_t, fec_decode_group> groups_;
 		std::vector<vpn_packet_ptr> results_;

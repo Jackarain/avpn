@@ -413,8 +413,6 @@ namespace avpn
 
 	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
 		: cache_size_limit_(max_size)
-		, group_memory_limit_(max_size < group_memory_8mbytes ?
-			group_memory_8mbytes : max_size / 2)
 	{
 		set_global_allocator_size(max_size);
 	}
@@ -428,6 +426,7 @@ namespace avpn
 	std::tuple<bool, bool> fec_recover::update(
 		uint64_t gid, uint64_t pid,
 		int ds, int ps,
+		time_point now,
 		vpn_packet& pkt)
 	{
 		// 对端没有启用fec, 直接返回完整的数据包.
@@ -441,7 +440,7 @@ namespace avpn
 		auto ptr = dup_vpn_packet_ptr(pkt);
 
 		auto clean_gops =
-		[this]() mutable -> void
+		[this, now]() mutable -> void
 		{
 			// 作gop清理工作, 根据内存设定做清理.
 			for (auto it = groups_.begin();
@@ -449,11 +448,11 @@ namespace avpn
 			{
 				auto& [i, g] = *it;
 
-				if (group_memory_ < group_memory_limit_)
+				auto dur = now - g.time_;
+				if (dur < std::chrono::seconds(15))
 					break;
 
 				early_packet_index_ = i;
-				group_memory_ -= avpn_packet_memory_size;
 				it = groups_.erase(it);
 			}
 		};
@@ -473,7 +472,6 @@ namespace avpn
 			else
 				se.cancel();
 
-			group_memory_ += avpn_packet_memory_size;
 			groups_.emplace(gid, std::move(gop));
 
 			return { false, false };
