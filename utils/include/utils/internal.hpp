@@ -94,8 +94,7 @@ namespace net = boost::asio;
 using tcp = boost::asio::ip::tcp;	// from <boost/asio/ip/tcp.hpp>
 using udp = boost::asio::ip::udp;	// from <boost/asio/ip/udp.hpp>
 
-using net::basic_waitable_timer;
-using asio_timer = basic_waitable_timer<std::chrono::steady_clock>;
+using asio_timer = net::steady_timer;
 
 #ifdef __clang__
 #	pragma clang diagnostic pop
