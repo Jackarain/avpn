@@ -126,10 +126,6 @@ namespace avpn {
 
 		void internal_write_pkt(vpn_packet pkt, bool defalut_udp = false);
 
-		// 速率限制.
-		net::awaitable<void> speed_limit(
-			const int& size, bool w = true);
-
 		// forward tcp packet to tun.
 		void tcp_forward();
 
@@ -200,10 +196,6 @@ namespace avpn {
 		// 上下行速率限制.
 		int m_upload_limit{ 0 };
 		int m_download_limit{ 0 };
-
-		// 上下行限速桶.
-		int m_ulimit_bucket{ 0 };
-		int m_dlimit_bucket{ 0 };
 
 		// rtt估值.
 		int64_t m_rtt{ 0 };

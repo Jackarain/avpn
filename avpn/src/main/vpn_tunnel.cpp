@@ -528,12 +528,6 @@ namespace avpn {
 				break;
 			}
 
-			// 更新限制桶大小.
-			if (m_upload_limit > 0)
-				m_ulimit_bucket = m_upload_limit;
-			if (m_download_limit > 0)
-				m_dlimit_bucket = m_download_limit;
-
 			m_time_now = std::chrono::steady_clock::now();
 			auto& now = m_time_now;
 
@@ -707,31 +701,6 @@ namespace avpn {
 			tcp_write_pkt(std::move(pkt));
 		else
 			udp_write_pkt(std::move(pkt));
-	}
-
-	net::awaitable<void> vpn_tunnel::speed_limit(
-		const int& size, bool w /*= true*/)
-	{
-		int* bucket = nullptr;
-
-		if (w && m_upload_limit > 0)
-			bucket = &m_ulimit_bucket;
-		else if (!w && m_download_limit > 0)
-			bucket = &m_dlimit_bucket;
-		else
-			co_return;
-
-		boost::system::error_code ec;
-		asio_timer waiter(get_executor());
-
-		while (*bucket <= 0 && !m_abort)
-		{
-			waiter.expires_from_now(std::chrono::milliseconds(1));
-			co_await waiter.async_wait(uawaitable[ec]);
-		}
-
-		*bucket -= size;
-		co_return;
 	}
 
 	void vpn_tunnel::tcp_forward()
