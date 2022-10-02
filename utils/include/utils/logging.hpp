@@ -44,9 +44,7 @@
 #	ifndef WIN32_LEAN_AND_MEAN
 #		define WIN32_LEAN_AND_MEAN
 #	endif // !WIN32_LEAN_AND_MEAN
-#	include <mmsystem.h>
 #	include <windows.h>
-#	pragma comment(lib, "Winmm.lib")
 #endif // _WIN32
 
 #ifdef USE_SYSTEMD_LOGGING
