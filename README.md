@@ -126,7 +126,7 @@ ninja
 | pubkey |		给定的一个私钥，计算它的公钥，私钥以base64编码并从stdin输入，公钥将以base64编码输出stdout，对应的私钥生成可使用genkey（等同wg）。|
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
 | socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
-| socks_userid<BR>socks_passwd |		指定socks server的userid/passwd。|
+| socks_userid<br>socks_passwd |		指定socks server的userid/passwd。|
 | socks_next_proxy |		作为socks server时指定下一个socks server以实现client可跨过2层socks server的目的，这对client来说是无感的。|
 | socks_next_proxy_ssl |		指定socks_next_proxy时，与下一层socks server通信时是否采用ssl加密通信。|
 | ssl_certificate_dir |		作为socks server时，指定ssl证书目录，固定证书相关文件名为：ssl_crt.pem、ssl_key.pem、ssl_dh.pem、ssl_crt.pwd。|
