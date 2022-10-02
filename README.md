@@ -121,7 +121,7 @@ ninja
 | identity |		指定avpn运行角色是server或client，avpn的客户端和服务器是同一程序，server或是client，主要由这个参数指定avpn的运行身份。|
 | tun |		指定tun虚拟网卡名称，在windows上为虚拟网卡的具体名字（有时需要注意空格，比如 "以太网 3" 中间的空格不能丢失），在类unix平台，avpn将会自动创建虚拟网卡，windows平台使用wintun同样也会自动创建虚拟网卡。|
 | upstream |		运行身份作为client时，这个参数指定了目标server和端口，目前版本实现由udp/tcp必须同时运行，所以需要同时指定udp和ws的地址和端口。如--upstream ws://example.com:33333 udp://example.com:33333|
-| passphrase |		作为server时，指定ecdh的私钥(base64编码)，作为client时，指定为server的ecdh公钥信息(base64编码)。client 本身的密钥对由系统自动随机生成，在握手时通过协议传输公钥到server。server 通过握手协议拿到client的公钥，及本参数指定的密钥对，协商出解密密钥。client 通过本参数指定的server的公钥，及自己生成的密钥对，协商出解密密钥。|
+| publickey<br>privatekey |		作为server时，指定ecdh的私钥(base64编码)，作为client时，指定为server的ecdh公钥信息(base64编码)。client 本身的密钥对由系统自动随机生成，在握手时通过协议传输公钥到server。server 通过握手协议拿到client的公钥，及本参数指定的密钥对，协商出解密密钥。client 通过本参数指定的server的公钥，及自己生成的密钥对，协商出解密密钥。|
 | genkey |		随机生成一个base64编码的密钥（等同wg genkey）。|
 | pubkey |		给定的一个私钥，计算它的公钥，私钥以base64编码并从stdin输入，公钥将以base64编码输出stdout，对应的私钥生成可使用genkey（等同wg）。|
 | socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
