@@ -30,12 +30,8 @@
 #endif
 
 #if (CRYPTOPP_ARM_NEON_HEADER)
-# include <arm_neon.h>
-#endif
-
-#if (CRYPTOPP_ARM_ACLE_HEADER)
 # include <stdint.h>
-# include <arm_acle.h>
+# include <arm_neon.h>
 #endif
 
 #if defined(CRYPTOPP_ARM_PMULL_AVAILABLE)
@@ -54,10 +50,6 @@
 #ifndef EXCEPTION_EXECUTE_HANDLER
 # define EXCEPTION_EXECUTE_HANDLER 1
 #endif
-
-// Clang intrinsic casts, http://bugs.llvm.org/show_bug.cgi?id=20670
-#define M128_CAST(x) ((__m128i *)(void *)(x))
-#define CONST_M128_CAST(x) ((const __m128i *)(const void *)(x))
 
 // Squash MS LNK4221 and libtool warnings
 extern const char GCM_SIMD_FNAME[] = __FILE__;
@@ -162,59 +154,6 @@ bool CPU_ProbePMULL()
 }
 #endif  // ARM32 or ARM64
 
-#if (CRYPTOPP_BOOL_PPC32 || CRYPTOPP_BOOL_PPC64)
-bool CPU_ProbePMULL()
-{
-#if defined(CRYPTOPP_NO_CPU_FEATURE_PROBES)
-    return false;
-#elif (CRYPTOPP_POWER8_VMULL_AVAILABLE)
-    // longjmp and clobber warnings. Volatile is required.
-    volatile bool result = true;
-
-    volatile SigHandler oldHandler = signal(SIGILL, SigIllHandler);
-    if (oldHandler == SIG_ERR)
-        return false;
-
-    volatile sigset_t oldMask;
-    if (sigprocmask(0, NULLPTR, (sigset_t*)&oldMask))
-    {
-        signal(SIGILL, oldHandler);
-        return false;
-    }
-
-    if (setjmp(s_jmpSIGILL))
-        result = false;
-    else
-    {
-        const uint64_t wa1[]={0,W64LIT(0x9090909090909090)},
-                       wb1[]={0,W64LIT(0xb0b0b0b0b0b0b0b0)};
-        const uint64x2_p a1=VecLoad(wa1), b1=VecLoad(wb1);
-
-        const uint8_t wa2[]={0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,
-                             0xa0,0xa0,0xa0,0xa0,0xa0,0xa0,0xa0,0xa0},
-                      wb2[]={0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,0xc0,
-                             0xe0,0xe0,0xe0,0xe0,0xe0,0xe0,0xe0,0xe0};
-        const uint32x4_p a2=VecLoad(wa2), b2=VecLoad(wb2);
-
-        const uint64x2_p r1 = VecIntelMultiply11(a1, b1);
-        const uint64x2_p r2 = VecIntelMultiply11((uint64x2_p)a2, (uint64x2_p)b2);
-
-        const uint64_t wc1[]={W64LIT(0x5300530053005300), W64LIT(0x5300530053005300)},
-                       wc2[]={W64LIT(0x6c006c006c006c00), W64LIT(0x6c006c006c006c00)};
-        const uint64x2_p c1=VecLoad(wc1), c2=VecLoad(wc2);
-
-        result = !!(VecEqual(r1, c1) && VecEqual(r2, c2));
-    }
-
-    sigprocmask(SIG_SETMASK, (sigset_t*)&oldMask, NULLPTR);
-    signal(SIGILL, oldHandler);
-    return result;
-#else
-    return false;
-#endif  // CRYPTOPP_POWER8_VMULL_AVAILABLE
-}
-#endif  // PPC32 or PPC64
-
 // *************************** ARM NEON *************************** //
 
 #if CRYPTOPP_ARM_NEON_AVAILABLE
@@ -268,18 +207,18 @@ void GCM_SetKeyWithoutResync_PMULL(const byte *hashKey, byte *mulTable, unsigned
     for (i=0; i<tableSize-32; i+=32)
     {
         const uint64x2_t h1 = GCM_Multiply_PMULL(h, h0, r);
-        vst1_u64((uint64_t *)(mulTable+i), vget_low_u64(h));
-        vst1q_u64((uint64_t *)(mulTable+i+16), h1);
-        vst1q_u64((uint64_t *)(mulTable+i+8), h);
-        vst1_u64((uint64_t *)(mulTable+i+8), vget_low_u64(h1));
+        vst1_u64(UINT64_CAST(mulTable+i), vget_low_u64(h));
+        vst1q_u64(UINT64_CAST(mulTable+i+16), h1);
+        vst1q_u64(UINT64_CAST(mulTable+i+8), h);
+        vst1_u64(UINT64_CAST(mulTable+i+8), vget_low_u64(h1));
         h = GCM_Multiply_PMULL(h1, h0, r);
     }
 
     const uint64x2_t h1 = GCM_Multiply_PMULL(h, h0, r);
-    vst1_u64((uint64_t *)(mulTable+i), vget_low_u64(h));
-    vst1q_u64((uint64_t *)(mulTable+i+16), h1);
-    vst1q_u64((uint64_t *)(mulTable+i+8), h);
-    vst1_u64((uint64_t *)(mulTable+i+8), vget_low_u64(h1));
+    vst1_u64(UINT64_CAST(mulTable+i), vget_low_u64(h));
+    vst1q_u64(UINT64_CAST(mulTable+i+16), h1);
+    vst1q_u64(UINT64_CAST(mulTable+i+8), h);
+    vst1_u64(UINT64_CAST(mulTable+i+8), vget_low_u64(h1));
 }
 
 size_t GCM_AuthenticateBlocks_PMULL(const byte *data, size_t len, const byte *mtable, byte *hbuffer)
@@ -297,8 +236,8 @@ size_t GCM_AuthenticateBlocks_PMULL(const byte *data, size_t len, const byte *mt
 
         while (true)
         {
-            const uint64x2_t h0 = vld1q_u64((const uint64_t*)(mtable+(i+0)*16));
-            const uint64x2_t h1 = vld1q_u64((const uint64_t*)(mtable+(i+1)*16));
+            const uint64x2_t h0 = vld1q_u64(CONST_UINT64_CAST(mtable+(i+0)*16));
+            const uint64x2_t h1 = vld1q_u64(CONST_UINT64_CAST(mtable+(i+1)*16));
             const uint64x2_t h2 = veorq_u64(h0, h1);
 
             if (++i == s)
@@ -345,7 +284,7 @@ size_t GCM_AuthenticateBlocks_PMULL(const byte *data, size_t len, const byte *mt
         x = GCM_Reduce_PMULL(c0, c1, c2, r);
     }
 
-    vst1q_u64(reinterpret_cast<uint64_t *>(hbuffer), x);
+    vst1q_u64(UINT64_CAST(hbuffer), x);
     return len;
 }
 
