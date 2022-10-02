@@ -166,7 +166,7 @@ if (MSVC)
 
 	add_definitions(
 		-DWIN32_LEAN_AND_MEAN
-		-D_WIN32_WINNT=0x0601
+		-D_WIN32_WINNT=0x0A00
 		-DNOMINMAX
 		-DUNICODE
 		-D_UNICODE
@@ -363,9 +363,9 @@ endif()
 
 ################################################################################
 
-set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
+#set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
 add_subdirectory(third_party/crypto)
-set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
+set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto)
 
 ################################################################################
 
@@ -491,7 +491,7 @@ link_libraries(
 		Boost::json
 
 		fmt
-		cryptopp-static
+		cryptopp::cryptopp
 
 		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}

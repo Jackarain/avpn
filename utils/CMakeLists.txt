@@ -41,7 +41,7 @@ target_include_directories(utils
 target_link_libraries(utils
 	Boost::asio
 	Boost::beast
-	cryptopp-static
+	cryptopp::cryptopp
 	fmt
 )
 
