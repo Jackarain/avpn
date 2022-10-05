@@ -1,4 +1,5 @@
-﻿if (WIN32)
+﻿cmake_minimum_required(VERSION 3.16)
+if (WIN32)
 	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/resource/avpn.rc.in
 			${CMAKE_CURRENT_SOURCE_DIR}/src/resource/avpn.rc @ONLY NEWLINE_STYLE LF)
 endif()
