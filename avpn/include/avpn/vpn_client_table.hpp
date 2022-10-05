@@ -14,8 +14,6 @@
 
 namespace avpn
 {
-	using namespace util;
-
 	class vpn_tunnel;
 
 	using vpn_tunnel_ptr = std::shared_ptr<vpn_tunnel>;

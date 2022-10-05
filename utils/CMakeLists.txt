@@ -17,7 +17,6 @@ target_sources(utils
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/fileop.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/internal.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/io.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/io_context_pool.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/logging.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/misc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/scoped_exit.hpp
@@ -28,7 +27,6 @@ target_sources(utils
 	PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/src/acl.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/crypto.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/io_context_pool.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/misc.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/resolved_setdns.cpp
 )

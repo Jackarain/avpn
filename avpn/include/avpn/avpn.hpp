@@ -16,7 +16,6 @@
 #include "utils/crypto.hpp"
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
-#include "utils/io_context_pool.hpp"
 
 #include "socks/socks_server.hpp"
 
