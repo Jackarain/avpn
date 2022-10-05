@@ -10,9 +10,41 @@
 #include "utils/scoped_exit.hpp"
 #include "avpn/avpn.hpp"
 
+#if defined(__cpp_lib_format)
+#	include <format>
+#endif
+
+#if !defined(__cpp_lib_format)
+#ifdef _MSC_VER
+#	pragma warning(push)
+#	pragma warning(disable: 4244 4127)
+#endif // _MSC_VER
+
+#ifdef __clang__
+#	pragma clang diagnostic push
+#	pragma clang diagnostic ignored "-Wexpansion-to-defined"
+#endif
+
 #include <fmt/ostream.h>
 #include <fmt/printf.h>
 #include <fmt/format.h>
+
+namespace std {
+	using ::fmt::format;
+	using ::fmt::format_to;
+	using ::fmt::vformat;
+	using ::fmt::vformat_to;
+	using ::fmt::make_format_args;
+}
+
+#ifdef __clang__
+#	pragma clang diagnostic pop
+#endif
+
+#ifdef _MSC_VER
+#	pragma warning(pop)
+#endif
+#endif
 
 #include <boost/json/src.hpp>
 
@@ -330,7 +362,7 @@ namespace avpn {
 
 			if (method == "stop")
 			{
-				std::string result = fmt::format(
+				std::string result = std::format(
 					R"({{"jsonrpc":"2.0", "id": {}, "result": {}}})",
 					id,
 					"completed");
@@ -353,7 +385,7 @@ namespace avpn {
 
 			if (method == "start")
 			{
-				std::string result = fmt::format(
+				std::string result = std::format(
 					R"({{"jsonrpc":"2.0", "id": {}, "result": {}}})",
 					id,
 					"completed");
@@ -387,7 +419,7 @@ namespace avpn {
 					<< "do vpn speed, upload: " << urate
 					<< ", download: " << drate;
 
-				std::string result = fmt::format(
+				std::string result = std::format(
 					R"({{"jsonrpc":"2.0", "id": {}, "result": [{}, {}]}})",
 					id, urate, drate);
 
