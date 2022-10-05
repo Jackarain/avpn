@@ -1,4 +1,5 @@
-﻿set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
+﻿cmake_minimum_required(VERSION 3.16)
+set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 project(zstd C)
 
 file(GLOB zstd_SRC
