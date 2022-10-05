@@ -22,6 +22,8 @@
 #include <string>
 #include <string_view>
 
+#include <boost/asio.hpp>
+
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
