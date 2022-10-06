@@ -147,8 +147,13 @@ namespace avpn
 		bool open(const dev_config &cfg)
 		{
 			struct ifreq ifr;
+			int fd;
 
-			int fd = ::open(TUNDEV, O_RDWR);
+			if (cfg.fd_ != -1)
+				fd = cfg.fd_;
+			else
+				fd = ::open(TUNDEV, O_RDWR);
+
 			if (fd < 0)
 				return false;
 
@@ -159,7 +164,7 @@ namespace avpn
 			if (!cfg.dev_name_.empty() && cfg.dev_name_.size() < IFNAMSIZ)
 				strncpy(ifr.ifr_name, cfg.dev_name_.data(), IFNAMSIZ);
 
-			if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) //打开虚拟网卡
+			if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0)
 			{
 				::close(fd);
 				return false;
@@ -282,7 +287,7 @@ namespace avpn
 			return m_stream_descriptor.async_write_some(buffers, std::forward<WriteHandler>(handler));
 		}
 
-		std::vector<tun_device> take_device_list()
+		std::vector<tun_device_info> take_device_list()
 		{
 			return m_device_list;
 		}
@@ -308,7 +313,7 @@ namespace avpn
 
 	private:
 		net::posix::stream_descriptor m_stream_descriptor;
-		std::vector<tun_device> m_device_list;
+		std::vector<tun_device_info> m_device_list;
 		dev_config m_config;
 		int m_frame_mtu{ -1 };
 		std::vector<uint8_t> m_mac_addr;

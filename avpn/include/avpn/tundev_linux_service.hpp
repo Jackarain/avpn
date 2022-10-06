@@ -241,8 +241,13 @@ namespace avpn
 		bool open(const dev_config &cfg)
 		{
 			struct ifreq ifr;
+			int fd;
 
-			int fd = ::open(TUNDEV, O_RDWR);
+			if (cfg.fd_ != -1)
+				fd = cfg.fd_;
+			else
+				fd = ::open(TUNDEV, O_RDWR);
+
 			if (fd < 0)
 				return false;
 
@@ -254,7 +259,7 @@ namespace avpn
 			if (!cfg.dev_name_.empty() && cfg.dev_name_.size() < IFNAMSIZ)
 				strncpy(ifr.ifr_name, cfg.dev_name_.data(), IFNAMSIZ);
 
-			if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0) //打开虚拟网卡
+			if (ioctl(fd, TUNSETIFF, (void *)&ifr) < 0)
 			{
 				::close(fd);
 				return false;
