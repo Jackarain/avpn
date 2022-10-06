@@ -310,7 +310,6 @@ namespace avpn {
 					return false;
 				}
 
-				// if (cfg.ifconfig_setup_)
 				{
 					auto ep1 = net::ip::address_v4(ntohl(tun_addrs[1]));
 					auto ep0 = net::ip::address_v4(ntohl(tun_addrs[0]));

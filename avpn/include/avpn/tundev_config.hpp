@@ -24,8 +24,7 @@ namespace avpn {
 		std::string dhcp_;
 		std::string guid_;
 		std::string dev_name_;
-
-		bool ifconfig_setup_;
+		int fd_{ -1 };
 	};
 
 }
