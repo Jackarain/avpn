@@ -191,7 +191,8 @@ namespace avpn {
 #if defined(AVPN_WINDOWS)
 	using vtun_device_type = vtun_device<tuntap_device>;
 #else
-	using vtun_device_type = vtun_device<tun_device>;
+	using tunipc_device = basic_tun_service<tundev_ipc_service>;
+	using vtun_device_type = vtun_device<tun_device, tunipc_device>;
 #endif
 #endif
 

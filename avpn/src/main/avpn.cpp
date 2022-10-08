@@ -35,10 +35,15 @@ namespace avpn {
 	using net::ip::make_network_v4;
 
 	vtun_device_type instantiate_vtun_device(
-		[[maybe_unused]] int device_type,
-		net::io_context& ioc)
+		const service_config& config, net::io_context& ioc)
 	{
+		const std::string& dev = config.ifdev_;
+
 #if defined(AVPN_WINDOWS)
+		int device_type = dev == "wintun" ? 1 : 0;
+#if defined(AVPN_USE_WINTUN)
+		device_type = 0;
+#endif
 		if (device_type == 0)
 			return vtun_device_type(tuntap_device(ioc));
 #if defined(AVPN_USE_WINTUN)
@@ -48,6 +53,11 @@ namespace avpn {
 		return vtun_device_type(tuntap_device(ioc));
 #endif
 #else
+		if (dev.empty())
+		{
+			if (config.utun_fd_ != -1)
+				return vtun_device_type(tunipc_device(ioc));
+		}
 		return vtun_device_type(tun_device(ioc));
 #endif
 	}
@@ -62,7 +72,7 @@ namespace avpn {
 			? base64_encode(crypto_util::ecdh_keygen())
 			: config.private_key_)
 		, m_tundev(instantiate_vtun_device(
-			config.ifdev_ == "wintun" ? 1 : 0, m_main_context))
+			config, m_main_context))
 		, m_tick_timer(m_main_context)
 		, m_tun_wait_timer(m_main_context)
 		, m_subnet(make_network_v4(config.tunnel_params_.subnet_))
@@ -912,6 +922,15 @@ namespace avpn {
 		avpn::dev_config dc = { ipaddr, mask.to_string(),
 			gateway.to_string(), "", "", "", 0 };
 		dc.dev_name_ = m_config.ifdev_;
+
+		if (dc.dev_name_.empty())
+		{
+			if (m_config.utun_fd_ != -1)
+				dc.fd_ = m_config.utun_fd_;
+			else
+				dc.fd_ = m_config.ptun_fd_;
+		}
+
 		auto dev_list = m_tundev.take_device_list();
 		std::string guid;
 		for (auto& i : dev_list)
