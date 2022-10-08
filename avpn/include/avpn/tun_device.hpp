@@ -24,6 +24,8 @@
 #	error unsupported platform
 #endif
 
+#include "avpn/tundev_ipc_service.hpp"
+
 #include "avpn/basic_tun_service.hpp"
 
 #include <boost/variant2.hpp>
