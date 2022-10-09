@@ -15,16 +15,18 @@
 #	include "avpn/tuntap_windows_service.hpp"
 
 #elif defined(AVPN_LINUX)
+#   include "avpn/tundev_ipc_service.hpp"
 #	include "avpn/tundev_linux_service.hpp"
 #elif defined(AVPN_APPLE)
+#   include "avpn/tundev_ipc_service.hpp"
 #	include "avpn/tundev_macos_service.hpp"
 #elif defined(AVPN_ANDROID)
+#   include "avpn/tundev_ipc_service.hpp"
 #	include "avpn/tundev_android_service.hpp"
 #else
 #	error unsupported platform
 #endif
 
-#include "avpn/tundev_ipc_service.hpp"
 
 #include "avpn/basic_tun_service.hpp"
 
