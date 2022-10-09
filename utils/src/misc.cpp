@@ -706,7 +706,7 @@ int32_t run_hook(std::string cmd, std::map<std::string, std::string> env)
 
 #ifdef WIN32
 
-inline void utf8_utf16(const std::string& utf8, std::wstring& utf16)
+void utf8_utf16(const std::string& utf8, std::wstring& utf16)
 {
 	auto len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, NULL, 0);
 	if (len > 0)
@@ -718,7 +718,7 @@ inline void utf8_utf16(const std::string& utf8, std::wstring& utf16)
 	}
 }
 
-inline void utf16_utf8(const std::wstring& utf16, std::string& utf8)
+void utf16_utf8(const std::wstring& utf16, std::string& utf8)
 {
 	auto len = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, NULL, 0, 0, 0);
 	if (len > 0)
@@ -749,7 +749,7 @@ std::string utf8_from_astring(const std::string& str)
 	return result;
 }
 
-inline std::string error_format(DWORD err)
+std::string error_format(DWORD err)
 {
 	// Retrieve the system error message for the last-error code
 	LPVOID lpMsgBuf;

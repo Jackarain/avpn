@@ -98,6 +98,16 @@ std::string gen_unique_string(const unsigned int len);
 uint32_t gen_unique_number();
 std::string gen_uuid();
 
+#ifdef _WIN32
+
+void utf8_utf16(const std::string& utf8, std::wstring& utf16);
+void utf16_utf8(const std::wstring& utf16, std::string& utf8);
+std::string utf8_from_astring(const std::string& str);
+std::string error_format(DWORD err);
+
+#endif // WIN32
+
+
 // 设置线程名.
 void set_thread_name(const char* name);
 void set_thread_name(std::thread* thread, const char* name);
