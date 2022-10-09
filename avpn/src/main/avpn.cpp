@@ -19,6 +19,7 @@
 #include "avpn/avpn.hpp"
 #include "avpn/vpn_conntrack.hpp"
 #include "avpn/protocol.hpp"
+#include "avpn/tundev_common.hpp"
 
 #include "socks/socks_enums.hpp"
 
@@ -952,14 +953,8 @@ namespace avpn {
 		}
 #endif // WIN32
 
-		auto default_gateway = get_default_gateway();
-		if (!default_gateway)
-		{
-			LOG_ERR << "Get default gateway fail!";
-			co_return;
-		}
-
-		auto default_gw = default_gateway->address().to_string();
+		auto [defgw, str] = common::default_gateway();
+		auto default_gw = defgw.address().to_string();
 
 		if (!m_tundev.open(dc))
 		{

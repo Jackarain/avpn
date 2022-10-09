@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "avpn/tundev_common.hpp"
+
 #if defined(AVPN_WINDOWS)
 
 #	if defined(AVPN_USE_WINTUN)

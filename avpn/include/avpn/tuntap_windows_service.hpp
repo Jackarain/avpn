@@ -9,7 +9,6 @@
 
 #include "utils/logging.hpp"
 #include "avpn/tundev_config.hpp"
-#include "avpn/windows_apis.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
 #include <boost/asio/io_context.hpp>
@@ -72,16 +71,6 @@
 #endif // !TUNTAP_IOCTL_DEFINED
 
 namespace avpn {
-	namespace details {
-		inline int tap_win32_set_status(HANDLE handle, int status)
-		{
-			unsigned long len = 0;
-			return DeviceIoControl(handle, TAP_IOCTL_SET_MEDIA_STATUS,
-				&status, sizeof(status), &status, sizeof(status), &len, NULL);
-		}
-	}
-
-	using details::get_default_gateway;
 
 	class tuntap_windows_service
 		: public net::detail::service_base<tuntap_windows_service>
@@ -89,6 +78,13 @@ namespace avpn {
 		// c++11 noncopyable.
 		tuntap_windows_service(const tuntap_windows_service&) = delete;
 		tuntap_windows_service& operator=(const tuntap_windows_service&) = delete;
+
+		inline int tap_win32_set_status(HANDLE handle, int status)
+		{
+			unsigned long len = 0;
+			return DeviceIoControl(handle, TAP_IOCTL_SET_MEDIA_STATUS,
+				&status, sizeof(status), &status, sizeof(status), &len, NULL);
+		}
 
 	public:
 		explicit tuntap_windows_service(net::io_context& io_context)
@@ -253,7 +249,7 @@ namespace avpn {
 			std::wstring tapsuffix = boost::nowide::widen(TAPSUFFIX);
 #endif
 
-			m_if_index = details::get_interface_index(guid.data());
+			m_if_index = common::get_interface_index(guid.data());
 
 			std::wstring device_path = usermodedevicedir + guid + tapsuffix;
 			LOG_DBG << "Open device: " << device_path;
@@ -360,7 +356,7 @@ namespace avpn {
 			}
 
 
-			if (!details::tap_win32_set_status(handle, TRUE))
+			if (!tap_win32_set_status(handle, TRUE))
 			{
 				CloseHandle(handle);
 				return false;
@@ -368,7 +364,7 @@ namespace avpn {
 
 			// 修改mtu大小为1450, 避免ip包过大导致通道无法正常发送.
 			m_frame_mtu = 1450;
-			details::windows_set_mtu(m_if_index, AF_INET, m_frame_mtu);
+			common::windows_set_mtu(m_if_index, AF_INET, m_frame_mtu);
 
 			// get_tap_reg ?
 			// 	DWORD ret = FlushIpNetTable(index);
@@ -402,7 +398,7 @@ namespace avpn {
 		{
 			if (m_io_handle.is_open())
 			{
-				details::tap_win32_set_status(m_handle, FALSE);
+				tap_win32_set_status(m_handle, FALSE);
 
 				boost::system::error_code ignore_ec;
 				m_io_handle.cancel(ignore_ec);

@@ -16,14 +16,19 @@ file(GLOB avpn_WINTUN_SRCS
 	include/avpn/wintun_windows_service.hpp
 )
 file(GLOB avpn_WINDOWS_SRCS
-	include/avpn/windows_apis.hpp
 	include/avpn/tuntap_windows_service.hpp
 )
 file(GLOB avpn_APPLE_SRCS
 	include/avpn/tundev_macos_service.hpp
 )
+file(GLOB avpn_ANDROID_SRCS
+	include/avpn/tundev_android_service.hpp
+)
 file(GLOB avpn_LINUX_SRCS
 	include/avpn/tundev_linux_service.hpp
+)
+file(GLOB avpn_IPC_SRCS
+	include/avpn/tundev_ipc_service.hpp
 )
 
 file(GLOB avpn_SRCS
@@ -39,6 +44,7 @@ file(GLOB avpn_SRCS
 	include/avpn/tundev.hpp
 	include/avpn/tun_device.hpp
 	include/avpn/tundev_config.hpp
+	include/avpn/tundev_common.hpp
 	include/avpn/fec_cache.hpp
 	include/avpn/protocol.hpp
 	include/avpn/vpn_client_table.hpp
@@ -57,6 +63,7 @@ file(GLOB avpn_SRCS
 	src/main/vpn_packet.cpp
 	src/main/vpn_conntrack.cpp
 	src/main/vpn_tcp_stream.cpp
+	src/main/tundev_common.cpp
 )
 
 if (WIN32)
@@ -64,10 +71,15 @@ if (WIN32)
 		list (APPEND avpn_WINDOWS_SRCS ${avpn_WINTUN_SRCS})
 	endif()
 	list (APPEND avpn_SRCS ${avpn_WINDOWS_SRCS})
-elseif (UNIX AND NOT APPLE)
+#elseif (UNIX AND NOT APPLE)
 	list (APPEND avpn_SRCS ${avpn_LINUX_SRCS})
-elseif (APPLE)
+#elseif (AVPN_ANDROID)
+	list (APPEND avpn_SRCS ${avpn_ANDROID_SRCS})
+#elseif (APPLE)
 	list (APPEND avpn_SRCS ${avpn_APPLE_SRCS})
+	if (true)
+		list (APPEND avpn_SRCS ${avpn_IPC_SRCS})
+	endif()
 endif()
 
 add_library(libavpn ${avpn_SRCS})

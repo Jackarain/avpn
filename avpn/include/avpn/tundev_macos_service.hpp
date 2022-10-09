@@ -44,36 +44,6 @@
 
 namespace avpn
 {
-	inline std::optional<net::ip::network_v4> get_default_gateway()
-	{
-		auto [result, ret] = run_command("netstat -rn -f inet");
-		if (!ret)
-			return {};
-
-		std::vector<std::string> strings;
-		boost::split(strings, result, boost::is_any_of("\n"));
-		boost::regex expression(R"((default)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S*).*)");
-
-		for (const auto word : strings)
-		{
-			boost::smatch what;
-			if (boost::regex_match(word, what, expression))
-			{
-				std::string gateway = std::string(what[2]);
-				boost::system::error_code ec;
-				auto gw = net::ip::address_v4::from_string(gateway, ec);
-				if (ec)
-					continue;
-				net::ip::address_v4 mask{ 0 };
-
-				LOG_DBG << "Default gateway: " << gw.to_string();
-				return net::ip::network_v4(gw, mask);
-			}
-		}
-
-		return {};
-	}
-
 	class tundev_macos_service
 		: public net::detail::service_base<tundev_macos_service>
 	{

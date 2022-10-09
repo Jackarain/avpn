@@ -14,7 +14,6 @@
 
 #include "avpn/tundev_config.hpp"
 #include "avpn/endpoint_pair.hpp"
-#include "avpn/windows_apis.hpp"
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -103,8 +102,6 @@ namespace avpn {
 
 	}
 
-
-	using details::get_default_gateway;
 
 	class wintun_windows_service
 		: public net::detail::service_base<wintun_windows_service>
@@ -283,7 +280,7 @@ namespace avpn {
 			auto LastError = CreateUnicastIpAddressEntry(&AddressRow);
 			if (LastError != ERROR_SUCCESS && LastError != ERROR_OBJECT_ALREADY_EXISTS)
 			{
-				LOG_ERR << "Failed to set IP address: " << details::error_format(LastError);
+				LOG_ERR << "Failed to set IP address: " << error_format(LastError);
 				return false;
 			}
 			m_address_row = AddressRow;
@@ -292,13 +289,13 @@ namespace avpn {
 			[[maybe_unused]] auto rc0 = StringFromIID(AdapterGuid, &dev_guid);
 			scoped_exit free_dev_guid([&]() mutable { CoTaskMemFree(dev_guid);  });
 
-			auto if_index = details::get_interface_index(dev_guid);
-			details::windows_set_mtu(if_index, AF_INET, 1450);
+			auto if_index = common::get_interface_index(dev_guid);
+			common::windows_set_mtu(if_index, AF_INET, 1450);
 
 			m_wintun_file = open_wintun("AVPN");
 			if (m_wintun_file == INVALID_HANDLE_VALUE)
 			{
-				LOG_ERR << "open_wintun: " << details::error_format(GetLastError());
+				LOG_ERR << "open_wintun: " << error_format(GetLastError());
 				return false;
 			}
 
@@ -309,7 +306,7 @@ namespace avpn {
 				NULL);
 			if (m_send_ring_handle == INVALID_HANDLE_VALUE || m_send_ring_handle == NULL)
 			{
-				LOG_ERR << "CreateFileMapping for send: " << details::error_format(GetLastError());
+				LOG_ERR << "CreateFileMapping for send: " << error_format(GetLastError());
 				return false;
 			}
 			m_receive_ring_handle = CreateFileMapping(INVALID_HANDLE_VALUE,
@@ -320,7 +317,7 @@ namespace avpn {
 				NULL);
 			if (m_receive_ring_handle == INVALID_HANDLE_VALUE || m_receive_ring_handle == NULL)
 			{
-				LOG_ERR << "CreateFileMapping for write: " << details::error_format(GetLastError());
+				LOG_ERR << "CreateFileMapping for write: " << error_format(GetLastError());
 				return false;
 			}
 			m_send_ring = (struct tun_ring*)MapViewOfFile(m_send_ring_handle,
