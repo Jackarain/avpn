@@ -65,7 +65,8 @@ namespace avpn
 			void(boost::system::error_code, std::size_t))
 		async_read_some(const MutableBufferSequence &buffers, ReadHandler&& handler)
 		{
-			return m_ipc_socket.async_read_some(buffers, std::forward<ReadHandler>(handler));
+			static datagram_protocol::endpoint endp;
+			return m_ipc_socket.async_receive_from(buffers, endp, std::forward<ReadHandler>(handler));
 		}
 
 		template <typename ConstBufferSequence, typename WriteHandler>
@@ -73,7 +74,8 @@ namespace avpn
 			void(boost::system::error_code, std::size_t))
 		async_write_some(const ConstBufferSequence &buffers, WriteHandler&& handler)
 		{
-			return m_ipc_socket.async_write_some(buffers, std::forward<WriteHandler>(handler));
+			static datagram_protocol::endpoint endp;
+			return m_ipc_socket.async_send_to(buffers, endp, std::forward<WriteHandler>(handler));
 		}
 
 		std::vector<tun_device_info> take_device_list()
