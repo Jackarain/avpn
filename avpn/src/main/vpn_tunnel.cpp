@@ -24,8 +24,7 @@ namespace avpn {
 			: stream_(s)
 			, pkt_(pkt)
 			, handler_(static_cast<Handler&&>(h))
-		{
-		}
+		{}
 
 		write_packet_op(write_packet_op&& other) noexcept
 			: stream_(other.stream_)
