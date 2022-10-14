@@ -112,26 +112,29 @@ extern size_t CHAM128_Dec_AdvancedProcessBlocks_SSSE3(const word32* subKeys, siz
 # endif  // CRYPTOPP_SSSE3_AVAILABLE
 #endif  // CRYPTOPP_CHAM128_ADVANCED_PROCESS_BLOCKS
 
+std::string CHAM64::Base::AlgorithmProvider() const
+{
+#if (CRYPTOPP_CHAM128_ADVANCED_PROCESS_BLOCKS)
+# if defined(CRYPTOPP_SSSE3_AVAILABLE)
+    if (HasSSSE3())
+        return "SSSE3";
+# endif
+#endif
+    return "C++";
+}
+
 void CHAM64::Base::UncheckedSetKey(const byte *userKey, unsigned int keyLength, const NameValuePairs &params)
 {
     CRYPTOPP_UNUSED(params);
     m_kw = keyLength/sizeof(word16);
     m_rk.New(2*m_kw);
 
-    for (size_t i = 0; i < m_kw; userKey += sizeof(word32))
+    for (size_t i = 0; i < m_kw; ++i, userKey += sizeof(word16))
     {
         // Do not cast the buffer. It will SIGBUS on some ARM and SPARC.
-        const word32 rk = GetWord<word32>(false, BIG_ENDIAN_ORDER, userKey);
-
-        const word16 rk1 = static_cast<word16>(rk >> 16);
-        m_rk[i] = rk1 ^ rotlConstant<1>(rk1) ^ rotlConstant<8>(rk1);
-        m_rk[(i + m_kw) ^ 1] = rk1 ^ rotlConstant<1>(rk1) ^ rotlConstant<11>(rk1);
-        i++;
-
-        const word16 rk2 = static_cast<word16>(rk & 0xffff);
-        m_rk[i] = rk2 ^ rotlConstant<1>(rk2) ^ rotlConstant<8>(rk2);
-        m_rk[(i + m_kw) ^ 1] = rk2 ^ rotlConstant<1>(rk2) ^ rotlConstant<11>(rk2);
-        i++;
+        const word16 rk = GetWord<word16>(false, BIG_ENDIAN_ORDER, userKey);
+        m_rk[i] = rk ^ rotlConstant<1>(rk) ^ rotlConstant<8>(rk);
+        m_rk[(i + m_kw) ^ 1] = rk ^ rotlConstant<1>(rk) ^ rotlConstant<11>(rk);
     }
 }
 
@@ -212,13 +215,12 @@ void CHAM128::Base::UncheckedSetKey(const byte *userKey, unsigned int keyLength,
     m_kw = keyLength/sizeof(word32);
     m_rk.New(2*m_kw);
 
-    for (size_t i = 0; i < m_kw; userKey += sizeof(word32))
+    for (size_t i = 0; i < m_kw; ++i, userKey += sizeof(word32))
     {
         // Do not cast the buffer. It will SIGBUS on some ARM and SPARC.
         const word32 rk = GetWord<word32>(false, BIG_ENDIAN_ORDER, userKey);
         m_rk[i] = rk ^ rotlConstant<1>(rk) ^ rotlConstant<8>(rk);
         m_rk[(i + m_kw) ^ 1] = rk ^ rotlConstant<1>(rk) ^ rotlConstant<11>(rk);
-        i++;
     }
 }
 

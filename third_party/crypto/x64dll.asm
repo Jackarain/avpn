@@ -1998,7 +1998,7 @@ XGETBV64	ENDP
     ALIGN   8
 CPUID64	PROC
     ;; preserve per ABI
-    mov 	r9, rbx
+    push	rbx
     ;; eax = func
     mov 	rax, rcx
     ;; ecx = subfunc
@@ -2011,7 +2011,7 @@ CPUID64	PROC
     mov 	[r8+8],  ecx
     mov 	[r8+12], edx
     ;; restore
-    mov 	rbx, r9
+    pop 	rbx
     ;; return
     mov 	rax, 1
     ret

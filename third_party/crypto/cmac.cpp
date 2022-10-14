@@ -151,9 +151,7 @@ void CMAC_Base::TruncatedFinal(byte *mac, size_t size)
 	else
 		cipher.AdvancedProcessBlocks(m_reg, m_reg+blockSize, m_reg, blockSize, BlockTransformation::BT_DontIncrementInOutPointers|BlockTransformation::BT_XorInput);
 
-	// UBsan finding
-	if (mac)
-		memcpy(mac, m_reg, size);
+	memcpy(mac, m_reg, size);
 
 	m_counter = 0;
 	memset(m_reg, 0, blockSize);

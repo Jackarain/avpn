@@ -64,7 +64,7 @@
 #  endif
 # endif
 
-# define CRYPTOGAMS_ARMV7_NEON      (1<<0)
+# define ARMV7_NEON      (1<<0)
 
 @ JW, MAY 2019: End defines from taken from arm_arch.h
 @               Back to original Cryptogams code
@@ -79,16 +79,16 @@
 .text
 
 .align	5
-.globl	cryptogams_sha1_block_data_order
-.type	cryptogams_sha1_block_data_order,%function
+.globl	sha1_block_data_order_ARM
+.type	sha1_block_data_order_ARM,%function
 
-cryptogams_sha1_block_data_order:
-.Lcryptogams_sha1_block_data_order:
+sha1_block_data_order_ARM:
+.Lsha1_block_data_order_ARM:
 
 #if __ARM_ARCH__<7 && !defined(__thumb2__)
-	sub	r3,pc,#8		@ cryptogams_sha1_block_data_order
+	sub	r3,pc,#8		@ sha1_block_data_order_ARM
 #else
-	adr	r3,.Lcryptogams_sha1_block_data_order
+	adr	r3,.Lsha1_block_data_order_ARM
 #endif
 
 	stmdb	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,r12,lr}
@@ -542,7 +542,7 @@ cryptogams_sha1_block_data_order:
 	moveq	pc,lr			@ be binary compatible with V4, yet
 .word	0xe12fff1e			@ interoperable with Thumb ISA:-)
 #endif
-.size	cryptogams_sha1_block_data_order,.-cryptogams_sha1_block_data_order
+.size	sha1_block_data_order_ARM,.-sha1_block_data_order_ARM
 
 .align	5
 .LK_00_19:.word	0x5a827999
@@ -555,11 +555,11 @@ cryptogams_sha1_block_data_order:
 .arch	armv7-a
 .fpu	neon
 
-.globl	cryptogams_sha1_block_data_order_neon
-.type	cryptogams_sha1_block_data_order_neon,%function
+.globl	sha1_block_data_order_neon
+.type	sha1_block_data_order_neon,%function
 
 .align	4
-cryptogams_sha1_block_data_order_neon:
+sha1_block_data_order_neon:
 
 	stmdb	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,r12,lr}
 	add	r2,r1,r2,lsl#6	@ r2 to point at the end of r1
@@ -1406,5 +1406,5 @@ cryptogams_sha1_block_data_order_neon:
 
 	@ vldmia	sp!,{d8-d15}
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,r12,pc}
-.size	cryptogams_sha1_block_data_order_neon,.-cryptogams_sha1_block_data_order_neon
+.size	sha1_block_data_order_neon,.-sha1_block_data_order_neon
 #endif

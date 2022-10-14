@@ -322,8 +322,8 @@ void AddHtmlHeader()
 
 	oss << "\n<BODY>";
 
-	oss << "\n<H1><A href=\"http://www.cryptopp.com\">Crypto++ " << CRYPTOPP_VERSION / 100;
-	oss << '.' << (CRYPTOPP_VERSION % 100) / 10 << '.' << CRYPTOPP_VERSION % 10 << "</A> Benchmarks</H1>";
+	oss << "\n<H1><A href=\"http://www.cryptopp.com\">Crypto++</A> " << CRYPTOPP_VERSION / 100;
+	oss << '.' << (CRYPTOPP_VERSION % 100) / 10 << '.' << CRYPTOPP_VERSION % 10 << " Benchmarks</H1>";
 
 	oss << "\n<P>Here are speed benchmarks for some commonly used cryptographic algorithms.</P>";
 
@@ -349,10 +349,6 @@ void BenchmarkWithCommand(int argc, const char* const argv[])
 	float cpuFreq(argc >= 4 ? Test::StringToValue<float, true>(argv[3])*float(1e9) : 0.0f);
 	std::string algoName(argc >= 5 ? argv[4] : "");
 
-	// https://github.com/weidai11/cryptopp/issues/983
-	if (runningTime > 10.0f)
-		runningTime = 10.0f;
-
 	if (command == "b")  // All benchmarks
 		Benchmark(Test::All, runningTime, cpuFreq);
 	else if (command == "b4")  // Public key algorithms over EC
@@ -370,9 +366,6 @@ void Benchmark(Test::TestClass suites, double t, double hertz)
 	g_allocatedTime = t;
 	g_hertz = hertz;
 
-	// Add <br> in between tables
-	size_t count_breaks = 0;
-
 	AddHtmlHeader();
 
 	g_testBegin = ::time(NULLPTR);
@@ -383,41 +376,29 @@ void Benchmark(Test::TestClass suites, double t, double hertz)
 	// Unkeyed algorithms
 	if (suites & Test::Unkeyed)
 	{
-		if (count_breaks)
-			std::cout << "\n<BR>";
-		count_breaks++;
-
-		BenchmarkUnkeyedAlgorithms(t, hertz);
+		std::cout << "\n<BR>";
+		Benchmark1(t, hertz);
 	}
 
 	// Shared key algorithms
 	if (suites & Test::SharedKey)
 	{
-		if (count_breaks)
-			std::cout << "\n<BR>";
-		count_breaks++;
-
-		BenchmarkSharedKeyedAlgorithms(t, hertz);
+		std::cout << "\n<BR>";
+		Benchmark2(t, hertz);
 	}
 
 	// Public key algorithms
 	if (suites & Test::PublicKey)
 	{
-		if (count_breaks)
-			std::cout << "\n<BR>";
-		count_breaks++;
-
-		BenchmarkPublicKeyAlgorithms(t, hertz);
+		std::cout << "\n<BR>";
+		Benchmark3(t, hertz);
 	}
 
 	// Public key algorithms over EC
 	if (suites & Test::PublicKeyEC)
 	{
-		if (count_breaks)
-			std::cout << "\n<BR>";
-		count_breaks++;
-
-		BenchmarkEllipticCurveAlgorithms(t, hertz);
+		std::cout << "\n<BR>";
+		Benchmark4(t, hertz);
 	}
 
 	g_testEnd = ::time(NULLPTR);
@@ -434,7 +415,7 @@ void Benchmark(Test::TestClass suites, double t, double hertz)
 	AddHtmlFooter();
 }
 
-void BenchmarkUnkeyedAlgorithms(double t, double hertz)
+void Benchmark1(double t, double hertz)
 {
 	g_allocatedTime = t;
 	g_hertz = hertz;
@@ -509,8 +490,6 @@ void BenchmarkUnkeyedAlgorithms(double t, double hertz)
 		BenchMarkByNameKeyLess<HashTransformation>("SM3");
 		BenchMarkByNameKeyLess<HashTransformation>("BLAKE2s");
 		BenchMarkByNameKeyLess<HashTransformation>("BLAKE2b");
-		BenchMarkByNameKeyLess<HashTransformation>("LSH-256");
-		BenchMarkByNameKeyLess<HashTransformation>("LSH-512");
 	}
 
 	std::cout << "\n</TABLE>" << std::endl;

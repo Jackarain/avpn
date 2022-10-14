@@ -88,9 +88,10 @@ being unloaded from L1 cache, until that round is finished.
 #include "misc.h"
 #include "cpu.h"
 
-// VS2017 and global optimization bug. Also see
+// VS2017 and global optimization bug. TODO, figure out when
+// we can re-enable full optimizations for VS2017. Also see
 // https://github.com/weidai11/cryptopp/issues/649
-#if (_MSC_VER >= 1910) && (_MSC_VER < 1916)
+#if (_MSC_VER >= 1910)
 # ifndef CRYPTOPP_DEBUG
 #  pragma optimize("", off)
 #  pragma optimize("ts", on)
@@ -109,7 +110,7 @@ NAMESPACE_BEGIN(CryptoPP)
 #define CONST_M128I_CAST(x) ((const __m128i *)(const void *)(x))
 
 #if defined(CRYPTOPP_ALLOW_RIJNDAEL_UNALIGNED_DATA_ACCESS)
-# if (CRYPTOPP_SSE2_ASM_AVAILABLE || defined(CRYPTOPP_X64_MASM_AVAILABLE)) && !defined(CRYPTOPP_DISABLE_RIJNDAEL_ASM)
+# if (CRYPTOPP_SSE2_ASM_AVAILABLE || defined(CRYPTOPP_X64_MASM_AVAILABLE))// && !defined(CRYPTOPP_DISABLE_RIJNDAEL_ASM)
 namespace rdtable {CRYPTOPP_ALIGN_DATA(16) word64 Te[256+2];}
 using namespace rdtable;
 # else
@@ -135,7 +136,7 @@ ANONYMOUS_NAMESPACE_BEGIN
 //   with the same 4k block offsets as the Te table. Logically,
 //   the code is trying to create the condition:
 //
-// Two separate memory pages:
+// Two sepearate memory pages:
 //
 //  +-----+   +-----+
 //  |XXXXX|   |YYYYY|
@@ -329,10 +330,10 @@ extern size_t Rijndael_Dec_AdvancedProcessBlocks_ARMV8(const word32 *subkeys, si
 #endif
 
 #if (CRYPTOGAMS_ARM_AES)
-extern "C" int cryptogams_AES_set_encrypt_key(const unsigned char *userKey, const int bitLen, word32 *rkey);
-extern "C" int cryptogams_AES_set_decrypt_key(const unsigned char *userKey, const int bitLen, word32 *rkey);
-extern "C" void cryptogams_AES_encrypt_block(const unsigned char *in, unsigned char *out, const word32 *rkey);
-extern "C" void cryptogams_AES_decrypt_block(const unsigned char *in, unsigned char *out, const word32 *rkey);
+extern "C" int AES_set_encrypt_key_ARM(const unsigned char *userKey, const int bitLen, word32 *rkey);
+extern "C" int AES_set_decrypt_key_ARM(const unsigned char *userKey, const int bitLen, word32 *rkey);
+extern "C" void AES_encrypt_block(const unsigned char *in, unsigned char *out, const word32 *rkey);
+extern "C" void AES_decrypt_block(const unsigned char *in, unsigned char *out, const word32 *rkey);
 #endif
 
 #if (CRYPTOPP_POWER8_AES_AVAILABLE)
@@ -348,21 +349,21 @@ extern size_t Rijndael_Dec_AdvancedProcessBlocks128_6x1_ALTIVEC(const word32 *su
 #if (CRYPTOGAMS_ARM_AES)
 int CRYPTOGAMS_set_encrypt_key(const byte *userKey, const int bitLen, word32 *rkey)
 {
-	return cryptogams_AES_set_encrypt_key(userKey, bitLen, rkey);
+	return AES_set_encrypt_key_ARM(userKey, bitLen, rkey);
 }
 int CRYPTOGAMS_set_decrypt_key(const byte *userKey, const int bitLen, word32 *rkey)
 {
-	return cryptogams_AES_set_decrypt_key(userKey, bitLen, rkey);
+	return AES_set_decrypt_key_ARM(userKey, bitLen, rkey);
 }
 void CRYPTOGAMS_encrypt(const byte *inBlock, const byte *xorBlock, byte *outBlock, const word32 *rkey)
 {
-	cryptogams_AES_encrypt_block(inBlock, outBlock, rkey);
+	AES_encrypt_block(inBlock, outBlock, rkey);
 	if (xorBlock)
 		xorbuf (outBlock, xorBlock, 16);
 }
 void CRYPTOGAMS_decrypt(const byte *inBlock, const byte *xorBlock, byte *outBlock, const word32 *rkey)
 {
-	cryptogams_AES_decrypt_block(inBlock, outBlock, rkey);
+	AES_decrypt_block(inBlock, outBlock, rkey);
 	if (xorBlock)
 		xorbuf (outBlock, xorBlock, 16);
 }
