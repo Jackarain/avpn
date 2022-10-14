@@ -921,7 +921,7 @@ namespace avpn {
 
 		// 构造配置参数.
 		avpn::dev_config dc = { ipaddr, mask.to_string(),
-			gateway.to_string(), "", "", "", 0 };
+			gateway.to_string(), "", "", "", -1 };
 		dc.dev_name_ = m_config.ifdev_;
 
 		if (dc.dev_name_.empty())
