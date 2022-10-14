@@ -363,9 +363,9 @@ endif()
 
 ################################################################################
 
-#set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
+set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
 add_subdirectory(third_party/crypto)
-set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto)
+set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
 
 ################################################################################
 
@@ -491,7 +491,7 @@ link_libraries(
 		Boost::json
 
 		fmt
-		cryptopp::cryptopp
+		cryptopp-static
 
 		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
