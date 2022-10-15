@@ -973,15 +973,18 @@ namespace avpn {
 
 			std::string route = m_push_params.server_ip_ + "/32 " + default_gw;
 			add_route(route);
-			m_cl_routes.push_back(route);
+			if (!std::count(m_cl_routes.begin(), m_cl_routes.end(), route))
+				m_cl_routes.push_back(route);
 
 			route = "0.0.0.0/1 " + vpn_gw;
 			add_route(route);
-			m_cl_routes.push_back(route);
+			if (!std::count(m_cl_routes.begin(), m_cl_routes.end(), route))
+				m_cl_routes.push_back(route);
 
 			route = "128.0.0.0/1 " + vpn_gw;
 			add_route("128.0.0.0/1 " + vpn_gw);
-			m_cl_routes.push_back(route);
+			if (!std::count(m_cl_routes.begin(), m_cl_routes.end(), route))
+				m_cl_routes.push_back(route);
 		}
 
 		if (!params.ignore_push_)
