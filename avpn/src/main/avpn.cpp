@@ -1013,10 +1013,9 @@ namespace avpn {
 				}, net::detached);
 		}
 
-		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
 		if (!m_config.post_up_script_.empty())
 		{
-		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
+			auto dns = net::ip::address_v4(m_push_params.pushdns_).to_string();
 			run_hook(m_config.post_up_script_, {
 				{"AVPN_NET_GATEWAY", default_gw},
 				{"AVPN_SERVER_IP", m_push_params.server_ip_},
@@ -1025,8 +1024,8 @@ namespace avpn {
 				{"AVPN_TUN_MASK", mask.to_string()},
 				{"AVPN_TUN_CIDR", std::to_string(net.prefix_length())},
 				{"AVPN_TUN_GATEWAY", gateway.to_string()},
+				{"AVPN_DNS", dns},
 			});
-		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
 		}
 
 		co_return;
