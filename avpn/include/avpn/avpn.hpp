@@ -169,6 +169,9 @@ namespace avpn {
 
 		// socks server options.
 		socks_server_option socks_opt_;
+
+		// post up script.
+		std::string post_up_script_;
 	};
 
 

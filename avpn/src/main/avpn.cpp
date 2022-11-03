@@ -12,6 +12,7 @@
 #include "utils/misc.hpp"
 #include "utils/fileop.hpp"
 
+#include "avpn/hook.hpp"
 #include "avpn/version.hpp"
 #include "avpn/endpoint_pair.hpp"
 #include "avpn/fec_cache.hpp"
@@ -1012,6 +1013,22 @@ namespace avpn {
 				}, net::detached);
 		}
 
+		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
+		if (!m_config.post_up_script_.empty())
+		{
+		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
+			run_hook(m_config.post_up_script_, {
+				{"AVPN_NET_GATEWAY", default_gw},
+				{"AVPN_SERVER_IP", m_push_params.server_ip_},
+				{"AVPN_TUN_NAME", m_config.ifdev_},
+				{"AVPN_TUN_IP", ipaddr},
+				{"AVPN_TUN_MASK", mask.to_string()},
+				{"AVPN_TUN_CIDR", std::to_string(net.prefix_length())},
+				{"AVPN_TUN_GATEWAY", gateway.to_string()},
+			});
+		LOG_DBG << "post_up_script: " << m_config.post_up_script_;
+		}
+
 		co_return;
 	}
 
@@ -1788,7 +1805,7 @@ namespace avpn {
 		co_return false;
 	}
 
-	net::awaitable<void> avpn_service::start_udp_client()
+net::awaitable<void> avpn_service::start_udp_client()
 	{
 		LOG_DBG << "Start udp client, udp sockets: " << m_udp_sockets.size();
 
