@@ -48,6 +48,9 @@ std::string add_suffix(float val, char const* suffix = nullptr);
 // 获取进程id.
 uint64_t get_process_id();
 
+// 执行外部脚本.
+int32_t run_hook(std::string cmd, std::map<std::string, std::string> env);
+
 #ifdef WIN32
 #ifdef AVPN_USE_WINTUN
 

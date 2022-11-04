@@ -12,7 +12,6 @@
 #include "utils/misc.hpp"
 #include "utils/fileop.hpp"
 
-#include "avpn/hook.hpp"
 #include "avpn/version.hpp"
 #include "avpn/endpoint_pair.hpp"
 #include "avpn/fec_cache.hpp"

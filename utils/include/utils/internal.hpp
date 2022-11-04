@@ -52,6 +52,7 @@
 #include <cstring>
 #include <variant>
 #include <cinttypes>
+#include <map>
 
 using std::chrono::steady_clock;
 using time_point = std::chrono::time_point<steady_clock>;
@@ -143,3 +144,5 @@ using ws_stream = websocket::stream<tcp::socket>;
 
 #include <boost/logic/tribool.hpp>
 #include <boost/logic/tribool_io.hpp>
+
+#include <boost/process.hpp>
