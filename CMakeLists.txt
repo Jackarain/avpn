@@ -323,6 +323,7 @@ add_definitions(-DBOOST_LOCALE_HIDE_AUTO_PTR)
 add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_definitions(-DBOOST_DISABLE_PRAGMA_MESSAGE)
 add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
+add_definitions(-DBOOST_PROCESS_USE_STD_FS)
 if (ENABLE_USE_IO_URING)
 	find_package(IOUring)
 
