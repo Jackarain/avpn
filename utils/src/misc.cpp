@@ -686,6 +686,21 @@ std::string gen_uuid()
 	return uuid_to_string(guid);
 }
 
+int32_t run_hook(std::string cmd, std::map<std::string, std::string> env)
+{
+	boost::process::environment e = boost::this_process::environment();
+
+	for (auto& n : env)
+		e[n.first] = n.second;
+
+	int ret = boost::process::system(cmd,
+		boost::process::std_out > stdout,
+		boost::process::std_err > stderr,
+		e);
+	LOG_DBG << "run_hook: " << cmd << " ret: " << ret;
+
+	return ret;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -767,22 +782,6 @@ inline std::string error_format(DWORD err)
 uint64_t get_process_id()
 {
 	return GetCurrentProcessId();
-}
-
-int32_t run_hook(std::string cmd, std::map<std::string, std::string> env)
-{
-	boost::process::environment e = boost::this_process::environment();
-
-	for (auto& n : env)
-		e[n.first] = n.second;
-
-	int ret = boost::process::system(cmd,
-		boost::process::std_out > stdout,
-		boost::process::std_err > stderr,
-		e);
-	LOG_DBG << "run_hook: " << cmd << " ret: " << ret;
-
-	return ret;
 }
 
 //////////////////////////////////////////////////////////////////////////
