@@ -200,7 +200,7 @@ int main(int argc, char** argv)
 	std::string config;
 	std::string controller;
 
-	std::string post_up_script_;
+	std::string post_up_script;
 
 	std::vector<std::string> routes;
 	std::string pushdns;
@@ -279,7 +279,7 @@ int main(int argc, char** argv)
 		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logs.")
 		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
 
-		("post_up", po::value<std::string>(&post_up_script_)->value_name("cmd"), "Command to run after tun device up.")
+		("post_up", po::value<std::string>(&post_up_script)->value_name("cmd"), "Command to run after tun device up.")
 	;
 
 	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置.
@@ -436,7 +436,7 @@ int main(int argc, char** argv)
 	cfg.public_key_ = publickey;
 	cfg.ssl_certificate_dir_ = ssl_certificate_dir;
 
-	cfg.post_up_script_ = post_up_script_;
+	cfg.post_up_script_ = post_up_script;
 
 	cfg.mtu_size_ = mtu_size;
 	cfg.using_ipv6_ = ipv6;
