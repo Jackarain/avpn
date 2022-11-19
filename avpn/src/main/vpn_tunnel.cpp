@@ -182,6 +182,7 @@ namespace avpn {
 					return;
 				}
 			}
+			[[fallthrough]];
 			case 1:
 			{
 				if (error)
@@ -208,6 +209,7 @@ namespace avpn {
 					return;
 				}
 			}
+			[[fallthrough]];
 			default:
 				if (!error)
 				{

@@ -893,7 +893,7 @@ namespace logger_aux__ {
 		void post_log(const int& level,
 			std::string&& message, bool disable_cout = false)
 		{
-			static auto runthread =
+			[[maybe_unused]] static auto runthread =
 				&(m_bg_thread = std::thread([this]()
 					{
 						internal_work();

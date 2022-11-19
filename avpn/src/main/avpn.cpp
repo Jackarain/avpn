@@ -548,7 +548,7 @@ namespace avpn {
 
 					msg_repeat++;
 					auto duration = now - last_time;
-					if (now - last_time > std::chrono::seconds(1))
+					if (duration > std::chrono::seconds(1))
 					{
 						LOG_WARN << "do_udp_write"
 							<< ", send_to " << remote
@@ -1002,7 +1002,7 @@ namespace avpn {
 
 		// 开始读取tun上的数据包.
 		auto self = shared_from_this();
-		for (int n = 0; n < global_op_concurrency; n++)
+		for (size_t n = 0; n < global_op_concurrency; n++)
 		{
 			net::co_spawn(m_main_context,
 				[this, self]() mutable -> net::awaitable<void>
@@ -1436,7 +1436,7 @@ namespace avpn {
 
 		// 并发启动udp socket上的数据读取.
 		auto self = shared_from_this();
-		for (int fast = 0; fast < global_op_concurrency; fast++)
+		for (size_t fast = 0; fast < global_op_concurrency; fast++)
 		{
 			std::vector<udp_socket_ptr> sockets;
 			{
@@ -1819,7 +1819,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 
 			// udp socket创建完成后, 则可以进入循环读取udp上的数据.
 			auto self = shared_from_this();
-			for (int fast = 0; fast < global_op_concurrency; fast++)
+			for (size_t fast = 0; fast < global_op_concurrency; fast++)
 			{
 				int num_sockets;
 

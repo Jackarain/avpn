@@ -675,7 +675,7 @@ namespace stream_endian {
 
 			val = static_cast<uint8_t>(*bytes++ & 0x3f);
 
-			for (int n = 1; n < len; n++)
+			for (size_t n = 1; n < len; n++)
 			{
 				val <<= 8;
 				val |= static_cast<uint8_t>(*bytes++);
