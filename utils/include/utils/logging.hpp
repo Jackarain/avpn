@@ -202,7 +202,11 @@ namespace logger_aux__ {
 			QueryPerformanceFrequency(&f);
 
 			FILETIME ft;
+#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
 			GetSystemTimePreciseAsFileTime(&ft);
+#else
+			GetSystemTimeAsFileTime(&ft);
+#endif
 
 			auto now = (((static_cast<long long>(ft.dwHighDateTime)) << 32)
 				+ static_cast<long long>(ft.dwLowDateTime) - epoch___)
