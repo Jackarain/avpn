@@ -456,7 +456,7 @@ namespace avpn {
 		// 先读取4个字节的头.
 		co_await net::async_read(stream,
 			net::buffer((void*)&start_len_tag, 4),
-			net::transfer_exactly(4), uawaitable[ec]);
+			net::transfer_exactly(4), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet, id: "
@@ -477,7 +477,7 @@ namespace avpn {
 		// 读取body本身.
 		co_await net::async_read(stream,
 			net::buffer(pkt.data(), start_len_tag),
-			net::transfer_exactly(start_len_tag), uawaitable[ec]);
+			net::transfer_exactly(start_len_tag), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet, id: "
@@ -498,7 +498,7 @@ namespace avpn {
 		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
 
 		co_await net::async_write(stream,
-			net::buffer(&start_len_tag, 4), uawaitable[ec]);
+			net::buffer(&start_len_tag, 4), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_write_packet, id: " << id
@@ -507,7 +507,7 @@ namespace avpn {
 		}
 
 		co_await net::async_write(stream,
-			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
+			net::buffer(pkt.data(), pkt.size()), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_write_packet, id: " << id

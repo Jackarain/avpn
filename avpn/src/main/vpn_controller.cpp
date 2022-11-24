@@ -104,7 +104,7 @@ namespace avpn {
 		tcp::socket& sock = beast::get_lowest_layer(m_ws_stream).socket();
 
 		// 连接到服务器.
-		co_await sock.async_connect(endp, uawaitable[ec]);
+		co_await sock.async_connect(endp, net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "controller::start_connect"
@@ -129,7 +129,7 @@ namespace avpn {
 
 		m_ws_stream.set_option(stream_base::decorator(decorator));
 		co_await m_ws_stream.async_handshake(
-			controller_server_host, "/", uawaitable[ec]);
+			controller_server_host, "/", net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "controller::start_connect"
@@ -178,7 +178,7 @@ namespace avpn {
 
 		while (!m_abort)
 		{
-			auto bytes = co_await stream.async_read(buffer, uawaitable[ec]);
+			auto bytes = co_await stream.async_read(buffer, net_awaitable[ec]);
 			if (ec == beast::websocket::error::closed)
 			{
 				LOG_DBG << "controller::start_client_read, vpn was closed";
@@ -234,14 +234,14 @@ namespace avpn {
 		while (!m_abort)
 		{
 			m_timer.expires_from_now(std::chrono::milliseconds(1000));
-			co_await m_timer.async_wait(uawaitable[ec]);
+			co_await m_timer.async_wait(net_awaitable[ec]);
 			if (ec)
 				co_return;
 
 			if (++m_keepalive_cnt >= 5)
 				break;
 
-			co_await m_ws_stream.async_ping("", uawaitable[ec]);
+			co_await m_ws_stream.async_ping("", net_awaitable[ec]);
 			if (ec)
 				co_return;
 		}
@@ -292,7 +292,7 @@ namespace avpn {
 					+ std::to_string(m_service.download_rate());
 
 				co_await m_ws_stream.async_write(
-					net::buffer(str), uawaitable[ec]);
+					net::buffer(str), net_awaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "start_client_read, "

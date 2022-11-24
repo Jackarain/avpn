@@ -309,7 +309,7 @@ namespace avpn {
 				m_internal_stat.packet_spent_time_ += (t2 - t1);
 
 			auto bytes = co_await m_tundev.async_read_some(
-				net::buffer(payload, usable_size), uawaitable[ec]);
+				net::buffer(payload, usable_size), net_awaitable[ec]);
 			if (ec)
 			{
 				LOG_FILE << "tun_read_loop, read: " << ec.message();
@@ -440,7 +440,7 @@ namespace avpn {
 
 			auto bytes = co_await udp_socket.async_receive_from(
 				net::buffer(pkt.data(), avpn_packet_size),
-					remote, uawaitable[ec]);
+					remote, net_awaitable[ec]);
 			if (ec)
 			{
 				socket_ptr = pick_random_usock(index);
@@ -823,7 +823,7 @@ namespace avpn {
 		while (!m_abort)
 		{
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
-			co_await m_tick_timer.async_wait(uawaitable[ec]);
+			co_await m_tick_timer.async_wait(net_awaitable[ec]);
 			if (ec)
 			{
 				LOG_WARN << "avpn_service::tick, ec: " << ec.message();
@@ -994,7 +994,7 @@ namespace avpn {
 
 		// 等待1s后, 再开始循环读取tun设备.
 		boost::system::error_code ec;
-		co_await m_tun_wait_timer.async_wait(uawaitable[ec]);
+		co_await m_tun_wait_timer.async_wait(net_awaitable[ec]);
 		if (ec)
 			LOG_INFO << "Tun read loop exited";
 		else
@@ -1163,7 +1163,7 @@ namespace avpn {
 				auto const results = co_await resolver.async_resolve(
 					std::string(parser.host()),
 					std::string(parser.port()),
-					uawaitable[ec]);
+					net_awaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "make_endpoint"
@@ -1181,7 +1181,7 @@ namespace avpn {
 				auto const results = co_await resolver.async_resolve(
 					std::string(parser.host()),
 					std::string(parser.port()),
-					uawaitable[ec]);
+					net_awaitable[ec]);
 				if (ec)
 				{
 					LOG_ERR << "make_endpoint"
@@ -1206,7 +1206,7 @@ namespace avpn {
 		while (!m_abort)
 		{
 			tcp::socket socket(m_main_context);
-			co_await a.async_accept(socket, uawaitable[error]);
+			co_await a.async_accept(socket, net_awaitable[error]);
 			if (error)
 			{
 				LOG_ERR << "start_tcp_listen"
@@ -1241,7 +1241,7 @@ namespace avpn {
 
 			// 等待读取事件.
 			co_await socket.async_wait(
-				tcp::socket::wait_read, uawaitable[error]);
+				tcp::socket::wait_read, net_awaitable[error]);
 			if (error)
 			{
 				LOG_WARN << "socket.async_wait error: " << error.message();
@@ -1297,7 +1297,7 @@ namespace avpn {
 
 				// do async handshake.
 				co_await ssl_socket.async_handshake(
-					net::ssl::stream_base::server, uawaitable[error]);
+					net::ssl::stream_base::server, net_awaitable[error]);
 				if (error)
 				{
 					LOG_WARN << "ssl protocol handshake error: "
@@ -2221,7 +2221,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		// 先读取4个字节的头.
 		co_await net::async_read(stream,
 			net::buffer((void*)&start_len_tag, 4),
-				net::transfer_exactly(4), uawaitable[ec]);
+				net::transfer_exactly(4), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet, read tag error: "
@@ -2242,7 +2242,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		// 读取body本身.
 		co_await net::async_read(stream,
 			net::buffer(pkt.data(), start_len_tag),
-				net::transfer_exactly(start_len_tag), uawaitable[ec]);
+				net::transfer_exactly(start_len_tag), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_read_packet, id, read body error: "
@@ -2263,7 +2263,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		uint32_t start_len_tag = htonl((uint32_t)pkt.size());
 
 		co_await net::async_write(stream,
-			net::buffer(&start_len_tag, 4), uawaitable[ec]);
+			net::buffer(&start_len_tag, 4), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_write_packet, async_write tag error: "
@@ -2272,7 +2272,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		}
 
 		co_await net::async_write(stream,
-			net::buffer(pkt.data(), pkt.size()), uawaitable[ec]);
+			net::buffer(pkt.data(), pkt.size()), net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "tcp_write_packet, async_write body error: "

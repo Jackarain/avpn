@@ -497,7 +497,7 @@ namespace avpn {
 						auto& object = self->m_receive_object_moved;
 						for (;;)
 						{
-							co_await object.async_wait(uawaitable[ec]);
+							co_await object.async_wait(net_awaitable[ec]);
 							if (ec)
 								co_return;
 
@@ -612,7 +612,7 @@ namespace avpn {
 							asio_timer wait_timer(self->get_executor());
 
 							wait_timer.expires_from_now(std::chrono::milliseconds(1));
-							co_await wait_timer.async_wait(uawaitable[ec]);
+							co_await wait_timer.async_wait(net_awaitable[ec]);
 
 							bytes_transferred = self->write_wintun(bufs);
 							if (bytes_transferred < 0 || self->m_abort)

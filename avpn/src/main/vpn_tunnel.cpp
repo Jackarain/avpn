@@ -523,7 +523,7 @@ namespace avpn {
 			boost::system::error_code ec;
 
 			m_tick_timer.expires_from_now(std::chrono::seconds(1));
-			co_await m_tick_timer.async_wait(uawaitable[ec]);
+			co_await m_tick_timer.async_wait(net_awaitable[ec]);
 			if (ec)
 			{
 				LOG_WARN << "vpn_tunnel::tick, ec: " << ec.message();
