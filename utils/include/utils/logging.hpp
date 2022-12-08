@@ -205,7 +205,6 @@ namespace logger_aux__ {
 #else
 			GetSystemTimeAsFileTime(&ft);
 #endif
-
 			auto now = (((static_cast<long long>(ft.dwHighDateTime)) << 32)
 				+ static_cast<long long>(ft.dwLowDateTime) - epoch___)
 				/ 10000;
