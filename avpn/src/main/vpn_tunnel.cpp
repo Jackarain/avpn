@@ -721,7 +721,6 @@ namespace avpn {
 					{
 						// 计算下载速率.
 						compute_speed(m_down_stat, ptr->size());
-						m_num_recv_packet++;
 
 						// 继续下一次tcp接收转发.
 						tcp_forward();
