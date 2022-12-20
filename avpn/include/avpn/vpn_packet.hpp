@@ -20,27 +20,25 @@ namespace avpn {
 	// packet的header大小.
 	const inline int avpn_pkt_header_size = 5;
 	// 正常mtu大小定义.
-	const inline int avpn_normal_mtu = 1500;
+	const inline int avpn_static_mtu_size = 1500;
 	// PPPoE header大小.
-	const inline int avpn_normal_pppoe = 8;
+	const inline int avpn_static_pppoe_size = 8;
 	// ipv6 header大小.
-	const inline int avpn_normal_ipv6_header_size = 40;
+	const inline int avpn_static_ipv6_header_size = 40;
 	// ipv4 header大小.
-	const inline int avpn_normal_ipv4_header_size = 20;
+	const inline int avpn_static_ipv4_header_size = 20;
 
 	// 上层协议空间.
 	inline int avpn_upper_layer_additional_size = 0;
-	// UDP header大小.
-	inline int avpn_normal_udp_header = avpn_normal_ipv4_header_size + 8;
 
 	// avpn数据包最大定义(传输在udp网络中的最大可用size).
-	inline int avpn_packet_size = avpn_normal_mtu
-		- avpn_normal_pppoe
-		- avpn_normal_udp_header
+	inline int avpn_packet_size = avpn_static_mtu_size
+		- avpn_static_pppoe_size
+		- (avpn_static_ipv4_header_size + 8)
 		- avpn_upper_layer_additional_size;
 
 	// avpn数据包中IP包大小定义, 即网卡的mtu.
-	inline int avpn_static_mtu =
+	inline int avpn_tun_mtu_size =
 		avpn_packet_size - avpn_payload_header_size;
 
 	//////////////////////////////////////////////////////////////////////////
@@ -106,38 +104,43 @@ namespace avpn {
 	inline int avpn_packet_memory_size =
 		avpn_packet_size + sizeof(vpn_packet);
 
-	// 重新计算mtut等参数的大小, 返回false则表示设置了不
+	// 重新计算mtu等参数的大小, 返回false则表示设置了不
 	// 合适的值, avpn将自动计算合适的值.
-	inline bool recompute_mtu(int mtu = 0, bool v6 = true)
+	inline bool recompute_mtu(int mtu = 1450, bool v6 = true)
 	{
-		avpn_normal_udp_header =
-			(v6 ? avpn_normal_ipv6_header_size : avpn_normal_ipv4_header_size)
+		const int ip_header_size = v6 ?
+			avpn_static_ipv6_header_size : avpn_static_ipv4_header_size;
+
+		const int udp_header_size = ip_header_size
 			+ 8;
 
-		avpn_packet_size = avpn_normal_mtu
-			- avpn_normal_pppoe
-			- avpn_normal_udp_header;
+		avpn_packet_size = avpn_static_mtu_size
+			- avpn_static_pppoe_size
+			- udp_header_size;
 
-		if (mtu > avpn_packet_size)
-			return false;
-
-		if (mtu <= 0)
-			avpn_upper_layer_additional_size = 0;
-		else
-			avpn_upper_layer_additional_size = avpn_packet_size
-			- mtu
+		const auto max_mtu = avpn_packet_size
 			- avpn_payload_header_size;
 
-		avpn_packet_size = avpn_normal_mtu
-			- avpn_normal_pppoe
-			- avpn_normal_udp_header
+		// IPv4 and IPv6 minimums of 576 and 1280 bytes
+		if (mtu > max_mtu || mtu < 1280)
+			return false;
+
+		avpn_tun_mtu_size = avpn_packet_size
+			- avpn_payload_header_size;
+
+		avpn_tun_mtu_size = std::min(mtu, avpn_tun_mtu_size);
+
+		avpn_upper_layer_additional_size = avpn_packet_size
+			- avpn_tun_mtu_size
+			- avpn_payload_header_size;
+
+		avpn_packet_size = avpn_static_mtu_size
+			- avpn_static_pppoe_size
+			- udp_header_size
 			- avpn_upper_layer_additional_size;
 
-		avpn_static_mtu =
-			avpn_packet_size - avpn_payload_header_size;
-
-		avpn_packet_memory_size =
-			avpn_packet_size + sizeof(vpn_packet);
+		avpn_packet_memory_size = avpn_packet_size
+			+ sizeof(vpn_packet);
 
 		return true;
 	}

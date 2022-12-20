@@ -940,7 +940,7 @@ namespace avpn {
 
 		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
-			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
+			auto endp = check_packet(pkt.payload(), avpn_tun_mtu_size);
 			if (!endp)
 			{
 				m_num_incorrect++;
@@ -1055,7 +1055,7 @@ namespace avpn {
 
 		auto write_pkt = [this, service](vpn_packet& pkt) mutable
 		{
-			auto endp = check_packet(pkt.payload(), avpn_static_mtu);
+			auto endp = check_packet(pkt.payload(), avpn_tun_mtu_size);
 			if (!endp)
 			{
 				m_num_incorrect++;
@@ -1150,7 +1150,7 @@ namespace avpn {
 	{
 		auto ep = parser_endpoint(data, size);
 		if (ep.size_ <= 0 ||
-			ep.size_ > avpn_static_mtu)
+			ep.size_ > avpn_tun_mtu_size)
 		{
 			return {};
 		}

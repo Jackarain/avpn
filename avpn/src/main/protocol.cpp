@@ -612,7 +612,7 @@ namespace avpn {
 
 		bool fallback = false;
 		auto dst_size = ZSTD_compressBound(data.size());
-		dst_size = std::max<size_t>(avpn_static_mtu, dst_size);
+		dst_size = std::max<size_t>(avpn_tun_mtu_size, dst_size);
 
 		std::vector<uint8_t> dst(dst_size, 0);
 		dst_size = ZSTD_compress(dst.data(), dst_size,
@@ -679,7 +679,7 @@ namespace avpn {
 			auto tmp = std::make_shared<vpn_packet>();
 
 			size_t rawsize = ZSTD_decompress(tmp->payload(),
-				avpn_static_mtu, pkt.payload(), pkt.payload_size_);
+				avpn_tun_mtu_size, pkt.payload(), pkt.payload_size_);
 			if (ZSTD_isError(rawsize))
 				return {};
 

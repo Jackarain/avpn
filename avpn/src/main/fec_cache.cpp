@@ -192,7 +192,7 @@ namespace avpn
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
 					(char*)ptr->payload(),
-					avpn_static_mtu);
+					avpn_tun_mtu_size);
 
 				make_transfer(*ptr, src, findex, fsv);
 			}
@@ -248,7 +248,7 @@ namespace avpn
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
 					(char*)ptr->payload(),
-					avpn_static_mtu);
+					avpn_tun_mtu_size);
 
 				make_transfer_compress(*ptr,
 					src, findex, compress_zstd, fsv);

@@ -1170,13 +1170,13 @@ namespace avpn {
 				shards[i] = std::make_shared<vpn_packet>();
 				shards[i]->index_ = ++index;
 				auto data = shards[i]->payload();
-				outputs.push_back(std::span<uint8_t>(data, avpn_static_mtu));
+				outputs.push_back(std::span<uint8_t>(data, avpn_tun_mtu_size));
 			}
 
 			std::vector<std::span<uint8_t>> sv;
 			for (size_t i = 0; i < (size_t)m_data_shards; i++) {
 				auto data = shards[i]->payload();
-				sv.emplace_back(std::span<uint8_t>(data, avpn_static_mtu));
+				sv.emplace_back(std::span<uint8_t>(data, avpn_tun_mtu_size));
 			}
 
 			// do the coding.
@@ -1221,7 +1221,7 @@ namespace avpn {
 				auto data = shards[matrix_row]->payload();
 
 				sub_shards[sub_matrix_row] =
-					std::span<uint8_t>(data, avpn_static_mtu);
+					std::span<uint8_t>(data, avpn_tun_mtu_size);
 
 				valid_indices[sub_matrix_row] = matrix_row;
 				sub_matrix_row++;
@@ -1250,7 +1250,7 @@ namespace avpn {
 					shards[ishard]->size_ = (uint16_t)avpn_packet_size;
 					shards[ishard]->payload_size_ = 0;
 					outputs[output_count] = std::span(shards[ishard]->payload(),
-						shards[ishard]->payload() + avpn_static_mtu);
+						shards[ishard]->payload() + avpn_tun_mtu_size);
 					matrix_rows[output_count] = data_decode_matrix[ishard];
 					output_count++;
 				}

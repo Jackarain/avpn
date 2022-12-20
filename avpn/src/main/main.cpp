@@ -233,7 +233,7 @@ int main(int argc, char** argv)
 		("ptun", po::value<std::string>(&ptun)->default_value("")->value_name("unix domain socket path"), "Send Tun fd over unix domain socket.")
 		("utun", po::value<std::string>(&utun)->default_value("")->value_name("unix domain socket path"), "Send Tun packet over unix domain socket.")
 
-		("mtu", po::value<int>(&mtu_size)->default_value(0)->value_name("mtu"), "Tun mtu size(default: 0).")
+		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size(default: 1450).")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 
@@ -500,6 +500,7 @@ int main(int argc, char** argv)
 				if (endp.endpoint().address().is_v6())
 				{
 					cfg.using_ipv6_ = ipv6 = true;
+					cfg.mtu_size_  = mtu_size = std::min(1430, mtu_size);
 					break;
 				}
 			}
@@ -511,7 +512,15 @@ int main(int argc, char** argv)
 		// 重新计算packet及mtu等大小.
 		if (!avpn::recompute_mtu(mtu_size, ipv6))
 		{
-			LOG_ERR << "Mtu set incorrect!!!";
+			LOG_ERR << "MTU mismatch";
+			return EXIT_FAILURE;
+		}
+	}
+	else
+	{
+		if (!avpn::recompute_mtu(mtu_size, ipv6))
+		{
+			LOG_ERR << "MTU mismatch";
 			return EXIT_FAILURE;
 		}
 	}
