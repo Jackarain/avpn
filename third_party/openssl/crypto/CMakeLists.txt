@@ -41,12 +41,14 @@ file(GLOB SRCS
 	blake2/*.c
 	bn/*.c
 	buffer/*.c
+
 	camellia/*.c
 	cast/*.c
 	cmac/*.c
 	cms/*.c
 	conf/*.c
 	ct/*.c
+	chacha/*.c
 
 	dh/*.c
 
@@ -179,7 +181,7 @@ target_compile_definitions(crypto PUBLIC
 	-DOPENSSL_NO_MDC2
 	-DOPENSSL_NO_WHIRLPOOL
 	-DOPENSSL_NO_COMP
-	-DOPENSSL_NO_CHACHA
+	#-DOPENSSL_NO_CHACHA
 	-DOPENSSLDIR=""
 	-DWIN32_LEAN_AND_MEAN )
 
