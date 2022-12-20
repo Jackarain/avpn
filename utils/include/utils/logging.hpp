@@ -493,9 +493,11 @@ namespace logger_aux__ {
 		if (!buffer)
 			return &ptm;
 
-		std::sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
+		std::format_to(buffer,
+			"{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}",
 			ptm.tm_year + 1900, ptm.tm_mon + 1, ptm.tm_mday,
-			ptm.tm_hour, ptm.tm_min, ptm.tm_sec, (int)(time % 1000));
+			ptm.tm_hour, ptm.tm_min, ptm.tm_sec, (int)(time % 1000)
+		);
 
 		return &ptm;
 	}
