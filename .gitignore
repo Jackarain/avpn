@@ -18,10 +18,12 @@ libstream/include/version.hpp
 [Rr]eleases/
 [Xx]64/
 [Xx]86/
+[Xx]86_64/
 [Bb]uild/
 bld/
 [Bb]in/
 [Oo]bj/
+musl/
 
 # Visual Studio 2015 cache/options directory
 .vs/
