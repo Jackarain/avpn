@@ -21,6 +21,10 @@ math(EXPR VERSION_TINY "${VERSION_DAY_YEAR} % 100")
 math(EXPR VERSION_MINOR "${VERSION_MONTH_YEAR} + ${VERSION_DAY_YEAR} / 100")
 math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
 
+# Touch cmake everytime for update version
+add_custom_target(invalidate_files ALL
+		COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_LIST_FILE})
+
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
 include(CheckIPOSupported)
