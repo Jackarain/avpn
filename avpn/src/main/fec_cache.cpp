@@ -243,7 +243,6 @@ namespace avpn
 					continue;
 
 				auto [findex, fgid, fpid] = fetch_ids();
-				ptr->index_ = findex;
 
 				// 更新fec冗余数据包的pid, gid等信息.
 				std::string_view fsv(
