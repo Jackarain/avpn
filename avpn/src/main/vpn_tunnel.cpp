@@ -588,6 +588,14 @@ namespace avpn {
 		auto& params = m_config.tunnel_params_;
 		auto ipproto = m_ipproto;
 
+		if (m_config.identity_ == Identity::avpn_client)
+		{
+			if (params.mode_ == Proto::avpn_tcp)
+				return Proto::avpn_tcp;
+			if (params.mode_ == Proto::avpn_udp)
+				return Proto::avpn_udp;
+		}
+
 		if (m_remote_endpoint.port() == 0)
 			return Proto::avpn_tcp;
 

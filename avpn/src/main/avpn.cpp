@@ -646,6 +646,9 @@ namespace avpn {
 		net::co_spawn(m_main_context,
 			[this, self]() mutable -> net::awaitable<void>
 			{
+				if (m_config.tunnel_params_.mode_ == Proto::avpn_tcp)
+					co_return;
+
 				co_await start_udp_client();
 				co_return;
 			}, net::detached);
@@ -655,6 +658,9 @@ namespace avpn {
 			m_main_context,
 			[this, self]() mutable -> net::awaitable<void>
 			{
+				if (m_config.tunnel_params_.mode_ == Proto::avpn_udp)
+					co_return;
+
 				co_await start_tcp_client();
 				co_return;
 			},
