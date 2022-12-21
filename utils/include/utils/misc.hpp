@@ -9,7 +9,6 @@
 
 #include "utils/internal.hpp"
 
-#include "utils/url_view.hpp"
 
 #define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"

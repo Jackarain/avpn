@@ -146,3 +146,4 @@ using ws_stream = websocket::stream<tcp::socket>;
 #include <boost/logic/tribool_io.hpp>
 
 #include <boost/process.hpp>
+#include <boost/url.hpp>

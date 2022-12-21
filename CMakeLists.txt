@@ -489,6 +489,7 @@ link_libraries(
 		Boost::date_time
 		Boost::program_options
 		Boost::json
+		Boost::url
 
 		fmt
 		cryptopp-static

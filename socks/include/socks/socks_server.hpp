@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "utils/url_view.hpp"
 #include "utils/asio_util.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/async_connect.hpp"
@@ -25,6 +24,8 @@
 #include <string>
 #include <array>
 #include <unordered_map>
+
+#include <boost/url.hpp>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -135,18 +136,17 @@ namespace socks {
 
 			if (!m_option.next_proxy_.empty())
 			{
-				try
-				{
-					m_next_proxy =
-						std::make_unique<urls::url_view>(m_option.next_proxy_);
-				}
-				catch (const std::exception& e)
+				auto rv = boost::urls::parse_uri(m_option.next_proxy_);
+				if (!rv)
 				{
 					LOG_ERR << "socks id: " << m_connection_id
-						<< ", params next_proxy error: " << m_option.next_proxy_
-						<< ", exception: " << e.what();
+						<< ", next_proxy: " << m_option.next_proxy_
+						<< ", error: " << rv.error().message();
 					return;
 				}
+
+				m_next_proxy =
+					std::make_unique<boost::url_view>(rv.value());
 			}
 
 			auto self = shared_from_this();
@@ -1082,7 +1082,7 @@ namespace socks {
 				opt.target_host = target_host;
 				opt.target_port = target_port;
 				opt.proxy_hostname = true;
-				opt.username = std::string(m_next_proxy->username());
+				opt.username = std::string(m_next_proxy->user());
 				opt.password = std::string(m_next_proxy->password());
 
 				if (m_next_proxy->scheme() == "socks4")
@@ -1177,7 +1177,7 @@ Connection: close
 		std::array<char, 2048> m_local_buffer{};
 		std::weak_ptr<socks_server_base> m_socks_server;
 		socks_server_option m_option;
-		std::unique_ptr<urls::url_view> m_next_proxy;
+		std::unique_ptr<boost::url_view> m_next_proxy;
 		net::ssl::context m_ssl_context{ net::ssl::context::sslv23 };
 		bool m_abort{ false };
 	};

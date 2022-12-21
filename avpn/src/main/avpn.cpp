@@ -6,7 +6,6 @@
 //
 
 #include "utils/async_connect.hpp"
-#include "utils/url_view.hpp"
 #include "utils/scoped_exit.hpp"
 #include "utils/asio_util.hpp"
 #include "utils/misc.hpp"
@@ -1169,13 +1168,13 @@ namespace avpn {
 			&& it != upstreams.end(); it++)
 		{
 			auto upstream = *it;
-			urls::url_view parser;
+			auto rv = boost::urls::parse_uri(upstream);
 
-			if (!parser.parse(upstream))
+			if (!rv)
 				continue;
 
-			auto scheme = std::string(parser.scheme());
-			boost::to_lower(scheme);
+			auto url = rv.value();
+			auto scheme = boost::to_lower_copy(std::string(url.scheme()));
 
 			if (scheme != protocol)
 				continue;
@@ -1184,8 +1183,8 @@ namespace avpn {
 			{
 				udp::resolver resolver{ m_main_context };
 				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()),
-					std::string(parser.port()),
+					std::string(url.host()),
+					std::string(url.port()),
 					net_awaitable[ec]);
 				if (ec)
 				{
@@ -1202,8 +1201,8 @@ namespace avpn {
 			{
 				tcp::resolver resolver{ m_main_context };
 				auto const results = co_await resolver.async_resolve(
-					std::string(parser.host()),
-					std::string(parser.port()),
+					std::string(url.host()),
+					std::string(url.port()),
 					net_awaitable[ec]);
 				if (ec)
 				{

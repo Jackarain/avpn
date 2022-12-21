@@ -491,7 +491,7 @@ int main(int argc, char** argv)
 		// 这样避免在udp中发送ip包时, 超过物理mtu大小则拆包.
 		for (auto& stream : cfg.upstreams_)
 		{
-			auto url = urls::url_view(stream);
+			auto url = boost::url_view(stream);
 			udp::resolver resolver{ ioc };
 			boost::system::error_code ec;
 			auto results = resolver.resolve(url.host(), url.port(), ec);

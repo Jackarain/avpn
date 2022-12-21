@@ -8,7 +8,6 @@
 #pragma once
 
 #include "utils/scoped_exit.hpp"
-#include "utils/url_view.hpp"
 #include "utils/async_connect.hpp"
 #include "utils/io.hpp"
 #include "utils/logging.hpp"
