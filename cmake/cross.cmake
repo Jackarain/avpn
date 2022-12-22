@@ -1,10 +1,14 @@
 # the name of the target operating system
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR mips32)
 
+#set(CMAKE_SYSTEM_PROCESSOR mips32)
+#set(CMAKE_SYSTEM_PROCESSOR arm64)
+
+# see https://toolchains.bootlin.com/
 # which compilers to use for C and C++
 # mipsel-linux-g++
 # mipsel-openwrt-linux-musl-gcc
+# ...
 
 set(CMAKE_C_COMPILER   ${COMPILER}-gcc)
 set(CMAKE_CXX_COMPILER ${COMPILER}-g++)
