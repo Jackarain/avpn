@@ -24,6 +24,9 @@ bld/
 [Bb]in/
 [Oo]bj/
 musl/
+aarch64/
+mips/
+
 
 # Visual Studio 2015 cache/options directory
 .vs/
