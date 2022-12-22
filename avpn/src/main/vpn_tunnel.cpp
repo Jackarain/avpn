@@ -729,12 +729,20 @@ namespace avpn {
 						// 计算下载速率.
 						compute_speed(m_down_stat, ptr->size());
 
+						// 如果tcp buf中不足一个ip包，则为紧急需要.
+						auto eager = m_tcp_rbuf.size() < avpn_tun_mtu_size;
+
 						// 继续下一次tcp接收转发.
-						tcp_forward();
+						if (eager)
+							tcp_forward();
 
 						// 将接收到的packet提交到队列.
 						// net_submit(std::move(*ptr), {});
 						process_net_packet(*ptr);
+
+						// 非紧急接收.
+						if (!eager)
+							tcp_forward();
 
 						return;
 					}
