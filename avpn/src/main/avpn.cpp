@@ -29,7 +29,7 @@
 
 namespace avpn {
 
-	const size_t global_op_concurrency = 128;
+	const size_t global_op_concurrency = std::thread::hardware_concurrency();
 
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
