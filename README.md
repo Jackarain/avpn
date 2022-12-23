@@ -57,8 +57,8 @@ avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cm
 <br>
 
 ### 通过Docker编译构建
-<br>
 
+<br>
 avpn提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目录，可以执行如下命令，创建一个docker并编译avpn：
 
 ```
@@ -89,7 +89,6 @@ msbuild avpn.sln /p:Configuration="Debug"
 ***
 <br>
 
-
 ### MinGW 编译
 
 <br>
@@ -106,6 +105,29 @@ ninja
 ```
 
 在完成编译后，同样会生成一个avpn.exe在bin/release。
+
+***
+<br>
+
+### 其它平台交叉编译
+
+<br>
+这里以我的 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载配置 openwrt 环境，具体过程参考openwrt 相关 wiki，将 toolchain 目录添加到 PATH中，以便调用 gcc 编译，我这里执行：
+
+```
+export PATH=$PATH:/root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-11.2.0_musl/bin
+```
+然后在 avpn 中创建 build 目录并执行 cmake：
+```
+ccmake -DCOMPILER=mipsel-openwrt-linux-musl  -DCMAKE_TOOLCHAIN_FILE=../cmake/mips.cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
+```
+在这个步骤中，一些平台有必要打开一些编译开关，如 link to libatomic 库，也可能需要设置 staging_dir 环境变量，在完成 cmake 后开始编译：
+```
+ninja
+```
+没有问题的话，avpn 将会编译生成在 build 的 bin 目录下，拷贝到 openwrt 机器上就可以运行了。
+
+其它架构平台可以参考 avpn 中的 cmake 目录下的 cross.cmake 进行相关修改。
 
 ***
 <br>
