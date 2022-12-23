@@ -8,6 +8,8 @@
 #pragma once
 
 #include "utils/logging.hpp"
+#include "utils/misc.hpp"
+
 #include "avpn/tundev_config.hpp"
 
 #include <boost/asio/ip/network_v4.hpp>
