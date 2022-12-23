@@ -395,6 +395,9 @@ namespace avpn {
 				m_remote_endpoint = *remote;
 		}
 
+		if (indeterminate(m_abort))
+			return;
+
 		if (m_thread_id == std::this_thread::get_id())
 		{
 			process_net_packet(pkt);
