@@ -94,7 +94,6 @@ namespace avpn {
 			, m_io_handle(io_context)
 			, m_handle(INVALID_HANDLE_VALUE)
 		{
-			using namespace details;
 			std::map<std::string, std::string> dev_map;
 			HKEY adapter_key;
 			typedef std::unique_ptr<std::remove_pointer<HKEY>::type,
