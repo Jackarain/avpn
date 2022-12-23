@@ -797,9 +797,12 @@ namespace avpn {
 			paritys = m_feg.acquire();
 
 		// 重复发送模式.
-		if (params.data_shards_ == 1)
+		if (params.data_shards_ == 1 ||
+			(params.data_shards_ == params.parity_shards_))
 		{
-			int repeated = params.parity_shards_ + 1;
+			int repeated =
+				(params.parity_shards_ + params.data_shards_)
+				/ params.data_shards_;
 
 			// 计算上行速率.
 			compute_speed(m_upload_stat, pkt.size() * repeated);
