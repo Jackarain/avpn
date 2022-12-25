@@ -56,6 +56,53 @@ avpn的cmake配置了默认编译选项参数，如果有必要，可以参考cm
 ***
 <br>
 
+### 编译 Android 平台:
+
+<br>
+
+首先执行git克隆源码
+
+```
+git clone <source url>
+```
+
+然后进入源码目录，执行如下操作：
+
+```
+mkdir build && cd build
+```
+```
+cmake \
+-DANDROID_NDK=${ANDROID_NDK} \
+-DANDROID_ABI=arm64-v8a  \
+-DANDROID_ARM_NEON=ON \
+-DANDROID_PLATFORM=android-23 \
+-DCMAKE_ANDROID_ARCH_ABI=arm64-v8a       \
+-DCMAKE_ANDROID_NDK=${ANDROID_NDK} \
+-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+-DCMAKE_BUILD_TYPE=Debug \
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+-DCMAKE_SYSTEM_NAME=Android \
+-DCMAKE_SYSTEM_VERSION=23 \
+-DCMAKE_EXE_LINKER_FLAGS="-static" \
+.. \
+-G Ninja
+```
+
+上面命令中 ${ANDROID_NDK} 替换为 Adnroid NDK 目录，CMAKE_ANDROID_ARCH_ABI、ANDROID_ABI 和 ANDROID_PLATFORM
+根据需要设定，CMAKE_BUILD_TYPE=Debug指定了编译为Debug的类型，如果需要更好的性能，则需要编译为Release。
+
+在cmake命令成功执行完成后，开始输入以下命令编译：
+
+```
+ninja
+```
+
+成功编译后，可执行程序将在bin目录下生成，可在 android 的 termux 中运行，当然同时也需要 root 权限。
+
+***
+<br>
+
 ### 通过Docker编译构建
 
 <br>
