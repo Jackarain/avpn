@@ -199,6 +199,7 @@ int main(int argc, char** argv)
 	std::string identity;
 	std::string config;
 	std::string controller;
+	std::string proxy;
 
 	std::string post_up_script;
 
@@ -257,6 +258,8 @@ int main(int argc, char** argv)
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
+
+		("proxy", po::value<std::string>(&proxy)->default_value("")->value_name("proxy"), "[protocol://]host[:port] Use this proxy, protocol support socks/http/haproxy.")
 
 		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
 		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
