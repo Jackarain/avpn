@@ -159,16 +159,21 @@ ninja
 ### 其它平台交叉编译
 
 <br>
-这里以我的 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载配置 openwrt 环境，具体过程参考openwrt 相关 wiki，将 toolchain 目录添加到 PATH中，以便调用 gcc 编译，我这里执行：
+这里以我的 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载编译工具链：
+```
+wget https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-sdk-22.03.2-ramips-mt7621_gcc-11.2.0_musl.Linux-x86_64.tar.xz
+```
+将 toolchain 相关目录添加到 PATH中，以便调用 gcc 编译，我这里执行：
 
 ```
-export PATH=$PATH:/root/openwrt/staging_dir/toolchain-mipsel_24kc_gcc-11.2.0_musl/bin
+export STAGING_DIR=${OPENWRT_SDK}/staging_dir
+export PATH=$PATH:${OPENWRT_SDK}/staging_dir/toolchain-mipsel_24kc_gcc-11.2.0_musl/bin
 ```
-然后在 avpn 中创建 build 目录并执行 cmake：
+${OPENWRT_SDK} 是sdk的解压目录，然后在 avpn 源码目录中创建 build 目录并执行 cmake：
 ```
-ccmake -DCOMPILER=mipsel-openwrt-linux-musl  -DCMAKE_TOOLCHAIN_FILE=../cmake/mips.cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja
+ccmake .. -DCOMPILER=mipsel-openwrt-linux -DCMAKE_TOOLCHAIN_FILE=../cmake/mips.cmake -DCMAKE_SYSROOT=${OPENWRT_SDK}/staging_dir/host -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DCMAKE_BUILD_TYPE=Release -G Ninja
 ```
-在这个步骤中，一些平台有必要打开一些编译开关，如 link to libatomic 库，也可能需要设置 staging_dir 环境变量，在完成 cmake 后开始编译：
+在这个步骤中，一些平台有必要打开一些编译开关，如 ENABLE_LINKE_TO_LIBATOMIC 库，以及关闭 ENABLE_STATIC_LINK_TO_GCC，在完成 cmake 后生成Makefile，然后开始编译：
 ```
 ninja
 ```
