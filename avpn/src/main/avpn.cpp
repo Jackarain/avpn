@@ -1792,23 +1792,32 @@ namespace avpn {
 			const auto& endp = *it;
 
 			stream.close(ec);
-			co_await stream.async_connect(endp,
-				net::redirect_error(
-					net::bind_cancellation_slot(
-						m_cancel_sig.slot(), net::use_awaitable), ec));
-			if (m_cancel_sig.slot().has_handler())
-				m_cancel_sig.slot().clear();
-			if (m_abort)
+
+			if (!m_config.proxy_.empty())
 			{
-				LOG_ERR << "connect_server, async_connect abort";
-				co_return false;
+				if (!co_await connect_proxy(stream, endp))
+					continue;
 			}
-			if (ec)
+			else
 			{
-				LOG_ERR << "connect_server, async_connect: " << ec.message();
-				if (ec == boost::asio::error::operation_aborted)
-					break;
-				continue;
+				co_await stream.async_connect(endp,
+					net::redirect_error(
+						net::bind_cancellation_slot(
+							m_cancel_sig.slot(), net::use_awaitable), ec));
+				if (m_cancel_sig.slot().has_handler())
+					m_cancel_sig.slot().clear();
+				if (m_abort)
+				{
+					LOG_ERR << "connect_server, async_connect abort";
+					co_return false;
+				}
+				if (ec)
+				{
+					LOG_ERR << "connect_server, async_connect: " << ec.message();
+					if (ec == boost::asio::error::operation_aborted)
+						break;
+					continue;
+				}
 			}
 
 			net::ip::tcp::no_delay option(true);
@@ -1823,6 +1832,82 @@ namespace avpn {
 		}
 
 		co_return false;
+	}
+
+	net::awaitable<bool>
+	avpn_service::connect_proxy(
+		tcp::socket& stream, const tcp::endpoint& target)
+	{
+		if (m_config.proxy_.empty())
+			co_return false;
+
+		auto rv = boost::urls::parse_uri(m_config.proxy_);
+		if (!rv)
+		{
+			LOG_ERR << "Proxy url: "
+				<< m_config.proxy_
+				<< " error: "
+				<< rv.error().message();
+			co_return false;
+		}
+
+		boost::system::error_code ec;
+		tcp::resolver resolver{ m_main_context };
+
+		auto url = rv.value();
+		auto const results =
+		co_await resolver.async_resolve(
+			std::string(url.host()),
+			std::string(url.port()),
+			net_awaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "connect proxy "
+				<< ", async_resolve: "
+				<< ec.message();
+			co_return false;
+		}
+
+		for (auto& endp : results)
+		{
+			co_await stream.async_connect(endp.endpoint(),
+				net::redirect_error(
+					net::bind_cancellation_slot(
+						m_cancel_sig.slot(), net::use_awaitable), ec));
+			if (m_cancel_sig.slot().has_handler())
+				m_cancel_sig.slot().clear();
+			if (m_abort)
+			{
+				LOG_ERR << "connect proxy, async_connect abort";
+				co_return false;
+			}
+
+			if (!ec)
+				break;
+		}
+
+		if (ec)
+		{
+			LOG_ERR << "connect proxy, async_connect error: " << ec.message();
+			co_return false;
+		}
+
+		socks::socks_client_option opt;
+		opt.target_host = target.address().to_string();
+		opt.target_port = target.port();
+		opt.proxy_hostname = true;
+		opt.username = url.user();
+		opt.password = url.password();
+
+		co_await socks::async_socks_handshake(stream, opt, net_awaitable[ec]);
+		if (ec)
+		{
+			LOG_ERR << "connect proxy, async_socks_handshake error: "
+				<< ec.message();
+			co_return false;
+		}
+
+		co_return true;
 	}
 
 net::awaitable<void> avpn_service::start_udp_client()

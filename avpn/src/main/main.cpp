@@ -411,6 +411,8 @@ int main(int argc, char** argv)
 	cfg.tcp_listens_ = tcp_listens;
 	cfg.udp_listens_ = udp_listens;
 
+	cfg.proxy_ = proxy;
+
 	cfg.ifdev_ = ifdev;
 	if (ifdev.empty())
 	{

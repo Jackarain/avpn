@@ -111,6 +111,10 @@ namespace avpn {
 		// 作为server时, udp服务端口.
 		std::vector<std::string> udp_listens_;
 
+		// 作为client时, 通过代理连接到server, 代理可以是 socks4/5
+		// 以及 http 代理.
+		std::string proxy_;
+
 		// 作为client时, 必选项, 必须设置为server的public key(base64编码).
 		// 作为server时, 此选项为可选项, 如果存在, 则表示必须由server
 		// 指定的public key才能和server通信, 并且可以通过这个参数指定
@@ -334,6 +338,7 @@ namespace avpn {
 		// 作为client时, 开始进行tcp连接.
 		net::awaitable<void> start_tcp_client();
 		net::awaitable<bool> connect_tcp_server(tcp::socket&);
+		net::awaitable<bool> connect_proxy(tcp::socket&, const tcp::endpoint&);
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
