@@ -25,14 +25,24 @@
 #include <chrono>
 #include <iomanip>
 
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
 
 
 namespace avpn {
+
+	namespace beast = boost::beast;			// from <boost/beast.hpp>
+	namespace http = beast::http;           // from <boost/beast/http.hpp>
+
+	using http_request = http::request<http::string_body>;
+	using http_response = http::response<http::dynamic_body>;
 
 	const size_t global_op_concurrency = std::thread::hardware_concurrency();
 
 	using namespace std::chrono_literals;
 	using net::ip::make_network_v4;
+
 
 	vtun_device_type instantiate_vtun_device(
 		const service_config& config, net::io_context& ioc)
@@ -1847,10 +1857,24 @@ namespace avpn {
 		if (m_config.proxy_.empty())
 			co_return false;
 
+		if (m_config.proxy_.starts_with("socks"))
+			co_return co_await connect_socks_proxy(stream, target);
+		else if (m_config.proxy_.starts_with("http"))
+			co_return co_await connect_http_proxy(stream, target);
+
+		LOG_ERR << "Unsupported proxy: " << m_config.proxy_;
+
+		co_return false;
+	}
+
+	net::awaitable<bool>
+	avpn_service::connect_socks_proxy(
+		tcp::socket& stream, const tcp::endpoint& target)
+	{
 		auto rv = boost::urls::parse_uri(m_config.proxy_);
 		if (!rv)
 		{
-			LOG_ERR << "Proxy url: "
+			LOG_ERR << "socks proxy url: "
 				<< m_config.proxy_
 				<< " error: "
 				<< rv.error().message();
@@ -1862,13 +1886,13 @@ namespace avpn {
 
 		auto url = rv.value();
 		auto const results =
-		co_await resolver.async_resolve(
-			std::string(url.host()),
-			std::string(url.port()),
-			net_awaitable[ec]);
+			co_await resolver.async_resolve(
+				std::string(url.host()),
+				std::string(url.port()),
+				net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "connect proxy "
+			LOG_ERR << "socks proxy "
 				<< ", async_resolve: "
 				<< ec.message();
 			co_return false;
@@ -1884,7 +1908,7 @@ namespace avpn {
 				m_cancel_sig.slot().clear();
 			if (m_abort)
 			{
-				LOG_ERR << "connect proxy, async_connect abort";
+				LOG_ERR << "socks proxy, async_connect abort";
 				co_return false;
 			}
 
@@ -1894,7 +1918,7 @@ namespace avpn {
 
 		if (ec)
 		{
-			LOG_ERR << "connect proxy, async_connect error: " << ec.message();
+			LOG_ERR << "socks proxy, async_connect error: " << ec.message();
 			co_return false;
 		}
 
@@ -1908,10 +1932,108 @@ namespace avpn {
 		co_await socks::async_socks_handshake(stream, opt, net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "connect proxy, async_socks_handshake error: "
+			LOG_ERR << "socks proxy, async_socks_handshake error: "
 				<< ec.message();
 			co_return false;
 		}
+
+		co_return true;
+	}
+
+	net::awaitable<bool>
+		avpn_service::connect_http_proxy(
+			tcp::socket& stream, const tcp::endpoint& target)
+	{
+		auto rv = boost::urls::parse_uri(m_config.proxy_);
+		if (!rv)
+		{
+			LOG_ERR << "http proxy url: "
+				<< m_config.proxy_
+				<< " error: "
+				<< rv.error().message();
+			co_return false;
+		}
+
+		auto url = rv.value();
+
+		std::string proxy_host(url.host());
+		std::string proxy_port(url.port());
+
+		// Default http proxy port: 1080
+		if (proxy_port.empty())
+			proxy_port = "1080";
+
+		boost::system::error_code ec;
+
+		// These objects perform our I/O
+		tcp::resolver resolver{ m_main_context };
+
+		auto const results =
+			co_await resolver.async_resolve(
+				proxy_host, proxy_port, net_awaitable[ec]);
+		if (ec)
+			co_return ec;
+
+		for (auto& endp : results)
+		{
+			co_await stream.async_connect(endp.endpoint(),
+				net::redirect_error(
+					net::bind_cancellation_slot(
+						m_cancel_sig.slot(), net::use_awaitable), ec));
+			if (m_cancel_sig.slot().has_handler())
+				m_cancel_sig.slot().clear();
+			if (m_abort)
+			{
+				LOG_ERR << "http proxy, async_connect abort";
+				co_return false;
+			}
+
+			if (!ec)
+				break;
+		}
+
+		if (ec)
+		{
+			LOG_ERR << "http proxy, async_connect error: " << ec.message();
+			co_return false;
+		}
+
+		std::string target_host{ target.address().to_string()
+			+ ":"
+			+ std::to_string(target.port()) };
+
+		http_request req{ beast::http::verb::connect, target_host, 11 };
+		req.set(http::field::proxy_connection, "Keep-Alive");
+		req.set(http::field::host, target_host);
+		req.set(http::field::user_agent, "avpn/" AVPN_VERSION);
+
+		if (!url.user().empty())
+		{
+			auto userinfo = std::string(url.user())
+				+ ":"
+				+ std::string(url.password());
+			req.set(http::field::proxy_authorization,
+				base64_encode(userinfo));
+		}
+
+		http::serializer<true, http::string_body> sr(req);
+		co_await http::async_write_header(stream, sr, net_awaitable[ec]);
+		if (ec)
+			co_return ec;
+
+		http::response_parser<
+			http_response::body_type> p;
+		boost::beast::flat_buffer buffer{ 1024 };
+
+		do {
+			co_await http::async_read_header(
+				stream, buffer, p, net_awaitable[ec]);
+			if (ec)
+			{
+				LOG_ERR << "http proxy, read header: " << ec.message();
+				co_return false;
+			}
+		} while (!p.is_header_done());
 
 		co_return true;
 	}

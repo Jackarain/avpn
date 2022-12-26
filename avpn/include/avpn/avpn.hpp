@@ -338,7 +338,14 @@ namespace avpn {
 		// 作为client时, 开始进行tcp连接.
 		net::awaitable<void> start_tcp_client();
 		net::awaitable<bool> connect_tcp_server(tcp::socket&);
+
+		// 作为client时, 通过代理进行tcp连接.
 		net::awaitable<bool> connect_proxy(tcp::socket&, const tcp::endpoint&);
+
+		net::awaitable<bool> connect_socks_proxy(
+			tcp::socket&, const tcp::endpoint&);
+		net::awaitable<bool> connect_http_proxy(
+			tcp::socket&, const tcp::endpoint&);
 
 		// 作为client时, 开始udp客户端服务.
 		net::awaitable<void> start_udp_client();
