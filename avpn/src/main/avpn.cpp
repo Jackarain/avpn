@@ -1797,6 +1797,12 @@ namespace avpn {
 			{
 				if (!co_await connect_proxy(stream, endp))
 					continue;
+
+				LOG_DBG << "Connect to tcp server : "
+					<< endp
+					<< " via proxy: "
+					<< m_config.proxy_
+					<< " successfully!";
 			}
 			else
 			{
@@ -1818,15 +1824,15 @@ namespace avpn {
 						break;
 					continue;
 				}
+
+				LOG_DBG << "Connect to tcp server: "
+					<< endp << " successfully!";
 			}
 
 			net::ip::tcp::no_delay option(true);
 			stream.set_option(option, ec);
 			if (ec)
 				LOG_WARN << "connect_server, set_option: " << ec.message();
-
-			LOG_INFO << "Connect tcp server, connect to: "
-				<< endp << " successfully!";
 
 			co_return true;
 		}
