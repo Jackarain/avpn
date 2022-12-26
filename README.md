@@ -171,7 +171,7 @@ export PATH=$PATH:${OPENWRT_SDK}/staging_dir/toolchain-mipsel_24kc_gcc-11.2.0_mu
 ```
 ${OPENWRT_SDK} 是sdk的解压目录，然后在 avpn 源码目录中创建 build 目录并执行 cmake：
 ```
-ccmake .. -DCOMPILER=mipsel-openwrt-linux -DCMAKE_TOOLCHAIN_FILE=../cmake/mips.cmake -DCMAKE_SYSROOT=${OPENWRT_SDK}/staging_dir/host -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DCMAKE_BUILD_TYPE=Release -G Ninja
+ccmake .. -DCOMPILER=mipsel-openwrt-linux -DCMAKE_TOOLCHAIN_FILE=../cmake/mips.cmake -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release -G Ninja
 ```
 在这个步骤中，一些平台有必要打开一些编译开关，如 ENABLE_LINKE_TO_LIBATOMIC 库，以及关闭 ENABLE_STATIC_LINK_TO_GCC，在完成 cmake 后生成Makefile，然后开始编译：
 ```
