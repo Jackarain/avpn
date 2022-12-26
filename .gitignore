@@ -26,7 +26,8 @@ bld/
 musl/
 aarch64/
 mips/
-
+android/
+openwrt/
 
 # Visual Studio 2015 cache/options directory
 .vs/
