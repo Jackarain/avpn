@@ -1946,8 +1946,13 @@ void create_pid(std::string suffix, std::filesystem::path pidfile/* = {}*/ )
 
 	// 构造临时目录.
 	auto tmppath = fs::temp_directory_path();
+	if (suffix.empty())
+		suffix = "pid";
+	else
+		suffix = base58_encode(suffix);
+
 	auto avpn_tmppath = tmppath /
-		std::format("avpn-{}", base58_encode(suffix));
+		std::format("avpn-{}", suffix);
 
 	// 创建临时avpn文件夹.
 	fs::create_directories(avpn_tmppath, ignore_ec);
