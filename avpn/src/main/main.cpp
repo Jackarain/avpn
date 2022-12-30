@@ -173,6 +173,57 @@ std::string version_info()
 	return oss.str();
 }
 
+void print_args(int argc, char** argv,
+	const po::variables_map& vm)
+{
+	LOG_INFO << "Current directory: "
+		<< std::filesystem::current_path().string();
+
+	if (!vm.count("config"))
+	{
+		std::vector<std::string> print_args;
+		print_args.assign(argv, argv + argc);
+		LOG_INFO << "Run: "
+			<< boost::algorithm::join(print_args, " ");
+
+		return;
+	}
+
+	for (const auto& cfg : vm)
+	{
+		if (cfg.second.empty() || cfg.first == "config")
+			continue;
+
+		auto& var = cfg.second.value();
+		try {
+			const auto& s = boost::any_cast<std::string>(var);
+			LOG_INFO << cfg.first
+				<< " = "
+				<< s;
+			continue;
+		}
+		catch (const std::exception&) {}
+
+		try {
+			const auto& v = boost::any_cast<bool>(var);
+			LOG_INFO << cfg.first
+				<< " = "
+				<< v;
+			continue;
+		}
+		catch (const std::exception&) {}
+
+		try {
+			const auto& v = boost::any_cast<int>(var);
+			LOG_INFO << cfg.first
+				<< " = "
+				<< v;
+			continue;
+		}
+		catch (const std::exception&) {}
+	}
+}
+
 int main(int argc, char** argv)
 {
 	platform_init();
@@ -229,17 +280,17 @@ int main(int argc, char** argv)
 
 		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
 
-		("tun", po::value<std::string>(&ifdev)->default_value("")->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
+		("tun", po::value<std::string>(&ifdev)->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
 
-		("ptun", po::value<std::string>(&ptun)->default_value("")->value_name("unix domain socket path"), "Send Tun fd over unix domain socket.")
-		("utun", po::value<std::string>(&utun)->default_value("")->value_name("unix domain socket path"), "Send Tun packet over unix domain socket.")
+		("ptun", po::value<std::string>(&ptun)->value_name("unix domain socket path"), "Send Tun fd over unix domain socket.")
+		("utun", po::value<std::string>(&utun)->value_name("unix domain socket path"), "Send Tun packet over unix domain socket.")
 
 		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size(default: 1450).")
 
 		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
 
-		("privatekey", po::value<std::string>(&privatekey)->default_value("")->value_name("privatekey"), "Communication Security private key.")
-		("publickey", po::value<std::string>(&publickey)->default_value("")->value_name("publickey"), "Communication Security public key.")
+		("privatekey", po::value<std::string>(&privatekey)->value_name("privatekey"), "Communication Security private key.")
+		("publickey", po::value<std::string>(&publickey)->value_name("publickey"), "Communication Security public key.")
 
 		("genkey", "Generates a new private key and writes it to stdout.")
 		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
@@ -247,19 +298,19 @@ int main(int argc, char** argv)
 #ifdef INTEGRATE_SOCKS_SERVER
 		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
 
-		("socks_interface", po::value<std::string>(&socks_interface)->default_value("")->value_name("ifname"), "Bind interface for socks4/5 connection.")
+		("socks_interface", po::value<std::string>(&socks_interface)->value_name("ifname"), "Bind interface for socks4/5 connection.")
 		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
 		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
-		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->default_value("")->value_name(""), "Next socks4/5 proxy. (e.g: socks5://user:passwd@ip:port)")
+		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->value_name(""), "Next socks4/5 proxy. (e.g: socks5://user:passwd@ip:port)")
 		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value(false, "false")->value_name(""), "Next socks4/5 proxy with ssl.")
 #endif
 
-		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->default_value("")->value_name("path"), "SSL certificate dir.")
+		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->value_name("path"), "SSL certificate dir.")
 
 		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
 		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
 
-		("proxy", po::value<std::string>(&proxy)->default_value("")->value_name("proxy"), "[protocol://]host[:port] Use this proxy, protocol support socks/http/haproxy.")
+		("proxy", po::value<std::string>(&proxy)->value_name("proxy"), "[protocol://]host[:port] Use this proxy, protocol support socks/http/haproxy.")
 
 		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
 		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
@@ -277,7 +328,7 @@ int main(int argc, char** argv)
 		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "VPN subnet.")
 		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow different clients to be able to see each other.")
 
-		("controller", po::value<std::string>(&controller)->default_value("")->value_name("ip:port"), "Controller, local controller server port.")
+		("controller", po::value<std::string>(&controller)->value_name("ip:port"), "Controller, local controller server port.")
 
 		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logs.")
 		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
@@ -354,10 +405,6 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-		std::vector<std::string> print_args;
-		print_args.assign(argv, argv + argc);
-		LOG_DBG << "Run: " << boost::algorithm::join(print_args, " ");
-
 		if (vm.count("config"))
 		{
 			if (!std::filesystem::exists(config))
@@ -374,6 +421,9 @@ int main(int argc, char** argv)
 			if (disable_logs)
 				util::toggle_write_logging(true);
 		}
+
+		// 输出参数信息.
+		print_args(argc, argv, vm);
 
 		// test subnet address.
 		{
