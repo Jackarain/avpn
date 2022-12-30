@@ -2019,7 +2019,10 @@ namespace avpn {
 		http::serializer<true, http::string_body> sr(req);
 		co_await http::async_write_header(stream, sr, net_awaitable[ec]);
 		if (ec)
-			co_return ec;
+		{
+			LOG_ERR << "http proxy, write header: " << ec.message();
+			co_return false;
+		}
 
 		http::response_parser<
 			http_response::body_type> p;
