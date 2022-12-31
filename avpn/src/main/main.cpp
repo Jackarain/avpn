@@ -645,6 +645,15 @@ int main(int argc, char** argv)
 	}
 #endif
 
+	auto io_run = [&ioc]() mutable
+	{
+		while (ioc.run_one())
+		{
+			while (ioc.poll_one())
+				;
+		}
+	};
+
 	if (controller.empty())
 	{
 		using  avpn::avpn_service;
@@ -672,7 +681,7 @@ int main(int argc, char** argv)
 				ioc.stop();
 			});
 
-		ioc.run();
+		io_run();
 	}
 	else
 	{
@@ -680,7 +689,7 @@ int main(int argc, char** argv)
 		avpn::vpn_controller control{ ioc, cfg };
 		control.start();
 
-		ioc.run();
+		io_run();
 	}
 
 	LOG_DBG << "avpn system exiting...";
