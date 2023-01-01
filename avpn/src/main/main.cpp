@@ -442,7 +442,7 @@ int main(int argc, char** argv)
 		return EXIT_FAILURE;
 	}
 
-	net::io_context ioc;
+	net::io_context ioc{ 1 };
 
 	net::signal_set terminator_signal(ioc);
 	terminator_signal.add(SIGINT);
