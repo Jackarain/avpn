@@ -8,20 +8,22 @@ Build:
   script:
     - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
     - cmake --build build --target avpn
-#  artifacts:
-#    paths:
-#      - build/bin/avpn
+  artifacts:
+    paths:
+      - build/bin/avpn
+    expire_in: 1 day
 
 CrossCompile:
   stage: cross compile
   script:
     - cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_BUILD_TYPE=Debug -DENABLE_USE_WINTUN=OFF -G Ninja
     - cmake --build build --target avpn
-#  artifacts:
-#    paths:
-#      - build/bin
-#    exclude:
-#      - build/bin/avpn
+  artifacts:
+    paths:
+      - build/bin
+    exclude:
+      - build/bin/avpn
+    expire_in: 1 day
 
 RunBoostTest:
   stage: test
