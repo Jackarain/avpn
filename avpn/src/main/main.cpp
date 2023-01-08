@@ -383,13 +383,29 @@ int main(int argc, char** argv)
 			auto priv_key = base64_decode(pkey);
 			if (priv_key.size() != 32)
 			{
-				std::cerr << "Key is not the correct length or format";
+				std::cerr << "Key is not the correct length or format\n";
 				return EXIT_FAILURE;
 			}
 
 			std::cout << base64_encode(crypto_util::ecdh_public(pkey)) << "\n";
 
 			return EXIT_SUCCESS;
+		}
+
+		if (vm.count("config"))
+		{
+			if (!std::filesystem::exists(config))
+			{
+				std::cerr << "No such config file: " << config << std::endl;
+				return EXIT_FAILURE;
+			}
+
+			auto cfg = po::parse_config_file(config.c_str(), desc, false);
+			po::store(cfg, vm);
+			po::notify(vm);
+
+			if (disable_logs)
+				util::toggle_write_logging(true);
 		}
 
 		// 输出版本信息.
@@ -405,22 +421,8 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-		if (vm.count("config"))
-		{
-			if (!std::filesystem::exists(config))
-			{
-				LOG_ERR << "No such config file: " << config;
-				return EXIT_FAILURE;
-			}
-
+		if (!config.empty())
 			LOG_DBG << "Load config file: " << config;
-			auto cfg = po::parse_config_file(config.c_str(), desc, false);
-			po::store(cfg, vm);
-			po::notify(vm);
-
-			if (disable_logs)
-				util::toggle_write_logging(true);
-		}
 
 		// 输出参数信息.
 		print_args(argc, argv, vm);
