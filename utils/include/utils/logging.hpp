@@ -473,9 +473,9 @@ namespace logger_aux__ {
 	}
 
 	template <class Writer>
-	Writer& writer_single()
+	Writer& writer_single(std::string log_path = "")
 	{
-		static Writer writer_instance;
+		static Writer writer_instance(log_path);
 		return writer_instance;
 	}
 
@@ -508,8 +508,11 @@ class auto_logger_file__
 	auto_logger_file__& operator=(const auto_logger_file__&) = delete;
 
 public:
-	auto_logger_file__()
+	auto_logger_file__(std::string log_path = "")
 	{
+		if (!log_path.empty())
+			m_log_path = log_path;
+
 		m_log_path = m_log_path / (LOG_APPNAME + std::string(".log"));
 
 		if (!global_logging___)
@@ -797,6 +800,8 @@ inline void logger_writer__(int64_t time, const int& level,
 	[[maybe_unused]] bool disable_cout = false) noexcept
 {
 	LOGGER_LOCKS_();
+	static auto& logger = util::logger_aux__::writer_single<
+		util::auto_logger_file__>();
 	char ts[64] = { 0 };
 	[[maybe_unused]] auto ptm = logger_aux__::time_to_string(ts, time);
 	std::string prefix = ts + std::string(" [") +
@@ -804,8 +809,7 @@ inline void logger_writer__(int64_t time, const int& level,
 	std::string tmp = message + "\n";
 	std::string whole = prefix + tmp;
 #ifndef DISABLE_WRITE_LOGGING
-	util::logger_aux__::writer_single<
-		util::auto_logger_file__>().write(time, whole.c_str(), whole.size());
+	logger.write(time, whole.c_str(), whole.size());
 #endif // !DISABLE_WRITE_LOGGING
 	logger_output_console__(disable_cout, level, prefix, tmp);
 #ifdef USE_SYSTEMD_LOGGING
@@ -952,11 +956,7 @@ inline void signalHandler(int)
 
 inline void init_logging(const std::string& path = "")
 {
-	auto_logger_file__& file =
-		logger_aux__::writer_single<util::auto_logger_file__>();
-
-	if (!path.empty())
-		file.open(path.c_str());
+	logger_aux__::writer_single<util::auto_logger_file__>(path);
 }
 
 inline std::string log_path()
