@@ -253,6 +253,7 @@ int main(int argc, char** argv)
 	std::string proxy;
 
 	std::string post_up_script;
+	std::string log_directory;
 
 	std::vector<std::string> routes;
 	std::string pushdns;
@@ -331,6 +332,8 @@ int main(int argc, char** argv)
 		("controller", po::value<std::string>(&controller)->value_name("ip:port"), "Controller, local controller server port.")
 
 		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logs.")
+		("logs_path", po::value<std::string>(&log_directory)->value_name(""), "Logs dirctory.")
+
 		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
 
 		("post_up", po::value<std::string>(&post_up_script)->value_name("cmd"), "Command to run after tun device up.")
@@ -407,6 +410,9 @@ int main(int argc, char** argv)
 			if (disable_logs)
 				util::toggle_write_logging(true);
 		}
+
+		// 设置日志输出目录.
+		util::init_logging(log_directory);
 
 		// 输出版本信息.
 		LOG_FILE << version_info();
