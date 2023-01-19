@@ -102,6 +102,7 @@ option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
 option(DISABLE_WRITE_LOGGING "Build with log file writer disabled" OFF)
 
 option(ENABLE_BUILD_WITH_LIBCXX "Build with libc++" OFF)
+option(ENABLE_NATIVE_ARCH "Enable native architecture" OFF)
 
 option(ENABLE_MOLD "Build using mold" OFF)
 option(ENABLE_LLD "Build using lld" OFF)
@@ -293,6 +294,16 @@ if (NOT MSVC)
 	endif()
 
 endif(NOT MSVC)
+
+################################################################################
+
+# Attempt to determine a suitable native option
+if (ENABLE_NATIVE_ARCH)
+	if (NOT MSVC)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+	endif()
+endif()
 
 ################################################################################
 
