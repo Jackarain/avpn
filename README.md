@@ -160,9 +160,11 @@ ninja
 
 <br>
 这里以我的 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载编译工具链：
+
 ```
 wget https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-sdk-22.03.2-ramips-mt7621_gcc-11.2.0_musl.Linux-x86_64.tar.xz
 ```
+
 将 toolchain 相关目录添加到 PATH中，以便调用 gcc 编译，我这里执行：
 
 ```
