@@ -209,6 +209,7 @@ ninja
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
 | data_shards <br> parity_shards |		这2个参数是fec参数，主要指定多少份data_shards和多少份parity_shards组成一组fec数据，也就是说，在发送data_shards份数据的同时，携带parity_shards份冗余数据。fec算法可以允许任意最多丢失parity_shards份数据。|
+| matrix_cache |		Reedsolomon 范德蒙逆矩阵(将来可能修改为柯西矩阵)缓存，用于decode时减少矩阵计算，以空间换时间，matrix_cache 指定缓存多少个矩阵。|
 | mode |		数据发送模式，取值0: 只用 udp，1: tcp/udp 混合，2: 只用 tcp主要由这3种模式。如果udp模式，则在延迟上一般远小于tcp，但是在udp丢包特别严重的ISP网络环境中，tcp有时更有效率。|
 | compress |		启用数据压缩算法。|
 | keepalive |		设置心跳时间间隔，单位ms。|
