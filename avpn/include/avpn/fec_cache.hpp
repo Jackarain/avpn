@@ -34,6 +34,7 @@
 #include <limits>
 #include <set>
 #include <map>
+#include <list>
 #include <cstdlib>
 #include <memory>
 #include <atomic>
@@ -77,6 +78,70 @@ namespace avpn {
 	// 返回全局分配器指针.
 	packet_allocator* static_packet_allocator();
 
+
+	//////////////////////////////////////////////////////////////////////////
+	// LRU matrix cache.
+	class lru_matrix_cache
+	{
+	private:
+		lru_matrix_cache(const lru_matrix_cache&) = delete;
+		lru_matrix_cache& operator=(const lru_matrix_cache&) = delete;
+
+		typedef typename std::pair<int, matrix> key_value;
+		typedef typename std::list<key_value>::iterator list_iterator_type;
+
+	public:
+		lru_matrix_cache(size_t n = 0)
+			: m_max_size(n)
+		{}
+		~lru_matrix_cache() = default;
+
+		lru_matrix_cache(lru_matrix_cache&&) = default;
+		lru_matrix_cache& operator=(lru_matrix_cache&&) = default;
+
+	public:
+		void put(int index, const matrix& val)
+		{
+			m_list.emplace_front(index, val);
+
+			auto it = m_rmatrixs.find(index);
+			if (it != m_rmatrixs.end())
+			{
+				m_list.erase(it->second);
+				m_rmatrixs.erase(it);
+			}
+
+			m_rmatrixs[index] = m_list.begin();
+
+			if (m_rmatrixs.size() > m_max_size)
+			{
+				auto last = m_list.end();
+				last--;
+				m_rmatrixs.erase(last->first);
+				m_list.pop_back();
+			}
+		}
+
+		std::optional<matrix> get(int index)
+		{
+			auto it = m_rmatrixs.find(index);
+			if (it == m_rmatrixs.end())
+				return {};
+
+			m_list.splice(m_list.begin(), m_list, it->second);
+			return it->second->second;
+		}
+
+		void set_capacity(int size)
+		{
+			m_max_size = size;
+		}
+
+	private:
+		std::list<key_value> m_list;
+		std::unordered_map<int, list_iterator_type> m_rmatrixs;
+		size_t m_max_size;
+	};
 
 	//////////////////////////////////////////////////////////////////////////
 	// fec编码分组.
@@ -125,7 +190,8 @@ namespace avpn {
 		fec_decode_group() = delete;
 
 	public:
-		fec_decode_group(int data_shards, int parity_shards);
+		fec_decode_group(int data_shards, int parity_shards,
+			int matrix_cache = 16);
 		fec_decode_group(fec_decode_group&& pg) noexcept;
 
 		// 更新这个gop的数据.
@@ -155,7 +221,10 @@ namespace avpn {
 		int64_t total_{ 0 };
 		asio_timer::time_point time_;
 		std::atomic_bool used_{ false };
-		static inline std::map<uint64_t, avpn::matrix> matrix_cache_;
+		static inline std::map<uint64_t, matrix> matrix_cache_;
+		static inline lru_matrix_cache rmatrix_cache_;
+		// static inline std::list<int> matrix_cb_;
+		// static inline std::unordered_map<uint64_t, matrix> rmatrix_cache_;
 	};
 
 
@@ -168,7 +237,7 @@ namespace avpn {
 		fec_recover& operator=(const fec_recover&) = delete;
 
 	public:
-		explicit fec_recover(int64_t max_size = 64 * 1024 * 1024);
+		explicit fec_recover(int matrix_cache, int64_t max_size = 64 * 1024 * 1024);
 		~fec_recover() = default;
 
 		void reset();
@@ -183,6 +252,7 @@ namespace avpn {
 		std::vector<vpn_packet_ptr> acquire();
 
 	public:
+		int matrix_cache_;
 		int64_t cache_size_limit_;
 		uint64_t early_packet_index_{ 0 };
 		std::map<uint64_t, fec_decode_group> groups_;

@@ -241,8 +241,9 @@ int main(int argc, char** argv)
 	int parity_shards;
 	int mtu_size;
 	int mode;
-	std::string compress;
 	int keepalive;
+	int matrix_cache;
+	std::string compress;
 	std::string subnet;
 	std::string ifdev;
 	std::string ptun;
@@ -315,6 +316,8 @@ int main(int argc, char** argv)
 
 		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
 		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
+
+		("matrix_cache", po::value<int>(&matrix_cache)->default_value(256)->value_name("N"), "Reedsolomon vandermonde matrix cache.")
 
 		("mode", po::value<int>(&mode)->default_value(0)->value_name("mode"), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
 		("compress", po::value<std::string>(&compress)->value_name("deflate/lz4/zstd"), "Enable a compression algorithm.")
@@ -514,6 +517,7 @@ int main(int argc, char** argv)
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
 	params.mode_ = static_cast<avpn::Proto>(mode);
+	params.matrix_cache_ = matrix_cache;
 	params.compress_ = compress;
 	params.keepalive_ = keepalive < 1000 ? 1000 : keepalive;
 	if (!pushdns.empty())

@@ -67,6 +67,9 @@ namespace avpn {
 		// 具体值为: 0为udp only, 1为udp/tcp混合, 2为tcp only.
 		Proto mode_;
 
+		// Reedsolomon vandermonde matrix cache.
+		int matrix_cache_;
+
 		// 压缩选项, 指定压缩算法
 		// 可以指定的压缩算法: deflate, lz4, zstd.
 		std::string compress_;

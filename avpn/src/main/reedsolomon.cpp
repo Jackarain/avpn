@@ -853,13 +853,19 @@ namespace avpn {
 			m_matrix = rhs.m_matrix;
 		}
 
+		matrix& matrix::operator=(const matrix& rhs) noexcept
+		{
+			m_matrix = rhs.m_matrix;
+			return *this;
+		}
+
 		matrix& matrix::operator=(matrix&& rhs) noexcept
 		{
 			m_matrix = std::move(rhs.m_matrix);
 			return *this;
 		}
 
-		avpn::matrix matrix::vandermonde(size_t rows, size_t cols)
+		matrix matrix::vandermonde(size_t rows, size_t cols)
 		{
 			matrix result(rows, cols);
 			for (size_t r = 0; r < result.size(); r++) {
@@ -1183,7 +1189,8 @@ namespace avpn {
 			m_codingloop->encode(m_parity_rows, sv, m_data_shards, outputs);
 		}
 
-		void reedsolomon::decode(std::vector<vpn_packet_ptr>& shards)
+		void reedsolomon::decode(std::vector<vpn_packet_ptr>& shards,
+			lru_matrix_cache& rcache)
 		{
 			auto number_present = 0;
 			auto data_present = 0;
@@ -1209,6 +1216,7 @@ namespace avpn {
 
 			std::vector<int> valid_indices;
 			valid_indices.resize(m_data_shards);
+			int index = 0;
 
 			for (int matrix_row = 0, sub_matrix_row = 0;
 				matrix_row < m_shards &&
@@ -1219,6 +1227,7 @@ namespace avpn {
 					continue;
 
 				auto data = shards[matrix_row]->payload();
+				index += std::pow(2, matrix_row);
 
 				sub_shards[sub_matrix_row] =
 					std::span<uint8_t>(data, avpn_tun_mtu_size);
@@ -1227,15 +1236,28 @@ namespace avpn {
 				sub_matrix_row++;
 			}
 
-			matrix submatrix{ (size_t)m_data_shards, (size_t)m_data_shards };
-			for (size_t i = 0; i < valid_indices.size(); i++) {
-				auto& valid_index = valid_indices[i];
-				for (size_t c = 0; c < (size_t)m_data_shards; c++) {
-					submatrix[i][c] = m_matrix[valid_index][c];
-				}
-			}
+			auto invert_matrix = [&]() mutable -> matrix
+			{
+				auto cache = rcache.get(index);
+				if (cache)
+					return *cache;
 
-			auto data_decode_matrix = submatrix.invert();
+				matrix submatrix(
+					(size_t)m_data_shards, (size_t)m_data_shards);
+
+				for (size_t i = 0; i < valid_indices.size(); i++) {
+					auto& valid_index = valid_indices[i];
+					for (size_t c = 0; c < (size_t)m_data_shards; c++)
+						submatrix[i][c] = m_matrix[valid_index][c];
+				}
+
+				submatrix = submatrix.invert();
+				rcache.put(index, submatrix);
+
+				return submatrix;
+			};
+
+			matrix rsubmatrix = invert_matrix();
 
 			std::vector<std::span<uint8_t>> outputs;
 			outputs.resize(m_parity_shards);
@@ -1251,13 +1273,14 @@ namespace avpn {
 					shards[ishard]->payload_size_ = 0;
 					outputs[output_count] = std::span(shards[ishard]->payload(),
 						shards[ishard]->payload() + avpn_tun_mtu_size);
-					matrix_rows[output_count] = data_decode_matrix[ishard];
+					matrix_rows[output_count] = rsubmatrix[ishard];
 					output_count++;
 				}
 			}
 
 			outputs.resize(output_count);
-			m_codingloop->encode(matrix_rows, sub_shards, m_data_shards, outputs);
+			m_codingloop->encode(
+				matrix_rows, sub_shards, m_data_shards, outputs);
 		}
 
 		avpn::matrix reedsolomon::build_matrix(int shards, int data_shards)

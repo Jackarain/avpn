@@ -247,6 +247,7 @@ namespace avpn {
 		, m_keyexchange(privatekey)
 		, m_shared_key(m_keyexchange.GenerateSharedKey(m_pubkey))
 		, m_tick_timer(ioc)
+		, m_recover(cfg.tunnel_params_.matrix_cache_)
 		, m_feg(cfg.tunnel_params_.data_shards_,
 			cfg.tunnel_params_.parity_shards_)
 	{

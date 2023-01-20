@@ -301,12 +301,15 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
-	fec_decode_group::fec_decode_group(int data_shards, int parity_shards)
+	fec_decode_group::fec_decode_group(
+		int data_shards, int parity_shards, int matrix_cache/* = 16*/)
 		: pkts_(data_shards + parity_shards)
 		, ds_(data_shards)
 		, ps_(parity_shards)
 		, time_(asio_timer::clock_type::now())
 	{
+		rmatrix_cache_.set_capacity(matrix_cache);
+
 		BOOST_ASSERT((data_shards + parity_shards) < 256 &&
 			"fec_decode_group, dataShards + parityShards >= 255");
 	}
@@ -395,7 +398,7 @@ namespace avpn
 
 		// fec解码.
 		try {
-			fec_dec.decode(pkts_);
+			fec_dec.decode(pkts_, rmatrix_cache_);
 		}
 		catch (const std::exception& e) {
 			LOG_WARN << "fec decode exception: " << e.what();
@@ -408,8 +411,10 @@ namespace avpn
 
 	//////////////////////////////////////////////////////////////////////////
 
-	fec_recover::fec_recover(int64_t max_size /*= 64 * 1024 * 1024*/)
-		: cache_size_limit_(max_size)
+	fec_recover::fec_recover(int matrix_cache,
+		int64_t max_size /*= 64 * 1024 * 1024*/)
+		: matrix_cache_(matrix_cache)
+		, cache_size_limit_(max_size)
 	{
 		set_global_allocator_size(max_size);
 	}
@@ -458,7 +463,7 @@ namespace avpn
 		auto it = groups_.find(gid);
 		if (it == groups_.end())
 		{
-			fec_decode_group gop(ds, ps);
+			fec_decode_group gop(ds, ps, matrix_cache_);
 			gop.update(gid, pid, ptr);
 
 			scoped_exit se(std::bind(clean_gops));

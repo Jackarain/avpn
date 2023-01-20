@@ -31,7 +31,8 @@ namespace avpn {
 		explicit matrix(size_t size = 0);
 		matrix(size_t rows, size_t cols);
 		~matrix() = default;
-		explicit matrix(const matrix& rhs) noexcept;
+		matrix(const matrix& rhs) noexcept;
+		matrix& operator=(const matrix& rhs) noexcept;
 		matrix(matrix&& rhs) noexcept;
 		matrix& operator=(matrix&& rhs) noexcept;
 
@@ -87,7 +88,7 @@ namespace avpn {
 			std::vector<std::span<uint8_t>>& outputs) override;
 	};
 
-
+	class lru_matrix_cache;
 	class reedsolomon
 	{
 	private:
@@ -100,7 +101,8 @@ namespace avpn {
 		size_t estimate_pershard_size(int total_size, int data_shards = -1);
 
 		void encode(std::vector<vpn_packet_ptr>& shards);
-		void decode(std::vector<vpn_packet_ptr>& shards);
+		void decode(std::vector<vpn_packet_ptr>& shards,
+			lru_matrix_cache& rcache);
 
 		static matrix build_matrix(int shards, int data_shards);
 
