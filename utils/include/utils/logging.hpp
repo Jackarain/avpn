@@ -1108,6 +1108,10 @@ public:
 	{
 		return strcat_impl(boost::nowide::narrow(v));
 	}
+	inline logger___& operator<<(const std::u16string& v)
+	{
+		return strcat_impl(boost::nowide::narrow(v));
+	}
 	inline logger___& operator<<(const std::string_view& v)
 	{
 		return strcat_impl(v);
