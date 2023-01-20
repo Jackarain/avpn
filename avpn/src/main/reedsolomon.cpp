@@ -1227,7 +1227,10 @@ namespace avpn {
 					continue;
 
 				auto data = shards[matrix_row]->payload();
-				index += std::pow(2, matrix_row);
+				if (matrix_row >= 32)
+					index = -1;
+				else
+					index += std::pow(2, matrix_row);
 
 				sub_shards[sub_matrix_row] =
 					std::span<uint8_t>(data, avpn_tun_mtu_size);
@@ -1238,9 +1241,12 @@ namespace avpn {
 
 			auto invert_matrix = [&]() mutable -> matrix
 			{
-				auto cache = rcache.get(index);
-				if (cache)
-					return *cache;
+				if (index != -1)
+				{
+					auto cache = rcache.get(index);
+					if (cache)
+						return *cache;
+				}
 
 				matrix submatrix(
 					(size_t)m_data_shards, (size_t)m_data_shards);
