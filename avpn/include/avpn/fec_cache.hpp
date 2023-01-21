@@ -87,7 +87,7 @@ namespace avpn {
 		lru_matrix_cache(const lru_matrix_cache&) = delete;
 		lru_matrix_cache& operator=(const lru_matrix_cache&) = delete;
 
-		typedef typename std::pair<int, matrix> key_value;
+		typedef typename std::pair<uint64_t, matrix> key_value;
 		typedef typename std::list<key_value>::iterator list_iterator_type;
 
 	public:
@@ -100,7 +100,7 @@ namespace avpn {
 		lru_matrix_cache& operator=(lru_matrix_cache&&) = default;
 
 	public:
-		void put(int index, const matrix& val)
+		void put(uint64_t index, const matrix& val)
 		{
 			m_list.emplace_front(index, val);
 
@@ -122,7 +122,7 @@ namespace avpn {
 			}
 		}
 
-		std::optional<matrix> get(int index)
+		std::optional<matrix> get(uint64_t index)
 		{
 			auto it = m_rmatrixs.find(index);
 			if (it == m_rmatrixs.end())
@@ -139,7 +139,7 @@ namespace avpn {
 
 	private:
 		std::list<key_value> m_list;
-		std::unordered_map<int, list_iterator_type> m_rmatrixs;
+		std::unordered_map<uint64_t, list_iterator_type> m_rmatrixs;
 		size_t m_max_size;
 	};
 

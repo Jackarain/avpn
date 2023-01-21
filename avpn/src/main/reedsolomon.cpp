@@ -1216,7 +1216,7 @@ namespace avpn {
 
 			std::vector<int> valid_indices;
 			valid_indices.resize(m_data_shards);
-			int index = 0;
+			uint64_t index = 0;
 
 			for (int matrix_row = 0, sub_matrix_row = 0;
 				matrix_row < m_shards &&
@@ -1227,7 +1227,7 @@ namespace avpn {
 					continue;
 
 				auto data = shards[matrix_row]->payload();
-				if (matrix_row >= 32)
+				if (matrix_row >= 64)
 					index = -1;
 				else
 					index += std::pow(2, matrix_row);
