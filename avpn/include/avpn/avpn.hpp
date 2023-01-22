@@ -17,7 +17,7 @@
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
 
-#include "socks/socks_server.hpp"
+#include "proxy/proxy_server.hpp"
 
 #include <boost/assign/list_inserter.hpp>
 
@@ -30,7 +30,7 @@
 namespace avpn {
 
 	using namespace util;
-	using namespace socks;
+	using namespace proxy;
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -173,8 +173,8 @@ namespace avpn {
 		// vpn隧道相关参数.
 		avpn::tunnel_params tunnel_params_;
 
-		// socks server options.
-		socks_server_option socks_opt_;
+		// proxy server options.
+		proxy_server_option socks_opt_;
 
 		// post up script.
 		std::string post_up_script_;
@@ -214,7 +214,7 @@ namespace avpn {
 	{};
 
 	class avpn_service
-		: public socks_server_base
+		: public proxy_server_base
 		, public std::enable_shared_from_this<avpn_service>
 	{
 		// c++11 noncopyable.
@@ -262,8 +262,8 @@ namespace avpn {
 		virtual ~avpn_service();
 
 		// socks server相关.
-		virtual void remove_socks_client(size_t id) override;
-		virtual const socks::socks_server_option& option() override;
+		virtual void remove_client(size_t id) override;
+		virtual const proxy::proxy_server_option& option() override;
 
 	public:
 		// 启动和停止vpn服务.
@@ -452,9 +452,9 @@ namespace avpn {
 
 		// socks clients连接表.
 		using socks_session_weak_ptr =
-			std::weak_ptr<socks_session_base>;
+			std::weak_ptr<proxy_session_base>;
 		using socks_session_ptr =
-			std::shared_ptr<socks_session_base>;
+			std::shared_ptr<proxy_session_base>;
 		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
 
 		// ssl context.

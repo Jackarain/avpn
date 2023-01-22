@@ -10,6 +10,7 @@ add_library(utils STATIC)
 
 target_sources(utils
 	PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/strutil.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/acl.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/async_connect.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/base_stream.hpp

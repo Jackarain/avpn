@@ -20,7 +20,7 @@
 #include "avpn/protocol.hpp"
 #include "avpn/tundev_common.hpp"
 
-#include "socks/socks_enums.hpp"
+#include "proxy/socks_enums.hpp"
 
 #include <chrono>
 #include <iomanip>
@@ -109,12 +109,12 @@ namespace avpn {
 		LOG_DBG << "avpn_service::~avpn_service()";
 	}
 
-	void avpn_service::remove_socks_client(size_t id)
+	void avpn_service::remove_client(size_t id)
 	{
 		m_socks_clients.erase(id);
 	}
 
-	const socks::socks_server_option& avpn_service::option()
+	const proxy::proxy_server_option& avpn_service::option()
 	{
 		return m_config.socks_opt_;
 	}
@@ -1304,8 +1304,8 @@ namespace avpn {
 					<< ", connection id: " << connection_id;
 
 				socks_session_ptr new_session =
-					std::make_shared<socks::socks_session>(
-						instantiate_socks_stream(std::move(socket)),
+					std::make_shared<proxy::proxy_session>(
+						instantiate_proxy_stream(std::move(socket)),
 						connection_id,
 						self);
 
@@ -1320,7 +1320,7 @@ namespace avpn {
 					<< ", connection id: " << connection_id;
 
 				// instantiate socks stream with ssl context.
-				auto ssl_socks_stream = instantiate_socks_stream(
+				auto ssl_socks_stream = instantiate_proxy_stream(
 					std::move(socket), m_ssl_ctx);
 
 				// get origin ssl stream type.
@@ -1339,7 +1339,7 @@ namespace avpn {
 
 				// make socks session shared ptr.
 				socks_session_ptr new_session =
-					std::make_shared<socks::socks_session>(
+					std::make_shared<proxy::proxy_session>(
 						std::move(ssl_socks_stream),
 						connection_id,
 						self);
@@ -1356,12 +1356,12 @@ namespace avpn {
 					<< ", connection id: " << connection_id;
 
 				// instantiate socks stream with socket.
-				auto ssl_socks_stream = instantiate_socks_stream(
+				auto ssl_socks_stream = instantiate_proxy_stream(
 					std::move(socket));
 
 				// make socks session shared ptr.
 				socks_session_ptr new_session =
-					std::make_shared<socks::socks_session>(
+					std::make_shared<proxy::proxy_session>(
 						std::move(ssl_socks_stream),
 						connection_id,
 						self);
@@ -1922,14 +1922,14 @@ namespace avpn {
 			co_return false;
 		}
 
-		socks::socks_client_option opt;
+		proxy::socks_client_option opt;
 		opt.target_host = target.address().to_string();
 		opt.target_port = target.port();
 		opt.proxy_hostname = true;
 		opt.username = url.user();
 		opt.password = url.password();
 
-		co_await socks::async_socks_handshake(stream, opt, net_awaitable[ec]);
+		co_await proxy::async_socks_handshake(stream, opt, net_awaitable[ec]);
 		if (ec)
 		{
 			LOG_ERR << "socks proxy, async_socks_handshake error: "

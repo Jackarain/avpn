@@ -15,8 +15,8 @@
 #include "avpn/vpn_controller.hpp"
 
 #include "utils/misc.hpp"
-#include "socks/socks_server.hpp"
-#include "socks/socks_client.hpp"
+#include "proxy/proxy_server.hpp"
+#include "proxy/socks_client.hpp"
 
 #include <iostream>
 #include <iterator>
@@ -614,7 +614,7 @@ int main(int argc, char** argv)
 	// 如果开启了socks服务, 则listen一个socks服务.
 	// 这个socks server则将在client模式下, 通过server代理出去.
 	// 在 server 模式下, 则将是一个单纯的socks server.
-	std::vector<std::shared_ptr<socks::socks_server>> socks_servers;
+	std::vector<std::shared_ptr<proxy::proxy_server>> socks_servers;
 #ifdef INTEGRATE_SOCKS_SERVER
 	for (auto& socks : socks_listens)
 	{
@@ -628,7 +628,7 @@ int main(int argc, char** argv)
 			continue;
 		}
 
-		socks::socks_server_option opt;
+		proxy::proxy_server_option opt;
 		opt.usrdid_ = socks_userid;
 		opt.passwd_ = socks_passwd;
 		opt.bind_addr_ = socks_interface;
@@ -649,7 +649,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		auto server = std::make_shared<socks::socks_server>(
+		auto server = std::make_shared<proxy::proxy_server>(
 			ioc.get_executor(), endp, opt);
 		server->start();
 
