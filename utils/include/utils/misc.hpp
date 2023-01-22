@@ -40,9 +40,6 @@ std::string base58_encode(std::string_view input);
 // 百分编码解码.
 bool unescape_path(const std::string& in, std::string& out);
 
-// 转换成存储单位.
-std::string add_suffix(float val, char const* suffix = nullptr);
-
 // 获取进程id.
 uint64_t get_process_id();
 
