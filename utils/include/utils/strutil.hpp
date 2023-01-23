@@ -672,6 +672,9 @@ namespace strutil
 		return (isalpha(c) || isdigit(c));
 	}
 
+
+    //////////////////////////////////////////////////////////////////////////
+
     /**
      * @brief Unescape url string.
      * @param in - input string.
@@ -740,8 +743,8 @@ namespace strutil
 				out += in[i];
 				break;
 			default:
-// 				if (!isalnum((unsigned char)in[i]))
-// 					return false;
+				// if (!isalnum((unsigned char)in[i]))
+				//   return false;
 				out += in[i];
 				break;
 			}
@@ -778,4 +781,282 @@ namespace strutil
 		if (suffix) ret += suffix;
 		return ret;
 	}
+
+	static inline bool is_space(const char c)
+	{
+		if (c == ' ' ||
+			c == '\f' ||
+			c == '\n' ||
+			c == '\r' ||
+			c == '\t' ||
+			c == '\v')
+			return true;
+		return false;
+	}
+
+    static inline std::string_view string_trim(std::string_view sv)
+	{
+		const char* b = sv.data();
+		const char* e = b + sv.size();
+
+		for (; b != e; b++)
+		{
+			if (!is_space(*b))
+				break;
+		}
+
+		for (; e != b; )
+		{
+			if (!is_space(*(--e)))
+			{
+				++e;
+				break;
+			}
+		}
+
+		return std::string_view(b, e - b);
+	}
+
+    static inline std::string_view string_trim_left(std::string_view sv)
+	{
+		const char* b = sv.data();
+		const char* e = b + sv.size();
+
+		for (; b != e; b++)
+		{
+			if (!is_space(*b))
+				break;
+		}
+
+		return std::string_view(b, e - b);
+	}
+
+    static inline std::string_view string_trim_right(std::string_view sv)
+	{
+		const char* b = sv.data();
+		const char* e = b + sv.size();
+
+		for (; e != b; )
+		{
+			if (!is_space(*(--e)))
+			{
+				++e;
+				break;
+			}
+		}
+
+		return std::string_view(b, e - b);
+	}
+
+	template <class Iterator>
+	std::string to_hex(Iterator it, Iterator end, std::string const& prefix)
+	{
+		using traits = std::iterator_traits<Iterator>;
+		static_assert(sizeof(typename traits::value_type) == 1, "to_hex needs byte-sized element type");
+
+		static char const* hexdigits = "0123456789abcdef";
+		size_t off = prefix.size();
+		std::string hex(std::distance(it, end) * 2 + off, '0');
+		hex.replace(0, off, prefix);
+		for (; it != end; it++)
+		{
+			hex[off++] = hexdigits[(*it >> 4) & 0x0f];
+			hex[off++] = hexdigits[*it & 0x0f];
+		}
+
+		return hex;
+	}
+
+    static inline std::string to_hex(std::string_view data)
+	{
+		return to_hex(data.begin(), data.end(), "");
+	}
+
+    static inline std::string to_hex_prefixed(std::string_view data)
+	{
+		return to_hex(data.begin(), data.end(), "0x");
+	}
+
+    static inline char from_hex_char(char c) noexcept
+	{
+		if (c >= '0' && c <= '9')
+			return c - '0';
+		if (c >= 'a' && c <= 'f')
+			return c - 'a' + 10;
+		if (c >= 'A' && c <= 'F')
+			return c - 'A' + 10;
+		return -1;
+	}
+
+    static inline bool from_hexstring(std::string_view src, std::vector<uint8_t>& result)
+	{
+		unsigned s = (src.size() >= 2 && src[0] == '0' && src[1] == 'x') ? 2 : 0;
+		result.reserve((src.size() - s + 1) / 2);
+
+		if (src.size() % 2)
+		{
+			auto h = from_hex_char(src[s++]);
+			if (h != static_cast<char>(-1))
+				result.push_back(h);
+			else
+				return false;
+		}
+		for (unsigned i = s; i < src.size(); i += 2)
+		{
+			int h = from_hex_char(src[i]);
+			int l = from_hex_char(src[i + 1]);
+
+			if (h != -1 && l != -1)
+			{
+				result.push_back((uint8_t)(h * 16 + l));
+				continue;
+			}
+			return false;
+		}
+
+		return true;
+	}
+
+    static inline bool is_hexstring(std::string const& src) noexcept
+	{
+		auto it = src.begin();
+		if (src.compare(0, 2, "0x") == 0)
+			it += 2;
+		return std::all_of(it, src.end(),
+			[](char c) { return from_hex_char(c) != static_cast<char>(-1); });
+	}
+
+    static inline std::string to_string(std::vector<uint8_t> const& data)
+	{
+		return std::string(
+            (char const*)data.data(), (char const*)(data.data() + data.size()));
+	}
+
+    static inline std::string to_string(const boost::posix_time::ptime& t)
+	{
+		if (t.is_not_a_date_time())
+			return "";
+
+		return boost::posix_time::to_iso_extended_string(t);
+	}
+
+    static inline bool valid_utf(unsigned char* string, int length)
+    {
+        static const unsigned char utf8_table[] =
+        {
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+          1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+          2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+          3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
+        };
+
+        unsigned char* p;
+
+        if (length < 0)
+        {
+            for (p = string; *p != 0; p++);
+            length = (int)(p - string);
+        }
+
+        for (p = string; length-- > 0; p++)
+        {
+            unsigned char ab, c, d;
+
+            c = *p;
+            if (c < 128) continue;                /* ASCII character */
+
+            if (c < 0xc0)                         /* Isolated 10xx xxxx byte */
+                return false;
+
+            if (c >= 0xfe)                        /* Invalid 0xfe or 0xff bytes */
+                return false;
+
+            ab = utf8_table[c & 0x3f];            /* Number of additional bytes */
+            if (length < ab)
+                return false;
+            length -= ab;                         /* Length remaining */
+
+            /* Check top bits in the second byte */
+            if (((d = *(++p)) & 0xc0) != 0x80)
+                return false;
+
+            /* For each length, check that the remaining bytes start with the 0x80 bit
+               set and not the 0x40 bit. Then check for an overlong sequence, and for the
+               excluded range 0xd800 to 0xdfff. */
+            switch (ab)
+            {
+                /* 2-byte character. No further bytes to check for 0x80. Check first byte
+                   for for xx00 000x (overlong sequence). */
+            case 1:
+                if ((c & 0x3e) == 0)
+                    return false;
+                break;
+            case 2:
+                if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+                    return false;
+                if (c == 0xe0 && (d & 0x20) == 0)
+                    return false;
+                if (c == 0xed && d >= 0xa0)
+                    return false;
+                break;
+
+                /* 4-byte character. Check 3rd and 4th bytes for 0x80. Then check first 2
+                   bytes for for 1111 0000, xx00 xxxx (overlong sequence), then check for a
+                   character greater than 0x0010ffff (f4 8f bf bf) */
+            case 3:
+                if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+                    return false;
+                if (c == 0xf0 && (d & 0x30) == 0)
+                    return false;
+                if (c > 0xf4 || (c == 0xf4 && d > 0x8f))
+                    return false;
+                break;
+
+                /* 5-byte and 6-byte characters are not allowed by RFC 3629, and will be
+                   rejected by the length test below. However, we do the appropriate tests
+                   here so that overlong sequences get diagnosed, and also in case there is
+                   ever an option for handling these larger code points. */
+
+                   /* 5-byte character. Check 3rd, 4th, and 5th bytes for 0x80. Then check for
+                      1111 1000, xx00 0xxx */
+            case 4:
+                if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Fifth byte */
+                    return false;
+                if (c == 0xf8 && (d & 0x38) == 0)
+                    return false;
+                break;
+
+                /* 6-byte character. Check 3rd-6th bytes for 0x80. Then check for
+                   1111 1100, xx00 00xx. */
+            case 5:
+                if ((*(++p) & 0xc0) != 0x80)     /* Third byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Fourth byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Fifth byte */
+                    return false;
+                if ((*(++p) & 0xc0) != 0x80)     /* Sixth byte */
+                    return false;
+                if (c == 0xfc && (d & 0x3c) == 0)
+                    return false;
+                break;
+            }
+
+            /* Character is valid under RFC 2279, but 4-byte and 5-byte characters are
+               excluded by RFC 3629. The pointer p is currently at the last byte of the
+               character. */
+            if (ab > 3)
+                return false;
+        }
+
+        return true;
+    }
+
+
 }

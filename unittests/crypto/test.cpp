@@ -27,7 +27,9 @@
 #include "utils/logging.hpp"
 #include "utils/misc.hpp"
 #include "utils/crypto.hpp"
+#include "utils/strutil.hpp"
 
+using namespace strutil;
 namespace net = boost::asio;
 
 net::io_context ioc;

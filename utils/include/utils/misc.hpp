@@ -13,22 +13,6 @@
 #define APP_NAME "avpn"
 #define HTTPD_VERSION_STRING	     APP_NAME "/1.0"
 
-// trim 一个string_view对象.
-std::string_view string_trim(std::string_view sv);
-std::string_view string_trim_left(std::string_view sv);
-std::string_view string_trim_right(std::string_view sv);
-
-// 将一个string_view转成16进制的字符串.
-std::string to_hex(std::string_view data);
-std::string to_hex_prefixed(std::string_view data);
-
-// 将1个16进制字符串转成vector<uint8_t>
-bool from_hexstring(std::string_view src, std::vector<uint8_t>& result);
-
-// 转换成字符串类型.
-std::string to_string(const boost::posix_time::ptime& t);
-std::string to_string(float v, int width, int precision = 3);
-
 // base64编解码.
 std::string base64_encode(std::string_view input);
 std::string base64_decode(std::string_view input);
@@ -36,9 +20,6 @@ std::string base64_decode(std::string_view input);
 // base58编解码.
 std::string base58_decode(std::string_view input);
 std::string base58_encode(std::string_view input);
-
-// 百分编码解码.
-bool unescape_path(const std::string& in, std::string& out);
 
 // 获取进程id.
 uint64_t get_process_id();
