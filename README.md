@@ -1,4 +1,4 @@
-﻿aVPN
+aVPN
 ====
 
 
@@ -106,7 +106,9 @@ ninja
 ### 通过Docker编译构建
 
 <br>
+
 avpn提供了一个更为简单的编译方式，在任何安装有docker环境下，进入avpn源码目录，可以执行如下命令，创建一个docker并编译avpn：
+
 
 ```
 docker build -t avpn:v1 .
@@ -119,6 +121,7 @@ docker build -t avpn:v1 .
 ### Windows 平台下编译
 
 <br>
+
 同样先执行git克隆源码，上面已经介绍过了，这里略过，在git克隆的源码目录下建立一个build目录，然后执行以下命令：
 
 ```
@@ -139,6 +142,7 @@ msbuild avpn.sln /p:Configuration="Debug"
 ### MinGW 编译
 
 <br>
+
 在安装好MinGW工具链的Linux平台上执行：
 
 ```
@@ -159,6 +163,7 @@ ninja
 ### 其它平台交叉编译
 
 <br>
+
 这里以我的 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载编译工具链：
 
 ```
