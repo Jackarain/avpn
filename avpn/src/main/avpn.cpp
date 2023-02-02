@@ -155,15 +155,15 @@ namespace avpn {
 		boost::system::error_code ignore_ec;
 		m_abort = true;
 
-		if (m_cancel_sig.slot().has_handler())
-			m_cancel_sig.emit(net::cancellation_type::all);
-
-		for (auto& a : m_tcp_acceptors)
-			a.cancel(ignore_ec);
-
 		auto self = shared_from_this();
 		net::post(m_main_context, [this, self]() mutable {
 			boost::system::error_code ignore_ec;
+
+			if (m_cancel_sig.slot().has_handler())
+				m_cancel_sig.emit(net::cancellation_type::all);
+
+			for (auto& a : m_tcp_acceptors)
+				a.cancel(ignore_ec);
 
 			{
 				std::lock_guard lock(m_udp_sockets);
@@ -232,7 +232,7 @@ namespace avpn {
 			m_subnet = {};
 			m_upload_speed = 0;
 			m_down_speed = 0;
-			});
+		});
 	}
 
 	int64_t avpn_service::upload_rate() const
