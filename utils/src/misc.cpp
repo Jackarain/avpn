@@ -76,6 +76,7 @@
 #include <boost/algorithm/string/trim.hpp>
 
 #include <boost/date_time/c_local_time_adjustor.hpp>
+#include <boost/nowide/convert.hpp>
 
 #ifndef _MSC_VER
 #	pragma GCC diagnostic push
