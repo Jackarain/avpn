@@ -144,7 +144,8 @@ namespace avpn {
 						break;
 
 					if (wcscmp(component_id, L"tap0901") == 0 ||
-						wcscmp(component_id, L"tapnordvpn") == 0)
+						wcscmp(component_id, L"tapnordvpn") == 0 ||
+						wcscmp(component_id, L"tap-tb-0901") == 0)
 					{
 						WCHAR net_cfg_instance_id[256];
 						len = 256;
