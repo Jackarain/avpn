@@ -54,13 +54,8 @@ target_link_libraries(libproxy
 
 set_target_properties(libproxy PROPERTIES OUTPUT_NAME proxy PREFIX "lib" CLEAN_DIRECT_OUTPUT 1)
 
-if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
-	set_property(TARGET libproxy PROPERTY CXX_STANDARD 23)
-	message(STATUS "libproxy set cxx standard: C++23")
-else()
-	set_property(TARGET libproxy PROPERTY CXX_STANDARD 20)
-	message(STATUS "libproxy set cxx standard: C++20")
-endif()
+set_property(TARGET libproxy PROPERTY CXX_STANDARD 20)
+message(STATUS "libproxy set cxx standard: C++20")
 
 set(PROXY_INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/include

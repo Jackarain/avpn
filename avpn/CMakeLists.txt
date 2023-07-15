@@ -130,13 +130,8 @@ endif()
 
 set_target_properties(libavpn PROPERTIES OUTPUT_NAME avpn PREFIX "lib" CLEAN_DIRECT_OUTPUT 1)
 
-if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
-	set_property(TARGET avpn libavpn PROPERTY CXX_STANDARD 23)
-	message(STATUS "Avpn set cxx standard: C++23")
-else()
-	set_property(TARGET avpn libavpn PROPERTY CXX_STANDARD 20)
-	message(STATUS "Avpn set cxx standard: C++20")
-endif()
+set_property(TARGET avpn libavpn PROPERTY CXX_STANDARD 20)
+message(STATUS "Avpn set cxx standard: C++20")
 
 set(BASE_SOURCE_DIR
 	${CMAKE_BINARY_DIR}
