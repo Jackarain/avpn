@@ -293,7 +293,7 @@ namespace avpn
 
 			m_tuntap_fd = fd;
 
-			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successd, " << fd;
+			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successed, " << fd;
 			return true;
 		}
 
