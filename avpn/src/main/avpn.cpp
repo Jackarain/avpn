@@ -51,17 +51,18 @@ namespace avpn {
 
 #if defined(AVPN_WINDOWS)
 		int device_type = dev == "wintun" ? 1 : 0;
-#if defined(AVPN_USE_WINTUN)
+#  if !defined(AVPN_USE_WINTUN)
 		device_type = 0;
-#endif
+#  endif
 		if (device_type == 0)
 			return vtun_device_type(tuntap_device(ioc));
-#if defined(AVPN_USE_WINTUN)
+#  if defined(AVPN_USE_WINTUN)
 		else
 			return vtun_device_type(wintun_device(ioc));
-#else
+#  else
 		return vtun_device_type(tuntap_device(ioc));
-#endif
+#  endif
+
 #else
 		if (dev.empty())
 		{
@@ -986,12 +987,12 @@ namespace avpn {
 				m_cl_routes.push_back(route);
 
 			route = "0.0.0.0/1 " + vpn_gw;
-			add_route(route);
+			add_route(route + " 1");
 			if (!std::count(m_cl_routes.begin(), m_cl_routes.end(), route))
 				m_cl_routes.push_back(route);
 
 			route = "128.0.0.0/1 " + vpn_gw;
-			add_route("128.0.0.0/1 " + vpn_gw);
+			add_route(route + " 1");
 			if (!std::count(m_cl_routes.begin(), m_cl_routes.end(), route))
 				m_cl_routes.push_back(route);
 		}
