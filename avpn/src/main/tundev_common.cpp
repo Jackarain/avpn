@@ -54,6 +54,7 @@
 
 namespace avpn
 {
+	namespace net = boost::asio;
 	namespace common
 	{
 
@@ -334,32 +335,31 @@ namespace avpn
 				return {};
 
 			std::vector<std::string> strings;
-			boost::split(strings,
-				result,
-				boost::is_any_of("\n"));
-			boost::regex expression(
-				R"((default)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S*).*)");
+
+			boost::split(strings, result, boost::is_any_of("\n"));
+			boost::regex expression(R"((default)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S*).*)");
 
 			for (const auto word : strings)
 			{
 				boost::smatch what;
+
 				if (boost::regex_match(
 					word,
 					what,
 					expression))
 				{
-					std::string gateway = std::string(what[2]);
 					boost::system::error_code ec;
 
-					auto gw = net::ip::address_v4::from_string(gateway, ec);
+					auto gw = net::ip::address_v4::from_string(what[2].str(), ec);
 					if (ec)
 						continue;
-					net::ip::address_v4 mask{ 0 };
 
-					auto net = net::ip::network_v4(gw, mask);
+					net::ip::address_v4 mask{ 0 };
+					auto netaddr = net::ip::network_v4(gw, mask);
+
 					LOG_DBG << "Default gateway: " << gw.to_string();
 
-					return { net, ""};
+					return { netaddr, "" };
 				}
 			}
 
