@@ -350,9 +350,8 @@ namespace avpn
 				{
 					std::string gateway = std::string(what[2]);
 					boost::system::error_code ec;
-					using net::ip::address_v4::from_string;
 
-					auto gw = from_string(gateway, ec);
+					auto gw = net::ip::address_v4::from_string(gateway, ec);
 					if (ec)
 						continue;
 					net::ip::address_v4 mask{ 0 };
