@@ -231,12 +231,6 @@ int main(int argc, char** argv)
 	std::vector<std::string> upstreams;
 	std::vector<std::string> tcp_listens;
 	std::vector<std::string> udp_listens;
-	std::vector<std::string> socks_listens;
-	std::string socks_interface;
-	std::string socks_userid = "adwin";
-	std::string socks_passwd = "88w88";
-	std::string socks_next_proxy;
-	bool socks_next_proxy_ssl = false;
 	int data_shards;
 	int parity_shards;
 	int mtu_size;
@@ -296,16 +290,6 @@ int main(int argc, char** argv)
 
 		("genkey", "Generates a new private key and writes it to stdout.")
 		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
-
-#ifdef INTEGRATE_SOCKS_SERVER
-		("socks_server", po::value<std::vector<std::string>>(&socks_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For socks4/5 server listen.")
-
-		("socks_interface", po::value<std::string>(&socks_interface)->value_name("ifname"), "Bind interface for socks4/5 connection.")
-		("socks_userid", po::value<std::string>(&socks_userid)->default_value("adwin")->value_name("userid"), "Socks4/5 auth user id.")
-		("socks_passwd", po::value<std::string>(&socks_passwd)->default_value("88w88")->value_name("passwd"), "Socks4/5 auth password.")
-		("socks_next_proxy", po::value<std::string>(&socks_next_proxy)->value_name(""), "Next socks4/5 proxy. (e.g: socks5://user:passwd@ip:port)")
-		("socks_next_proxy_ssl", po::value<bool>(&socks_next_proxy_ssl)->default_value(false, "false")->value_name(""), "Next socks4/5 proxy with ssl.")
-#endif
 
 		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->value_name("path"), "SSL certificate dir.")
 
@@ -507,12 +491,6 @@ int main(int argc, char** argv)
 	cfg.mtu_size_ = mtu_size;
 	cfg.using_ipv6_ = ipv6;
 
-	auto& socks_opt = cfg.socks_opt_;
-	socks_opt.usrdid_ = socks_userid;
-	socks_opt.passwd_ = socks_passwd;
-	socks_opt.bind_addr_ = socks_interface;
-	boost::ignore_unused(socks_next_proxy_ssl);
-
 	auto& params = cfg.tunnel_params_;
 	params.data_shards_ = data_shards;
 	params.parity_shards_ = parity_shards;
@@ -611,52 +589,6 @@ int main(int argc, char** argv)
 	else
 	 	create_pid(ifdev, std::filesystem::path(writepid_file));
 
-	// 如果开启了socks服务, 则listen一个socks服务.
-	// 这个socks server则将在client模式下, 通过server代理出去.
-	// 在 server 模式下, 则将是一个单纯的socks server.
-	std::vector<std::shared_ptr<proxy::proxy_server>> socks_servers;
-#ifdef INTEGRATE_SOCKS_SERVER
-	for (auto& socks : socks_listens)
-	{
-		boost::system::error_code ec;
-		net::ip::tcp::endpoint endp;
-		make_listen_endpoint(socks, endp, ec);
-		if (ec)
-		{
-			XLOG_WARN << "Socks server param: "
-				<< socks << " listen: " << ec.message();
-			continue;
-		}
-
-		proxy::proxy_server_option opt;
-		opt.usrdid_ = socks_userid;
-		opt.passwd_ = socks_passwd;
-		opt.bind_addr_ = socks_interface;
-
-		if (cfg.identity_ == avpn::Identity::avpn_client &&
-			!socks_next_proxy.empty())
-		{
-			opt.next_proxy_ = socks_next_proxy;
-			opt.next_proxy_use_ssl_ = socks_next_proxy_ssl;
-
-			// 检查 next socks proxy地址格式是否正确.
-			// 如果是无效的地址则忽略.
-			if (!urls::url_view().parse(socks_next_proxy))
-			{
-				XLOG_WARN << "Next socks server: "
-					<< socks_next_proxy << " invalid";
-				opt.next_proxy_.clear();
-			}
-		}
-
-		auto server = std::make_shared<proxy::proxy_server>(
-			ioc.get_executor(), endp, opt);
-		server->start();
-
-		socks_servers.emplace_back(std::move(server));
-	}
-#endif
-
 	auto io_run = [&ioc]() mutable
 	{
 		while (ioc.run_one())
@@ -676,18 +608,11 @@ int main(int argc, char** argv)
 
 		// 处理中止信号.
 		terminator_signal.async_wait(
-			[&ioc, &srv, &socks_servers, &terminator_signal]
+			[&ioc, &srv, &terminator_signal]
 			(const boost::system::error_code&, int sig) mutable
 			{
 				XLOG_DBG << "terminator is called!";
 				terminator_signal.remove(sig);
-
-				for (auto& s : socks_servers)
-				{
-					if (!s)
-						continue;
-					s->close();
-				}
 
 				srv.stop();
 				ioc.stop();

@@ -21,6 +21,7 @@
 #include "avpn/tundev_common.hpp"
 
 #include "proxy/socks_enums.hpp"
+#include "proxy/socks_client.hpp"
 
 #include <chrono>
 #include <iomanip>
@@ -96,7 +97,6 @@ namespace avpn {
 				auto id = std::this_thread::get_id();
 				m_main_thread_id = id;
 			});
-		init_ssl_context();
 	}
 
 	std::shared_ptr<avpn_service> avpn_service::make_avpn_service(
@@ -108,16 +108,6 @@ namespace avpn {
 	avpn_service::~avpn_service()
 	{
 		XLOG_DBG << "avpn_service::~avpn_service()";
-	}
-
-	void avpn_service::remove_client(size_t id)
-	{
-		m_socks_clients.erase(id);
-	}
-
-	const proxy::proxy_server_option& avpn_service::option()
-	{
-		return m_config.socks_opt_;
 	}
 
 	void avpn_service::start()
@@ -199,15 +189,6 @@ namespace avpn {
 						continue;
 					client->close_tunnel();
 				}
-
-				auto& clients = m_socks_clients;
-				for (auto& c : clients)
-				{
-					auto client = c.second.lock();
-					if (!client)
-						continue;
-					client->close();
-				}
 			}
 
 			// 退出时删除路由.
@@ -275,40 +256,6 @@ namespace avpn {
 			{
 				m_clients.remove(vaddr);
 			});
-	}
-
-	void avpn_service::init_ssl_context()
-	{
-		m_ssl_ctx.set_options(
-			boost::asio::ssl::context::default_workarounds
-			| boost::asio::ssl::context::no_sslv2
-			| boost::asio::ssl::context::single_dh_use);
-
-		auto dir = std::filesystem::path(m_config.ssl_certificate_dir_);
-		auto pwd = dir / "ssl_crt.pwd";
-
-		if (std::filesystem::exists(pwd))
-			m_ssl_ctx.set_password_callback(
-				[&pwd]([[maybe_unused]] auto... args) {
-					std::string password;
-					fileop::read(pwd, password);
-					return password;
-				}
-		);
-
-		auto cert = dir / "ssl_crt.pem";
-		auto key = dir / "ssl_key.pem";
-		auto dh = dir / "ssl_dh.pem";
-
-		if (std::filesystem::exists(cert))
-			m_ssl_ctx.use_certificate_chain_file(cert.string());
-
-		if (std::filesystem::exists(key))
-			m_ssl_ctx.use_private_key_file(
-				key.string(), boost::asio::ssl::context::pem);
-
-		if (std::filesystem::exists(dh))
-			m_ssl_ctx.use_tmp_dh_file(dh.string());
 	}
 
 	net::awaitable<void> avpn_service::tun_read_loop()
@@ -1304,15 +1251,6 @@ namespace avpn {
 				XLOG_DBG << "socks protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
-				socks_session_ptr new_session =
-					std::make_shared<proxy::proxy_session>(
-						instantiate_proxy_stream(std::move(socket)),
-						connection_id,
-						self);
-
-				m_socks_clients[connection_id] = new_session;
-				new_session->start();
-
 				continue;
 			}
 			else if (detect[0] == 0x16) // socks5 with ssl protocol.
@@ -1320,56 +1258,12 @@ namespace avpn {
 				XLOG_DBG << "https protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
-				// instantiate socks stream with ssl context.
-				auto ssl_socks_stream = instantiate_proxy_stream(
-					std::move(socket), m_ssl_ctx);
-
-				// get origin ssl stream type.
-				ssl_stream& ssl_socket =
-					boost::variant2::get<ssl_stream>(ssl_socks_stream);
-
-				// do async handshake.
-				co_await ssl_socket.async_handshake(
-					net::ssl::stream_base::server, net_awaitable[error]);
-				if (error)
-				{
-					XLOG_WARN << "ssl protocol handshake error: "
-						<< error.message();
-					continue;
-				}
-
-				// make socks session shared ptr.
-				socks_session_ptr new_session =
-					std::make_shared<proxy::proxy_session>(
-						std::move(ssl_socks_stream),
-						connection_id,
-						self);
-
-				// save and start.
-				m_socks_clients[connection_id] = new_session;
-				new_session->start();
-
 				continue;
 			}
 			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
 			{
 				XLOG_DBG << "http protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
-
-				// instantiate socks stream with socket.
-				auto ssl_socks_stream = instantiate_proxy_stream(
-					std::move(socket));
-
-				// make socks session shared ptr.
-				socks_session_ptr new_session =
-					std::make_shared<proxy::proxy_session>(
-						std::move(ssl_socks_stream),
-						connection_id,
-						self);
-
-				// save and start.
-				m_socks_clients[connection_id] = new_session;
-				new_session->start();
 
 				continue;
 			}

@@ -17,8 +17,6 @@
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
 
-#include "proxy/proxy_server.hpp"
-
 #include <boost/assign/list_inserter.hpp>
 
 #include <boost/bimap/bimap.hpp>
@@ -30,7 +28,6 @@
 namespace avpn {
 
 	using namespace util;
-	using namespace proxy;
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -173,9 +170,6 @@ namespace avpn {
 		// vpn隧道相关参数.
 		avpn::tunnel_params tunnel_params_;
 
-		// proxy server options.
-		proxy_server_option socks_opt_;
-
 		// post up script.
 		std::string post_up_script_;
 	};
@@ -214,8 +208,7 @@ namespace avpn {
 	{};
 
 	class avpn_service
-		: public proxy_server_base
-		, public std::enable_shared_from_this<avpn_service>
+		: public std::enable_shared_from_this<avpn_service>
 	{
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
@@ -261,10 +254,6 @@ namespace avpn {
 			make_avpn_service(net::io_context&, avpn::service_config);
 		virtual ~avpn_service();
 
-		// socks server相关.
-		virtual void remove_client(size_t id) override;
-		virtual const proxy::proxy_server_option& option() override;
-
 	public:
 		// 启动和停止vpn服务.
 		void start();
@@ -287,9 +276,6 @@ namespace avpn {
 		void remove_tunnel(uint32_t);
 
 	private:
-		// 初始化ssl context.
-		void init_ssl_context();
-
 		// tun相关的读取与发送.
 		net::awaitable<void> tun_read_loop();
 		void do_tun_write(vpn_packet);
@@ -449,16 +435,6 @@ namespace avpn {
 
 		// 作为server时, 用于tcp的服务器acceptor.
 		std::vector<tcp::acceptor> m_tcp_acceptors;
-
-		// socks clients连接表.
-		using socks_session_weak_ptr =
-			std::weak_ptr<proxy_session_base>;
-		using socks_session_ptr =
-			std::shared_ptr<proxy_session_base>;
-		std::unordered_map<size_t, socks_session_weak_ptr> m_socks_clients;
-
-		// ssl context.
-		net::ssl::context m_ssl_ctx{ net::ssl::context::sslv23 };
 
 		// udp socket集合.
 		// 作为server时, m_udp_sockets初始化为几个用于监听client的
