@@ -9,13 +9,9 @@
 #define FMT_FORMAT_INL_H_
 
 #include <algorithm>
-#include <cctype>
 #include <cerrno>  // errno
 #include <climits>
 #include <cmath>
-#include <cstdarg>
-#include <cstring>  // std::memmove
-#include <cwchar>
 #include <exception>
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR
@@ -148,14 +144,10 @@ FMT_API FMT_FUNC auto format_facet<std::locale>::do_put(
 }
 #endif
 
-#if !FMT_MSC_VERSION
-FMT_API FMT_FUNC format_error::~format_error() noexcept = default;
-#endif
-
-FMT_FUNC std::system_error vsystem_error(int error_code, string_view format_str,
+FMT_FUNC std::system_error vsystem_error(int error_code, string_view fmt,
                                          format_args args) {
   auto ec = std::error_code(error_code, std::generic_category());
-  return std::system_error(ec, vformat(format_str, args));
+  return std::system_error(ec, vformat(fmt, args));
 }
 
 namespace detail {
@@ -173,8 +165,6 @@ FMT_CONSTEXPR inline uint64_t rotr(uint64_t n, uint32_t r) noexcept {
   r &= 63;
   return (n >> r) | (n << (64 - r));
 }
-
-
 
 // Implementation of Dragonbox algorithm: https://github.com/jk-jeon/dragonbox.
 namespace dragonbox {
@@ -205,7 +195,7 @@ inline int floor_log10_pow2_minus_log10_4_over_3(int e) noexcept {
   return (e * 631305 - 261663) >> 21;
 }
 
-static constexpr struct {
+FMT_INLINE_VARIABLE constexpr struct {
   uint32_t divisor;
   int shift_amount;
 } div_small_pow10_infos[] = {{10, 16}, {100, 16}};
@@ -259,7 +249,7 @@ inline uint64_t divide_by_10_to_kappa_plus_1(uint64_t n) noexcept {
 }
 
 // Various subroutines using pow10 cache
-template <class T> struct cache_accessor;
+template <typename T> struct cache_accessor;
 
 template <> struct cache_accessor<float> {
   using carrier_uint = float_info<float>::carrier_uint;
@@ -1021,8 +1011,7 @@ template <> struct cache_accessor<double> {
       {0xe4d5e82392a40515, 0x0fabaf3feaa5334b},
       {0xb8da1662e7b00a17, 0x3d6a751f3b936244},
       {0x95527a5202df0ccb, 0x0f37801e0c43ebc9},
-      { 0xf13e34aabb430a15,
-        0x647726b9e7c68ff0 }
+      {0xf13e34aabb430a15, 0x647726b9e7c68ff0}
 #endif
     };
 
@@ -1130,7 +1119,7 @@ FMT_FUNC uint128_fallback get_cached_power(int k) noexcept {
 }
 
 // Various integer checks
-template <class T>
+template <typename T>
 bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
   const int case_shorter_interval_left_endpoint_lower_threshold = 2;
   const int case_shorter_interval_left_endpoint_upper_threshold = 3;
@@ -1144,7 +1133,9 @@ FMT_INLINE int remove_trailing_zeros(uint32_t& n) noexcept {
   // Modular inverse of 5 (mod 2^32): (mod_inv_5 * 5) mod 2^32 = 1.
   // See https://github.com/fmtlib/fmt/issues/3163 for more details.
   const uint32_t mod_inv_5 = 0xcccccccd;
-  const uint32_t mod_inv_25 = mod_inv_5 * mod_inv_5;
+  // Casts are needed to workaround a bug in MSVC 19.22 and older.
+  const uint32_t mod_inv_25 =
+      static_cast<uint32_t>(uint64_t(mod_inv_5) * mod_inv_5);
 
   int s = 0;
   while (true) {
@@ -1215,7 +1206,7 @@ FMT_INLINE int remove_trailing_zeros(uint64_t& n) noexcept {
 }
 
 // The main algorithm for shorter interval case
-template <class T>
+template <typename T>
 FMT_INLINE decimal_fp<T> shorter_interval_case(int exponent) noexcept {
   decimal_fp<T> ret_value;
   // Compute k and beta
@@ -1454,57 +1445,44 @@ FMT_FUNC std::string vformat(string_view fmt, format_args args) {
 }
 
 namespace detail {
-#ifdef _WIN32
+#ifndef _WIN32
+FMT_FUNC bool write_console(std::FILE*, string_view) { return false; }
+#else
 using dword = conditional_t<sizeof(long) == 4, unsigned long, unsigned>;
 extern "C" __declspec(dllimport) int __stdcall WriteConsoleW(  //
     void*, const void*, dword, dword*, void*);
 
 FMT_FUNC bool write_console(std::FILE* f, string_view text) {
   auto fd = _fileno(f);
-  if (_isatty(fd)) {
-    detail::utf8_to_utf16 u16(string_view(text.data(), text.size()));
-    auto written = detail::dword();
-    if (detail::WriteConsoleW(reinterpret_cast<void*>(_get_osfhandle(fd)),
-                              u16.c_str(), static_cast<uint32_t>(u16.size()),
-                              &written, nullptr)) {
-      return true;
-    }
-  }
-  // We return false if the file descriptor was not TTY, or it was but
-  // SetConsoleW failed which can happen if the output has been redirected to
-  // NUL. In both cases when we return false, we should attempt to do regular
-  // write via fwrite or std::ostream::write.
-  return false;
-}
-#endif
-
-FMT_FUNC void print(std::FILE* f, string_view text) {
-#ifdef _WIN32
-  if (write_console(f, text)) return;
-#endif
-  detail::fwrite_fully(text.data(), 1, text.size(), f);
-}
-}  // namespace detail
-
-FMT_FUNC void vprint(std::FILE* f, string_view format_str, format_args args) {
-  memory_buffer buffer;
-  detail::vformat_to(buffer, format_str, args);
-  detail::print(f, {buffer.data(), buffer.size()});
+  if (!_isatty(fd)) return false;
+  auto u16 = utf8_to_utf16(text);
+  auto written = dword();
+  return WriteConsoleW(reinterpret_cast<void*>(_get_osfhandle(fd)), u16.c_str(),
+                       static_cast<uint32_t>(u16.size()), &written, nullptr);
 }
 
-#ifdef _WIN32
 // Print assuming legacy (non-Unicode) encoding.
-FMT_FUNC void detail::vprint_mojibake(std::FILE* f, string_view format_str,
-                                      format_args args) {
-  memory_buffer buffer;
-  detail::vformat_to(buffer, format_str,
+FMT_FUNC void vprint_mojibake(std::FILE* f, string_view fmt, format_args args) {
+  auto buffer = memory_buffer();
+  detail::vformat_to(buffer, fmt,
                      basic_format_args<buffer_context<char>>(args));
   fwrite_fully(buffer.data(), 1, buffer.size(), f);
 }
 #endif
 
-FMT_FUNC void vprint(string_view format_str, format_args args) {
-  vprint(stdout, format_str, args);
+FMT_FUNC void print(std::FILE* f, string_view text) {
+  if (!write_console(f, text)) fwrite_fully(text.data(), 1, text.size(), f);
+}
+}  // namespace detail
+
+FMT_FUNC void vprint(std::FILE* f, string_view fmt, format_args args) {
+  auto buffer = memory_buffer();
+  detail::vformat_to(buffer, fmt, args);
+  detail::print(f, {buffer.data(), buffer.size()});
+}
+
+FMT_FUNC void vprint(string_view fmt, format_args args) {
+  vprint(stdout, fmt, args);
 }
 
 namespace detail {

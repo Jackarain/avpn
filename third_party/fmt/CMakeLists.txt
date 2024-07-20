@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.16)
+﻿cmake_minimum_required(VERSION 3.5)
 
 file(GLOB FMT_SRC
 	src/format.cc
