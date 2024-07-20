@@ -1587,7 +1587,7 @@ namespace util
 		{
 			if (!global_logging___)
 				return *this;
-			out_ += std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+			out_ += std::vformat(fmt, std::make_format_args(args...));
 			return *this;
 		}
 
