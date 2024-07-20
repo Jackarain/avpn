@@ -129,7 +129,7 @@ namespace avpn {
 		if (!ret) return -1;
 		if (protocol_version != avpn_protocol_version)
 		{
-			LOG_WARN << "Version not match"
+			XLOG_WARN << "Version not match"
 				<< ", expect: " << avpn_protocol_version
 				<< ", got: " << protocol_version;
 			return -1;

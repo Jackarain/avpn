@@ -164,7 +164,7 @@ namespace avpn {
 
 						dev_map.insert(std::make_pair(tmp, ""));
 
-						LOG_DBG << "component_id " << component_id
+						XLOG_DBG << "component_id " << component_id
 							<< ", net_cfg_instance_id " << tmp;
 					}
 				}
@@ -223,7 +223,7 @@ namespace avpn {
 					if (iter != dev_map.end())
 					{
 						iter->second.assign(dev_name);
-						LOG_DBG << "Tuntap device name " << dev_name;
+						XLOG_DBG << "Tuntap device name " << dev_name;
 					}
 				}
 			}
@@ -254,7 +254,7 @@ namespace avpn {
 			m_if_index = common::get_interface_index(guid.data());
 
 			std::wstring device_path = usermodedevicedir + guid + tapsuffix;
-			LOG_DBG << "Open device: " << device_path;
+			XLOG_DBG << "Open device: " << device_path;
 			auto handle = CreateFileW(device_path.data(), GENERIC_READ | GENERIC_WRITE,
 				0, 0, OPEN_EXISTING,
 				FILE_ATTRIBUTE_SYSTEM | FILE_FLAG_OVERLAPPED, 0);
@@ -282,14 +282,14 @@ namespace avpn {
 			// usage of numeric constants is ugly, but this is really tied to this version of the driver
 			if (version.major == 9 && version.minor < 8)
 			{
-				LOG_ERR << "WARNING:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
+				XLOG_ERR << "WARNING:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
 					<< " does not support IPv6 in TUN mode. IPv6 will not work. Upgrade your Tap-Win32 driver.";
 			}
 
 			// tap driver 9.8 (2.2.0 and 2.2.1 release) is buggy
 			if (version.major == 9 && version.minor == 8)
 			{
-				LOG_ERR << "ERROR:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
+				XLOG_ERR << "ERROR:  Tap-Win32 driver version " << (int)version.major << "." << (int)version.minor
 					<< " is buggy regarding small IPv4 packets in TUN mode. Upgrade your Tap-Win32 driver.";
 			}
 
@@ -312,7 +312,7 @@ namespace avpn {
 					auto ep1 = net::ip::address_v4(ntohl(tun_addrs[1]));
 					auto ep0 = net::ip::address_v4(ntohl(tun_addrs[0]));
 					auto ep2 = net::ip::address_v4(ntohl(tun_addrs[2]));
-					LOG_DBG << "Set TAP-Windows TUN subnet mode network/local/netmask = " <<
+					XLOG_DBG << "Set TAP-Windows TUN subnet mode network/local/netmask = " <<
 						ep1.to_string() << "/" << ep0.to_string() << "/" << ep2.to_string();
 				}
 			}
@@ -323,7 +323,7 @@ namespace avpn {
 				&mtu, sizeof(mtu),
 				&mtu, sizeof(mtu), &len, NULL))
 			{
-				LOG_DBG << "TAP-Windows MTU=" << (int)mtu;
+				XLOG_DBG << "TAP-Windows MTU=" << (int)mtu;
 			}
 
 			uint8_t mac[6] = { 0 };
@@ -389,7 +389,7 @@ namespace avpn {
 			m_io_handle.assign(handle, ec);
 			if (ec)
 			{
-				LOG_ERR << "Assign to random_access_handle: " << ec.message();
+				XLOG_ERR << "Assign to random_access_handle: " << ec.message();
 				return false;
 			}
 

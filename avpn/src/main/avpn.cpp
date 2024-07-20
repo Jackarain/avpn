@@ -107,7 +107,7 @@ namespace avpn {
 
 	avpn_service::~avpn_service()
 	{
-		LOG_DBG << "avpn_service::~avpn_service()";
+		XLOG_DBG << "avpn_service::~avpn_service()";
 	}
 
 	void avpn_service::remove_client(size_t id)
@@ -122,7 +122,7 @@ namespace avpn {
 
 	void avpn_service::start()
 	{
-		LOG_DBG << "avpn_service::start, main thread id: "
+		XLOG_DBG << "avpn_service::start, main thread id: "
 			<< std::this_thread::get_id();
 
 		m_abort = false;
@@ -151,7 +151,7 @@ namespace avpn {
 
 	void avpn_service::stop()
 	{
-		LOG_WARN << "avpn_service::stop";
+		XLOG_WARN << "avpn_service::stop";
 
 		boost::system::error_code ignore_ec;
 		m_abort = true;
@@ -216,17 +216,17 @@ namespace avpn {
 				auto [ret, ok] = del_route(route);
 				if (ok)
 				{
-					LOG_DBG << "Del route: " << route
+					XLOG_DBG << "Del route: " << route
 						<< " route deleted successfully!";
 					continue;
 				}
 
-				LOG_ERR << "Del route: " << route
+				XLOG_ERR << "Del route: " << route
 					<< " route deleted fail, reason: "
 					<< boost::trim_copy(ret);
 			}
 
-			LOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
+			XLOG_WARN << "avpn_service::stop, close tun dev and cancel timers";
 			m_tundev.close();
 			m_tick_timer.cancel(ignore_ec);
 			m_tun_wait_timer.cancel(ignore_ec);
@@ -314,7 +314,7 @@ namespace avpn {
 	net::awaitable<void> avpn_service::tun_read_loop()
 	{
 		boost::system::error_code ec;
-		using util::logger_aux__::gettime;
+		using xlogger::logger_aux__::gettime;
 		uint64_t t1 = 0, t2 = 0;
 
 		const auto usable_size = avpn_packet_size - avpn_payload_header_size;
@@ -333,7 +333,7 @@ namespace avpn {
 				net::buffer(payload, usable_size), net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_FILE << "tun_read_loop, read: " << ec.message();
+				XLOG_FILE << "tun_read_loop, read: " << ec.message();
 				break;
 			}
 
@@ -374,7 +374,7 @@ namespace avpn {
 		// tun read loop开始读取.
 		m_tun_wait_timer.cancel_one(ec);
 
-		LOG_FILE << "Quit tun_read_loop"
+		XLOG_FILE << "Quit tun_read_loop"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -517,7 +517,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_FILE << "Quit avpn_service::udp_read_loop"
+		XLOG_FILE << "Quit avpn_service::udp_read_loop"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -571,7 +571,7 @@ namespace avpn {
 					auto duration = now - last_time;
 					if (duration > std::chrono::seconds(1))
 					{
-						LOG_WARN << "do_udp_write"
+						XLOG_WARN << "do_udp_write"
 							<< ", send_to " << remote
 							<< ", error(" << msg_repeat
 							<< "): " << ec.message();
@@ -595,7 +595,7 @@ namespace avpn {
 		m_tcp_reconnect_cnt = 0;
 		auto self = shared_from_this();
 
-		LOG_DBG << "Start run_as_client"
+		XLOG_DBG << "Start run_as_client"
 			<< ", thread: " << std::this_thread::get_id()
 			<< ", this: " << this;
 
@@ -614,7 +614,7 @@ namespace avpn {
 		m_abort = false;
 		auto self = shared_from_this();
 
-		LOG_DBG << "Start run_as_server...";
+		XLOG_DBG << "Start run_as_server...";
 		net::co_spawn(m_main_context,
 			[this, self]() -> net::awaitable<void>
 			{
@@ -694,7 +694,7 @@ namespace avpn {
 	{
 		boost::system::error_code ec;
 
-		LOG_DBG << "Enter avpn_service::tick "
+		XLOG_DBG << "Enter avpn_service::tick "
 			<< std::this_thread::get_id();
 
 		// 检查所有tunnel是否超时, 超时2分钟则关闭并释放.
@@ -719,7 +719,7 @@ namespace avpn {
 					continue;
 				}
 
-				LOG_WARN << "Detect tunnel: "
+				XLOG_WARN << "Detect tunnel: "
 					<< tunnel.get() << " timeout";
 				tunnel->close_tunnel();
 
@@ -737,7 +737,7 @@ namespace avpn {
 			m_tcp_reconnect_cnt = 0;
 
 			// 输出重启flag, 以便诊断错误.
-			LOG_DBG << "Client restart state: " << m_client_state;
+			XLOG_DBG << "Client restart state: " << m_client_state;
 
 			// 重启 client, 完全重新握手协商.
 			run_as_client();
@@ -750,7 +750,7 @@ namespace avpn {
 			if (m_tcp_reconnect_cnt <= 0)
 				return;
 
-			LOG_DBG << "Tcp reconnect timer: " << m_tcp_reconnect_cnt;
+			XLOG_DBG << "Tcp reconnect timer: " << m_tcp_reconnect_cnt;
 
 			// tcp重连倒计时, 10s 等待时间重连.
 			if (++m_tcp_reconnect_cnt <= 10)
@@ -759,7 +759,7 @@ namespace avpn {
 			m_tcp_reconnect_cnt = 0;
 			auto self = shared_from_this();
 
-			LOG_DBG << "Tcp reconnect started...";
+			XLOG_DBG << "Tcp reconnect started...";
 			net::co_spawn(m_main_context,
 				[this, self] () mutable -> net::awaitable<void>
 				{
@@ -801,13 +801,13 @@ namespace avpn {
 				auto new_endp = new_usock.local_endpoint(ec);
 				if (ec)
 				{
-					LOG_ERR << "Renew udp socket: " << local_endp
+					XLOG_ERR << "Renew udp socket: " << local_endp
 						<< " -> " << new_endp
 						<< ", ec: " << ec.message();
 				}
 				else
 				{
-					LOG_INFO << "Renew udp socket: " << local_endp
+					XLOG_INFO << "Renew udp socket: " << local_endp
 						<< " -> " << new_endp;
 				}
 
@@ -853,7 +853,7 @@ namespace avpn {
 			co_await m_tick_timer.async_wait(net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "avpn_service::tick, ec: " << ec.message();
+				XLOG_WARN << "avpn_service::tick, ec: " << ec.message();
 				break;
 			}
 
@@ -865,7 +865,7 @@ namespace avpn {
 					(double)m_internal_stat.packet_spent_time_ /
 						m_internal_stat.tun_rx_;
 
-				LOG_FILE
+				XLOG_FILE
 					<< "Total(ms): " << m_internal_stat.packet_spent_time_
 					<< ", ip/s: " << m_internal_stat.tun_rx_perseconds_
 					<< ", tun rx: " << m_internal_stat.tun_rx_
@@ -901,7 +901,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_FILE << "Quit avpn_service::tick"
+		XLOG_FILE << "Quit avpn_service::tick"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -924,7 +924,7 @@ namespace avpn {
 		uint32_t gw = (addr.to_uint() & mask.to_uint()) + 1;
 		auto gateway = net::ip::make_address_v4(gw);
 
-		LOG_DBG << "setup_tun ip: " << ipaddr
+		XLOG_DBG << "setup_tun ip: " << ipaddr
 			<< ", mask: " << mask.to_string()
 			<< ", gateway: " << gateway.to_string()
 			<< ", tun: " << m_config.ifdev_;
@@ -956,7 +956,7 @@ namespace avpn {
 		// 如果指定的tap设备有问题, 则默认选择第一个网卡.
 		if (dc.guid_.empty() && !dev_list.empty())
 		{
-			LOG_INFO << "Not found tun: " << dc.dev_name_
+			XLOG_INFO << "Not found tun: " << dc.dev_name_
 				<< ", use default: " << dev_list[0].name_;
 			dc.dev_name_ = dev_list[0].name_;
 			dc.guid_ = dev_list[0].guid_;
@@ -968,7 +968,7 @@ namespace avpn {
 
 		if (!m_tundev.open(dc))
 		{
-			LOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
+			XLOG_ERR << "Open tun device: " << dc.dev_name_ << " fail!";
 			co_return;
 		}
 
@@ -1005,12 +1005,12 @@ namespace avpn {
 				if (ok)
 				{
 					m_cl_routes.push_back(route);
-					LOG_DBG << "Add route: " << route
+					XLOG_DBG << "Add route: " << route
 						<< " route added successfully!";
 					continue;
 				}
 
-				LOG_ERR << "Add route: " << route
+				XLOG_ERR << "Add route: " << route
 					<< " route added fail, reason: "
 					<< boost::trim_copy(ret);
 			}
@@ -1022,16 +1022,16 @@ namespace avpn {
 		{
 			auto dns = net::ip::address_v4(m_push_params.pushdns_).to_string();
 			if (set_dns(dns, ipaddr))
-				LOG_DBG << "Set dns: " << dns << " successfully";
+				XLOG_DBG << "Set dns: " << dns << " successfully";
 		}
 
 		// 等待1s后, 再开始循环读取tun设备.
 		boost::system::error_code ec;
 		co_await m_tun_wait_timer.async_wait(net_awaitable[ec]);
 		if (ec)
-			LOG_INFO << "Tun read loop exited";
+			XLOG_INFO << "Tun read loop exited";
 		else
-			LOG_INFO << "Tun read loop starting";
+			XLOG_INFO << "Tun read loop starting";
 
 		// 开始读取tun上的数据包.
 		auto self = shared_from_this();
@@ -1102,7 +1102,7 @@ namespace avpn {
 
 		if (tcp_listens.empty())
 		{
-			LOG_ERR << "Tcp listen is empty!";
+			XLOG_ERR << "Tcp listen is empty!";
 			return false;
 		}
 
@@ -1114,7 +1114,7 @@ namespace avpn {
 			bool ipv6only = make_listen_endpoint(listen, endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server listen error: " << listen
+				XLOG_ERR << "TCP server listen error: " << listen
 					<< ", ec: " << ec.message();
 				return false;
 			}
@@ -1124,7 +1124,7 @@ namespace avpn {
 			a.open(endp.protocol(), ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server open "
+				XLOG_ERR << "TCP server open "
 					<< "accept error: " << ec.message();
 				return false;
 			}
@@ -1132,7 +1132,7 @@ namespace avpn {
 			a.set_option(net::socket_base::reuse_address(true), ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server accept "
+				XLOG_ERR << "TCP server accept "
 					<< "set option failed: " << ec.message();
 				return false;
 			}
@@ -1142,7 +1142,7 @@ namespace avpn {
 				a.set_option(net::ip::v6_only(true), ec);
 				if (ec)
 				{
-					LOG_ERR << "TCP server accept "
+					XLOG_ERR << "TCP server accept "
 						<< "set v6_only failed: " << ec.message();
 					return false;
 				}
@@ -1151,7 +1151,7 @@ namespace avpn {
 			a.bind(endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server bind failed: " << ec.message()
+				XLOG_ERR << "TCP server bind failed: " << ec.message()
 					<< ", address: " << endp.address().to_string()
 					<< ", port: " << endp.port();
 				return false;
@@ -1160,7 +1160,7 @@ namespace avpn {
 			a.listen(net::socket_base::max_listen_connections, ec);
 			if (ec)
 			{
-				LOG_ERR << "TCP server listen failed: " << ec.message();
+				XLOG_ERR << "TCP server listen failed: " << ec.message();
 				return false;
 			}
 
@@ -1199,7 +1199,7 @@ namespace avpn {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_ERR << "make_endpoint"
+					XLOG_ERR << "make_endpoint"
 						<< ", udp async_resolve: " << ec.message();
 					continue;
 				}
@@ -1217,7 +1217,7 @@ namespace avpn {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_ERR << "make_endpoint"
+					XLOG_ERR << "make_endpoint"
 						<< ", tcp async_resolve: " << ec.message();
 					continue;
 				}
@@ -1242,7 +1242,7 @@ namespace avpn {
 			co_await a.async_accept(socket, net_awaitable[error]);
 			if (error)
 			{
-				LOG_ERR << "start_tcp_listen"
+				XLOG_ERR << "start_tcp_listen"
 					<< ", async_accept: " << error.message();
 
 				if (error == net::error::operation_aborted ||
@@ -1270,14 +1270,14 @@ namespace avpn {
 			static std::atomic_size_t id{ 1 };
 			size_t connection_id = id++;
 
-			LOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
+			XLOG_DBG << "start_tcp_listen, incoming id: " << connection_id;
 
 			// 等待读取事件.
 			co_await socket.async_wait(
 				tcp::socket::wait_read, net_awaitable[error]);
 			if (error)
 			{
-				LOG_WARN << "socket.async_wait error: " << error.message();
+				XLOG_WARN << "socket.async_wait error: " << error.message();
 				continue;
 			}
 
@@ -1294,14 +1294,14 @@ namespace avpn {
 #endif
 			if (ret <= 0)
 			{
-				LOG_WARN << "start_tcp_listen, peek message return: " << ret;
+				XLOG_WARN << "start_tcp_listen, peek message return: " << ret;
 				continue;
 			}
 
 			// socks4/5 protocol.
 			if (detect[0] == 0x05 || detect[0] == 0x04)
 			{
-				LOG_DBG << "socks protocol: " << detect[0]
+				XLOG_DBG << "socks protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
 				socks_session_ptr new_session =
@@ -1317,7 +1317,7 @@ namespace avpn {
 			}
 			else if (detect[0] == 0x16) // socks5 with ssl protocol.
 			{
-				LOG_DBG << "https protocol: " << detect[0]
+				XLOG_DBG << "https protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
 				// instantiate socks stream with ssl context.
@@ -1333,7 +1333,7 @@ namespace avpn {
 					net::ssl::stream_base::server, net_awaitable[error]);
 				if (error)
 				{
-					LOG_WARN << "ssl protocol handshake error: "
+					XLOG_WARN << "ssl protocol handshake error: "
 						<< error.message();
 					continue;
 				}
@@ -1353,7 +1353,7 @@ namespace avpn {
 			}
 			else if (detect[0] == 0x47 || detect[0] == 0x50) // http protocol.
 			{
-				LOG_DBG << "http protocol: " << detect[0]
+				XLOG_DBG << "http protocol: " << detect[0]
 					<< ", connection id: " << connection_id;
 
 				// instantiate socks stream with socket.
@@ -1398,7 +1398,7 @@ namespace avpn {
 				}, net::detached);
 		}
 
-		LOG_FILE << "Quit avpn_service::start_tcp_listen"
+		XLOG_FILE << "Quit avpn_service::start_tcp_listen"
 			<< ", this: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
@@ -1418,7 +1418,7 @@ namespace avpn {
 			bool ipv6only = make_listen_endpoint(listen, endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "build_server_udp_sockets"
+				XLOG_ERR << "build_server_udp_sockets"
 					<< ", make udp: " << listen
 					<< ", ec: " << ec.message();
 				continue;
@@ -1430,7 +1430,7 @@ namespace avpn {
 				sock.set_option(net::ip::v6_only(true), ec);
 				if (ec)
 				{
-					LOG_ERR << "build_server_udp_sockets"
+					XLOG_ERR << "build_server_udp_sockets"
 						<< ", make udp: " << listen
 						<< ", setsockopt v6only: " << ec.message();
 					continue;
@@ -1440,7 +1440,7 @@ namespace avpn {
 			sock.bind(endp, ec);
 			if (ec)
 			{
-				LOG_ERR << "build_server_udp_sockets"
+				XLOG_ERR << "build_server_udp_sockets"
 					<< ", make udp: " << listen
 					<< ", bind error: " << ec.message();
 				continue;
@@ -1482,7 +1482,7 @@ namespace avpn {
 				auto socket_ptr = sockets[n];
 				auto local_endp = socket_ptr->sock_.local_endpoint();
 
-				LOG_FILE << "start_udp_server"
+				XLOG_FILE << "start_udp_server"
 					<< ", listen endpoint: ["
 					<< local_endp.address().to_string()
 					<< "]:"
@@ -1547,7 +1547,7 @@ namespace avpn {
 		if (!tunnel)
 		{
 			net::ip::address_v4 src_addr(src_vaddr);
-			LOG_WARN << "Not found client via loop: "
+			XLOG_WARN << "Not found client via loop: "
 				<< src_addr.to_string();
 
 			// 若不为同一网络段, 则有可能是错误的数据包, 忽略掉.
@@ -1621,17 +1621,17 @@ namespace avpn {
 				if (m_server_tcp_endps.empty())
 					return;
 
-				LOG_WARN << "Set tcp reconnect";
+				XLOG_WARN << "Set tcp reconnect";
 				m_tcp_reconnect_cnt = 1;
 			});
 
-		LOG_DBG << "Start connect to server...";
+		XLOG_DBG << "Start connect to server...";
 
 		tcp::socket stream(m_main_context);
 		auto ret = co_await connect_tcp_server(stream);
 		if (!ret)
 		{
-			LOG_DBG << "Connect to tcp server return";
+			XLOG_DBG << "Connect to tcp server return";
 			co_return;
 		}
 
@@ -1642,7 +1642,7 @@ namespace avpn {
 		auto pubkey = ke.StaticPublicKey();
 		auto src_vaddr = m_subnet.address().to_uint();
 
-		LOG_DBG << "Start tcp handshake...";
+		XLOG_DBG << "Start tcp handshake...";
 		auto pkt = make_handshake(src_vaddr,
 			m_client_id,
 			pubkey,
@@ -1682,7 +1682,7 @@ namespace avpn {
 		auto tunnel = m_tunnel.lock();
 		if (src_vaddr == 0)
 		{
-			LOG_WARN << "Tcp handshake reply: '" << id
+			XLOG_WARN << "Tcp handshake reply: '" << id
 				<< "' detected server reboot!";
 
 			// 如果tunnel对象为空, 则表示重启已经开始.
@@ -1717,7 +1717,7 @@ namespace avpn {
 		}
 		if (bytes < 0)
 		{
-			LOG_WARN << "Unwrap_handshake_reply detected invalid!!!";
+			XLOG_WARN << "Unwrap_handshake_reply detected invalid!!!";
 			co_return;
 		}
 
@@ -1742,11 +1742,11 @@ namespace avpn {
 				tunnel->ipproto(Proto::avpn_udp);
 			}
 
-			LOG_DBG << "Tcp handshake"
+			XLOG_DBG << "Tcp handshake"
 				<< ", tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id();
 
-			LOG_INFO << "Shared key: "
+			XLOG_INFO << "Shared key: "
 				<< base64_encode(tunnel->shared_key())
 				<< ", cid: " << m_client_id;
 
@@ -1759,7 +1759,7 @@ namespace avpn {
 		}
 		else
 		{
-			LOG_INFO << "Tcp client rehandshake to "
+			XLOG_INFO << "Tcp client rehandshake to "
 				<< remote << " successfully!";
 		}
 
@@ -1809,7 +1809,7 @@ namespace avpn {
 				if (!co_await connect_proxy(stream, endp))
 					continue;
 
-				LOG_DBG << "Connect to tcp server : "
+				XLOG_DBG << "Connect to tcp server : "
 					<< endp
 					<< " via proxy: "
 					<< m_config.proxy_
@@ -1825,25 +1825,25 @@ namespace avpn {
 					m_cancel_sig.slot().clear();
 				if (m_abort)
 				{
-					LOG_ERR << "connect_server, async_connect abort";
+					XLOG_ERR << "connect_server, async_connect abort";
 					co_return false;
 				}
 				if (ec)
 				{
-					LOG_ERR << "connect_server, async_connect: " << ec.message();
+					XLOG_ERR << "connect_server, async_connect: " << ec.message();
 					if (ec == boost::asio::error::operation_aborted)
 						break;
 					continue;
 				}
 
-				LOG_DBG << "Connect to tcp server: "
+				XLOG_DBG << "Connect to tcp server: "
 					<< endp << " successfully!";
 			}
 
 			net::ip::tcp::no_delay option(true);
 			stream.set_option(option, ec);
 			if (ec)
-				LOG_WARN << "connect_server, set_option: " << ec.message();
+				XLOG_WARN << "connect_server, set_option: " << ec.message();
 
 			co_return true;
 		}
@@ -1863,7 +1863,7 @@ namespace avpn {
 		else if (m_config.proxy_.starts_with("http"))
 			co_return co_await connect_http_proxy(stream, target);
 
-		LOG_ERR << "Unsupported proxy: " << m_config.proxy_;
+		XLOG_ERR << "Unsupported proxy: " << m_config.proxy_;
 
 		co_return false;
 	}
@@ -1875,7 +1875,7 @@ namespace avpn {
 		auto rv = boost::urls::parse_uri(m_config.proxy_);
 		if (!rv)
 		{
-			LOG_ERR << "socks proxy url: "
+			XLOG_ERR << "socks proxy url: "
 				<< m_config.proxy_
 				<< " error: "
 				<< rv.error().message();
@@ -1893,7 +1893,7 @@ namespace avpn {
 				net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "socks proxy "
+			XLOG_ERR << "socks proxy "
 				<< ", async_resolve: "
 				<< ec.message();
 			co_return false;
@@ -1909,7 +1909,7 @@ namespace avpn {
 				m_cancel_sig.slot().clear();
 			if (m_abort)
 			{
-				LOG_ERR << "socks proxy, async_connect abort";
+				XLOG_ERR << "socks proxy, async_connect abort";
 				co_return false;
 			}
 
@@ -1919,7 +1919,7 @@ namespace avpn {
 
 		if (ec)
 		{
-			LOG_ERR << "socks proxy, async_connect error: " << ec.message();
+			XLOG_ERR << "socks proxy, async_connect error: " << ec.message();
 			co_return false;
 		}
 
@@ -1933,7 +1933,7 @@ namespace avpn {
 		co_await proxy::async_socks_handshake(stream, opt, net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "socks proxy, async_socks_handshake error: "
+			XLOG_ERR << "socks proxy, async_socks_handshake error: "
 				<< ec.message();
 			co_return false;
 		}
@@ -1948,7 +1948,7 @@ namespace avpn {
 		auto rv = boost::urls::parse_uri(m_config.proxy_);
 		if (!rv)
 		{
-			LOG_ERR << "http proxy url: "
+			XLOG_ERR << "http proxy url: "
 				<< m_config.proxy_
 				<< " error: "
 				<< rv.error().message();
@@ -1985,7 +1985,7 @@ namespace avpn {
 				m_cancel_sig.slot().clear();
 			if (m_abort)
 			{
-				LOG_ERR << "http proxy, async_connect abort";
+				XLOG_ERR << "http proxy, async_connect abort";
 				co_return false;
 			}
 
@@ -1995,7 +1995,7 @@ namespace avpn {
 
 		if (ec)
 		{
-			LOG_ERR << "http proxy, async_connect error: " << ec.message();
+			XLOG_ERR << "http proxy, async_connect error: " << ec.message();
 			co_return false;
 		}
 
@@ -2021,7 +2021,7 @@ namespace avpn {
 		co_await http::async_write_header(stream, sr, net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "http proxy, write header: " << ec.message();
+			XLOG_ERR << "http proxy, write header: " << ec.message();
 			co_return false;
 		}
 
@@ -2034,7 +2034,7 @@ namespace avpn {
 				stream, buffer, p, net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "http proxy, read header: " << ec.message();
+				XLOG_ERR << "http proxy, read header: " << ec.message();
 				co_return false;
 			}
 		} while (!p.is_header_done());
@@ -2044,7 +2044,7 @@ namespace avpn {
 
 net::awaitable<void> avpn_service::start_udp_client()
 	{
-		LOG_DBG << "Start udp client, udp sockets: " << m_udp_sockets.size();
+		XLOG_DBG << "Start udp client, udp sockets: " << m_udp_sockets.size();
 
 		// 只有在第1次启动client时创建好所有udp socket对象.
 		if (m_udp_sockets.empty())
@@ -2075,7 +2075,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 						auto socket_ptr = m_udp_sockets[n];
 						auto local_endp = socket_ptr->sock_.local_endpoint();
 
-						LOG_FILE << "start_udp_client"
+						XLOG_FILE << "start_udp_client"
 							<< ", local endpoint: ["
 							<< local_endp.address().to_string()
 							<< "]:"
@@ -2092,7 +2092,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			}
 		}
 
-		LOG_DBG << "Start udp handshake...";
+		XLOG_DBG << "Start udp handshake...";
 		// 发起UDP握手请求.
 		co_await start_udp_handshake();
 		co_return;
@@ -2112,7 +2112,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			[[maybe_unused]] auto local_endp = sock.local_endpoint(ec);
 			if (ec)
 			{
-				LOG_ERR << "build_udp_sockets"
+				XLOG_ERR << "build_udp_sockets"
 					<< ", udp open error: " << ec.message();
 				continue;
 			}
@@ -2180,7 +2180,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		// client id长度必须等于32字节.
 		if (client_id.size() != 32)
 		{
-			LOG_INFO << "invalid handshake message: " << client_id
+			XLOG_INFO << "invalid handshake message: " << client_id
 				<< " from tcp: " << remote;
 			co_return;
 		}
@@ -2192,7 +2192,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			if (!tunnel)
 			{
 				net::ip::address_v4 src_addr(src_vaddr);
-				LOG_WARN << "Not found client via tcp: " << src_addr.to_string();
+				XLOG_WARN << "Not found client via tcp: " << src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
 
@@ -2212,7 +2212,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			BOOST_ASSERT(tunnel && "tunnel must be valid");
 			if (!tunnel)
 			{
-				LOG_ERR << "async make tunnel fail!!!";
+				XLOG_ERR << "async make tunnel fail!!!";
 				co_return;
 			}
 		}
@@ -2222,7 +2222,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		uint32_t vaddr = vnetaddr.address().to_uint();
 
 		// 输出协商的加密密钥到日志.
-		LOG_INFO << "Shared key via tcp: "
+		XLOG_INFO << "Shared key via tcp: "
 			<< base64_encode(tunnel->shared_key())
 			<< ", ip: " << vaddr
 			<< ", remote: " << remote
@@ -2268,7 +2268,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		// client id长度必须等于32字节.
 		if (client_id.size() != 32)
 		{
-			LOG_INFO << "invalid handshake message: " << client_id
+			XLOG_INFO << "invalid handshake message: " << client_id
 				<< " from: " << remote;
 			co_return;
 		}
@@ -2280,7 +2280,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			if (!tunnel)
 			{
 				net::ip::address_v4 src_addr(src_vaddr);
-				LOG_WARN << "Not found client via udp: "
+				XLOG_WARN << "Not found client via udp: "
 					<< src_addr.to_string();
 
 				// 找不到连接, 说明src已经过期, 回复认证失败.
@@ -2306,7 +2306,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		auto vaddr = vnetaddr.address().to_uint();
 
 		// 输出协商的加密密钥到日志.
-		LOG_DBG << "Shared key via udp: "
+		XLOG_DBG << "Shared key via udp: "
 			<< base64_encode(tunnel->shared_key())
 			<< ", ip: " << vaddr
 			<< ", remote: " << remote
@@ -2361,14 +2361,14 @@ net::awaitable<void> avpn_service::start_udp_client()
 			pushroutes);
 		if (bytes < 0)
 		{
-			LOG_WARN << "udp handshake reply detected invalid!";
+			XLOG_WARN << "udp handshake reply detected invalid!";
 			co_return;
 		}
 
 		vpn_tunnel_ptr tunnel = m_tunnel.lock();
 		if (addr == 0)
 		{
-			LOG_WARN << "udp handshake reply: '" << id
+			XLOG_WARN << "udp handshake reply: '" << id
 				<< "' detected server reboot!";
 
 			// 如果tunnel对象为空, 则表示重启已经开始.
@@ -2414,11 +2414,11 @@ net::awaitable<void> avpn_service::start_udp_client()
 			// 更新为对方的endpoint.
 			tunnel->remote_endpoint(remote);
 
-			LOG_INFO << "Udp handshake"
+			XLOG_INFO << "Udp handshake"
 				<< ", tunnel: " << tunnel.get()
 				<< ", thread: " << std::this_thread::get_id();
 
-			LOG_INFO << "Shared key via udp: "
+			XLOG_INFO << "Shared key via udp: "
 				<< base64_encode(tunnel->shared_key())
 				<< ", cid: " << m_client_id;
 
@@ -2431,7 +2431,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		}
 		else
 		{
-			LOG_INFO << "Udp client rehandshake to "
+			XLOG_INFO << "Udp client rehandshake to "
 				<< remote << " successfully!";
 		}
 
@@ -2463,7 +2463,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 				net::transfer_exactly(4), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, read tag error: "
+			XLOG_ERR << "tcp_read_packet, read tag error: "
 				<< ec.message();
 			co_return -1;
 		}
@@ -2472,7 +2472,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			start_len_tag = ntohl(start_len_tag);
 			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
-				LOG_ERR << "tcp_read_packet, verify size fail: "
+				XLOG_ERR << "tcp_read_packet, verify size fail: "
 					<< start_len_tag;
 				co_return -1;
 			}
@@ -2484,7 +2484,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 				net::transfer_exactly(start_len_tag), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, id, read body error: "
+			XLOG_ERR << "tcp_read_packet, id, read body error: "
 				<< ec.message();
 			co_return -1;
 		}
@@ -2505,7 +2505,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			net::buffer(&start_len_tag, 4), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, async_write tag error: "
+			XLOG_ERR << "tcp_write_packet, async_write tag error: "
 				<< ec.message();
 			co_return;
 		}
@@ -2514,7 +2514,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			net::buffer(pkt.data(), pkt.size()), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, async_write body error: "
+			XLOG_ERR << "tcp_write_packet, async_write body error: "
 				<< ec.message();
 			co_return;
 		}
@@ -2550,7 +2550,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 		tunnel = make_tunnel(vaddr, id, pubkey);
 
 		// 输出创建tunnel相关日志.
-		LOG_DBG << "make tunnel: " << tunnel.get()
+		XLOG_DBG << "make tunnel: " << tunnel.get()
 			<< ", thread: " << std::this_thread::get_id()
 			<< ", cid: " << id
 			<< ", assign: " << ip_string;
@@ -2600,7 +2600,7 @@ net::awaitable<void> avpn_service::start_udp_client()
 			m_client_state |= vst_tcped;
 		}
 
-		LOG_WARN << "Tcp reconnect: " << cnt;
+		XLOG_WARN << "Tcp reconnect: " << cnt;
 		m_tcp_reconnect_cnt = cnt;
 	}
 

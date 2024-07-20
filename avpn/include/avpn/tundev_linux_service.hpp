@@ -113,20 +113,20 @@ namespace avpn
 
 			if (ret <= 0 || (size_t)ret >= sizeof(fname))
 			{
-				LOG_ERR << "could not build pathname for property";
+				XLOG_ERR << "could not build pathname for property";
 				return -1;
 			}
 
 			fp = fopen(fname, "r");
 			if (fp == NULL)
 			{
-				LOG_ERR << "fopen " << fname << " fail";
+				XLOG_ERR << "fopen " << fname << " fail";
 				return -1;
 			}
 
 			if (!fgets(buf, sizeof(buf), fp))
 			{
-				LOG_ERR << "property '" << prop << "' in file " << fname << "is currently unknown";
+				XLOG_ERR << "property '" << prop << "' in file " << fname << "is currently unknown";
 				fclose(fp);
 				goto out;
 			}
@@ -140,7 +140,7 @@ namespace avpn
 
 			if (*endp || buf == endp)
 			{
-				LOG_ERR << "value '" << buf << "' in file " << fname << " is not a number";
+				XLOG_ERR << "value '" << buf << "' in file " << fname << " is not a number";
 				goto out;
 			}
 
@@ -148,7 +148,7 @@ namespace avpn
 			return 0;
 
 		out:
-			LOG_ERR << "failed to parse " << fname;
+			XLOG_ERR << "failed to parse " << fname;
 			return -1;
 		}
 	}
@@ -199,7 +199,7 @@ namespace avpn
 				return false;
 			}
 
-			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " opened";
+			XLOG_DBG << "TUN / TAP device " << ifr.ifr_name << " opened";
 
 			m_if_index = if_nametoindex(ifr.ifr_name);
 
@@ -293,7 +293,7 @@ namespace avpn
 
 			m_tuntap_fd = fd;
 
-			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successed, " << fd;
+			XLOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successed, " << fd;
 			return true;
 		}
 
@@ -415,7 +415,7 @@ namespace avpn
 				tun_device_info dev;
 				dev.name_ = name;
 				m_device_list.push_back(dev);
-				LOG_DBG << "iframe: " << name << ", tun type: " << flags;
+				XLOG_DBG << "iframe: " << name << ", tun type: " << flags;
 			}
 
 			if (flags & IFF_TAP)
@@ -423,7 +423,7 @@ namespace avpn
 				tun_device_info dev;
 				dev.name_ = name;
 				m_device_list.push_back(dev);
-				LOG_DBG << "iframe: " << name << ", tap type: " << flags;
+				XLOG_DBG << "iframe: " << name << ", tap type: " << flags;
 			}
 			return 0;
 		}

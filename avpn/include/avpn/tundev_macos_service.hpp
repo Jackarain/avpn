@@ -73,12 +73,12 @@ namespace avpn
 
 			if (ioctl(fd, CTLIOCGINFO, &ctlInfo) == -1)
 			{
-				LOG_ERR << "ioctl(fd, CTLIOCGINFO, (void *)&ifr)";
+				XLOG_ERR << "ioctl(fd, CTLIOCGINFO, (void *)&ifr)";
 				::close(fd);
 				return false;
 			}
 
-			LOG_DBG << "ctl_info, ctl_id: " << ctlInfo.ctl_id << ", ctl_name: " << ctlInfo.ctl_name;
+			XLOG_DBG << "ctl_info, ctl_id: " << ctlInfo.ctl_id << ", ctl_name: " << ctlInfo.ctl_name;
 
 			struct sockaddr_ctl sc;
 			sc.sc_id = ctlInfo.ctl_id;
@@ -99,7 +99,7 @@ namespace avpn
 			socklen_t maxlen = 256;
 			char ifname[256] = {0};
 			getsockopt(fd, SYSPROTO_CONTROL, UTUN_OPT_IFNAME, ifname, &maxlen);
-			LOG_DBG << "ifname: " << ifname;
+			XLOG_DBG << "ifname: " << ifname;
 
 			if (1)
 			{
@@ -115,7 +115,7 @@ namespace avpn
 				if (err == 0)
 				{
 					perror("inet_aton local ip");
-					LOG_ERR << "inet_aton local ip: " << cfg.local_;
+					XLOG_ERR << "inet_aton local ip: " << cfg.local_;
 					::close(fd);
 					return false;
 				}
@@ -127,7 +127,7 @@ namespace avpn
 				if (err == 0)
 				{
 					perror("inet_aton mask ip");
-					LOG_ERR << "inet_aton mask ip: " << cfg.mask_;
+					XLOG_ERR << "inet_aton mask ip: " << cfg.mask_;
 					::close(fd);
 					return false;
 				}
@@ -150,7 +150,7 @@ namespace avpn
 				if (ioctl(s, SIOCSIFFLAGS, (void *)&ifr) < 0)
 				{
 					perror("SIOCSIFFLAGS");
-					LOG_ERR << "ioctl(fd, SIOCSIFFLAGS, (void *)&ifr)";
+					XLOG_ERR << "ioctl(fd, SIOCSIFFLAGS, (void *)&ifr)";
 					::close(fd);
 					return false;
 				}
@@ -159,7 +159,7 @@ namespace avpn
 				if (ioctl(s, SIOCSIFMTU, (void *)&ifr) < 0)
 				{
 					perror("SIOCSIFMTU");
-					LOG_ERR << "ioctl(fd, SIOCSIFMTU, (void *)&ifr)";
+					XLOG_ERR << "ioctl(fd, SIOCSIFMTU, (void *)&ifr)";
 					::close(fd);
 					return false;
 				}
@@ -167,7 +167,7 @@ namespace avpn
 				if (ioctl(s, SIOCAIFADDR, (void *)&ifaliasreq) < 0)
 				{
 					perror("ioctl(fd, SIOCAIFADDR, (void *)&ifaliasreq)");
-					LOG_ERR << "ioctl(fd, SIOCAIFADDR, (void *)&ifaliasreq): " << cfg.local_ << "/" << cfg.mask_;
+					XLOG_ERR << "ioctl(fd, SIOCAIFADDR, (void *)&ifaliasreq): " << cfg.local_ << "/" << cfg.mask_;
 					::close(fd);
 					return false;
 				}
@@ -179,7 +179,7 @@ namespace avpn
 				if (err == 0)
 				{
 					perror("inet_aton gateway ip");
-					LOG_ERR << "inet_aton gateway ip: " << cfg.mask_;
+					XLOG_ERR << "inet_aton gateway ip: " << cfg.mask_;
 					::close(fd);
 					return false;
 				}
@@ -187,7 +187,7 @@ namespace avpn
 				if (ioctl(s, SIOCSIFDSTADDR, (void *)&ifr) < 0)
 				{
 					perror("SIOCSIFDSTADDR");
-					LOG_ERR << "ioctl(fd, SIOCSIFDSTADDR, (void *)&ifr)";
+					XLOG_ERR << "ioctl(fd, SIOCSIFDSTADDR, (void *)&ifr)";
 					::close(fd);
 					return false;
 				}
@@ -196,10 +196,10 @@ namespace avpn
 				// sudo route -v delete 10.0.0.1
 				// sudo route -v add -net 10.0.0.0/16  -iface utun9
 				auto route = "route -v delete " + cfg.gateway_;
-				LOG_DBG << route;
+				XLOG_DBG << route;
 				{
 					auto [ret, _] = run_command(route);
-					LOG_DBG << ret;
+					XLOG_DBG << ret;
 				}
 				net::ip::network_v4 net(
 					net::ip::address::from_string(cfg.gateway_).to_v4(),
@@ -209,10 +209,10 @@ namespace avpn
 					+ cfg.gateway_ + "/"
 					+ std::to_string(net.prefix_length())
 					+ " -iface " + std::string(ifname);
-				LOG_DBG << route;
+				XLOG_DBG << route;
 				{
 					auto [ret, _] = run_command(route);
-					LOG_DBG << ret;
+					XLOG_DBG << ret;
 				}
 			}
 
@@ -221,7 +221,7 @@ namespace avpn
 			if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
 			{
 				perror("fcntl(fd, F_SETFL, flags | O_NONBLOCK)");
-				LOG_ERR << "fcntl(fd, F_SETFL, flags | O_NONBLOCK)";
+				XLOG_ERR << "fcntl(fd, F_SETFL, flags | O_NONBLOCK)";
 				::close(fd);
 				return false;
 			}

@@ -202,7 +202,7 @@ namespace details {
 			status = GetIpForwardTable(rt, &size, TRUE);
 			if (status != NO_ERROR)
 			{
-				LOG_ERR << "NOTE: GetIpForwardTable returned error: "
+				XLOG_ERR << "NOTE: GetIpForwardTable returned error: "
 					<< error_format(status) << "  (code=" << status << ")";
 				return {};
 			}
@@ -249,7 +249,7 @@ namespace details {
 
 		if ((status = GetAdaptersInfo(NULL, &size)) != ERROR_BUFFER_OVERFLOW)
 		{
-			LOG_ERR << "GetAdaptersInfo #1 failed (status="
+			XLOG_ERR << "GetAdaptersInfo #1 failed (status="
 				<< status << ") : " << error_format(status);
 		}
 		else
@@ -258,7 +258,7 @@ namespace details {
 			spi.reset(pi, free_pai);
 			if ((status = GetAdaptersInfo(pi, &size)) != NO_ERROR)
 			{
-				LOG_ERR << "GetAdaptersInfo #2 failed (status="
+				XLOG_ERR << "GetAdaptersInfo #2 failed (status="
 					<< status << ") : " << error_format(status);
 
 				return {};
@@ -279,7 +279,7 @@ namespace details {
 			net::ip::address_v4 mask{ ntohl(row->dwForwardMask) };
 			net::ip::network_v4 net(gw, mask);
 
-			LOG_DBG << "Default gateway: " << gw.to_string()
+			XLOG_DBG << "Default gateway: " << gw.to_string()
 				<< ", lowest metric: " << row->dwForwardMetric1;
 
 			return net;
@@ -299,7 +299,7 @@ namespace details {
 		ipiface.InterfaceIndex = iface_index;
 		if (family == AF_INET6 && mtu < 1280)
 		{
-			LOG_DBG << "NOTE: IPv6 interface MTU < 1280 conflicts with IETF standards and might not work";
+			XLOG_DBG << "NOTE: IPv6 interface MTU < 1280 conflicts with IETF standards and might not work";
 		}
 
 		err = GetIpInterfaceEntry(&ipiface);
@@ -315,12 +315,12 @@ namespace details {
 
 		if (err != NO_ERROR)
 		{
-			LOG_WARN << "TUN: Setting " << family_name << " mtu failed: "
+			XLOG_WARN << "TUN: Setting " << family_name << " mtu failed: "
 				<< error_format(err) << " [status=" << err << " if_index=" << iface_index << "]";
 		}
 		else
 		{
-			LOG_DBG << family_name << " MTU set to " << mtu << " on interface " << iface_index << " using SetIpInterfaceEntry()";
+			XLOG_DBG << family_name << " MTU set to " << mtu << " on interface " << iface_index << " using SetIpInterfaceEntry()";
 		}
 	}
 
@@ -399,7 +399,7 @@ int write_wintun(std::string_view buf)
 	// 如果发送缓冲超出大小范围, 则表示出错.
 	if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
 	{
-		LOG_WARN << "write_wintun(): head/tail value is over capacity";
+		XLOG_WARN << "write_wintun(): head/tail value is over capacity";
 		return -1;
 	}
 
@@ -412,7 +412,7 @@ int write_wintun(std::string_view buf)
 	// 如果要发送的数据大小大于剩余空间, 则表示未发送.
 	if (aligned_packet_size > buf_space)
 	{
-		// LOG_WARN << "write_wintun(): ring is full";
+		// XLOG_WARN << "write_wintun(): ring is full";
 		return 0;
 	}
 
@@ -441,7 +441,7 @@ int read_wintun(std::string_view buf)
 	// 首尾超出了ring buffer范围.
 	if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
 	{
-		LOG_WARN << "Wintun: ring capacity exceeded";
+		XLOG_WARN << "Wintun: ring capacity exceeded";
 		return -1;
 	}
 
@@ -458,7 +458,7 @@ int read_wintun(std::string_view buf)
 	// 如果不够TUN_PACKET_HEADER大小, 则说明发生了错误.
 	if (content_len < sizeof(struct TUN_PACKET_HEADER))
 	{
-		LOG_WARN << "Wintun: incomplete packet header in send ring";
+		XLOG_WARN << "Wintun: incomplete packet header in send ring";
 		return -1;
 	}
 
@@ -468,7 +468,7 @@ int read_wintun(std::string_view buf)
 	// packet->size 不应该大于 WINTUN_MAX_PACKET_SIZE 大小.
 	if (packet->size > WINTUN_MAX_PACKET_SIZE)
 	{
-		LOG_WARN << "Wintun: packet too big in send ring";
+		XLOG_WARN << "Wintun: packet too big in send ring";
 		return -1;
 	}
 
@@ -478,13 +478,13 @@ int read_wintun(std::string_view buf)
 	// 对齐数据大小不应该大于可读取的数据大小.
 	if (aligned_packet_size > content_len)
 	{
-		LOG_WARN << "Wintun: incomplete packet in send ring";
+		XLOG_WARN << "Wintun: incomplete packet in send ring";
 		return -1;
 	}
 
 	if (buf.size() < packet->size)
 	{
-		LOG_WARN << "Wintun: read buffer size too small";
+		XLOG_WARN << "Wintun: read buffer size too small";
 		return -1;
 	}
 
@@ -560,7 +560,7 @@ bool open_tun()
 
 	if (LastError != ERROR_SUCCESS && LastError != ERROR_OBJECT_ALREADY_EXISTS)
 	{
-		LOG_ERR << "Failed to set IP address: " << details::error_format(LastError);
+		XLOG_ERR << "Failed to set IP address: " << details::error_format(LastError);
 		return false;
 	}
 
@@ -575,7 +575,7 @@ bool open_tun()
 	BOOST_TEST(handle != INVALID_HANDLE_VALUE);
 	if (handle == INVALID_HANDLE_VALUE)
 	{
-		LOG_ERR << "open_wintun: " << details::error_format(GetLastError());
+		XLOG_ERR << "open_wintun: " << details::error_format(GetLastError());
 		return false;
 	}
 
@@ -659,7 +659,7 @@ bool open_tun()
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
 				auto rate = (double)size / ((double)ms.count() / 1000);
 
-				LOG_DBG << "Send: " << add_suffix((float)rate, "/s");
+				XLOG_DBG << "Send: " << add_suffix((float)rate, "/s");
 			}
 		}
 	});
@@ -697,14 +697,14 @@ bool open_tun()
 					QueryPerformanceCounter(&SpinNow);
 					if ((ULONG64)SpinNow.QuadPart - (ULONG64)SpinStart.QuadPart >= SpinMax)
 					{
-						// LOG_DBG << "WaitForSingleObject";
+						// XLOG_DBG << "WaitForSingleObject";
 						WaitForSingleObject(g_receive_event_moved, INFINITE);
 						break;
 					}
 					Sleep(0);
 					continue;
 
-					// LOG_DBG << "WaitForSingleObject";
+					// XLOG_DBG << "WaitForSingleObject";
 					// WaitForSingleObject(g_receive_event_moved, INFINITE);
 				}
 
@@ -726,7 +726,7 @@ bool open_tun()
 				auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dur);
 				auto rate = (double)size / ((double)ms.count() / 1000);
 
-				LOG_DBG << "Recvive: " << add_suffix((float)rate, "/s");
+				XLOG_DBG << "Recvive: " << add_suffix((float)rate, "/s");
 			}
 		}
 	});

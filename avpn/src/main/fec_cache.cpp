@@ -292,7 +292,7 @@ namespace avpn
 			fec_enc.encode(pkts_);
 		}
 		catch (const std::exception& e) {
-			LOG_WARN << "fec encode exception: " << e.what();
+			XLOG_WARN << "fec encode exception: " << e.what();
 			return false;
 		}
 
@@ -401,7 +401,7 @@ namespace avpn
 			fec_dec.decode(pkts_, rmatrix_cache_);
 		}
 		catch (const std::exception& e) {
-			LOG_WARN << "fec decode exception: " << e.what();
+			XLOG_WARN << "fec decode exception: " << e.what();
 			return false;
 		}
 

@@ -163,7 +163,7 @@ namespace avpn {
 
 		if (flags.flag.syn && m_tsm.state_ != tcp_state::ts_invalid)
 		{
-			LOG_WARN << "tcp stack: " << endp << " unexpected syn, skip it!";
+			XLOG_WARN << "tcp stack: " << endp << " unexpected syn, skip it!";
 			co_return;
 		}
 
@@ -179,7 +179,7 @@ namespace avpn {
 			}
 
 			m_tsm.state_ = tcp_state::ts_closed;
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> flags.flag.rst";
 
@@ -190,7 +190,7 @@ namespace avpn {
 		// tcp keep alive, only ack.
 		if (m_tsm.state_ == tcp_state::ts_established && seq == m_tsm.seq_ - 1)
 		{
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " tcp keep alive, skip it";
 			co_return;
@@ -206,7 +206,7 @@ namespace avpn {
 		case tcp_state::ts_closed:
 		{
 			// 连接关闭了还发数据过来, rst响应之.
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> "
 				<< tcp_state_string(m_tsm.state_)
@@ -229,7 +229,7 @@ namespace avpn {
 			}
 
 			m_tsm.state_ = tcp_state::ts_syn_rcvd;	// 更新状态为syn接收到的状态.
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> tcp_state::ts_syn_rcvd";
 
@@ -265,7 +265,7 @@ namespace avpn {
 			}
 
 			m_tsm.state_ = tcp_state::ts_syn_rcvd;	// 更新状态为syn接收到的状态.
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> retransmission tcp_state::ts_syn_rcvd";
 			co_return;
@@ -283,7 +283,7 @@ namespace avpn {
 			else
 			{
 				m_tsm.state_ = tcp_state::ts_established;	// 连接建立.
-				LOG_DBG << "tcp stack: " << endp
+				XLOG_DBG << "tcp stack: " << endp
 					<< " " << tcp_state_string(last_state)
 					<< " -> tcp_state::ts_established";
 			}
@@ -295,7 +295,7 @@ namespace avpn {
 			if (flags.flag.fin)
 			{
 				m_tsm.state_ = tcp_state::ts_close_wait;
-				LOG_DBG << "tcp stack: " << endp
+				XLOG_DBG << "tcp stack: " << endp
 					<< " " << tcp_state_string(last_state)
 					<< " -> tcp_state::ts_close_wait";
 			}
@@ -312,7 +312,7 @@ namespace avpn {
 			// 同时发出fin, 转为状态ts_time_wait, 回复ack, 关闭这个连接.
 			if (flags.flag.fin && flags.flag.ack)
 			{
-				LOG_DBG << "tcp stack: " << endp
+				XLOG_DBG << "tcp stack: " << endp
 					<< " " << tcp_state_string(last_state)
 					<< " -> tcp_state::ts_closed";
 
@@ -326,7 +326,7 @@ namespace avpn {
 			{
 				if (flags.flag.fin)	// 收到fin, 回复ack.
 				{
-					LOG_DBG << "tcp stack: " << endp
+					XLOG_DBG << "tcp stack: " << endp
 						<< " " << tcp_state_string(last_state)
 						<< " -> tcp_state::ts_closing";
 
@@ -344,7 +344,7 @@ namespace avpn {
 			if (!need_ack)
 			{
 				// 只是收到ack, 转为fin_wait_2, 等待本地客户端的fin.
-				LOG_DBG << "tcp stack: " << endp
+				XLOG_DBG << "tcp stack: " << endp
 					<< " " << tcp_state_string(last_state)
 					<< " -> tcp_state::ts_fin_wait_2";
 
@@ -364,7 +364,7 @@ namespace avpn {
 			// 收到fin, 发回ack, 并关闭这个连接, 进入2MSL状态.
 			if (flags.flag.fin)
 			{
-				LOG_DBG << "tcp stack: " << endp
+				XLOG_DBG << "tcp stack: " << endp
 					<< " " << tcp_state_string(last_state)
 					<< " -> tcp_state::ts_closed";
 
@@ -397,7 +397,7 @@ namespace avpn {
 
 			// 如果是close_wait, 则表示收到是last ack, 关闭这个连接.
 			// 如果是closing, 则表示收到的是fin的ack, 进入2MSL状态.
-			LOG_DBG << "tcp stack: " << endp
+			XLOG_DBG << "tcp stack: " << endp
 				<< " " << tcp_state_string(last_state)
 				<< " -> tcp_state::ts_closed";
 
@@ -459,7 +459,7 @@ namespace avpn {
 			net::transfer_exactly(4), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, id: "
+			XLOG_ERR << "tcp_read_packet, id: "
 				<< id << ", stream read tag error: " << ec.message();
 			co_return -1;
 		}
@@ -468,7 +468,7 @@ namespace avpn {
 			start_len_tag = ntohl(start_len_tag);
 			if ((uint32_t)start_len_tag > (uint32_t)avpn_packet_size)
 			{
-				LOG_ERR << "tcp_read_packet, id: "
+				XLOG_ERR << "tcp_read_packet, id: "
 					<< id << ", stream verify size fail: " << start_len_tag;
 				co_return -1;
 			}
@@ -480,7 +480,7 @@ namespace avpn {
 			net::transfer_exactly(start_len_tag), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_read_packet, id: "
+			XLOG_ERR << "tcp_read_packet, id: "
 				<< id << ", stream read body error: " << ec.message();
 			co_return -1;
 		}
@@ -501,7 +501,7 @@ namespace avpn {
 			net::buffer(&start_len_tag, 4), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, id: " << id
+			XLOG_ERR << "tcp_write_packet, id: " << id
 				<< " stream async_write tag error: " << ec.message();
 			co_return;
 		}
@@ -510,7 +510,7 @@ namespace avpn {
 			net::buffer(pkt.data(), pkt.size()), net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "tcp_write_packet, id: " << id
+			XLOG_ERR << "tcp_write_packet, id: " << id
 				<< " stream async_write body error: " << ec.message();
 			co_return;
 		}
@@ -540,12 +540,12 @@ namespace avpn {
 						m_cancel_sig.slot(), net::use_awaitable), ec));
 			if (m_abort)
 			{
-				LOG_ERR << "connect_server, stream async_connect abort";
+				XLOG_ERR << "connect_server, stream async_connect abort";
 				co_return false;
 			}
 			if (ec)
 			{
-				LOG_ERR << "connect_server, stream async_connect: " << ec.message();
+				XLOG_ERR << "connect_server, stream async_connect: " << ec.message();
 				continue;
 			}
 

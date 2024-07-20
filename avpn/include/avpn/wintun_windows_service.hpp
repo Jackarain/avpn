@@ -96,7 +96,7 @@ namespace avpn {
 			~init_wintun()
 			{
 				UnInitWintun();
-				LOG_WARN << "init_wintun_apis::~init_wintun_apis()";
+				XLOG_WARN << "init_wintun_apis::~init_wintun_apis()";
 			}
 		};
 
@@ -122,7 +122,7 @@ namespace avpn {
 			// 首尾超出了ring buffer范围.
 			if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
 			{
-				LOG_WARN << "Wintun: ring capacity exceeded";
+				XLOG_WARN << "Wintun: ring capacity exceeded";
 				return -1;
 			}
 
@@ -139,7 +139,7 @@ namespace avpn {
 			// 如果不够TUN_PACKET_HEADER大小, 则说明发生了错误.
 			if (content_len < sizeof(struct TUN_PACKET_HEADER))
 			{
-				LOG_WARN << "Wintun: incomplete packet header in send ring";
+				XLOG_WARN << "Wintun: incomplete packet header in send ring";
 				return -1;
 			}
 
@@ -149,7 +149,7 @@ namespace avpn {
 			// packet->size 不应该大于 WINTUN_MAX_PACKET_SIZE 大小.
 			if (packet->size > WINTUN_MAX_PACKET_SIZE)
 			{
-				LOG_WARN << "Wintun: packet too big in send ring";
+				XLOG_WARN << "Wintun: packet too big in send ring";
 				return -1;
 			}
 
@@ -159,13 +159,13 @@ namespace avpn {
 			// 对齐数据大小不应该大于可读取的数据大小.
 			if (aligned_packet_size > content_len)
 			{
-				LOG_WARN << "Wintun: incomplete packet in send ring";
+				XLOG_WARN << "Wintun: incomplete packet in send ring";
 				return -1;
 			}
 
 			if (buf.size() < packet->size)
 			{
-				LOG_WARN << "Wintun: read buffer size too small";
+				XLOG_WARN << "Wintun: read buffer size too small";
 				return -1;
 			}
 
@@ -191,7 +191,7 @@ namespace avpn {
 			// 如果发送缓冲超出大小范围, 则表示出错.
 			if ((head >= WINTUN_RING_CAPACITY) || (tail >= WINTUN_RING_CAPACITY))
 			{
-				LOG_WARN << "write_wintun(): head/tail value is over capacity";
+				XLOG_WARN << "write_wintun(): head/tail value is over capacity";
 				return -1;
 			}
 
@@ -242,7 +242,7 @@ namespace avpn {
 
 		bool open(const dev_config& cfg)
 		{
-			LOG_DBG << "open wintun with: " << cfg.local_;
+			XLOG_DBG << "open wintun with: " << cfg.local_;
 
 			GUID AdapterGuid = { 0xdeadbab1, 0xcafe, 0xbeef, { 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff } };
 			if (!m_wintun_handle)
@@ -251,11 +251,11 @@ namespace avpn {
 				{
 					m_wintun_handle = WintunCreateAdapter(L"AVPN", L"AvpnAdapter", &AdapterGuid);
 					if (!m_wintun_handle)
-						LOG_WARN << "WintunCreateAdapter fail, try to open exist adapter!";
+						XLOG_WARN << "WintunCreateAdapter fail, try to open exist adapter!";
 					if (!m_wintun_handle)
 						m_wintun_handle = WintunOpenAdapter(L"AVPN");
 					if (!m_wintun_handle)
-						LOG_WARN << "WintunCreateAdapter fail, retry again: " << n;
+						XLOG_WARN << "WintunCreateAdapter fail, retry again: " << n;
 					if (m_wintun_handle)
 						break;
 				}
@@ -280,7 +280,7 @@ namespace avpn {
 			auto LastError = CreateUnicastIpAddressEntry(&AddressRow);
 			if (LastError != ERROR_SUCCESS && LastError != ERROR_OBJECT_ALREADY_EXISTS)
 			{
-				LOG_ERR << "Failed to set IP address: " << error_format(LastError);
+				XLOG_ERR << "Failed to set IP address: " << error_format(LastError);
 				return false;
 			}
 			m_address_row = AddressRow;
@@ -295,7 +295,7 @@ namespace avpn {
 			m_wintun_file = open_wintun("AVPN");
 			if (m_wintun_file == INVALID_HANDLE_VALUE)
 			{
-				LOG_ERR << "open_wintun: " << error_format(GetLastError());
+				XLOG_ERR << "open_wintun: " << error_format(GetLastError());
 				return false;
 			}
 
@@ -306,7 +306,7 @@ namespace avpn {
 				NULL);
 			if (m_send_ring_handle == INVALID_HANDLE_VALUE || m_send_ring_handle == NULL)
 			{
-				LOG_ERR << "CreateFileMapping for send: " << error_format(GetLastError());
+				XLOG_ERR << "CreateFileMapping for send: " << error_format(GetLastError());
 				return false;
 			}
 			m_receive_ring_handle = CreateFileMapping(INVALID_HANDLE_VALUE,
@@ -317,7 +317,7 @@ namespace avpn {
 				NULL);
 			if (m_receive_ring_handle == INVALID_HANDLE_VALUE || m_receive_ring_handle == NULL)
 			{
-				LOG_ERR << "CreateFileMapping for write: " << error_format(GetLastError());
+				XLOG_ERR << "CreateFileMapping for write: " << error_format(GetLastError());
 				return false;
 			}
 			m_send_ring = (struct tun_ring*)MapViewOfFile(m_send_ring_handle,
@@ -353,7 +353,7 @@ namespace avpn {
 				NULL, 0, &bytes_returned, NULL);
 			m_abort = false;
 
-			LOG_DBG << "open wintun with: " << cfg.local_ << " successfully!";
+			XLOG_DBG << "open wintun with: " << cfg.local_ << " successfully!";
 			return true;
 		}
 
@@ -403,7 +403,7 @@ namespace avpn {
 				m_wintun_handle = nullptr;
 			}
 
-			LOG_WARN << "wintun close...";
+			XLOG_WARN << "wintun close...";
 		}
 
 		struct initiate_async_read_some

@@ -342,11 +342,11 @@ int32_t run_hook(std::string cmd, std::map<std::string, std::string> env)
 			boost::process::std_out > stdout,
 			boost::process::std_err > stderr,
 			e);
-		LOG_DBG << "run_hook: " << cmd << " ret: " << ret;
+		XLOG_DBG << "run_hook: " << cmd << " ret: " << ret;
 	}
 	catch (const std::exception& e)
 	{
-		LOG_ERR << "run_hook, error: " << e.what();
+		XLOG_ERR << "run_hook, error: " << e.what();
 	}
 
 	return ret;
@@ -619,7 +619,7 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 
 		if ((status = GetAdaptersInfo(NULL, &size)) != ERROR_BUFFER_OVERFLOW)
 		{
-			LOG_WARN << "Set dns, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
+			XLOG_WARN << "Set dns, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
 			return false;
 		}
 
@@ -628,7 +628,7 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 
 		if ((status = GetAdaptersInfo(pi, &size)) != NO_ERROR)
 		{
-			LOG_WARN << "Set dns, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
+			XLOG_WARN << "Set dns, GetAdaptersInfo, code: " << status << ", message: " << error_format(status);
 			return false;
 		}
 
@@ -651,7 +651,7 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 	}
 	if (i == 10)
 	{
-		LOG_WARN << "Set dns, Not found local ip: " << local_ip;
+		XLOG_WARN << "Set dns, Not found local ip: " << local_ip;
 		return false;
 	}
 
@@ -662,7 +662,7 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 		0, NULL, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, 0, &dns_key, &dwDisposition);
 	if (status != ERROR_SUCCESS)
 	{
-		LOG_WARN << "Set dns, RegCreateKeyExA, code: " << status << ", message: " << error_format(status);
+		XLOG_WARN << "Set dns, RegCreateKeyExA, code: " << status << ", message: " << error_format(status);
 		return false;
 	}
 
@@ -674,14 +674,14 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 		REG_SZ, (const BYTE*)dns.c_str(), (DWORD)dns.size());
 	if (status != ERROR_SUCCESS)
 	{
-		LOG_WARN << "Set dns, RegSetValueExA, code: " << status << ", message: " << error_format(status);
+		XLOG_WARN << "Set dns, RegSetValueExA, code: " << status << ", message: " << error_format(status);
 		return false;
 	}
 
 	HMODULE dnsapi = LoadLibraryA("dnsapi.dll");
 	if (dnsapi == NULL)
 	{
-		LOG_WARN << "Set dns, LoadLibraryA Fail...";
+		XLOG_WARN << "Set dns, LoadLibraryA Fail...";
 		return false;
 	}
 
@@ -698,7 +698,7 @@ bool set_dns(const std::string& dns, std::string local_ip/* = ""*/)
 	if (!ret)
 	{
 		status  = GetLastError();
-		LOG_WARN << "Set dns, DnsFlushResolverCache, code: " << status << ", message: " << error_format(status);
+		XLOG_WARN << "Set dns, DnsFlushResolverCache, code: " << status << ", message: " << error_format(status);
 	}
 
 	return ret;
@@ -925,16 +925,16 @@ bool install_wintun()
 			auto [str, ret] = run_command(remove_driver);
 			if (!ret)
 			{
-				LOG_ERR << "Remove old wintun driver failed: " << str;
+				XLOG_ERR << "Remove old wintun driver failed: " << str;
 				return false;
 			}
 
-			LOG_DBG << "Remove old wintun driver: " << driver.version_;
+			XLOG_DBG << "Remove old wintun driver: " << driver.version_;
 		}
 		else
 		{
 			// 使用已安装的驱动.
-			LOG_DBG << "Using existing wintun driver: " << driver.version_;
+			XLOG_DBG << "Using existing wintun driver: " << driver.version_;
 			return true;
 		}
 	}
@@ -944,7 +944,7 @@ bool install_wintun()
 	auto tmppath = std::filesystem::temp_directory_path(ec);
 	if (ec)
 	{
-		LOG_ERR << "Install driver, temp_directory_path: " << ec.message();
+		XLOG_ERR << "Install driver, temp_directory_path: " << ec.message();
 		return false;
 	}
 
@@ -952,7 +952,7 @@ bool install_wintun()
 	std::filesystem::create_directories(tmppath, ec);
 	if (ec)
 	{
-		LOG_ERR << "Install driver, create_directories: " << tmppath.string() << ", ec: " << ec.message();
+		XLOG_ERR << "Install driver, create_directories: " << tmppath.string() << ", ec: " << ec.message();
 		return false;
 	}
 
@@ -977,11 +977,11 @@ bool install_wintun()
 	auto [str, ret] = run_command(install_driver);
 	if (!ret)
 	{
-		LOG_ERR << "Install wintun driver failed: " << str;
+		XLOG_ERR << "Install wintun driver failed: " << str;
 		return false;
 	}
 
-	LOG_DBG << "Install wintun driver";
+	XLOG_DBG << "Install wintun driver";
 
 	return true;
 }
@@ -1141,7 +1141,7 @@ static device_instance_id_interface get_device_instance_id_interface()
 	if (dev_info_set == INVALID_HANDLE_VALUE)
 	{
 		err = GetLastError();
-		LOG_FMT("Error [{}] opening device information set key: {}", (unsigned int)err, error_format(err));
+		XLOG_FWARN("Error [{}] opening device information set key: {}", (unsigned int)err, error_format(err));
 	}
 
 	for (DWORD i = 0;; ++i)
@@ -1313,27 +1313,27 @@ BOOL DriverInstall(HDEVINFO* DevInfoExistingAdaptersForCleanup, SP_DEVINFO_DATA_
 	if (DevInfo == INVALID_HANDLE_VALUE)
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to create empty device information set");
+		XLOG_FDBG("Failed to create empty device information set");
 		goto cleanupDriverInstallationLock;
 	}
 	SP_DEVINFO_DATA DevInfoData = { .cbSize = sizeof(DevInfoData) };
 	if (!SetupDiCreateDeviceInfoW(DevInfo, WINTUN_HWID, &GUID_DEVCLASS_NET, NULL, NULL, DICD_GENERATE_ID, &DevInfoData))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to create new device information element");
+		XLOG_FDBG("Failed to create new device information element");
 		goto cleanupDevInfo;
 	}
 	static const WCHAR Hwids[_countof(WINTUN_HWID) + 1 /*Multi-string terminator*/] = WINTUN_HWID;
 	if (!SetupDiSetDeviceRegistryPropertyW(DevInfo, &DevInfoData, SPDRP_HARDWAREID, (const BYTE*)Hwids, sizeof(Hwids)))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to set adapter hardware ID");
+		XLOG_FDBG("Failed to set adapter hardware ID");
 		goto cleanupDevInfo;
 	}
 	if (!SetupDiBuildDriverInfoList(DevInfo, &DevInfoData, SPDIT_COMPATDRIVER))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed building adapter driver info list");
+		XLOG_FDBG("Failed building adapter driver info list");
 		goto cleanupDevInfo;
 	}
 
@@ -1363,21 +1363,21 @@ BOOL DriverInstall(HDEVINFO* DevInfoExistingAdaptersForCleanup, SP_DEVINFO_DATA_
 
 	if (DriverVersion)
 	{
-		LOG_FMT("Using existing driver {}.{}",
+		XLOG_FDBG("Using existing driver {}.{}",
 			(DWORD)((DriverVersion & 0xffff000000000000) >> 48),
 			(DWORD)((DriverVersion & 0x0000ffff00000000) >> 32));
 		LastError = ERROR_SUCCESS;
 		goto cleanupExistingAdapters;
 	}
 
-	LOG_FMT("Installing driver {}.{}",
+	XLOG_FDBG("Installing driver {}.{}",
 		(DWORD)((OurDriverVersion & 0xffff000000000000) >> 48),
 		(DWORD)((OurDriverVersion & 0x0000ffff00000000) >> 32));
 	std::wstring RandomTempSubDirectory;
 	if (!ResourceCreateTemporaryDirectory(RandomTempSubDirectory))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to create temporary folder {}", RandomTempSubDirectory);
+		XLOG_FDBG("Failed to create temporary folder {}", RandomTempSubDirectory);
 		goto cleanupExistingAdapters;
 	}
 
@@ -1396,20 +1396,20 @@ BOOL DriverInstall(HDEVINFO* DevInfoExistingAdaptersForCleanup, SP_DEVINFO_DATA_
 	auto SysSource = L"wintun-amd64.sys";
 	auto InfSource = L"wintun-amd64.inf";
 
-	LOG_FMT("Extracting driver");
+	XLOG_FDBG("Extracting driver");
 	if (!ResourceCopyToFile(CatPath, CatSource) || !ResourceCopyToFile(SysPath, SysSource) ||
 		!ResourceCopyToFile(InfPath, InfSource))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Failed to extract driver");
+		XLOG_FDBG("Failed to extract driver");
 		goto cleanupDelete;
 	}
 
-	LOG_FMT("Installing driver");
+	XLOG_FDBG("Installing driver");
 	if (!SetupCopyOEMInfW(InfPath, NULL, SPOST_NONE, 0, NULL, 0, NULL, NULL))
 	{
 		LastError = GetLastError();
-		LOG_FMT("Could not install driver {} to store", InfPath);
+		XLOG_FDBG("Could not install driver {} to store", InfPath);
 	}
 
 cleanupDelete:
@@ -1638,7 +1638,7 @@ int avpn_recv_fd(std::string_view unix_path)
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if (socket_fd < 0)
 	{
-		LOG_ERR << "avpn_recv_fd, socket() failed: " << strerror(errno);
+		XLOG_ERR << "avpn_recv_fd, socket() failed: " << strerror(errno);
 		return -1;
 	}
 
@@ -1650,7 +1650,7 @@ int avpn_recv_fd(std::string_view unix_path)
 	if (connect(socket_fd, (struct sockaddr*)&address,
 		sizeof(struct sockaddr_un)) != 0)
 	{
-		LOG_ERR << "avpn_recv_fd, connect() failed: " << strerror(errno);
+		XLOG_ERR << "avpn_recv_fd, connect() failed: " << strerror(errno);
 		return -1;
 	}
 
@@ -1680,7 +1680,7 @@ int avpn_recv_fd(std::string_view unix_path)
 
 	if (recvmsg(socket_fd, &msghdr, 0) < 0)
 	{
-		LOG_ERR << "avpn_recv_fd, recvmsg() failed: " << strerror(errno);
+		XLOG_ERR << "avpn_recv_fd, recvmsg() failed: " << strerror(errno);
 		return(-1);
 	}
 

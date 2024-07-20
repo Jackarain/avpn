@@ -120,7 +120,7 @@ namespace avpn
 			if (lowest_metric == std::numeric_limits<long>::max())
 				return {};
 
-			LOG_DBG << "Default gateway: " << net.address().to_string()
+			XLOG_DBG << "Default gateway: " << net.address().to_string()
 				<< ", lowest metric: " << lowest_metric;
 
 			return { net, iface };
@@ -173,7 +173,7 @@ namespace avpn
 					TRUE);
 				if (status != NO_ERROR)
 				{
-					LOG_ERR << "NOTE: GetIpForwardTable returned error: "
+					XLOG_ERR << "NOTE: GetIpForwardTable returned error: "
 						<< error_format(status)
 						<< "  (code="
 						<< status
@@ -234,7 +234,7 @@ namespace avpn
 				&size);
 			if (status != ERROR_BUFFER_OVERFLOW)
 			{
-				LOG_ERR << "GetAdaptersInfo #1 failed (status="
+				XLOG_ERR << "GetAdaptersInfo #1 failed (status="
 					<< status << ") : "
 					<< error_format(status);
 			}
@@ -248,7 +248,7 @@ namespace avpn
 					&size);
 				if (status != NO_ERROR)
 				{
-					LOG_ERR << "GetAdaptersInfo #2 failed (status="
+					XLOG_ERR << "GetAdaptersInfo #2 failed (status="
 						<< status
 						<< ") : "
 						<< error_format(status);
@@ -271,7 +271,7 @@ namespace avpn
 				net::ip::address_v4 mask(ntohl(row->dwForwardMask));
 				net::ip::network_v4 net(gw, mask);
 
-				LOG_DBG << "Default gateway: "
+				XLOG_DBG << "Default gateway: "
 					<< gw.to_string()
 					<< ", lowest metric: "
 					<< row->dwForwardMetric1;
@@ -295,7 +295,7 @@ namespace avpn
 			ipiface.InterfaceIndex = iface_index;
 			if (family == AF_INET6 && mtu < 1280)
 			{
-				LOG_DBG << "NOTE: IPv6 interface MTU < 1280"
+				XLOG_DBG << "NOTE: IPv6 interface MTU < 1280"
 					<< " conflicts with IETF standards"
 					<< " and might not work";
 			}
@@ -312,7 +312,7 @@ namespace avpn
 
 			if (err != NO_ERROR)
 			{
-				LOG_WARN << "TUN: Setting "
+				XLOG_WARN << "TUN: Setting "
 					<< family_name << " mtu failed: "
 					<< error_format(err) << " [status="
 					<< err << " if_index="
@@ -320,7 +320,7 @@ namespace avpn
 			}
 			else
 			{
-				LOG_DBG << family_name
+				XLOG_DBG << family_name
 					<< " MTU set to " << mtu
 					<< " on interface " << iface_index
 					<< " using SetIpInterfaceEntry()";
@@ -357,7 +357,7 @@ namespace avpn
 					net::ip::address_v4 mask{ 0 };
 					auto netaddr = net::ip::network_v4(gw, mask);
 
-					LOG_DBG << "Default gateway: " << gw.to_string();
+					XLOG_DBG << "Default gateway: " << gw.to_string();
 
 					return { netaddr, "" };
 				}

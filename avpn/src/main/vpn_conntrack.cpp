@@ -64,7 +64,7 @@ namespace avpn {
 	{
 		if (ec)
 		{
-			LOG_DBG << "stream: " << stream.get()
+			XLOG_DBG << "stream: " << stream.get()
 				<< " accept error: " << ec.message();
 			return;
 		}
@@ -75,7 +75,7 @@ namespace avpn {
 	{
 		if (ec)
 		{
-			LOG_DBG << "stream: " << stream.get()
+			XLOG_DBG << "stream: " << stream.get()
 				<< " closed error: " << ec.message();
 			return;
 		}

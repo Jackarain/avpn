@@ -182,7 +182,7 @@ namespace proxy {
 
 			server->remove_client(m_connection_id);
 
-			LOG_DBG << "socks id: " << m_connection_id << ", destroyed";
+			XLOG_DBG << "socks id: " << m_connection_id << ", destroyed";
 		}
 
 	public:
@@ -203,7 +203,7 @@ namespace proxy {
 				}
 				catch (const std::exception& e)
 				{
-					LOG_ERR << "socks id: "
+					XLOG_ERR << "socks id: "
 						<< m_connection_id
 						<< ", params next_proxy error: "
 						<< m_option.next_proxy_
@@ -262,7 +262,7 @@ namespace proxy {
 					net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "socks id: " << m_connection_id
+				XLOG_ERR << "socks id: " << m_connection_id
 					<< ", read socks version: " << ec.message();
 				co_return;
 			}
@@ -273,7 +273,7 @@ namespace proxy {
 
 			if (socks_version == SOCKS_VERSION_5)
 			{
-				LOG_DBG << "connection id: " << m_connection_id
+				XLOG_DBG << "connection id: " << m_connection_id
 					<< ", socks version: " << socks_version;
 
 				co_await socks_connect_v5();
@@ -281,7 +281,7 @@ namespace proxy {
 			}
 			if (socks_version == SOCKS_VERSION_4)
 			{
-				LOG_DBG << "connection id: " << m_connection_id
+				XLOG_DBG << "connection id: " << m_connection_id
 					<< ", socks version: " << socks_version;
 
 				co_await socks_connect_v4();
@@ -317,7 +317,7 @@ namespace proxy {
 			int nmethods = read<int8_t>(p);
 			if (nmethods <= 0 || nmethods > 255)
 			{
-				LOG_ERR << "socks id: " << m_connection_id
+				XLOG_ERR << "socks id: " << m_connection_id
 					<< ", unsupported method : " << nmethods;
 				co_return;
 			}
@@ -336,7 +336,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_ERR << "socks id: " << m_connection_id
+				XLOG_ERR << "socks id: " << m_connection_id
 					<< ", read socks methods: " << ec.message();
 				co_return;
 			}
@@ -408,14 +408,14 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", write server method error : " << ec.message();
 				co_return;
 			}
 
 			if (method == SOCKS5_AUTH_UNACCEPTABLE)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", no acceptable methods for server";
 				co_return;
 			}
@@ -441,7 +441,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read client request error: " << ec.message();
 				co_return;
 			}
@@ -450,7 +450,7 @@ namespace proxy {
 			auto ver = read<int8_t>(p);
 			if (ver != SOCKS_VERSION_5)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", socks requests, invalid protocol: " << ver;
 				co_return;
 			}
@@ -486,7 +486,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read client request dst.addr error: "
 					<< ec.message();
 				co_return;
@@ -507,7 +507,7 @@ namespace proxy {
 				domain = dst_endpoint.address().to_string();
 				port = dst_endpoint.port();
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", " << m_local_socket.remote_endpoint()
 					<< " use ipv4: " << dst_endpoint;
 			}
@@ -517,7 +517,7 @@ namespace proxy {
 					domain.push_back(read<int8_t>(p));
 				port = read<uint16_t>(p);
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", " << m_local_socket.remote_endpoint()
 					<< " use domain: " << domain << ":" << port;
 			}
@@ -536,7 +536,7 @@ namespace proxy {
 				domain = dst_endpoint.address().to_string();
 				port = dst_endpoint.port();
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", " << m_local_socket.remote_endpoint()
 					<< " use ipv6: " << dst_endpoint;
 			}
@@ -585,7 +585,7 @@ namespace proxy {
 				m_client_endp.address(remote_endp.address());
 				m_client_endp.port(port);
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", udp client: " << m_client_endp;
 
 				// 开启udp socket数据接收, 并计时, 如果在一定时间内没有接收到数据包
@@ -633,7 +633,7 @@ namespace proxy {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 						<< ", write server response error: " << ec.message();
 					co_return;
 				}
@@ -706,7 +706,7 @@ namespace proxy {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 						<< ", write server response error: " << ec.message();
 					co_return;
 				}
@@ -715,7 +715,7 @@ namespace proxy {
 					co_return;
 			}
 
-			LOG_DBG << "socks id: " << m_connection_id
+			XLOG_DBG << "socks id: " << m_connection_id
 				<< ", connected start transfer";
 
 			// 发起数据传输协程.
@@ -727,12 +727,12 @@ namespace proxy {
 					transfer(m_remote_socket, m_local_socket)
 					);
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", transfer completed";
 			}
 			else
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", SOCKS_CMD_BIND and SOCKS5_CMD_UDP is unsupported";
 			}
 
@@ -872,7 +872,7 @@ namespace proxy {
 				}
 			}
 
-			LOG_DBG << "socks id: " << m_connection_id
+			XLOG_DBG << "socks id: " << m_connection_id
 				<< ", forward_udp quit";
 
 			co_return;
@@ -889,21 +889,21 @@ namespace proxy {
 				co_await m_timer.async_wait(net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 						<< ", ec: " << ec.message();
 					break;
 				}
 
 				if (--m_timeout <= 0)
 				{
-					LOG_DBG << "socks id: " << m_connection_id
+					XLOG_DBG << "socks id: " << m_connection_id
 						<< ", udp socket expired";
 					m_udp_socket.close(ec);
 					break;
 				}
 			}
 
-			LOG_DBG << "socks id: " << m_connection_id
+			XLOG_DBG << "socks id: " << m_connection_id
 				<< ", udp expired timer quit";
 
 			co_return;
@@ -932,7 +932,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read socks4 dst: " << ec.message();
 				co_return;
 			}
@@ -960,7 +960,7 @@ namespace proxy {
 				m_local_buffer, '\0', net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read socks4 userid: " << ec.message();
 				co_return;
 			}
@@ -980,7 +980,7 @@ namespace proxy {
 					m_local_buffer, '\0', net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 						<< ", read socks4a hostname: " << ec.message();
 					co_return;
 				}
@@ -992,7 +992,7 @@ namespace proxy {
 				}
 			}
 
-			LOG_DBG << "socks id: " << m_connection_id << ", use "
+			XLOG_DBG << "socks id: " << m_connection_id << ", use "
 				<< (socks4a ? "domain: " : "ip: ")
 				<< (socks4a ? hostname : dst_endpoint.address().to_string());
 
@@ -1006,10 +1006,10 @@ namespace proxy {
 
 				verify_passed = srv_opt.usrdid_ == userid;
 				if (verify_passed)
-					LOG_DBG << "socks id: " << m_connection_id
+					XLOG_DBG << "socks id: " << m_connection_id
 					<< ", auth passed";
 				else
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 					<< ", auth no pass";
 				server = {};
 			}
@@ -1039,12 +1039,12 @@ namespace proxy {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WARN << "socks id: " << m_connection_id
+					XLOG_WARN << "socks id: " << m_connection_id
 						<< ", write socks4 no allow: " << ec.message();
 					co_return;
 				}
 
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", socks4 " << userid << " auth fail";
 				co_return;
 			}
@@ -1061,7 +1061,7 @@ namespace proxy {
 						ec);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {},"
+					XLOG_FWARN("socks id: {},"
 						" connect to target {}:{} error: {}",
 						m_connection_id,
 						dst_endpoint.address().to_string(),
@@ -1073,7 +1073,7 @@ namespace proxy {
 			else
 			{
 				error_code = SOCKS4_REQUEST_REJECTED_OR_FAILED;
-				LOG_WFMT("socks id: {},"
+				XLOG_FWARN("socks id: {},"
 					" unsupported command for socks4", m_connection_id);
 			}
 
@@ -1101,7 +1101,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", write socks4 response: " << ec.message();
 				co_return;
 			}
@@ -1115,7 +1115,7 @@ namespace proxy {
 				transfer(m_remote_socket, m_local_socket)
 				);
 
-			LOG_DBG << "socks id: " << m_connection_id
+			XLOG_DBG << "socks id: " << m_connection_id
 				<< ", transfer completed";
 			co_return;
 		}
@@ -1132,7 +1132,7 @@ namespace proxy {
 			auto target_view = std::string(req.target());
 			auto pa = std::string(req[http::field::proxy_authorization]);
 
-			LOG_DBG << "http proxy id: "
+			XLOG_DBG << "http proxy id: "
 				<< m_connection_id
 				<< ", method: " << mth
 				<< ", target: " << target_view
@@ -1143,7 +1143,7 @@ namespace proxy {
 			{
 				if (pa.empty())
 				{
-					LOG_ERR << "http proxy id: "
+					XLOG_ERR << "http proxy id: "
 						<< m_connection_id
 						<< ", missing proxy auth";
 					co_return false;
@@ -1152,7 +1152,7 @@ namespace proxy {
 				auto pos = pa.find(' ');
 				if (pos == std::string::npos)
 				{
-					LOG_ERR << "http proxy id: "
+					XLOG_ERR << "http proxy id: "
 						<< m_connection_id
 						<< ", illegal proxy type: "
 						<< pa;
@@ -1164,7 +1164,7 @@ namespace proxy {
 
 				if (type != "Basic")
 				{
-					LOG_ERR << "http proxy id: "
+					XLOG_ERR << "http proxy id: "
 						<< m_connection_id
 						<< ", illegal proxy type: "
 						<< pa;
@@ -1191,7 +1191,7 @@ namespace proxy {
 				auto client = endp.address().to_string();
 				client += ":" + std::to_string(endp.port());
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", auth: " << m_option.usrdid_
 					<< " := " << uname
 					<< ", passwd: " << m_option.passwd_
@@ -1205,7 +1205,7 @@ namespace proxy {
 			auto pos = target_view.find(':');
 			if (pos == std::string::npos)
 			{
-				LOG_ERR  << "http proxy id: "
+				XLOG_ERR << "http proxy id: "
 					<< m_connection_id
 					<< ", illegal target: "
 					<< target_view;
@@ -1219,7 +1219,7 @@ namespace proxy {
 				static_cast<uint16_t>(std::atol(port.c_str())), ec, true);
 			if (ec)
 			{
-				LOG_WFMT("http proxy id: {},"
+				XLOG_FWARN("http proxy id: {},"
 					" connect to target {}:{} error: {}",
 					m_connection_id,
 					host,
@@ -1238,7 +1238,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WFMT("http proxy id: {},"
+				XLOG_FWARN("http proxy id: {},"
 					" async write response {}:{} error: {}",
 					m_connection_id,
 					host,
@@ -1253,7 +1253,7 @@ namespace proxy {
 				transfer(m_remote_socket, m_local_socket)
 				);
 
-			LOG_DBG << "http proxy id: " << m_connection_id
+			XLOG_DBG << "http proxy id: " << m_connection_id
 				<< ", transfer completed";
 
 			co_return true;
@@ -1276,7 +1276,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read client username/passwd error: " << ec.message();
 				co_return false;
 			}
@@ -1285,14 +1285,14 @@ namespace proxy {
 			int auth_version = read<int8_t>(p);
 			if (auth_version != 1)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", socks negotiation, unsupported socks5 protocol";
 				co_return false;
 			}
 			int name_length = read<uint8_t>(p);
 			if (name_length <= 0 || name_length > 255)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", socks negotiation, invalid name length";
 				co_return false;
 			}
@@ -1311,7 +1311,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read client username error: " << ec.message();
 				co_return false;
 			}
@@ -1325,7 +1325,7 @@ namespace proxy {
 			int passwd_len = read<uint8_t>(p);
 			if (passwd_len <= 0 || passwd_len > 255)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", socks negotiation, invalid passwd length";
 				co_return false;
 			}
@@ -1343,7 +1343,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", read client passwd error: " << ec.message();
 				co_return false;
 			}
@@ -1371,7 +1371,7 @@ namespace proxy {
 					srv_opt.usrdid_ == uname && srv_opt.passwd_ == passwd;
 				server.reset();
 
-				LOG_DBG << "socks id: " << m_connection_id
+				XLOG_DBG << "socks id: " << m_connection_id
 					<< ", auth: " << srv_opt.usrdid_
 					<< " := " << uname
 					<< ", passwd: " << srv_opt.passwd_
@@ -1404,7 +1404,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "socks id: " << m_connection_id
+				XLOG_WARN << "socks id: " << m_connection_id
 					<< ", server write status error: " << ec.message();
 				co_return false;
 			}
@@ -1488,7 +1488,7 @@ namespace proxy {
 					proxy_host, proxy_port, net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {},"
+					XLOG_FWARN("socks id: {},"
 						" resolver to next proxy {}:{} error: {}",
 						m_connection_id,
 						std::string(m_next_proxy->host()),
@@ -1502,7 +1502,7 @@ namespace proxy {
 					targets, check_condition, net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {},"
+					XLOG_FWARN("socks id: {},"
 						" connect to next proxy {}:{} error: {}",
 						m_connection_id,
 						std::string(m_next_proxy->host()),
@@ -1522,7 +1522,7 @@ namespace proxy {
 							m_option.ssl_cert_path_, ec);
 						if (ec)
 						{
-							LOG_WFMT("socks id: {}, "
+							XLOG_FWARN("socks id: {}, "
 								"load cert path: {}, "
 								"error: {}",
 								m_connection_id,
@@ -1553,7 +1553,7 @@ namespace proxy {
 							ec);
 						if (ec)
 						{
-							LOG_WFMT("proxy id: {},"
+							XLOG_FWARN("proxy id: {},"
 								" add_certificate_authority error: {}",
 								m_connection_id, ec.message());
 						}
@@ -1562,7 +1562,7 @@ namespace proxy {
 							net::ssl::rfc2818_verification(proxy_host), ec);
 						if (ec)
 						{
-							LOG_WFMT("proxy id: {},"
+							XLOG_FWARN("proxy id: {},"
 								" set_verify_callback error: {}",
 								m_connection_id, ec.message());
 						}
@@ -1577,7 +1577,7 @@ namespace proxy {
 						if (!SSL_set_tlsext_host_name(
 							ssl_socket.native_handle(), proxy_host.c_str()))
 						{
-							LOG_WFMT("proxy id: {},"
+							XLOG_FWARN("proxy id: {},"
 							" SSL_set_tlsext_host_name error: {}",
 								m_connection_id, ::ERR_get_error());
 						}
@@ -1588,12 +1588,12 @@ namespace proxy {
 							net_awaitable[ec]);
 						if (ec)
 						{
-							LOG_WFMT("proxy id: {},"
+							XLOG_FWARN("proxy id: {},"
 								" ssl protocol handshake error: {}",
 								m_connection_id, ec.message());
 						}
 
-						LOG_FMT("proxy id: {}, ssl handshake: {}",
+						XLOG_FDBG("proxy id: {}, ssl handshake: {}",
 							m_connection_id,
 							proxy_host);
 
@@ -1643,7 +1643,7 @@ namespace proxy {
 
 				if (ec)
 				{
-					LOG_WFMT("{} id: {},"
+					XLOG_FWARN("{} id: {},"
 						" connect to next host {}:{} error: {}",
 						std::string(scheme),
 						m_connection_id,
@@ -1665,7 +1665,7 @@ namespace proxy {
 						net_awaitable[ec]);
 					if (ec)
 					{
-						LOG_WARN << "socks id: " << m_connection_id
+						XLOG_WARN << "socks id: " << m_connection_id
 							<< ", resolve: " << target_host
 							<< ", error: " << ec.message();
 
@@ -1688,7 +1688,7 @@ namespace proxy {
 					targets, check_condition, net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_WFMT("socks id: {}, connect to target {}:{} error: {}",
+					XLOG_FWARN("socks id: {}, connect to target {}:{} error: {}",
 						m_connection_id,
 						target_host,
 						target_port,
@@ -1734,7 +1734,7 @@ namespace proxy {
 					net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_DBG << "start_web_connect, id: "
+					XLOG_DBG << "start_web_connect, id: "
 						<< m_connection_id
 						<< ", async_read_header: "
 						<< ec.message();
@@ -1753,7 +1753,7 @@ namespace proxy {
 						net_awaitable[ec]);
 					if (ec)
 					{
-						LOG_DBG << "start_web_connect, id: "
+						XLOG_DBG << "start_web_connect, id: "
 							<< m_connection_id
 							<< ", expect async_write: "
 							<< ec.message();
@@ -1882,7 +1882,7 @@ namespace proxy {
 					sr,
 					net_awaitable[ec]);
 				if (ec)
-					LOG_WARN << "start_web_connect, id: "
+					XLOG_WARN << "start_web_connect, id: "
 					<< m_connection_id
 					<< ", err: "
 					<< ec.message();
@@ -2006,7 +2006,7 @@ namespace proxy {
 				sr,
 				net_awaitable[ec]);
 			if (ec)
-				LOG_WARN << "start_web_connect, id: "
+				XLOG_WARN << "start_web_connect, id: "
 				<< m_connection_id
 				<< ", err: "
 				<< ec.message();
@@ -2105,7 +2105,7 @@ namespace proxy {
 
 			if (filename.empty())
 			{
-				LOG_WARN << "on_http_get, id: "
+				XLOG_WARN << "on_http_get, id: "
 					<< m_connection_id
 					<< ", bad request filename";
 
@@ -2129,7 +2129,7 @@ namespace proxy {
 
 			if (!fs::exists(path))
 			{
-				LOG_WARN << "on_http_get, id: "
+				XLOG_WARN << "on_http_get, id: "
 					<< m_connection_id
 					<< ", "
 					<< filename
@@ -2148,7 +2148,7 @@ namespace proxy {
 
 			size_t content_length = fs::file_size(path);
 
-			LOG_DBG << "on_http_get, id: "
+			XLOG_DBG << "on_http_get, id: "
 				<< m_connection_id
 				<< ", file: "
 				<< filename
@@ -2233,7 +2233,7 @@ namespace proxy {
 				net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "on_http_get, id: "
+				XLOG_WARN << "on_http_get, id: "
 					<< m_connection_id
 					<< ", async_write_header: "
 					<< ec.message();
@@ -2277,7 +2277,7 @@ namespace proxy {
 				}
 				if (ec)
 				{
-					LOG_WARN << "on_http_get, id: "
+					XLOG_WARN << "on_http_get, id: "
 						<< m_connection_id
 						<< ", async_write: "
 						<< ec.message();
@@ -2285,7 +2285,7 @@ namespace proxy {
 				}
 			} while (!sr.is_done());
 
-			LOG_DBG << "on_http_get, id: "
+			XLOG_DBG << "on_http_get, id: "
 				<< m_connection_id
 				<< ", request: "
 				<< filename
@@ -2312,7 +2312,7 @@ namespace proxy {
 			co_await http::async_write(m_local_socket, sr, net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "default_http_route, id: "
+				XLOG_WARN << "default_http_route, id: "
 					<< m_connection_id
 					<< ", err: "
 					<< ec.message();
@@ -2500,7 +2500,7 @@ Connection: close
 					socket, net_awaitable[error]);
 				if (error)
 				{
-					LOG_ERR << "start_proxy_listen"
+					XLOG_ERR << "start_proxy_listen"
 						", async_accept: " << error.message();
 
 					if (error == net::error::operation_aborted ||
@@ -2532,7 +2532,7 @@ Connection: close
 				auto client = endp.address().to_string();
 				client += ":" + std::to_string(endp.port());
 
-				LOG_DBG << "start client incoming id: "
+				XLOG_DBG << "start client incoming id: "
 					<< connection_id
 					<< ", client: "
 					<< client;
@@ -2542,7 +2542,7 @@ Connection: close
 					tcp::socket::wait_read, net_awaitable[error]);
 				if (error)
 				{
-					LOG_WARN << "socket.async_wait error: " << error.message();
+					XLOG_WARN << "socket.async_wait error: " << error.message();
 					continue;
 				}
 
@@ -2559,7 +2559,7 @@ Connection: close
 #endif
 				if (ret <= 0)
 				{
-					LOG_WARN << "start_tcp_listen,"
+					XLOG_WARN << "start_tcp_listen,"
 						" peek message return: " << ret;
 					continue;
 				}
@@ -2567,7 +2567,7 @@ Connection: close
 				// socks4/5 protocol.
 				if (detect[0] == 0x05 || detect[0] == 0x04)
 				{
-					LOG_DBG << "socks protocol:"
+					XLOG_DBG << "socks protocol:"
 						" connection id: " << connection_id;
 
 					auto new_session =
@@ -2581,7 +2581,7 @@ Connection: close
 				}
 				else if (detect[0] == 0x16) // socks5 with ssl protocol.
 				{
-					LOG_DBG << "ssl protocol"
+					XLOG_DBG << "ssl protocol"
 						", connection id: " << connection_id;
 
 					// instantiate socks stream with ssl context.
@@ -2598,7 +2598,7 @@ Connection: close
 						net_awaitable[error]);
 					if (error)
 					{
-						LOG_WARN << "ssl protocol handshake error: "
+						XLOG_WARN << "ssl protocol handshake error: "
 							<< error.message();
 						continue;
 					}
@@ -2615,7 +2615,7 @@ Connection: close
 					|| detect[0] == 0x50
 					|| detect[0] == 0x43)
 				{
-					LOG_DBG << "http protocol"
+					XLOG_DBG << "http protocol"
 						", connection id: " << connection_id;
 
 					auto new_session =
@@ -2628,7 +2628,7 @@ Connection: close
 				}
 			}
 
-			LOG_WARN << "start_proxy_listen exit ...";
+			XLOG_WARN << "start_proxy_listen exit ...";
 			co_return;
 		}
 

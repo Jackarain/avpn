@@ -88,7 +88,7 @@ namespace avpn {
 		m_signal.async_wait(
 			[this](const boost::system::error_code&, int) mutable
 			{
-				LOG_DBG << "terminator is called!";
+				XLOG_DBG << "terminator is called!";
 				stop();
 			});
 
@@ -96,7 +96,7 @@ namespace avpn {
 			[this]() mutable -> net::awaitable<void>
 			{
 				co_await start_connect();
-				LOG_DBG << "controller quit...";
+				XLOG_DBG << "controller quit...";
 				co_return;
 			}, net::detached);
 	}
@@ -139,7 +139,7 @@ namespace avpn {
 		co_await sock.async_connect(endp, net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect"
+			XLOG_ERR << "controller::start_connect"
 				<< ", connect: " << m_config.controller_
 				<< ", error: " << ec.message();
 
@@ -148,7 +148,7 @@ namespace avpn {
 			co_return;
 		}
 
-		LOG_DBG << "controller::start_connect"
+		XLOG_DBG << "controller::start_connect"
 			<< ", connect " << real_contorller
 			<< " successfully!";
 
@@ -164,7 +164,7 @@ namespace avpn {
 			controller_server_host, "/", net_awaitable[ec]);
 		if (ec)
 		{
-			LOG_ERR << "controller::start_connect"
+			XLOG_ERR << "controller::start_connect"
 				", handshake: " << ec.message();
 
 			// 全部退出.
@@ -213,13 +213,13 @@ namespace avpn {
 			auto bytes = co_await stream.async_read(buffer, net_awaitable[ec]);
 			if (ec == beast::websocket::error::closed)
 			{
-				LOG_DBG << "controller::start_client_read, vpn was closed";
+				XLOG_DBG << "controller::start_client_read, vpn was closed";
 				break;
 			}
 
 			if (ec)
 			{
-				LOG_ERR << "start_client_read, read error: " << ec.message();
+				XLOG_ERR << "start_client_read, read error: " << ec.message();
 				break;
 			}
 
@@ -241,7 +241,7 @@ namespace avpn {
 
 				if (!ret)
 				{
-					LOG_WARN << "start_client_read, regex match faild: "
+					XLOG_WARN << "start_client_read, regex match faild: "
 						<< std::string_view(bufptr, bytes);
 					break;
 				}
@@ -294,27 +294,27 @@ namespace avpn {
 		case controller_type::ct_stop:
 			if (!m_start)
 			{
-				LOG_DBG << "start_client_read, do vpn already stoped";
+				XLOG_DBG << "start_client_read, do vpn already stoped";
 				break;
 			}
-			LOG_DBG << "start_client_read, do vpn stop";
+			XLOG_DBG << "start_client_read, do vpn stop";
 			m_service.stop();
 			m_start = false;
 			break;
 		case controller_type::ct_start:
 			if (m_start)
 			{
-				LOG_WARN << "start_client_read, do vpn already started";
+				XLOG_WARN << "start_client_read, do vpn already started";
 				break;
 			}
-			LOG_DBG << "start_client_read, do vpn start";
+			XLOG_DBG << "start_client_read, do vpn start";
 			m_service.start();
 			m_start = true;
 			break;
 		case controller_type::ct_speed:
 			if (!m_start)
 				break;
-			LOG_DBG << "start_client_read, "
+			XLOG_DBG << "start_client_read, "
 				<< "do vpn speed: " << m_service.upload_rate()
 				<< ", " << m_service.download_rate();
 			{
@@ -327,7 +327,7 @@ namespace avpn {
 					net::buffer(str), net_awaitable[ec]);
 				if (ec)
 				{
-					LOG_ERR << "start_client_read, "
+					XLOG_ERR << "start_client_read, "
 						<< "ct_speed async_write error: " << ec.message();
 					co_return false;
 				}
@@ -372,11 +372,11 @@ namespace avpn {
 
 				if (!m_start)
 				{
-					LOG_DBG << "on_json_rpc, do vpn already stoped";
+					XLOG_DBG << "on_json_rpc, do vpn already stoped";
 					co_return true;
 				}
 
-				LOG_DBG << "on_json_rpc, do vpn stop";
+				XLOG_DBG << "on_json_rpc, do vpn stop";
 				m_service.stop();
 				m_start = false;
 
@@ -395,11 +395,11 @@ namespace avpn {
 
 				if (m_start)
 				{
-					LOG_WARN << "on_json_rpc, do vpn already started";
+					XLOG_WARN << "on_json_rpc, do vpn already started";
 					co_return true;
 				}
 
-				LOG_DBG << "on_json_rpc, do vpn start";
+				XLOG_DBG << "on_json_rpc, do vpn start";
 				m_service.start();
 				m_start = true;
 			}
@@ -415,7 +415,7 @@ namespace avpn {
 					drate = 0;
 				}
 
-				LOG_DBG << "on_json_rpc, "
+				XLOG_DBG << "on_json_rpc, "
 					<< "do vpn speed, upload: " << urate
 					<< ", download: " << drate;
 
@@ -431,7 +431,7 @@ namespace avpn {
 		}
 		catch (const std::exception& e)
 		{
-			LOG_DBG << "jsonrpc exception: " << e.what();
+			XLOG_DBG << "jsonrpc exception: " << e.what();
 		}
 
 		co_return false;

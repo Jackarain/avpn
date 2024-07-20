@@ -176,14 +176,14 @@ std::string version_info()
 void print_args(int argc, char** argv,
 	const po::variables_map& vm)
 {
-	LOG_INFO << "Current directory: "
+	XLOG_INFO << "Current directory: "
 		<< std::filesystem::current_path().string();
 
 	if (!vm.count("config"))
 	{
 		std::vector<std::string> print_args;
 		print_args.assign(argv, argv + argc);
-		LOG_INFO << "Run: "
+		XLOG_INFO << "Run: "
 			<< boost::algorithm::join(print_args, " ");
 
 		return;
@@ -197,7 +197,7 @@ void print_args(int argc, char** argv,
 		auto& var = cfg.second.value();
 		try {
 			const auto& s = boost::any_cast<std::string>(var);
-			LOG_INFO << cfg.first
+			XLOG_INFO << cfg.first
 				<< " = "
 				<< s;
 			continue;
@@ -206,7 +206,7 @@ void print_args(int argc, char** argv,
 
 		try {
 			const auto& v = boost::any_cast<bool>(var);
-			LOG_INFO << cfg.first
+			XLOG_INFO << cfg.first
 				<< " = "
 				<< v;
 			continue;
@@ -215,7 +215,7 @@ void print_args(int argc, char** argv,
 
 		try {
 			const auto& v = boost::any_cast<int>(var);
-			LOG_INFO << cfg.first
+			XLOG_INFO << cfg.first
 				<< " = "
 				<< v;
 			continue;
@@ -368,8 +368,8 @@ int main(int argc, char** argv)
 
 		if (disable_logs)
 		{
-			util::toggle_logging();
-			util::toggle_write_logging(true);
+			xlogger::turnoff_logging();
+			xlogger::toggle_write_logging(true);
 		}
 
 		// 生成私钥.
@@ -411,14 +411,14 @@ int main(int argc, char** argv)
 			po::notify(vm);
 
 			if (disable_logs)
-				util::toggle_write_logging(true);
+				xlogger::toggle_write_logging(true);
 		}
 
 		// 设置日志输出目录.
-		util::init_logging(log_directory);
+		xlogger::init_logging(log_directory);
 
 		// 输出版本信息.
-		LOG_FILE << version_info();
+		XLOG_FILE << version_info();
 
 		// 帮助输出.
 		if (vm.count("help") || argc == 1)
@@ -431,7 +431,7 @@ int main(int argc, char** argv)
 		}
 
 		if (!config.empty())
-			LOG_DBG << "Load config file: " << config;
+			XLOG_DBG << "Load config file: " << config;
 
 		// 输出参数信息.
 		print_args(argc, argv, vm);
@@ -482,7 +482,7 @@ int main(int argc, char** argv)
 			cfg.utun_fd_  = avpn_recv_fd(utun);
 			if (cfg.utun_fd_ == -1)
 			{
-				LOG_ERR << "Recv utun fd from: " << utun << " failed!";
+				XLOG_ERR << "Recv utun fd from: " << utun << " failed!";
 				return EXIT_FAILURE;
 			}
 		}
@@ -491,7 +491,7 @@ int main(int argc, char** argv)
 			cfg.ptun_fd_ = avpn_recv_fd(ptun);
 			if (cfg.ptun_fd_ == -1)
 			{
-				LOG_ERR << "Recv ptun fd from: " << ptun << " failed!";
+				XLOG_ERR << "Recv ptun fd from: " << ptun << " failed!";
 				return EXIT_FAILURE;
 			}
 		}
@@ -533,7 +533,7 @@ int main(int argc, char** argv)
 
 	if (data_shards + parity_shards > 256)
 	{
-		LOG_ERR << "Sum of data and parity shards cannot exceed 256";
+		XLOG_ERR << "Sum of data and parity shards cannot exceed 256";
 		return EXIT_FAILURE;
 	}
 	if (identity == "server")
@@ -542,7 +542,7 @@ int main(int argc, char** argv)
 		cfg.identity_ = avpn::Identity::avpn_client;
 	else
 	{
-		LOG_DBG << "Identity not set, default is client.";
+		XLOG_DBG << "Identity not set, default is client.";
 		cfg.identity_ = avpn::Identity::avpn_client;
 	}
 
@@ -550,7 +550,7 @@ int main(int argc, char** argv)
 	{
 		if (cfg.upstreams_.empty())
 		{
-			LOG_ERR << "Missing upstream...";
+			XLOG_ERR << "Missing upstream...";
 			return EXIT_FAILURE;
 		}
 
@@ -579,7 +579,7 @@ int main(int argc, char** argv)
 		// 重新计算packet及mtu等大小.
 		if (!avpn::recompute_mtu(mtu_size, ipv6))
 		{
-			LOG_ERR << "MTU mismatch";
+			XLOG_ERR << "MTU mismatch";
 			return EXIT_FAILURE;
 		}
 	}
@@ -587,7 +587,7 @@ int main(int argc, char** argv)
 	{
 		if (!avpn::recompute_mtu(mtu_size, ipv6))
 		{
-			LOG_ERR << "MTU mismatch";
+			XLOG_ERR << "MTU mismatch";
 			return EXIT_FAILURE;
 		}
 	}
@@ -623,7 +623,7 @@ int main(int argc, char** argv)
 		make_listen_endpoint(socks, endp, ec);
 		if (ec)
 		{
-			LOG_WARN << "Socks server param: "
+			XLOG_WARN << "Socks server param: "
 				<< socks << " listen: " << ec.message();
 			continue;
 		}
@@ -643,7 +643,7 @@ int main(int argc, char** argv)
 			// 如果是无效的地址则忽略.
 			if (!urls::url_view().parse(socks_next_proxy))
 			{
-				LOG_WARN << "Next socks server: "
+				XLOG_WARN << "Next socks server: "
 					<< socks_next_proxy << " invalid";
 				opt.next_proxy_.clear();
 			}
@@ -679,7 +679,7 @@ int main(int argc, char** argv)
 			[&ioc, &srv, &socks_servers, &terminator_signal]
 			(const boost::system::error_code&, int sig) mutable
 			{
-				LOG_DBG << "terminator is called!";
+				XLOG_DBG << "terminator is called!";
 				terminator_signal.remove(sig);
 
 				for (auto& s : socks_servers)
@@ -704,7 +704,7 @@ int main(int argc, char** argv)
 		io_run();
 	}
 
-	LOG_DBG << "avpn system exiting...";
+	XLOG_DBG << "avpn system exiting...";
 	return EXIT_SUCCESS;
 }
 

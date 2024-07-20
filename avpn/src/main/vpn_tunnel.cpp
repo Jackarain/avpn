@@ -114,7 +114,7 @@ namespace avpn {
 			return;  default:
 					if (abort_ || pkt_qe_.empty())
 					{
-						LOG_ERR << "write_packet_qe"
+						XLOG_ERR << "write_packet_qe"
 							<< ", error: " << error.message()
 							<< ", pkt_qe: " << pkt_qe_.size()
 							<< ", abort: " << abort_.value;
@@ -123,7 +123,7 @@ namespace avpn {
 					pkt_qe_.pop_front();
 					if (error)
 					{
-						LOG_ERR << "write_packet_qe"
+						XLOG_ERR << "write_packet_qe"
 							<< ", error: " << error.message();
 						return;
 					}
@@ -276,7 +276,7 @@ namespace avpn {
 		if (serivce)
 			serivce->remove_tunnel(m_self_vaddr);
 
-		LOG_DBG << "vpn_tunnel::~vpn_tunnel, this: " << this;
+		XLOG_DBG << "vpn_tunnel::~vpn_tunnel, this: " << this;
 	}
 
 	void vpn_tunnel::start_tunnel(uint8_t ds, uint8_t ps)
@@ -284,7 +284,7 @@ namespace avpn {
 		if (m_abort || !m_abort)
 			return;
 
-		LOG_DBG << "start tunnel: " << this
+		XLOG_DBG << "start tunnel: " << this
 			<< ", ds: " << ds
 			<< ", ps : " << ps;
 
@@ -309,7 +309,7 @@ namespace avpn {
 		net::co_spawn(m_io_context,
 			[this, self]() mutable -> net::awaitable<void>
 			{
-				LOG_INFO << "closing vpn_tunnel: " << this
+				XLOG_INFO << "closing vpn_tunnel: " << this
 					<< ", thread: " << std::this_thread::get_id();
 
 				m_abort = true;
@@ -416,7 +416,7 @@ namespace avpn {
 
 	void vpn_tunnel::start_tcp_loop()
 	{
-		LOG_DBG << "tunnel: " << this
+		XLOG_DBG << "tunnel: " << this
 			<< ", start tcp loop"
 			<< (m_tcp_connect_ready ?
 				", already running" : "");
@@ -479,7 +479,7 @@ namespace avpn {
 		if (m_ipproto == Proto::avpn_unknown)
 		{
 			m_ipproto = proto;
-			LOG_DBG << "tunnel: " << this << ", Ipproto update: "
+			XLOG_DBG << "tunnel: " << this << ", Ipproto update: "
 				<< static_cast<int>(m_ipproto);
 			return;
 		}
@@ -487,13 +487,13 @@ namespace avpn {
 		if (m_ipproto == Proto::avpn_udp && proto == Proto::avpn_tcp)
 		{
 			m_ipproto = Proto::avpn_mix;
-			LOG_DBG << "tunnel: " << this << ", Ipproto update: "
+			XLOG_DBG << "tunnel: " << this << ", Ipproto update: "
 				<< static_cast<int>(m_ipproto);
 		}
 		if (m_ipproto == Proto::avpn_tcp && proto == Proto::avpn_udp)
 		{
 			m_ipproto = Proto::avpn_mix;;
-			LOG_DBG << "tunnel: " << this << ", Ipproto update: "
+			XLOG_DBG << "tunnel: " << this << ", Ipproto update: "
 				<< static_cast<int>(m_ipproto);
 		}
 	}
@@ -518,7 +518,7 @@ namespace avpn {
 		[[maybe_unused]] auto self = shared_from_this();
 		int tick_interval = 0;
 
-		LOG_DBG << "Enter vpn_tunnel::tick: " << this
+		XLOG_DBG << "Enter vpn_tunnel::tick: " << this
 			<< ", thread: " << std::this_thread::get_id();
 
 		while (!m_abort.value)
@@ -529,7 +529,7 @@ namespace avpn {
 			co_await m_tick_timer.async_wait(net_awaitable[ec]);
 			if (ec)
 			{
-				LOG_WARN << "vpn_tunnel::tick, ec: " << ec.message();
+				XLOG_WARN << "vpn_tunnel::tick, ec: " << ec.message();
 				break;
 			}
 
@@ -550,7 +550,7 @@ namespace avpn {
 				auto duration = std::chrono::nanoseconds(m_rtt);
 				auto t = std::chrono::duration_cast
 					<std::chrono::milliseconds>(duration);
-				LOG_IFMT("{}, {}c, {}w, {}e, {}p, {}r"
+				XLOG_FINFO("{}, {}c, {}w, {}e, {}p, {}r"
 					", {}tx, {}rx, {}d, {}u, {}rtt",
 					static_cast<const void*>(this),
 					m_num_corrected,
@@ -582,7 +582,7 @@ namespace avpn {
 			}
 		}
 
-		LOG_WARN << "Quit vpn_tunnel::tick " << this;
+		XLOG_WARN << "Quit vpn_tunnel::tick " << this;
 		co_return;
 	}
 
@@ -685,7 +685,7 @@ namespace avpn {
 			if (timeout > std::chrono::seconds(1))
 			{
 				last_time = cur_time;
-				LOG_WARN << "tcp_write_packet, tcp socket not ready";
+				XLOG_WARN << "tcp_write_packet, tcp socket not ready";
 			}
 
 			return;
@@ -751,7 +751,7 @@ namespace avpn {
 						return;
 					}
 
-					LOG_ERR << "read_packet_op, error: " << ec.message();
+					XLOG_ERR << "read_packet_op, error: " << ec.message();
 
 					// tcp出错, 状态设置为未就绪.
 					m_tcp_connect_ready = false;
@@ -761,7 +761,7 @@ namespace avpn {
 					scoped_exit se([&]() mutable
 						{
 							// 输出日志信息.
-							LOG_WARN << "Quit tcp loop: "
+							XLOG_WARN << "Quit tcp loop: "
 								<< this << suffix;
 						});
 
@@ -966,7 +966,7 @@ namespace avpn {
 			if (!endp)
 			{
 				m_num_incorrect++;
-				LOG_ERR << this
+				XLOG_ERR << this
 					<< ", incorrect pkt"
 					<< ", index: " << pkt.index_;
 				return;

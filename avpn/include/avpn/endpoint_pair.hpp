@@ -303,7 +303,7 @@ namespace std
 	};
 }
 
-namespace util {
+namespace xlogger {
 
 	inline logger___&
 	operator<<(logger___& log, const avpn::endpoint_pair& endp)

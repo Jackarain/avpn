@@ -39,20 +39,20 @@ net::io_context ioc2;
 struct params
 {
 	params() {
-		LOG_DBG << "params(): " << this;
+		XLOG_DBG << "params(): " << this;
 	}
 	~params() {
-		LOG_DBG << "~params(): " << this;
+		XLOG_DBG << "~params(): " << this;
 	}
 	params(params&) {
-		LOG_DBG << "params(params&): " << this;
+		XLOG_DBG << "params(params&): " << this;
 	}
 	params(params&&) {
-		LOG_DBG << "params(params&&): " << this;
+		XLOG_DBG << "params(params&&): " << this;
 	}
 
 	void print() {
-		LOG_DBG << "print: " << this;
+		XLOG_DBG << "print: " << this;
 	}
 };
 
@@ -60,9 +60,9 @@ struct params
 net::awaitable<void>
 test3(params p)
 {
-	LOG_DBG << "##############1: " << std::this_thread::get_id();
+	XLOG_DBG << "##############1: " << std::this_thread::get_id();
 	co_await net::this_coro::executor;
-	LOG_DBG << "##############2: " << std::this_thread::get_id();
+	XLOG_DBG << "##############2: " << std::this_thread::get_id();
 
 	p.print();
 
@@ -72,11 +72,11 @@ test3(params p)
 net::awaitable<void>
 test2(params p)
 {
-	LOG_DBG << "*************1: " << std::this_thread::get_id();
+	XLOG_DBG << "*************1: " << std::this_thread::get_id();
 	co_await net::this_coro::executor;
-	LOG_DBG << "*************2: " << std::this_thread::get_id();
+	XLOG_DBG << "*************2: " << std::this_thread::get_id();
 	net::co_spawn(ioc2, test3(std::move(p)), net::detached);
-	LOG_DBG << "*************3: " << std::this_thread::get_id();
+	XLOG_DBG << "*************3: " << std::this_thread::get_id();
 	co_return;
 }
 
@@ -84,9 +84,9 @@ net::awaitable<void>
 test(params p)
 {
 	p.print();
-	LOG_DBG << ".............1: " << std::this_thread::get_id();
+	XLOG_DBG << ".............1: " << std::this_thread::get_id();
 	co_await test2(std::move(p));
-	LOG_DBG << ".............2: " << std::this_thread::get_id();
+	XLOG_DBG << ".............2: " << std::this_thread::get_id();
 	// net::co_spawn(ioc, test2(std::move(p)), net::detached);
 
 	co_return;
@@ -97,7 +97,7 @@ net::awaitable<intptr>
 async_make_tunnel(int i)
 {
 	auto ptr = std::make_shared<int>(i);
-	LOG_DBG << i;
+	XLOG_DBG << i;
 	co_return ptr;
 }
 
@@ -201,8 +201,8 @@ BOOST_AUTO_TEST_CASE(dh2_keyexchange_test)
 		auto s1 = to_hex_prefixed(shkey1);
 		auto s2 = to_hex_prefixed(shkey2);
 
-		LOG_DBG << "unauth: " << s1;
-		LOG_DBG << "unauth: " << s2;
+		XLOG_DBG << "unauth: " << s1;
+		XLOG_DBG << "unauth: " << s2;
 	}
 
 	{
@@ -214,8 +214,8 @@ BOOST_AUTO_TEST_CASE(dh2_keyexchange_test)
 		auto s1 = to_hex_prefixed(shkey1);
 		auto s2 = to_hex_prefixed(shkey2);
 
-		LOG_DBG << "authed: " << s1;
-		LOG_DBG << "authed: " << s2;
+		XLOG_DBG << "authed: " << s1;
+		XLOG_DBG << "authed: " << s2;
 	}
 }
 

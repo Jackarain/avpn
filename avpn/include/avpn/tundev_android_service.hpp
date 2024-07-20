@@ -103,7 +103,7 @@ namespace avpn
 				return false;
 			}
 
-			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " opened";
+			XLOG_DBG << "TUN / TAP device " << ifr.ifr_name << " opened";
 
 			m_if_index = if_nametoindex(ifr.ifr_name);
 
@@ -189,7 +189,7 @@ namespace avpn
 
 			m_tuntap_fd = fd;
 
-			LOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successd, " << fd;
+			XLOG_DBG << "TUN / TAP device " << ifr.ifr_name << " successd, " << fd;
 			return true;
 		}
 
