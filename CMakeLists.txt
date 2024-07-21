@@ -175,7 +175,7 @@ if (MSVC)
 	add_definitions(
 		-DWIN32_LEAN_AND_MEAN
 		-D_WIN32_WINNT=0x0601
-		#-DNOMINMAX
+		-DNOMINMAX
 		-DUNICODE
 		-D_UNICODE
 	)
@@ -624,6 +624,15 @@ add_subdirectory(avpn)
 ################################################################################
 
 if (ENABLE_BUILD_TESTS)
+	link_libraries(
+		boost_prg_exec_monitor
+		boost_test_exec_monitor
+		boost_unit_test_framework
+
+		boost_included_prg_exec_monitor
+		boost_included_test_exec_monitor
+		boost_included_unit_test_framework
+	)
 	enable_testing()
 	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
 	add_subdirectory(unittests)
