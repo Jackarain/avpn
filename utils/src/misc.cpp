@@ -71,7 +71,6 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
-#include <boost/format.hpp>
 #include <boost/algorithm/string/regex.hpp>
 #include <boost/algorithm/string/trim.hpp>
 

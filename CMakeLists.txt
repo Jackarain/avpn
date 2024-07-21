@@ -187,11 +187,12 @@ if (MSVC)
 		-DBOOST_USE_WINAPI_VERSION=0x0601
 	)
 
-	add_compile_options(/utf-8)
-	add_compile_options(/bigobj)
-	add_compile_options(/MP)
-	add_compile_options(/Zc:__cplusplus)
+	#add_compile_options(/utf-8)
+	#add_compile_options(/bigobj)
+	#add_compile_options(/MP)
+	#add_compile_options(/Zc:__cplusplus)
 
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
 	message(STATUS "Set stack size: 100000000 bytes")
 	add_link_options(/STACK:100000000)
 	#set(CMAKE_CXX_STACK_SIZE "100000000")
@@ -341,6 +342,7 @@ set(Boost_USE_STATIC_RUNTIME ON)
 
 #独立编译asio时, 必须要在使用者项目定义, 否则会将
 #定义BOOST_ASIO_HEADER_ONLY, 使用者将会导致符号冲突.
+
 add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
 add_definitions(-DBOOST_BEAST_SEPARATE_COMPILATION)
 
@@ -368,8 +370,32 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
-set(Boost_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boost)
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
+
+set_property(TARGET boost_asio PROPERTY FOLDER "third_party")
+set_property(TARGET boost_assign PROPERTY FOLDER "third_party")
+set_property(TARGET boost_assert PROPERTY FOLDER "third_party")
+set_property(TARGET boost_atomic PROPERTY FOLDER "third_party")
+set_property(TARGET boost_bimap PROPERTY FOLDER "third_party")
+set_property(TARGET boost_chrono PROPERTY FOLDER "third_party")
+set_property(TARGET boost_container PROPERTY FOLDER "third_party")
+set_property(TARGET boost_context PROPERTY FOLDER "third_party")
+set_property(TARGET boost_core PROPERTY FOLDER "third_party")
+set_property(TARGET boost_coroutine PROPERTY FOLDER "third_party")
+set_property(TARGET boost_date_time PROPERTY FOLDER "third_party")
+set_property(TARGET boost_exception PROPERTY FOLDER "third_party")
+set_property(TARGET boost_filesystem PROPERTY FOLDER "third_party")
+set_property(TARGET boost_json PROPERTY FOLDER "third_party")
+set_property(TARGET boost_lockfree PROPERTY FOLDER "third_party")
+set_property(TARGET boost_multi_index PROPERTY FOLDER "third_party")
+set_property(TARGET boost_nowide PROPERTY FOLDER "third_party")
+set_property(TARGET boost_process PROPERTY FOLDER "third_party")
+set_property(TARGET boost_program_options PROPERTY FOLDER "third_party")
+set_property(TARGET boost_random PROPERTY FOLDER "third_party")
+set_property(TARGET boost_system PROPERTY FOLDER "third_party")
+set_property(TARGET boost_thread PROPERTY FOLDER "third_party")
+set_property(TARGET boost_url PROPERTY FOLDER "third_party")
+set_property(TARGET boost_variant2 PROPERTY FOLDER "third_party")
 
 ################################################################################
 
@@ -504,11 +530,36 @@ endif()
 
 
 link_libraries(
-		Boost::thread
+
+		Boost::asio
+		Boost::assign
+		Boost::beast
+		Boost::bimap
 		Boost::date_time
-		Boost::program_options
+		Boost::filesystem
 		Boost::json
+		Boost::lockfree
+		Boost::multi_index
+		Boost::nowide
+		Boost::program_options
+		Boost::signals2
+		Boost::thread
 		Boost::url
+		Boost::uuid
+		Boost::process
+
+#		Boost::thread
+#		Boost::date_time
+#		Boost::program_options
+#		Boost::filesystem
+#		Boost::signals2
+#		Boost::nowide
+#		Boost::json
+#		Boost::url
+#		Boost::uuid
+#		Boost::asio
+#		Boost::beast
+#		Boost::multi_index
 
 		fmt
 		cryptopp-static

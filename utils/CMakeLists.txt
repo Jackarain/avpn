@@ -41,8 +41,16 @@ target_include_directories(utils
 target_link_libraries(utils
 	Boost::asio
 	Boost::beast
+	Boost::multi_index
+	Boost::process
+	Boost::url
+	Boost::uuid
+	Boost::nowide
+
 	cryptopp-static
 	fmt
+
+	${OPENSSL_LIBRARIES}
 )
 
 set(UTILS_INCLUDE_DIRS

@@ -53,6 +53,8 @@ file(GLOB avpn_SRCS
 	include/avpn/vpn_tcp_stream.hpp
 	include/avpn/chksum.hpp
 
+	src/lib_asio_beast.cpp
+
 	src/main/avpn.cpp
 	src/main/vpn_tunnel.cpp
 	src/main/reedsolomon.cpp
@@ -117,8 +119,6 @@ endif()
 
 target_link_libraries(avpn
 	libavpn
-	Boost::asio
-	Boost::beast
 )
 
 if (MINGW)

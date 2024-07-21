@@ -42,13 +42,6 @@ target_include_directories(libproxy
 	${UTILS_INCLUDE_DIRS} # 上层传递的utils依赖库目录.
 )
 
-target_link_libraries(libproxy
-	Boost::asio
-	Boost::beast
-	fmt
-	${OPENSSL_LIBRARIES}
-)
-
 #source_group("Header Files\\proxy" FILES ${libproxy_HEADERS})
 #source_group("Source Files" FILES ${libproxy_SRCS})
 
