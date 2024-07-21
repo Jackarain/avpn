@@ -13,16 +13,21 @@
  ******************************************************************************
 */
 
-#pragma once
+#ifndef INCLUDE__2023_10_18__STRUTIL_HPP
+#define INCLUDE__2023_10_18__STRUTIL_HPP
+
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <map>
 #include <optional>
+
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 //! The strutil namespace
 namespace strutil
@@ -38,6 +43,7 @@ namespace strutil
 	static inline std::string to_string(T value)
 	{
 		std::stringstream ss;
+		ss.imbue(std::locale::classic());
 		ss << value;
 
 		return ss.str();
@@ -658,16 +664,31 @@ namespace strutil
 		return strs;
 	}
 
+	/**
+	 * @brief Checks if the given character is an alphabetic letter.
+	 * @param c - Character to check.
+	 * @return 1 if c is an alphabetic letter, 0 otherwise.
+	 */
 	constexpr int isalpha(const int& c)
 	{
 		return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ? 1 : 0);
 	}
 
+	/**
+	 * @brief Checks if the given character is a digit.
+	 * @param c - Character to check.
+	 * @return 1 if c is a digit, 0 otherwise.
+	 */
 	constexpr int isdigit(const int& c)
 	{
 		return (c >= '0' && c <= '9' ? 1 : 0);
 	}
 
+	/**
+	 * @brief Checks if the given character is an alphanumeric character (letter or digit).
+	 * @param c - Character to check.
+	 * @return 1 if c is an alphanumeric character, 0 otherwise.
+	 */
 	constexpr int isalnum(const int& c)
 	{
 		return (isalpha(c) || isdigit(c));
@@ -682,7 +703,7 @@ namespace strutil
 	 * @param out - output string.
 	 * @return True if successfully, false otherwise.
 	 */
-	static inline bool unescape(const std::string_view& in, std::string& out)
+	static inline bool unescape(std::string_view in, std::string& out)
 	{
 		out.clear();
 		out.reserve(in.size());
@@ -754,13 +775,26 @@ namespace strutil
 		return true;
 	}
 
+	/**
+	 * @brief Converts a float to a formatted string with specified width and precision.
+	 * @param v - The float value to convert.
+	 * @param width - The minimum number of characters to be printed.
+	 * @param precision - The number of digits after the decimal point (default is 3).
+	 * @return Formatted string representation of the float.
+	 */
 	static inline std::string to_string(float v, int width, int precision = 3)
 	{
 		char buf[20] = { 0 };
-		std::sprintf(buf, "%*.*f", width, precision, v);
+		std::snprintf(buf, sizeof(buf), "%*.*f", width, precision, v);
 		return std::string(buf);
 	}
 
+	/**
+	 * @brief Converts a float value to a string with appropriate suffix for data size (kB, MB, etc.).
+	 * @param val - The value to convert and suffix.
+	 * @param suffix - Optional suffix to append after the unit (default is nullptr).
+	 * @return String with value and data size suffix.
+	 */
 	static inline std::string add_suffix(float val, char const* suffix = nullptr)
 	{
 		std::string ret;
@@ -783,6 +817,11 @@ namespace strutil
 		return ret;
 	}
 
+	/**
+	 * @brief Checks if the given character is a whitespace character.
+	 * @param c - Character to check.
+	 * @return true if c is a whitespace character, false otherwise.
+	 */
 	static inline bool is_space(const char c)
 	{
 		if (c == ' ' ||
@@ -795,6 +834,11 @@ namespace strutil
 		return false;
 	}
 
+	/**
+	 * @brief Trims whitespace from both ends of a string view.
+	 * @param sv - The string view to trim.
+	 * @return Trimmed string view.
+	 */
 	static inline std::string_view string_trim(std::string_view sv)
 	{
 		const char* b = sv.data();
@@ -818,6 +862,11 @@ namespace strutil
 		return std::string_view(b, e - b);
 	}
 
+	/**
+	 * @brief Trims whitespace from the beginning of a string view.
+	 * @param sv - The string view to trim.
+	 * @return Trimmed string view from the left.
+	 */
 	static inline std::string_view string_trim_left(std::string_view sv)
 	{
 		const char* b = sv.data();
@@ -832,6 +881,11 @@ namespace strutil
 		return std::string_view(b, e - b);
 	}
 
+	/**
+	 * @brief Trims whitespace from the end of a string view.
+	 * @param sv - The string view to trim.
+	 * @return Trimmed string view from the right.
+	 */
 	static inline std::string_view string_trim_right(std::string_view sv)
 	{
 		const char* b = sv.data();
@@ -849,6 +903,13 @@ namespace strutil
 		return std::string_view(b, e - b);
 	}
 
+	/**
+	 * @brief Converts a range of bytes to a hexadecimal string.
+	 * @param it - Start iterator of the byte range.
+	 * @param end - End iterator of the byte range.
+	 * @param prefix - Prefix for the resulting hex string (default is empty).
+	 * @return Hexadecimal string representation of the byte range.
+	 */
 	template <class Iterator>
 	std::string to_hex(Iterator it, Iterator end, std::string const& prefix)
 	{
@@ -868,16 +929,32 @@ namespace strutil
 		return hex;
 	}
 
+	/**
+	 * @brief Converts binary data to a hexadecimal string without prefix.
+	 * @param data - Binary data as a string_view.
+	 * @return Hexadecimal string representation of the data.
+	 */
 	static inline std::string to_hex(std::string_view data)
 	{
 		return to_hex(data.begin(), data.end(), "");
 	}
 
+
+	/**
+	 * @brief Converts binary data to a hexadecimal string with "0x" prefix.
+	 * @param data - Binary data as a string_view.
+	 * @return Hexadecimal string with "0x" prefix.
+	 */
 	static inline std::string to_hex_prefixed(std::string_view data)
 	{
 		return to_hex(data.begin(), data.end(), "0x");
 	}
 
+	/**
+	 * @brief Converts a hexadecimal character to its decimal value.
+	 * @param c - Hexadecimal character to convert.
+	 * @return Decimal value of the hexadecimal character, or -1 if invalid.
+	 */
 	static inline char from_hex_char(char c) noexcept
 	{
 		if (c >= '0' && c <= '9')
@@ -889,6 +966,12 @@ namespace strutil
 		return -1;
 	}
 
+	/**
+	 * @brief Converts a hexadecimal string to its binary representation.
+	 * @param src - Hexadecimal string to convert.
+	 * @param result - Output vector where binary data will be stored.
+	 * @return true if conversion is successful, false otherwise.
+	 */
 	static inline bool from_hexstring(std::string_view src, std::vector<uint8_t>& result)
 	{
 		unsigned s = (src.size() >= 2 && src[0] == '0' && src[1] == 'x') ? 2 : 0;
@@ -918,6 +1001,11 @@ namespace strutil
 		return true;
 	}
 
+	/**
+	 * @brief Checks if the given string is a valid hexadecimal string.
+	 * @param src - String to check.
+	 * @return true if the string is a valid hexadecimal string, false otherwise.
+	 */
 	static inline bool is_hexstring(std::string const& src) noexcept
 	{
 		auto it = src.begin();
@@ -927,12 +1015,22 @@ namespace strutil
 			[](char c) { return from_hex_char(c) != static_cast<char>(-1); });
 	}
 
+	/**
+	 * @brief Converts a vector of bytes to a string.
+	 * @param data - Vector of bytes to convert.
+	 * @return String representation of the byte vector.
+	 */
 	static inline std::string to_string(std::vector<uint8_t> const& data)
 	{
 		return std::string(
 			(char const*)data.data(), (char const*)(data.data() + data.size()));
 	}
 
+	/**
+	 * @brief Converts a boost::posix_time::ptime to a string representation.
+	 * @param t - The ptime instance to convert.
+	 * @return ISO extended string representation of the ptime, or empty string if not a valid date/time.
+	 */
 	static inline std::string to_string(const boost::posix_time::ptime& t)
 	{
 		if (t.is_not_a_date_time())
@@ -1162,4 +1260,319 @@ namespace strutil
 		result.resize(static_cast<size_t>(dnext - dest));
 		return result;
 	}
+
+
+	//////////////////////////////////////////////////////////////////////////
+	static inline constexpr char ascii_tolower(const char c) noexcept
+	{
+		return ((static_cast<unsigned>(c) - 65U) < 26) ?
+			c + 'a' - 'A' : c;
+	}
+
+	static inline constexpr bool ishexdigit(const char c) noexcept
+	{
+		return isdigit(c) || ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+	}
+
+	// 0xFFFF
+	// 000008
+	// 123456
+	static inline std::optional<int64_t>
+	from_string(std::string_view str, int base = -1)
+	{
+		const char* start = str.data();
+#if 0
+		const char* end = str.data() + str.size();
+
+		if (start >= end)
+			return {};
+
+		bool has_prefix = false;
+
+		if (*start == '0')
+		{
+			if (base == -1)
+				base = 8;
+
+			if (end - start >= 2 &&
+				ascii_tolower(*(start + 1)) == 'x')
+			{
+				if (base == -1)
+					base = 16;
+				has_prefix = true;
+			}
+		}
+
+		if (base == -1)
+			base = 10;
+
+		if (base == 16 && has_prefix)
+			start += 2;
+
+		const char* p = start;
+		while (p < end)
+		{
+			const char c = *p++;
+			switch (base)
+			{
+			case 8:
+				if (c < '0' || c > '7')
+					return {};
+				continue;
+			case 10:
+				if (!isdigit(c))
+					return {};
+				continue;
+			case 16:
+				if (!ishexdigit(c))
+					return {};
+				continue;
+			}
+		}
+#endif
+		return std::strtoll(start, nullptr, base);
+	}
+
+	static inline bool is_ipv4_host(std::string_view str)
+	{
+		const char* b = str.data();
+		const char* e = str.data() + str.size();
+		int parts = 0;
+		const char* start = b;
+		int64_t last = 0;
+		int64_t max = 0;
+
+		while (b != e)
+		{
+			const char c = *b++;
+			bool eol = b == e;
+
+			if (c == '.' || eol)
+			{
+				if (++parts > 4)
+					return false;
+
+				const char* end = eol ? b : b - 1;
+				auto ret = from_string({ start, static_cast<size_t>(end - start) });
+				if (!ret)
+					return false;
+
+				last = *ret;
+				if (last < 0)
+					return false;
+
+				if (max < last)
+					max = last;
+
+				start = b;
+			}
+		}
+
+		if (parts == 0 || parts > 4)
+		{
+			if (str.size() == 0)
+				return false;
+			return false;
+		}
+
+		if (max > 255 && last < max)
+			return false;
+
+		last >>= (8 * (4 - (parts - 1)));
+		if (last != 0)
+			return false;
+
+		return true;
+	}
+
+	inline bool is_ipv6_host(std::string_view str)
+	{
+		const char* b = str.data();
+		const char* e = str.data() + str.size();
+		const char* start = b;
+		int parts = 0;
+		int colons = 0;
+		char last_char = '\0';
+		uint16_t value[8];
+
+		while (b != e)
+		{
+			const char c = *b++;
+			bool eol = b == e;
+
+			if (c == ':' || eol)
+			{
+				const char* end = eol ? b : b - 1;
+				auto ret = from_string({ start, static_cast<size_t>(end - start) }, 16);
+				if (!ret)
+					return false;
+
+				int64_t n = *ret;
+				if (n > 0xffff)
+					return false;
+
+				value[parts] = static_cast<uint16_t>(n);
+				parts++;
+				start = b;
+
+				if (last_char == ':' && last_char == c)
+				{
+					colons++;
+					if (colons > 1)
+						return false;
+				}
+
+				bool is_ipv4 = false;
+				if (parts == 3 && colons == 1 && n == 0xffff) // ipv4
+					is_ipv4 = true;
+
+				if (parts == 6
+					&& colons == 0
+					&& (value[0] == 0 && value[1] == 0 && value[2] == 0
+						&& value[3] == 0 && value[4] == 0)
+					&& n == 0xffff) // ipv4
+					is_ipv4 = true;
+
+				if (is_ipv4)
+				{
+					if (!is_ipv4_host({ b, static_cast<size_t>(e - b) }))
+						return false;
+
+					return true;
+				}
+			}
+			else
+			{
+				if (!ishexdigit(c))
+					return false;
+			}
+
+			last_char = c;
+		}
+
+		if ((parts > 8) || (parts < 8 && colons == 0))
+			return false;
+
+		return true;
+	}
+
+
+	const inline std::string base64_chars =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789+/";
+
+	inline bool is_base64(unsigned char c)
+	{
+		return (c == 43 || // +
+			(c >= 47 && c <= 57) || // /-9
+			(c >= 65 && c <= 90) || // A-Z
+			(c >= 97 && c <= 122)); // a-z
+	}
+
+	inline std::string base64_encode(unsigned char const* input, size_t len)
+	{
+		std::string ret;
+		int i = 0;
+		int j = 0;
+		unsigned char char_array_3[3];
+		unsigned char char_array_4[4];
+
+		while (len--) {
+			char_array_3[i++] = *(input++);
+			if (i == 3) {
+				char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+				char_array_4[1] = ((char_array_3[0] & 0x03) << 4) +
+					((char_array_3[1] & 0xf0) >> 4);
+				char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) +
+					((char_array_3[2] & 0xc0) >> 6);
+				char_array_4[3] = char_array_3[2] & 0x3f;
+
+				for (i = 0; (i < 4); i++) {
+					ret += base64_chars[char_array_4[i]];
+				}
+				i = 0;
+			}
+		}
+
+		if (i) {
+			for (j = i; j < 3; j++) {
+				char_array_3[j] = '\0';
+			}
+
+			char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+			char_array_4[1] = ((char_array_3[0] & 0x03) << 4) +
+				((char_array_3[1] & 0xf0) >> 4);
+			char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) +
+				((char_array_3[2] & 0xc0) >> 6);
+			char_array_4[3] = char_array_3[2] & 0x3f;
+
+			for (j = 0; (j < i + 1); j++) {
+				ret += base64_chars[char_array_4[j]];
+			}
+
+			while ((i++ < 3)) {
+				ret += '=';
+			}
+		}
+
+		return ret;
+	}
+
+	inline std::string base64_encode(std::string const& input)
+	{
+		return base64_encode(
+			reinterpret_cast<const unsigned char*>(input.data()),
+			input.size()
+		);
+	}
+
+	inline std::string base64_decode(std::string const& input)
+	{
+		size_t in_len = input.size();
+		int i = 0;
+		int j = 0;
+		int in_ = 0;
+		unsigned char char_array_4[4], char_array_3[3];
+		std::string ret;
+
+		while (in_len-- && (input[in_] != '=') && is_base64(input[in_])) {
+			char_array_4[i++] = input[in_]; in_++;
+			if (i == 4) {
+				for (i = 0; i < 4; i++) {
+					char_array_4[i] = static_cast<unsigned char>(base64_chars.find(char_array_4[i]));
+				}
+
+				char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+				char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+				char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+				for (i = 0; (i < 3); i++) {
+					ret += char_array_3[i];
+				}
+				i = 0;
+			}
+		}
+
+		if (i) {
+			for (j = i; j < 4; j++)
+				char_array_4[j] = 0;
+
+			for (j = 0; j < 4; j++)
+				char_array_4[j] = static_cast<unsigned char>(base64_chars.find(char_array_4[j]));
+
+			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
+			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
+			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+
+			for (j = 0; (j < i - 1); j++) {
+				ret += static_cast<std::string::value_type>(char_array_3[j]);
+			}
+		}
+
+		return ret;
+	}
+
 }
+
+#endif // INCLUDE__2023_10_18__STRUTIL_HPP

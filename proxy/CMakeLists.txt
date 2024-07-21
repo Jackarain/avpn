@@ -13,24 +13,22 @@ add_library(libproxy STATIC
 if (APPLE)
 	target_sources(libproxy
 		INTERFACE
+		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/http_proxy_client.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_client.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_enums.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_error_code.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_io.hpp
-		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/proxy_server.hpp
-		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/http_proxy_client.hpp
 
 		${CMAKE_CURRENT_SOURCE_DIR}/src/dummy.cpp
 	)
 else()
 	target_sources(libproxy
 		PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/http_proxy_client.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_client.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_enums.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_error_code.hpp
 		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/socks_io.hpp
-		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/proxy_server.hpp
-		${CMAKE_CURRENT_SOURCE_DIR}/include/proxy/http_proxy_client.hpp
 
 		${CMAKE_CURRENT_SOURCE_DIR}/src/dummy.cpp
 	)

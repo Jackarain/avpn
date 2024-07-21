@@ -12,7 +12,6 @@
 #include "avpn/vpn_client_table.hpp"
 #include "avpn/endpoint_pair.hpp"
 
-#include "utils/base_stream.hpp"
 #include "utils/crypto.hpp"
 #include "utils/acl.hpp"
 #include "utils/misc.hpp"
@@ -26,8 +25,6 @@
 #include <boost/thread/lockable_adapter.hpp>
 
 namespace avpn {
-
-	using namespace util;
 
 	//////////////////////////////////////////////////////////////////////////
 

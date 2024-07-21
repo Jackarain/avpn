@@ -8,7 +8,9 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef INCLUDE__2023_10_18__SOCKS_ERROR_CODE_HPP
+#define INCLUDE__2023_10_18__SOCKS_ERROR_CODE_HPP
+
 
 #include <boost/system/error_code.hpp>
 
@@ -71,6 +73,9 @@ namespace proxy {
 
 			/// unassigned.
 			socks_unassigned,
+
+			/// socks invalid userid
+			socks_invalid_userid,
 
 			/// unknown error.
 			socks_unknown_error,
@@ -138,6 +143,8 @@ namespace proxy {
 				return "SOCKS Address type not supported";
 			case errc::socks_unassigned:
 				return "SOCKS unassigned";
+			case errc::socks_invalid_userid:
+				return "SOCKS invalid userid";
 			case errc::socks_unknown_error:
 				return "SOCKS unknown error";
 			case errc::socks_no_identd:
@@ -167,3 +174,5 @@ namespace boost::system {
 		static const inline bool value = true;
 	};
 } // namespace boost
+
+#endif // INCLUDE__2023_10_18__SOCKS_ERROR_CODE_HPP

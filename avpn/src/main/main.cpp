@@ -15,7 +15,6 @@
 #include "avpn/vpn_controller.hpp"
 
 #include "utils/misc.hpp"
-#include "proxy/proxy_server.hpp"
 #include "proxy/socks_client.hpp"
 
 #include <iostream>

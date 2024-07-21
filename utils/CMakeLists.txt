@@ -13,7 +13,6 @@ target_sources(utils
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/strutil.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/acl.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/async_connect.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/base_stream.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/crypto.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/fileop.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/internal.hpp
@@ -21,7 +20,9 @@ target_sources(utils
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/logging.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/misc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/scoped_exit.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/asio_util.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/asio_transfer_at_least.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/asio_use_awaitable.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/asio_utils.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/xxhash.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/utils/default_cert.hpp
 

@@ -8,13 +8,9 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef INCLUDE__2023_10_18__SOCKS_CLIENT_HPP
+#define INCLUDE__2023_10_18__SOCKS_CLIENT_HPP
 
-#include "utils/asio_util.hpp"
-
-#include "proxy/socks_error_code.hpp"
-#include "proxy/socks_enums.hpp"
-#include "proxy/socks_io.hpp"
 
 #include <cstdlib>
 #include <string>
@@ -32,12 +28,16 @@
 #include <boost/asio/write.hpp>
 
 
+#include "proxy/socks_error_code.hpp"
+#include "proxy/socks_enums.hpp"
+#include "proxy/socks_io.hpp"
+
+
 namespace proxy {
 
 	namespace net = boost::asio;
 
 	using net::ip::tcp;
-	using net::ip::udp;
 
 	using io_util::write;
 	using io_util::read;
@@ -151,18 +151,24 @@ namespace proxy {
 				write<uint8_t>(0x01, auth);
 
 				// username length.
-				write<uint8_t>(static_cast<uint8_t>(username.size()), auth);
+				const auto ulen = static_cast<uint8_t>(username.size());
+				write<uint8_t>(ulen, auth);
 
 				// username.
-				std::copy(username.begin(), username.end(), auth);
-				auth += username.size();
+				for (size_t i = 0; i < ulen; i++)
+					write<uint8_t>(username[i], auth);
+
+				auth += ulen;
 
 				// password length.
-				write<uint8_t>(static_cast<int8_t>(passwd.size()), auth);
+				const auto plen = static_cast<uint8_t>(passwd.size());
+				write<uint8_t>(plen, auth);
 
 				// password.
-				std::copy(passwd.begin(), passwd.end(), auth);
-				auth += passwd.size();
+				for (size_t i = 0; i < plen; i++)
+					write<uint8_t>(passwd[i], auth);
+				auth += plen;
+
 				request.commit(bytes_to_write);
 
 				// write username & password.
@@ -444,7 +450,15 @@ namespace proxy {
 
 			if (!username.empty())
 			{
-				std::copy(username.begin(), username.end(), req);    // USERID
+				for (size_t i = 0; i < username.size(); i++)
+				{
+					if (username[i] == '\0') {
+						ec = errc::socks_invalid_userid;
+						co_return;
+					}
+					write<uint8_t>(username[i], req);    // USERID
+				}
+
 				req += username.size();
 			}
 			write<uint8_t>(0, req); // NULL.
@@ -554,3 +568,4 @@ namespace proxy {
 
 }
 
+#endif // INCLUDE__2023_10_18__SOCKS_CLIENT_HPP

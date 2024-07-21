@@ -1,6 +1,6 @@
 ﻿//
-// socks_client.hpp
-// ~~~~~~~~~~~~~~~~
+// http_proxy_client.hpp
+// ~~~~~~~~~~~~~~~~~~~~~
 //
 // Copyright (c) 2019 Jack (jack dot wgm at gmail dot com)
 //
@@ -8,13 +8,14 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef INCLUDE__2023_10_18__HTTP_PROXY_CLIENT_HPP
+#define INCLUDE__2023_10_18__HTTP_PROXY_CLIENT_HPP
 
-#include "utils/asio_util.hpp"
 
 #include <cstdlib>
 #include <string>
 #include <memory>
+
 
 #include <boost/system/error_code.hpp>
 
@@ -27,11 +28,22 @@
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 
+#ifdef _MSC_VER
+# pragma warning(push)
+# pragma warning(disable: 4702)
+#endif // _MSC_VER
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
-#include <boost/beast/ssl.hpp>
 #include <boost/beast/version.hpp>
-#include <boost/beast/core/detail/base64.hpp>
+
+#ifdef _MSC_VER
+# pragma warning(pop)
+#endif
+
+
+#include "utils/asio_use_awaitable.hpp"
+#include "utils/strutil.hpp"
 
 namespace proxy {
 
@@ -43,30 +55,23 @@ namespace proxy {
 	namespace beast = boost::beast;			// from <boost/beast.hpp>
 	namespace http = beast::http;           // from <boost/beast/http.hpp>
 
-	using http_request = http::request<http::string_body>;
-	using http_response = http::response<http::dynamic_body>;
-
-	using ssl_stream = net::ssl::stream<tcp::socket>;
-
+	// Options for the HTTP proxy client
 	struct http_proxy_client_option
 	{
-		// target server
-		std::string target_host;
-		uint16_t target_port;
-
-		// user auth info
-		std::string username;
-		std::string password;
-
-		bool ssl{ false };
+		std::string target_host;  // Target server host
+		uint16_t target_port;     // Target server port
+		std::string username;     // User authentication - username
+		std::string password;     // User authentication - password
 	};
 
 	namespace detail {
 
+		using http_request = http::request<http::string_body>;
+		using http_response = http::response<http::dynamic_body>;
+
 		template <typename Stream>
 		net::awaitable<boost::system::error_code>
-		do_http_proxy_handshake(
-			Stream& socket, http_proxy_client_option opt = {})
+		do_http_proxy_handshake(Stream& socket, http_proxy_client_option opt = {})
 		{
 			boost::system::error_code ec;
 
@@ -80,22 +85,9 @@ namespace proxy {
 
 			if (!opt.username.empty())
 			{
-				auto userinfo =
-					opt.username + ":" + opt.password;
-
-				std::string result(
-					beast::detail::base64::encoded_size(userinfo.size()),
-					0);
-
-				auto len =
-					beast::detail::base64::encode(
-					(char*)result.data(),
-					userinfo.c_str(),
-					userinfo.size());
-
-				result.resize(len);
-				result = "Basic " + result;
-				req.set(http::field::proxy_authorization, result);
+				const auto userinfo = opt.username + ":" + opt.password;
+				req.set(http::field::proxy_authorization,
+					"Basic " + strutil::base64_encode(userinfo));
 			}
 
 			http::serializer<true, http::string_body> sr(req);
@@ -103,9 +95,8 @@ namespace proxy {
 			if (ec)
 				co_return ec;
 
-			http::response_parser<
-				http_response::body_type> p;
-			boost::beast::flat_buffer buffer{ 1024 };
+			http::response_parser<http_response::body_type> p;
+			beast::flat_buffer buffer{ 1024 };
 
 			do {
 				co_await http::async_read_header(
@@ -121,16 +112,15 @@ namespace proxy {
 		{
 			template <typename Stream, typename Handler>
 			void operator()(Handler&& handler,
-				Stream* socket, http_proxy_client_option opt) const
+				Stream* socket, const http_proxy_client_option& opt) const
 			{
 				auto executor = net::get_associated_executor(handler);
 				net::co_spawn(executor,
-					[socket, opt = opt, handler = std::move(handler)]
+					[socket, opt, handler = std::move(handler)]
 				() mutable->net::awaitable<void>
 				{
 					auto ec = co_await do_http_proxy_handshake(*socket, opt);
 					handler(ec);
-
 					co_return;
 				}, net::detached);
 			}
@@ -147,3 +137,5 @@ namespace proxy {
 				detail::initiate_do_http_proxy(), handler, &socket, opt);
 	}
 }
+
+#endif // INCLUDE__2023_10_18__HTTP_PROXY_CLIENT_HPP

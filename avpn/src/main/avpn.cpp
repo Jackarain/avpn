@@ -7,7 +7,7 @@
 
 #include "utils/async_connect.hpp"
 #include "utils/scoped_exit.hpp"
-#include "utils/asio_util.hpp"
+#include "utils/asio_utils.hpp"
 #include "utils/misc.hpp"
 #include "utils/fileop.hpp"
 
@@ -22,6 +22,7 @@
 
 #include "proxy/socks_enums.hpp"
 #include "proxy/socks_client.hpp"
+#include "proxy/http_proxy_client.hpp"
 
 #include <chrono>
 #include <iomanip>
@@ -1851,92 +1852,34 @@ namespace avpn {
 
 		auto url = rv.value();
 
-		std::string proxy_host(url.host());
-		std::string proxy_port(url.port());
+		proxy::http_proxy_client_option opt;
 
-		// Default http proxy port: 1080
-		if (proxy_port.empty())
-			proxy_port = "1080";
-
-		boost::system::error_code ec;
-
-		// These objects perform our I/O
-		tcp::resolver resolver{ m_main_context };
-
-		auto const results =
-			co_await resolver.async_resolve(
-				proxy_host, proxy_port, net_awaitable[ec]);
-		if (ec)
-			co_return ec;
-
-		for (auto& endp : results)
-		{
-			co_await stream.async_connect(endp.endpoint(),
-				net::redirect_error(
-					net::bind_cancellation_slot(
-						m_cancel_sig.slot(), net::use_awaitable), ec));
-			if (m_cancel_sig.slot().has_handler())
-				m_cancel_sig.slot().clear();
-			if (m_abort)
-			{
-				XLOG_ERR << "http proxy, async_connect abort";
-				co_return false;
-			}
-
-			if (!ec)
-				break;
-		}
-
-		if (ec)
-		{
-			XLOG_ERR << "http proxy, async_connect error: " << ec.message();
-			co_return false;
-		}
-
-		std::string target_host{ target.address().to_string()
-			+ ":"
-			+ std::to_string(target.port()) };
-
-		http_request req{ beast::http::verb::connect, target_host, 11 };
-		req.set(http::field::proxy_connection, "Keep-Alive");
-		req.set(http::field::host, target_host);
-		req.set(http::field::user_agent, "avpn/" AVPN_VERSION);
+		opt.target_host = url.host();
+		opt.target_port = url.port_number();
+		if (opt.target_port == 0)
+			opt.target_port = 1080;
 
 		if (!url.user().empty())
 		{
-			auto userinfo = std::string(url.user())
-				+ ":"
-				+ std::string(url.password());
-			req.set(http::field::proxy_authorization,
-				base64_encode(userinfo));
+			opt.username = url.user();
+			opt.password = url.password();
 		}
 
-		http::serializer<true, http::string_body> sr(req);
-		co_await http::async_write_header(stream, sr, net_awaitable[ec]);
+		boost::system::error_code ec;
+
+		co_await proxy::async_http_proxy_handshake(stream, opt, net_awaitable[ec]);
+
 		if (ec)
 		{
-			XLOG_ERR << "http proxy, write header: " << ec.message();
+			XLOG_ERR << "http proxy, async_http_proxy_handshake error: "
+				<< ec.message();
 			co_return false;
 		}
-
-		http::response_parser<
-			http_response::body_type> p;
-		boost::beast::flat_buffer buffer{ 1024 };
-
-		do {
-			co_await http::async_read_header(
-				stream, buffer, p, net_awaitable[ec]);
-			if (ec)
-			{
-				XLOG_ERR << "http proxy, read header: " << ec.message();
-				co_return false;
-			}
-		} while (!p.is_header_done());
 
 		co_return true;
 	}
 
-net::awaitable<void> avpn_service::start_udp_client()
+	net::awaitable<void> avpn_service::start_udp_client()
 	{
 		XLOG_DBG << "Start udp client, udp sockets: " << m_udp_sockets.size();
 

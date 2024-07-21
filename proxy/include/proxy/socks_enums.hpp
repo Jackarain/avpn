@@ -8,7 +8,9 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
-#pragma once
+#ifndef INCLUDE__2023_10_18__SOCKS_ENUMS_HPP
+#define INCLUDE__2023_10_18__SOCKS_ENUMS_HPP
+
 
 namespace proxy {
 
@@ -40,6 +42,7 @@ namespace proxy {
 		SOCKS5_GENERAL_SOCKS_SERVER_FAILURE,
 		SOCKS5_CONNECTION_NOT_ALLOWED_BY_RULESET,
 		SOCKS5_NETWORK_UNREACHABLE,
+		SOCKS5_HOST_UNREACHABLE,
 		SOCKS5_CONNECTION_REFUSED,
 		SOCKS5_TTL_EXPIRED,
 		SOCKS5_COMMAND_NOT_SUPPORTED,
@@ -55,3 +58,5 @@ namespace proxy {
 	};
 
 }
+
+#endif // INCLUDE__2023_10_18__SOCKS_ENUMS_HPP
