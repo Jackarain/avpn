@@ -53,6 +53,9 @@ endif()
 
 
 function(boost_json_setup_properties target)
+    if(MSVC)
+        target_compile_definitions(${target} PRIVATE _SCL_SECURE_NO_WARNINGS)
+    endif()
     target_compile_features(${target} PUBLIC cxx_constexpr)
     target_compile_definitions(${target} PUBLIC BOOST_JSON_NO_LIB=1)
 
@@ -72,8 +75,10 @@ function(boost_json_setup_properties target)
             Boost::assert
             Boost::config
             Boost::container
+            Boost::container_hash
             Boost::core
             Boost::describe
+            Boost::endian
             Boost::mp11
             Boost::system
             Boost::throw_exception

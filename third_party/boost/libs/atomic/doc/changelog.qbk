@@ -1,11 +1,25 @@
 [/
- / Copyright (c) 2021-2023 Andrey Semashev
+ / Copyright (c) 2021-2024 Andrey Semashev
  /
  / Distributed under the Boost Software License, Version 1.0. (See accompanying
  / file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  /]
 
 [section:changelog Changelog]
+
+[heading Boost 1.85]
+
+* Added support for `pause` instruction on RISC-V. ([github_pr 65])
+
+[heading Boost 1.84]
+
+* C++03 is no longer supported, the minimum required language version is C++11.
+* Added support for x87 extended double with reduced precision, which is used on FreeBSD and OpenBSD. ([github_issue 14])
+* Support for Windows versions older than Windows 10 is deprecated and will be removed in Boost 1.87.
+
+[heading Boost 1.83]
+
+* Fixed compilation of `atomic_ref` for `const`-qualified types. Note that even `const`-qualified atomic objects must still reside in read-write memory. ([github_issue 62])
 
 [heading Boost 1.82]
 

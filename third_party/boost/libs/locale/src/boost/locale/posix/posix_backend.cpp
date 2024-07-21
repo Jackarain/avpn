@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2022-2023 Alexander Grund
 //
 // Distributed under the Boost Software License, Version 1.0.
 // https://www.boost.org/LICENSE_1_0.txt
@@ -19,7 +20,9 @@
 #endif
 
 #include "boost/locale/posix/all_generator.hpp"
+#include "boost/locale/shared/message.hpp"
 #include "boost/locale/util/gregorian.hpp"
+#include "boost/locale/util/make_std_unique.hpp"
 
 namespace boost { namespace locale { namespace impl_posix {
 
@@ -60,32 +63,26 @@ namespace boost { namespace locale { namespace impl_posix {
         {
             if(!invalid_)
                 return;
-            invalid_ = false;
+
+            real_id_ = locale_id_.empty() ? util::get_system_locale() : locale_id_;
+            data_.parse(real_id_);
+
             lc_.reset();
-            real_id_ = locale_id_;
-            if(real_id_.empty())
-                real_id_ = util::get_system_locale();
-
-            locale_t tmp = newlocale(LC_ALL_MASK, real_id_.c_str(), 0);
-
-            if(!tmp) {
-                tmp = newlocale(LC_ALL_MASK, "C", 0);
-            }
-            if(!tmp) {
+            locale_t tmp = newlocale(LC_ALL_MASK, real_id_.c_str(), nullptr);
+            if(!tmp)
+                tmp = newlocale(LC_ALL_MASK, "C", nullptr);
+            if(!tmp)
                 throw std::runtime_error("newlocale failed");
-            }
 
-            locale_t* tmp_p = 0;
-
+            locale_t* tmp_p;
             try {
-                tmp_p = new locale_t();
+                tmp_p = new locale_t(tmp);
             } catch(...) {
                 freelocale(tmp);
                 throw;
             }
-
-            *tmp_p = tmp;
             lc_ = std::shared_ptr<locale_t>(tmp_p, free_locale_by_ptr);
+            invalid_ = false;
         }
 
         std::locale install(const std::locale& base, category_t category, char_facet_t type) override
@@ -98,40 +95,8 @@ namespace boost { namespace locale { namespace impl_posix {
                 case category_t::formatting: return create_formatting(base, lc_, type);
                 case category_t::parsing: return create_parsing(base, lc_, type);
                 case category_t::codepage: return create_codecvt(base, nl_langinfo_l(CODESET, *lc_), type);
-                case category_t::calendar: {
-                    util::locale_data inf;
-                    inf.parse(real_id_);
-                    return util::install_gregorian_calendar(base, inf.country());
-                }
-                case category_t::message: {
-                    gnu_gettext::messages_info minf;
-                    util::locale_data inf;
-                    inf.parse(real_id_);
-                    minf.language = inf.language();
-                    minf.country = inf.country();
-                    minf.variant = inf.variant();
-                    minf.encoding = inf.encoding();
-                    std::copy(domains_.begin(),
-                              domains_.end(),
-                              std::back_inserter<gnu_gettext::messages_info::domains_type>(minf.domains));
-                    minf.paths = paths_;
-                    switch(type) {
-                        case char_facet_t::nochar: break;
-                        case char_facet_t::char_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char>(minf));
-                        case char_facet_t::wchar_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<wchar_t>(minf));
-#ifdef BOOST_LOCALE_ENABLE_CHAR16_T
-                        case char_facet_t::char16_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char16_t>(minf));
-#endif
-#ifdef BOOST_LOCALE_ENABLE_CHAR32_T
-                        case char_facet_t::char32_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char32_t>(minf));
-#endif
-                    }
-                    return base;
-                }
+                case category_t::calendar: return util::install_gregorian_calendar(base, data_.country());
+                case category_t::message: return detail::install_message_facet(base, type, data_, domains_, paths_);
                 case category_t::information: return util::create_info(base, real_id_);
                 case category_t::boundary: break; // Not implemented
             }
@@ -143,14 +108,15 @@ namespace boost { namespace locale { namespace impl_posix {
         std::vector<std::string> domains_;
         std::string locale_id_;
         std::string real_id_;
+        util::locale_data data_;
 
         bool invalid_;
         std::shared_ptr<locale_t> lc_;
     };
 
-    localization_backend* create_localization_backend()
+    std::unique_ptr<localization_backend> create_localization_backend()
     {
-        return new posix_localization_backend();
+        return make_std_unique<posix_localization_backend>();
     }
 
 }}} // namespace boost::locale::impl_posix

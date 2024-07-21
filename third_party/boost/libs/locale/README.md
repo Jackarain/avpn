@@ -5,7 +5,7 @@ Part of the [Boost C++ Libraries](http://github.com/boostorg).
 Boost.Locale is a library that provides high quality localization facilities in a C++ way.
 It was originally designed a part of [CppCMS](http://cppcms.sourceforge.net/) - a C++ Web Framework project and then contributed to Boost.
 
-Boost.Locale gives powerful tools for development of cross platform localized software - the software that talks to users in their language.
+Boost.Locale gives powerful tools for development of cross-platform localized software - the software that talks to users in their language.
 
 Provided Features:
 
@@ -21,7 +21,7 @@ Provided Features:
 - Support for `char` and `wchar_t`
 - Experimental support for C++11 `char16_t` and `char32_t` strings and streams.
 
-Boost.Locale enhances and unifies the standard library's API the way it becomes useful and convenient for development of cross platform and "cross-culture" software.
+Boost.Locale enhances and unifies the standard library's API the way it becomes useful and convenient for development of cross-platform and "cross-culture" software.
 
 In order to achieve this goal Boost.Locale uses the-state-of-the-art Unicode and Localization library: ICU - International Components for Unicode.
 
@@ -38,14 +38,14 @@ Distributed under the [Boost Software License, Version 1.0](https://www.boost.or
 ### Properties
 
 * C++11
-* Formatted with clang-format, see [`tools/format_source.sh`](https://github.com/boostorg/locale/blob/develop/tools/format_source.sh)
+* Formatted with clang-format, see [`tools/format_sources.sh`](https://github.com/boostorg/locale/blob/develop/tools/format_sources.sh)
 
 ### Build Status
 
-Branch          | GH Actions | Appveyor | codecov.io | Deps | Docs | Tests |
-:-------------: | ---------- | -------- | ---------- | ---- | ---- | ----- |
-[`master`](https://github.com/boostorg/locale/tree/master)   | [![CI](https://github.com/boostorg/locale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/locale/actions/workflows/ci.yml)  | [![Build status](https://ci.appveyor.com/api/projects/status/github/boostorg/locale?branch=master&svg=true)](https://ci.appveyor.com/project/Flamefire/locale/branch/master)   | [![codecov](https://codecov.io/gh/boostorg/locale/branch/master/graph/badge.svg)](https://codecov.io/gh/boostorg/locale/branch/master)   | [![Deps](https://img.shields.io/badge/deps-master-brightgreen.svg)](https://pdimov.github.io/boostdep-report/master/locale.html)   | [![Documentation](https://img.shields.io/badge/docs-master-brightgreen.svg)](https://www.boost.org/doc/libs/master/libs/locale/doc/html/index.html)   | [![Enter the Matrix](https://img.shields.io/badge/matrix-master-brightgreen.svg)](http://www.boost.org/development/tests/master/developer/locale.html)
-[`develop`](https://github.com/boostorg/locale/tree/develop) | [![CI](https://github.com/boostorg/locale/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/locale/actions/workflows/ci.yml) | [![Build status](https://ci.appveyor.com/api/projects/status/github/boostorg/locale?branch=develop&svg=true)](https://ci.appveyor.com/project/Flamefire/locale/branch/develop) | [![codecov](https://codecov.io/gh/boostorg/locale/branch/develop/graph/badge.svg)](https://codecov.io/gh/boostorg/locale/branch/develop) | [![Deps](https://img.shields.io/badge/deps-develop-brightgreen.svg)](https://pdimov.github.io/boostdep-report/develop/locale.html) | [![Documentation](https://img.shields.io/badge/docs-develop-brightgreen.svg)](https://www.boost.org/doc/libs/develop/libs/locale/doc/html/index.html) | [![Enter the Matrix](https://img.shields.io/badge/matrix-develop-brightgreen.svg)](http://www.boost.org/development/tests/develop/developer/locale.html)
+Branch          | GH Actions | Appveyor | Drone | codecov.io | Deps | Docs | Tests |
+:-------------: | ---------- | -------- | ----- | ---------- | ---- | ---- | ----- |
+[`master`](https://github.com/boostorg/locale/tree/master)   | [![CI](https://github.com/boostorg/locale/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/locale/actions/workflows/ci.yml)  | [![Build status](https://ci.appveyor.com/api/projects/status/github/boostorg/locale?branch=master&svg=true)](https://ci.appveyor.com/project/Flamefire/locale/branch/master)   | [![Build Status](https://drone.cpp.al/api/badges/boostorg/locale/status.svg?ref=refs/heads/master)](https://drone.cpp.al/boostorg/locale)  | [![codecov](https://codecov.io/gh/boostorg/locale/branch/master/graph/badge.svg)](https://codecov.io/gh/boostorg/locale/branch/master)   | [![Deps](https://img.shields.io/badge/deps-master-brightgreen.svg)](https://pdimov.github.io/boostdep-report/master/locale.html)   | [![Documentation](https://img.shields.io/badge/docs-master-brightgreen.svg)](https://www.boost.org/doc/libs/master/libs/locale/doc/html/index.html)   | [![Enter the Matrix](https://img.shields.io/badge/matrix-master-brightgreen.svg)](http://www.boost.org/development/tests/master/developer/locale.html)
+[`develop`](https://github.com/boostorg/locale/tree/develop) | [![CI](https://github.com/boostorg/locale/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/locale/actions/workflows/ci.yml) | [![Build status](https://ci.appveyor.com/api/projects/status/github/boostorg/locale?branch=develop&svg=true)](https://ci.appveyor.com/project/Flamefire/locale/branch/develop) | [![Build Status](https://drone.cpp.al/api/badges/boostorg/locale/status.svg?ref=refs/heads/develop)](https://drone.cpp.al/boostorg/locale) | [![codecov](https://codecov.io/gh/boostorg/locale/branch/develop/graph/badge.svg)](https://codecov.io/gh/boostorg/locale/branch/develop) | [![Deps](https://img.shields.io/badge/deps-develop-brightgreen.svg)](https://pdimov.github.io/boostdep-report/develop/locale.html) | [![Documentation](https://img.shields.io/badge/docs-develop-brightgreen.svg)](https://www.boost.org/doc/libs/develop/libs/locale/doc/html/index.html) | [![Enter the Matrix](https://img.shields.io/badge/matrix-develop-brightgreen.svg)](http://www.boost.org/development/tests/develop/developer/locale.html)
 
 ### Directories
 

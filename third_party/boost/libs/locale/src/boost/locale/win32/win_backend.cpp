@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2022-2023 Alexander Grund
 //
 // Distributed under the Boost Software License, Version 1.0.
 // https://www.boost.org/LICENSE_1_0.txt
@@ -10,7 +11,9 @@
 #include <boost/locale/localization_backend.hpp>
 #include <boost/locale/util.hpp>
 #include <boost/locale/util/locale_data.hpp>
+#include "boost/locale/shared/message.hpp"
 #include "boost/locale/util/gregorian.hpp"
+#include "boost/locale/util/make_std_unique.hpp"
 #include "boost/locale/win32/all_generator.hpp"
 #include "boost/locale/win32/api.hpp"
 #include <algorithm>
@@ -51,19 +54,15 @@ namespace boost { namespace locale { namespace impl_win {
             if(!invalid_)
                 return;
             invalid_ = false;
-            if(locale_id_.empty()) {
+            if(locale_id_.empty())
                 real_id_ = util::get_system_locale(true); // always UTF-8
-                lc_ = winlocale(real_id_);
-            } else {
-                lc_ = winlocale(locale_id_);
+            else
                 real_id_ = locale_id_;
-            }
-            util::locale_data d;
-            d.parse(real_id_);
-            if(!d.is_utf8()) {
-                lc_ = winlocale();
-                // Make it C as non-UTF8 locales are not supported
-            }
+            data_.parse(real_id_);
+            if(!data_.is_utf8())
+                lc_ = winlocale(); // Make it C as non-UTF8 locales are not supported
+            else
+                lc_ = winlocale(real_id_);
         }
 
         std::locale install(const std::locale& base, category_t category, char_facet_t type) override
@@ -80,35 +79,7 @@ namespace boost { namespace locale { namespace impl_win {
                     inf.parse(real_id_);
                     return util::install_gregorian_calendar(base, inf.country());
                 }
-                case category_t::message: {
-                    gnu_gettext::messages_info minf;
-                    std::locale tmp = util::create_info(std::locale::classic(), real_id_);
-                    const boost::locale::info& inf = std::use_facet<boost::locale::info>(tmp);
-                    minf.language = inf.language();
-                    minf.country = inf.country();
-                    minf.variant = inf.variant();
-                    minf.encoding = inf.encoding();
-                    std::copy(domains_.begin(),
-                              domains_.end(),
-                              std::back_inserter<gnu_gettext::messages_info::domains_type>(minf.domains));
-                    minf.paths = paths_;
-                    switch(type) {
-                        case char_facet_t::nochar: break;
-                        case char_facet_t::char_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char>(minf));
-                        case char_facet_t::wchar_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<wchar_t>(minf));
-#ifdef BOOST_LOCALE_ENABLE_CHAR16_T
-                        case char_facet_t::char16_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char16_t>(minf));
-#endif
-#ifdef BOOST_LOCALE_ENABLE_CHAR32_T
-                        case char_facet_t::char32_f:
-                            return std::locale(base, gnu_gettext::create_messages_facet<char32_t>(minf));
-#endif
-                    }
-                    return base;
-                }
+                case category_t::message: return detail::install_message_facet(base, type, data_, domains_, paths_);
                 case category_t::information: return util::create_info(base, real_id_);
                 case category_t::codepage: return util::create_utf8_codecvt(base, type);
                 case category_t::boundary: break; // Not implemented
@@ -121,14 +92,15 @@ namespace boost { namespace locale { namespace impl_win {
         std::vector<std::string> domains_;
         std::string locale_id_;
         std::string real_id_;
+        util::locale_data data_;
 
         bool invalid_;
         winlocale lc_;
     };
 
-    localization_backend* create_localization_backend()
+    std::unique_ptr<localization_backend> create_localization_backend()
     {
-        return new winapi_localization_backend();
+        return make_std_unique<winapi_localization_backend>();
     }
 
 }}} // namespace boost::locale::impl_win

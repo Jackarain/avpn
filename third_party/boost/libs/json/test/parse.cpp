@@ -29,7 +29,7 @@ public:
         return true;
     }
 
-    bool hasLocation(error_code const& ec)
+    bool hasLocation(system::error_code const& ec)
     {
         return ec.has_location();
     }
@@ -71,14 +71,14 @@ public:
     void
     good(string_view s)
     {
-        good_impl<error_code>(s);
+        good_impl<system::error_code>(s);
         good_impl<std::error_code>(s);
     }
 
     void
     bad(string_view s)
     {
-        bad_impl<error_code>(s);
+        bad_impl<system::error_code>(s);
         bad_impl<std::error_code>(s);
     }
 
@@ -89,8 +89,6 @@ public:
         good("[1,2,3]");
         good("17");
         bad ("[1,2,3] #");
-        bad ("555415214748364655415E2147483646");
-        bad ("9.88874836020e-2147483640");
     }
 
     void
@@ -201,7 +199,7 @@ public:
 
         ss.clear();
         ss.setstate(std::ios::failbit);
-        BOOST_TEST_THROWS( parse(ss), system_error );
+        BOOST_TEST_THROWS_WITH_LOCATION( parse(ss) );
     }
 
     void

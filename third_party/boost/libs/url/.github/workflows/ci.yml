@@ -1,0 +1,350 @@
+#
+# Copyright (c) 2023 Alan de Freitas
+# Copyright (c) 2021-2023 Sam Darwin
+# Copyright (c) 2020-2021 Peter Dimov
+# Copyright (c) 2021 Andrey Semashev
+#
+# Distributed under the Boost Software License, Version 1.0. (See accompanying
+# file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+#
+# Official repository: https://github.com/boostorg/url
+#
+
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+      - feature/**
+  push:
+    branches:
+      - '*'
+    tags:
+      - "boost-*.*.*"
+
+
+concurrency:
+  group: ${{format('{0}:{1}', github.repository, github.ref)}}
+  cancel-in-progress: true
+
+env:
+  GIT_FETCH_JOBS: 8
+  NET_RETRY_COUNT: 5
+  DEFAULT_BUILD_VARIANT: debug,release
+
+jobs:
+  runner-selection:
+    name: Runner Selection
+    runs-on: ${{ github.repository_owner == 'boostorg' && fromJSON('[ "self-hosted", "linux", "x64", "ubuntu-latest-aws" ]') || 'ubuntu-latest' }}
+    outputs:
+      labelmatrix: ${{ steps.aws_hosted_runners.outputs.labelmatrix }}
+    steps:
+      - name: AWS Hosted Runners
+        id: aws_hosted_runners
+        uses: cppalliance/aws-hosted-runners@v1.0.0
+
+  cpp-matrix:
+    needs: [ runner-selection ]
+    runs-on: ${{ fromJSON(needs.runner-selection.outputs.labelmatrix)['ubuntu-latest'] }}
+    name: Generate Test Matrix
+    outputs:
+      matrix: ${{ steps.cpp-matrix.outputs.matrix }}
+    steps:
+      - name: Generate Test Matrix
+        uses: alandefreitas/cpp-actions/cpp-matrix@v1.8.2
+        id: cpp-matrix
+        with:
+          compilers: |
+            gcc >=4.8
+            clang >=3.8
+            msvc >=14.20
+            apple-clang *
+            mingw *
+            clang-cl *
+          standards: '>=11'
+          latest-factors: |
+            gcc Coverage UBSan
+          factors: |
+            gcc ASan Shared No-Threads
+            msvc Shared x86
+            clang Time-Trace Fuzz ASan+UBSan IntegerSan
+            mingw Shared
+          trace-commands: true
+
+  build:
+    needs: [ cpp-matrix,runner-selection ]
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.cpp-matrix.outputs.matrix) }}
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ fromJSON(needs.runner-selection.outputs.labelmatrix)[matrix.runs-on] }}
+    container: ${{ matrix.container }}
+    env: ${{ matrix.env }}
+    timeout-minutes: 120
+
+    steps:
+      - name: Clone Boost.URL
+        uses: actions/checkout@v3
+
+      - name: Setup C++
+        uses: alandefreitas/cpp-actions/setup-cpp@v1.8.2
+        id: setup-cpp
+        with:
+          compiler: ${{ matrix.compiler }}
+          version: ${{ (matrix.subrange-policy == 'one-per-major' && matrix.major) || matrix.version }}
+
+      - name: Install packages
+        if: matrix.install != ''
+        uses: alandefreitas/cpp-actions/package-install@v1.8.2
+        id: package-install
+        with:
+          apt-get: ${{ matrix.install }}
+
+      - name: Clone Boost
+        uses: alandefreitas/cpp-actions/boost-clone@v1.8.2
+        id: boost-clone
+        with:
+          branch: ${{ (github.ref_name == 'master' && github.ref_name) || 'develop' }}
+          boost-dir: ../boost-source
+          scan-modules-dir: .
+          scan-modules-ignore: url
+
+      - name: Setup
+        id: patch
+        shell: bash
+        run: |
+          set -xe
+          # GitHub workspace root
+          workspace_root=$(echo "$GITHUB_WORKSPACE" | sed 's/\\/\//g')
+          echo -E "workspace_root=$workspace_root" >> $GITHUB_OUTPUT
+
+          # Boost module being tested
+          module=${GITHUB_REPOSITORY#*/}
+          echo "module=$module" >> $GITHUB_OUTPUT
+
+          # Remove module from Boost source files
+          rm -r "../boost-source/libs/$module" || true
+
+          # Copy cached Boost source files to an isolated directory
+          mkdir "../boost-root" || true
+          cp -r "../boost-source"/* "../boost-root"
+
+          # Boost root directory
+          cd "../boost-root"
+          boost_root="$(pwd)"
+          boost_root=$(echo "$boost_root" | sed 's/\\/\//g')
+          echo -E "boost_root=$boost_root" >> $GITHUB_OUTPUT
+
+          # Patch boost-root with workspace module
+          mkdir "libs/$module"
+          cp -r "$workspace_root"/* "libs/$module"
+          
+          # Default parameters for CMake workflows
+          echo 'CMAKE_GENERATOR=${{ matrix.generator || '' }}' >> $GITHUB_ENV
+          echo 'CMAKE_GENERATOR_TOOLSET=${{ matrix.generator-toolset || '' }}' >> $GITHUB_ENV
+          echo 'CMAKE_BUILD_TYPE=${{ matrix.build-type || '' }}' >> $GITHUB_ENV
+          echo 'CC=${{ steps.setup-cpp.outputs.cc || matrix.cc || '' }}' >> $GITHUB_ENV
+          echo 'CFLAGS=${{ (matrix.integersan && '-fsanitize=integer -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=integer -fno-omit-frame-pointer') || matrix.ccflags || '' }}' >> $GITHUB_ENV
+          echo 'CXX=${{ steps.setup-cpp.outputs.cxx || matrix.cxx || '' }}' >> $GITHUB_ENV
+          echo 'CXXFLAGS=${{ (matrix.integersan && '-fsanitize=integer -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=integer -fno-omit-frame-pointer') || matrix.cxxflags || '' }}' >> $GITHUB_ENV
+          echo 'CXXSTD=${{ matrix.latest-cxxstd || '' }}' >> $GITHUB_ENV
+          echo 'BUILD_SHARED_LIBS=${{ matrix.shared || '' }}' >> $GITHUB_ENV
+          echo 'CMAKE_RUN_TESTS=true' >> $GITHUB_ENV
+          echo 'CMAKE_PACKAGE=false' >> $GITHUB_ENV
+          
+          # Set PATH to find Boost DLLs
+          if [ ${{ matrix.shared }} == "true" ]; then
+              echo "$GITHUB_WORKSPACE/.local/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Fuzz corpus
+        if: matrix.fuzz
+        uses: actions/cache@v3.3.1
+        id: cache-corpus
+        with:
+          path: ${{ steps.patch.outputs.workspace_root }}/corpus.tar
+          key: corpus-${{ github.run_id }}
+          enableCrossOsArchive: true
+          restore-keys: |
+            corpus-
+
+      - name: CMake Workflow
+        uses: alandefreitas/cpp-actions/cmake-workflow@v1.8.2
+        if: matrix.is-no-factor-intermediary != 'true'
+        with:
+          source-dir: ../boost-root
+          build-dir: build_cmake
+          build-target: tests
+          install: true
+          install-prefix: .local
+          cmake-version: '>=3.20'
+          extra-args: |
+            -D Boost_VERBOSE=ON
+            -D BOOST_INCLUDE_LIBRARIES=${{ steps.patch.outputs.module }}
+            -D BOOST_URL_DISABLE_THREADS=${{ ( matrix.no-threads && 'ON' ) || 'OFF' }}
+            -D BOOST_URL_BUILD_FUZZERS=${{ ( matrix.fuzz && format('ON -D BOOST_URL_FUZZER_CORPUS_PATH={0}/corpus.tar', steps.patch.outputs.workspace_root) ) || 'OFF' }}
+            -D BOOST_URL_WARNINGS_AS_ERRORS=${{ ( matrix.is-latest && 'ON' ) || 'OFF' }}
+          export-compile-commands: ${{ matrix.time-trace }}
+          ref-source-dir: ../boost-root/libs/url
+          trace-commands: true
+
+      - name: CMake Integration Workflow
+        uses: alandefreitas/cpp-actions/cmake-workflow@v1.8.2
+        if: matrix.is-no-factor-intermediary != 'true'
+        with:
+          source-dir: ../boost-root/libs/${{ steps.patch.outputs.module }}/test/cmake_test
+          build-dir: build_cmake_test
+          install: false
+          cmake-version: '>=3.20'
+          extra-args: |
+            'find_package(Boost)': -D BOOST_CI_INSTALL_TEST=ON -D CMAKE_PREFIX_PATH=${{ steps.patch.outputs.workspace_root }}/.local
+            'find_package(boost_url)': -D BOOST_CI_INSTALL_MODULE_TEST=ON -D CMAKE_PREFIX_PATH=${{ steps.patch.outputs.workspace_root }}/.local
+            'add_subdirectory(<boost>)': -D BOOST_CI_BOOST_SUBDIR_TEST=ON
+            'add_subdirectory(<url>)': -D BOOST_CI_URL_SUBDIR_TEST=ON
+          ref-source-dir: ../boost-root/libs/url
+          trace-commands: true
+
+      - name: CMake Root Workflow
+        uses: alandefreitas/cpp-actions/cmake-workflow@v1.8.2
+        if: matrix.is-no-factor-intermediary != 'true'
+        with:
+          source-dir: .
+          build-dir: build_cmake_root
+          build-target: tests
+          run-tests: true
+          install: false
+          cmake-version: '>=3.20'
+          extra-args: |
+            -D BOOST_SRC_DIR="../boost-root"
+            -D BOOST_URL_DISABLE_THREADS=${{ ( matrix.no-threads && 'ON' ) || 'OFF' }}
+            -D BOOST_URL_WARNINGS_AS_ERRORS=${{ ( matrix.is-latest && 'ON' ) || 'OFF' }}
+          ref-source-dir: .
+          trace-commands: true
+
+      - name: B2 Workflow
+        uses: alandefreitas/cpp-actions/b2-workflow@v1.8.2
+        env:
+          # Set flags via B2 options exclusively
+          CFLAGS: ''
+          CXXFLAGS: ''
+        with:
+          source-dir: ../boost-root
+          modules: url
+          toolset: ${{ matrix.b2-toolset }}
+          build-variant: ${{ matrix.build-type }}
+          cxx: ${{ steps.setup-cpp.outputs.cxx || matrix.cxx || '' }}
+          # If this is the latest compiler version in the matrix, we also append `,latest` to `cxxstd`
+          # `latest` is a b2 tag that defaults to the latest C++ standard supported by the compiler,
+          # including experimental ones, decaying to placeholders options (such as 0x, 1y, 1z, 2a, 2b, 2c).
+          cxxstd: ${{ ( matrix.is-latest && ((matrix.cxxstd && format('{0},latest', matrix.cxxstd)) || 'latest' )) || matrix.cxxstd }}
+          address-model: ${{ (matrix.x86 && '32') || '64' }}
+          asan: ${{ matrix.asan }}
+          ubsan: ${{ matrix.ubsan || matrix.integersan }}
+          tsan: ${{ matrix.tsan }}
+          # integer-sanitizer is passed directly as flags
+          ccflags: ${{ (matrix.integersan && '-fsanitize=integer -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=integer -fno-omit-frame-pointer') || '' }}
+          cxxflags: ${{ (matrix.integersan && '-fsanitize=integer -fno-sanitize=unsigned-integer-overflow -fno-sanitize-recover=integer -fno-omit-frame-pointer') || '' }}
+          shared: ${{ matrix.shared }}
+          coverage: ${{ matrix.coverage }}
+          define: ${{ (matrix.no-threads && 'BOOST_URL_DISABLE_THREADS') || '' }}
+          warnings-as-errors: ${{ matrix.is-latest }}
+
+      - name: FlameGraph
+        uses: alandefreitas/cpp-actions/flamegraph@v1.8.2
+        if: matrix.time-trace
+        with:
+          source-dir: ../boost-root/libs/url
+          build-dir: ../boost-root/build_cmake
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Codecov
+        if: matrix.coverage
+        run: |
+          set -x
+
+          # Generate report
+          gcov_tool="gcov"
+          if command -v "gcov-${{ steps.setup-cpp.outputs.version-major }}.${{ steps.setup-cpp.outputs.version-minor }}" &> /dev/null; then
+              gcov_tool="gcov-${{ steps.setup-cpp.outputs.version-major }}.${{ steps.setup-cpp.outputs.version-minor }}"
+          elif command -v "gcov-${{ steps.setup-cpp.outputs.version-major }}" &> /dev/null; then
+              gcov_tool="gcov-${{ steps.setup-cpp.outputs.version-major }}"
+          fi
+          lcov -c -q -o "../boost-root/build_cmake/coverage.info" -d "../boost-root/build_cmake" --include "$(pwd)/../boost-root/libs/${{steps.patch.outputs.module}}/*" --gcov-tool "$gcov_tool"
+
+          # Upload to codecov
+          bash <(curl -s https://codecov.io/bash) -f "../boost-root/build_cmake/coverage.info"
+
+          # Summary
+          echo "# Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[![codecov](https://codecov.io/github/$GITHUB_REPOSITORY/commit/$GITHUB_SHA/graphs/sunburst.svg)](https://codecov.io/github/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: [![codecov](https://codecov.io/github/$GITHUB_REPOSITORY/commit/$GITHUB_SHA/graph/badge.svg)](https://codecov.io/github/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: [![codecov](https://codecov.io/github/$GITHUB_REPOSITORY/branch/$GITHUB_REF_NAME/graph/badge.svg)](https://codecov.io/github/$GITHUB_REPOSITORY/commit/$GITHUB_SHA)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  changelog:
+    needs: [ cpp-matrix,runner-selection ]
+    defaults:
+      run:
+        shell: bash
+
+    name: Changelog Summary
+    runs-on: ${{ fromJSON(needs.runner-selection.outputs.labelmatrix)['ubuntu-22.04'] }}
+    timeout-minutes: 120
+
+    steps:
+      - name: Clone Boost.URL
+        uses: actions/checkout@v3
+        with:
+          # Avoid the common API rate limit exceeded error in boostorg by including 100 latest commits in any case
+          fetch-depth: 100
+
+      - name: Changelog
+        uses: alandefreitas/cpp-actions/create-changelog@v1.8.2
+        with:
+          thank-non-regular: ${{ startsWith(github.ref, 'refs/tags/') }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          limit: 200
+          tag-pattern: 'boost-.+\..+\..+' # Match tags like boost-1.75.0
+          trace-commands: true
+
+  antora:
+    name: Antora Docs
+    needs: [ runner-selection ]
+    runs-on: ${{ fromJSON(needs.runner-selection.outputs.labelmatrix)['ubuntu-latest'] }}
+    steps:
+      - name: Clone Boost.URL
+        uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup C++
+        uses: alandefreitas/cpp-actions/setup-cpp@v1.8.2
+        id: setup-cpp
+        with:
+          compiler: clang
+          version: 17
+
+      - name: Build Antora Docs
+        run: |
+          cd doc
+          bash ./build_antora.sh
+
+      - name: Create Antora Docs Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: antora-docs
+          path: doc/build/site
+          

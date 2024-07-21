@@ -58,9 +58,8 @@ namespace boost { namespace locale { namespace impl_icu {
             if(!std::numeric_limits<ValueType>::is_integer)
                 return false;
 
-            if(flg == flags::number && (ios.flags() & std::ios_base::basefield) != std::ios_base::dec) {
+            if(flg == flags::number && (ios.flags() & std::ios_base::basefield) != std::ios_base::dec)
                 return true;
-            }
             return false;
         }
     } // namespace detail
@@ -70,49 +69,49 @@ namespace boost { namespace locale { namespace impl_icu {
     public:
         typedef typename std::num_put<CharType>::iter_type iter_type;
         typedef std::basic_string<CharType> string_type;
-        typedef CharType char_type;
         typedef formatter<CharType> formatter_type;
 
-        num_format(const cdata& d, size_t refs = 0) : std::num_put<CharType>(refs), loc_(d.locale), enc_(d.encoding) {}
+        num_format(const cdata& d, size_t refs = 0) : std::num_put<CharType>(refs), loc_(d.locale()), enc_(d.encoding())
+        {}
 
     protected:
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, long val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, long val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, unsigned long val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, unsigned long val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, double val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, double val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, long double val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, long double val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
 
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, long long val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, long long val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
-        iter_type do_put(iter_type out, std::ios_base& ios, char_type fill, unsigned long long val) const override
+        iter_type do_put(iter_type out, std::ios_base& ios, CharType fill, unsigned long long val) const override
         {
             return do_real_put(out, ios, fill, val);
         }
 
     private:
         template<typename ValueType>
-        iter_type do_real_put(iter_type out, std::ios_base& ios, char_type fill, ValueType val) const
+        iter_type do_real_put(iter_type out, std::ios_base& ios, CharType fill, ValueType val) const
         {
             if(detail::use_parent(ios, val))
-                return std::num_put<char_type>::do_put(out, ios, fill, val);
+                return std::num_put<CharType>::do_put(out, ios, fill, val);
 
             const auto formatter = formatter_type::create(ios, loc_, enc_);
 
             if(!formatter)
-                return std::num_put<char_type>::do_put(out, ios, fill, val);
+                return std::num_put<CharType>::do_put(out, ios, fill, val);
 
             size_t code_points;
             typedef typename detail::icu_format_type<ValueType>::type icu_type;
@@ -145,17 +144,17 @@ namespace boost { namespace locale { namespace impl_icu {
         icu::Locale loc_;
         std::string enc_;
 
-    }; /// num_format
+    }; // num_format
 
     template<typename CharType>
     class num_parse : public std::num_get<CharType> {
     public:
-        num_parse(const cdata& d, size_t refs = 0) : std::num_get<CharType>(refs), loc_(d.locale), enc_(d.encoding) {}
+        num_parse(const cdata& d, size_t refs = 0) : std::num_get<CharType>(refs), loc_(d.locale()), enc_(d.encoding())
+        {}
 
     protected:
         typedef typename std::num_get<CharType>::iter_type iter_type;
         typedef std::basic_string<CharType> string_type;
-        typedef CharType char_type;
         typedef formatter<CharType> formatter_type;
         typedef std::basic_istream<CharType> stream_type;
 
@@ -240,14 +239,12 @@ namespace boost { namespace locale { namespace impl_icu {
         do_real_get(iter_type in, iter_type end, std::ios_base& ios, std::ios_base::iostate& err, ValueType& val) const
         {
             stream_type* stream_ptr = dynamic_cast<stream_type*>(&ios);
-            if(!stream_ptr || detail::use_parent(ios, ValueType(0))) {
+            if(!stream_ptr || detail::use_parent(ios, ValueType(0)))
                 return std::num_get<CharType>::do_get(in, end, ios, err, val);
-            }
 
             const auto formatter = formatter_type::create(ios, loc_, enc_);
-            if(!formatter) {
+            if(!formatter)
                 return std::num_get<CharType>::do_get(in, end, ios, err, val);
-            }
 
             string_type tmp;
             tmp.reserve(64);
@@ -256,23 +253,20 @@ namespace boost { namespace locale { namespace impl_icu {
             while(in != end && (((c = *in) <= 32 && (c > 0)) || c == 127)) // Assuming that ASCII is a subset
                 ++in;
 
-            while(tmp.size() < 4096 && in != end && *in != '\n') {
+            while(tmp.size() < 4096 && in != end && *in != '\n')
                 tmp += *in++;
-            }
 
             typedef typename detail::icu_format_type<ValueType>::type icu_type;
             icu_type value;
             size_t parsed_chars;
 
-            if((parsed_chars = formatter->parse(tmp, value)) == 0 || !is_losless_castable<ValueType>(value)) {
+            if((parsed_chars = formatter->parse(tmp, value)) == 0 || !is_losless_castable<ValueType>(value))
                 err |= std::ios_base::failbit;
-            } else {
+            else
                 val = static_cast<ValueType>(value);
-            }
 
-            for(size_t n = tmp.size(); n > parsed_chars; n--) {
+            for(size_t n = tmp.size(); n > parsed_chars; n--)
                 stream_ptr->putback(tmp[n - 1]);
-            }
 
             in = iter_type(*stream_ptr);
 
@@ -314,9 +308,8 @@ namespace boost { namespace locale { namespace impl_icu {
     std::locale install_formatting_facets(const std::locale& in, const cdata& cd)
     {
         std::locale tmp = std::locale(in, new num_format<CharType>(cd));
-        if(!std::has_facet<formatters_cache>(in)) {
-            tmp = std::locale(tmp, new formatters_cache(cd.locale));
-        }
+        if(!std::has_facet<formatters_cache>(in))
+            tmp = std::locale(tmp, new formatters_cache(cd.locale()));
         return tmp;
     }
 
@@ -324,9 +317,8 @@ namespace boost { namespace locale { namespace impl_icu {
     std::locale install_parsing_facets(const std::locale& in, const cdata& cd)
     {
         std::locale tmp = std::locale(in, new num_parse<CharType>(cd));
-        if(!std::has_facet<formatters_cache>(in)) {
-            tmp = std::locale(tmp, new formatters_cache(cd.locale));
-        }
+        if(!std::has_facet<formatters_cache>(in))
+            tmp = std::locale(tmp, new formatters_cache(cd.locale()));
         return tmp;
     }
 
@@ -336,6 +328,9 @@ namespace boost { namespace locale { namespace impl_icu {
             case char_facet_t::nochar: break;
             case char_facet_t::char_f: return install_formatting_facets<char>(in, cd);
             case char_facet_t::wchar_f: return install_formatting_facets<wchar_t>(in, cd);
+#ifdef __cpp_char8_t
+            case char_facet_t::char8_f: break; // std-facet not available (yet)
+#endif
 #ifdef BOOST_LOCALE_ENABLE_CHAR16_T
             case char_facet_t::char16_f: return install_formatting_facets<char16_t>(in, cd);
 #endif
@@ -352,6 +347,9 @@ namespace boost { namespace locale { namespace impl_icu {
             case char_facet_t::nochar: break;
             case char_facet_t::char_f: return install_parsing_facets<char>(in, cd);
             case char_facet_t::wchar_f: return install_parsing_facets<wchar_t>(in, cd);
+#ifdef __cpp_char8_t
+            case char_facet_t::char8_f: break; // std-facet not available (yet)
+#endif
 #ifdef BOOST_LOCALE_ENABLE_CHAR16_T
             case char_facet_t::char16_f: return install_parsing_facets<char16_t>(in, cd);
 #endif

@@ -11,10 +11,9 @@ file(GLOB_RECURSE headers include/*.hpp)
 
 add_library(boost_locale
   src/boost/locale/encoding/codepage.cpp
-  src/boost/locale/encoding/conv.hpp
-  src/boost/locale/encoding/iconv_codepage.ipp
-  src/boost/locale/encoding/uconv_codepage.ipp
-  src/boost/locale/encoding/wconv_codepage.ipp
+  src/boost/locale/encoding/iconv_converter.hpp
+  src/boost/locale/encoding/uconv_converter.hpp
+  src/boost/locale/encoding/wconv_converter.hpp
   src/boost/locale/shared/date_time.cpp
   src/boost/locale/shared/format.cpp
   src/boost/locale/shared/formatting.cpp
@@ -25,12 +24,15 @@ add_library(boost_locale
   src/boost/locale/shared/localization_backend.cpp
   src/boost/locale/shared/message.cpp
   src/boost/locale/shared/mo_lambda.cpp
+  src/boost/locale/shared/std_collate_adapter.hpp
   src/boost/locale/util/codecvt_converter.cpp
   src/boost/locale/util/default_locale.cpp
   src/boost/locale/util/encoding.cpp
   src/boost/locale/util/encoding.hpp
+  src/boost/locale/util/foreach_char.hpp
   src/boost/locale/util/info.cpp
   src/boost/locale/util/locale_data.cpp
+  src/boost/locale/util/make_std_unique.hpp
   src/boost/locale/util/numeric.hpp
   src/boost/locale/util/timezone.hpp
   ${headers}
@@ -45,9 +47,10 @@ target_link_libraries(boost_locale
   PUBLIC
     Boost::assert
     Boost::config
-    Boost::iterator
-  PRIVATE
     Boost::core
+    Boost::iterator
+    Boost::utility
+  PRIVATE
     Boost::predef
     Boost::thread
 )

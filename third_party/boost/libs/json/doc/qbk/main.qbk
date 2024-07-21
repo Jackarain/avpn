@@ -4,7 +4,7 @@
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-    Official repository: https://github.com/cppalliance/json
+    Official repository: https://github.com/boostorg/json
 ]
 
 [library Boost.JSON
@@ -28,8 +28,8 @@
 [template indexterm1[term1] '''<indexterm><primary>'''[term1]'''</primary></indexterm>''']
 [template indexterm2[term1 term2] '''<indexterm><primary>'''[term1]'''</primary><secondary>'''[term2]'''</secondary></indexterm>''']
 
-[template include_file[path][^<'''<ulink url="https://github.com/cppalliance/json/blob/master/include/'''[path]'''">'''[path]'''</ulink>'''>]]
-[template issue[n] '''<ulink url="https://github.com/cppalliance/json/issues/'''[n]'''">#'''[n]'''</ulink>''']
+[template include_file[path][^<'''<ulink url="https://github.com/boostorg/json/blob/master/include/'''[path]'''">'''[path]'''</ulink>'''>]]
+[template issue[n] '''<ulink url="https://github.com/boostorg/json/issues/'''[n]'''">#'''[n]'''</ulink>''']
 
 [/ Named Requirements ]
 
@@ -61,9 +61,12 @@
 [def __is_described_enum__      [link json.ref.boost__json__is_described_enum `is_described_enum`]]
 [def __is_map_like__            [link json.ref.boost__json__is_map_like `is_map_like`]]
 [def __is_null_like__           [link json.ref.boost__json__is_null_like `is_null_like`]]
+[def __is_optional_like__       [link json.ref.boost__json__is_optional_like `is_optional_like`]]
+[def __is_path_like__           [link json.ref.boost__json__is_path_like `is_path_like`]]
 [def __is_sequence_like__       [link json.ref.boost__json__is_sequence_like `is_sequence_like`]]
 [def __is_string_like__         [link json.ref.boost__json__is_string_like `is_string_like`]]
 [def __is_tuple_like__          [link json.ref.boost__json__is_tuple_like `is_tuple_like`]]
+[def __is_variant_like__        [link json.ref.boost__json__is_variant_like `is_variant_like`]]
 [def __key_value_pair__         [link json.ref.boost__json__key_value_pair `key_value_pair`]]
 [def __kind__                   [link json.ref.boost__json__kind `kind`]]
 [def __make_shared_resource__   [link json.ref.boost__json__make_shared_resource `make_shared_resource`]]
@@ -71,7 +74,9 @@
 [def __monotonic_resource__     [link json.ref.boost__json__monotonic_resource `monotonic_resource`]]
 [def __object__                 [link json.ref.boost__json__object `object`]]
 [def __parse__                  [link json.ref.boost__json__parse `parse`]]
+[def __parse_into__             [link json.ref.boost__json__parse_into `parse_into`]]
 [def __parser__                 [link json.ref.boost__json__parser `parser`]]
+[def __parser_for__             [link json.ref.boost__json__parser_for `parser_for`]]
 [def __parse_options__          [link json.ref.boost__json__parse_options `parse_options`]]
 [def __polymorphic_allocator__  [link json.ref.boost__json__polymorphic_allocator `polymorphic_allocator`]]
 [def __result__                 [link json.ref.boost__json__result `result`]]
@@ -91,7 +96,7 @@
 [def __value_stack__            [link json.ref.boost__json__value_stack `value_stack`]]
 [def __value_to__               [link json.ref.boost__json__value_to `value_to`]]
 
-[def __default_memory_resource__ [link json.allocator.default_memory_resource default memory resource]]
+[def __default_memory_resource__ [link json.allocators.storage_ptr.default_memory_resource default memory resource]]
 
 [def __std_array__              [@https://en.cppreference.com/w/cpp/container/array `std::array`]]
 [def __initializer_list__       [@https://en.cppreference.com/w/cpp/utility/initializer_list `std::initializer_list`]]
@@ -115,6 +120,7 @@
 
 [import ../../example/pretty.cpp]
 [import ../../example/validate.cpp]
+[import ../../example/use_allocator.cpp]
 [import ../../include/boost/json/impl/serialize.ipp]
 [import ../../test/doc_background.cpp]
 [import ../../test/doc_parsing.cpp]

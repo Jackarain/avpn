@@ -1,11 +1,17 @@
 //
 // Copyright (c) 2009-2011 Artyom Beilis (Tonkikh)
+// Copyright (c) 2022-2023 Alexander Grund
 //
 // Distributed under the Boost Software License, Version 1.0.
 // https://www.boost.org/LICENSE_1_0.txt
 
+#ifndef NOMINMAX
+#    define NOMINMAX
+#endif
+
 #include <boost/locale/date_time.hpp>
 #include <boost/locale/formatting.hpp>
+#include <boost/core/exchange.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
 #include <cmath>
@@ -66,12 +72,12 @@ namespace boost { namespace locale {
         return impl_->get_option(abstract_calendar::is_gregorian) != 0;
     }
 
-    std::string calendar::get_time_zone() const
+    const std::string& calendar::get_time_zone() const
     {
         return tz_;
     }
 
-    std::locale calendar::get_locale() const
+    const std::locale& calendar::get_locale() const
     {
         return locale_;
     }
@@ -125,9 +131,8 @@ namespace boost { namespace locale {
     date_time::date_time(const date_time& other, const date_time_period_set& s)
     {
         impl_.reset(other.impl_->clone());
-        for(unsigned i = 0; i < s.size(); i++) {
+        for(unsigned i = 0; i < s.size(); i++)
             impl_->set_value(s[i].type.mark(), s[i].value);
-        }
         impl_->normalize();
     }
 
@@ -154,16 +159,14 @@ namespace boost { namespace locale {
         impl_(std::use_facet<calendar_facet>(std::locale()).create_calendar())
     {
         impl_->set_timezone(time_zone::global());
-        for(unsigned i = 0; i < s.size(); i++) {
+        for(unsigned i = 0; i < s.size(); i++)
             impl_->set_value(s[i].type.mark(), s[i].value);
-        }
         impl_->normalize();
     }
     date_time::date_time(const date_time_period_set& s, const calendar& cal) : impl_(cal.impl_->clone())
     {
-        for(unsigned i = 0; i < s.size(); i++) {
+        for(unsigned i = 0; i < s.size(); i++)
             impl_->set_value(s[i].type.mark(), s[i].value);
-        }
         impl_->normalize();
     }
 
@@ -268,33 +271,29 @@ namespace boost { namespace locale {
 
     date_time& date_time::operator+=(const date_time_period_set& v)
     {
-        for(unsigned i = 0; i < v.size(); i++) {
+        for(unsigned i = 0; i < v.size(); i++)
             *this += v[i];
-        }
         return *this;
     }
 
     date_time& date_time::operator-=(const date_time_period_set& v)
     {
-        for(unsigned i = 0; i < v.size(); i++) {
+        for(unsigned i = 0; i < v.size(); i++)
             *this -= v[i];
-        }
         return *this;
     }
 
     date_time& date_time::operator<<=(const date_time_period_set& v)
     {
-        for(unsigned i = 0; i < v.size(); i++) {
+        for(unsigned i = 0; i < v.size(); i++)
             *this <<= v[i];
-        }
         return *this;
     }
 
     date_time& date_time::operator>>=(const date_time_period_set& v)
     {
-        for(unsigned i = 0; i < v.size(); i++) {
+        for(unsigned i = 0; i < v.size(); i++)
             *this >>= v[i];
-        }
         return *this;
     }
 
@@ -305,24 +304,30 @@ namespace boost { namespace locale {
 
     void date_time::time(double v)
     {
+        constexpr int64_t ns_in_s = static_cast<int64_t>(1000) * 1000 * 1000;
+
         double seconds;
         const double fract_seconds = std::modf(v, &seconds); // v = seconds + fract_seconds
         posix_time ptime;
         ptime.seconds = static_cast<int64_t>(seconds);
-        int64_t nano = static_cast<int64_t>(fract_seconds * 1e9);
+        int64_t nano = static_cast<int64_t>(fract_seconds * ns_in_s);
 
-        constexpr int64_t ns_in_s = static_cast<int64_t>(1000) * 1000 * 1000;
-        if(seconds < 0 && nano != 0) {
-            assert(nano < 0); // Same sign
-            seconds -= 1;
-            nano = ns_in_s + nano;
-        }
-        if(nano < 0)
-            nano = 0;
-        else if(nano >= ns_in_s)
-            nano = ns_in_s - 1;
+        if(nano < 0) {
+            // Add 1s from seconds to nano to make nano positive
+            ptime.seconds -= 1;
+            nano = std::max(int64_t(0), nano + ns_in_s); // std::max to handle rounding issues
+        } else if(nano >= ns_in_s)                       // Unlikely rounding issue, when fract_seconds is close to 1.
+            nano = ns_in_s - 1;                          // LCOV_EXCL_LINE
+
+        BOOST_ASSERT(nano < ns_in_s);
+        static_assert(ns_in_s <= std::numeric_limits<uint32_t>::max(), "Insecure cast");
         ptime.nanoseconds = static_cast<uint32_t>(nano);
         impl_->set_time(ptime);
+    }
+
+    std::string date_time::timezone() const
+    {
+        return impl_->get_timezone();
     }
 
     namespace {
@@ -370,7 +375,7 @@ namespace boost { namespace locale {
         return !(*this > other);
     }
 
-    void date_time::swap(date_time& other)
+    void date_time::swap(date_time& other) noexcept
     {
         impl_.swap(other.impl_);
     }
@@ -409,16 +414,15 @@ namespace boost { namespace locale {
         std::string global()
         {
             boost::unique_lock<boost::mutex> lock(tz_mutex());
-            std::string id = tz_id();
-            return id;
+            return tz_id();
         }
         std::string global(const std::string& new_id)
         {
             boost::unique_lock<boost::mutex> lock(tz_mutex());
-            std::string id = tz_id();
-            tz_id() = new_id;
-            return id;
+            return boost::exchange(tz_id(), new_id);
         }
     } // namespace time_zone
 
 }} // namespace boost::locale
+
+// boostinspect:nominmax

@@ -4,7 +4,7 @@
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-    Official repository: https://github.com/cppalliance/json
+    Official repository: https://github.com/boostorg/json
 ]
 
 [/-----------------------------------------------------------------------------]
@@ -95,6 +95,26 @@ following list of categories. The first matching category is selected.
         to the input value converted to its underlying type.]
     [The result is the described enumerator, corresponding to the input
         __string__.]
+][
+    [Type satisfying __is_variant_like__]
+    [`std::variant` and similar types, e.g. `boost::variant2::variant`.]
+    [The result is equal to the result of conversion of the active variant
+        alternative.]
+    [The result holds the first alternative for which a conversion succeeds.]
+][
+    [Type satisfying __is_optional_like__]
+    []
+    [If the input value is empty, the result is a `null`. Otherwise it is
+        equivalent to conversion of the object stored inside of optional.]
+    [The result is default constructed if the input value is `null`. Otherwise
+        the result is constructed from the result of conversion of the input to
+        the type stored in optional.]
+][
+    [Type satisfying __is_path_like__]
+    [`std::filesystem::path` and similar types, e.g.
+        `boost::filesystem::path`.]
+    [The result is equal to the result of `path::generic_string`.]
+    [The result is constructed from two pointers to `const char`.]
 ]]
 
 For composite types (sequences, tuples, described classes, etc.) conversion of
