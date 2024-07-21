@@ -399,6 +399,10 @@ set_property(TARGET boost_thread PROPERTY FOLDER "third_party")
 set_property(TARGET boost_url PROPERTY FOLDER "third_party")
 set_property(TARGET boost_variant2 PROPERTY FOLDER "third_party")
 
+set_property(TARGET boost_prg_exec_monitor PROPERTY FOLDER "third_party")
+set_property(TARGET boost_test_exec_monitor PROPERTY FOLDER "third_party")
+set_property(TARGET boost_unit_test_framework PROPERTY FOLDER "third_party")
+
 ################################################################################
 
 if (ENABLE_USE_WINTUN)
@@ -625,13 +629,9 @@ add_subdirectory(avpn)
 
 if (ENABLE_BUILD_TESTS)
 	link_libraries(
-		boost_prg_exec_monitor
-		boost_test_exec_monitor
-		boost_unit_test_framework
-
-		boost_included_prg_exec_monitor
-		boost_included_test_exec_monitor
-		boost_included_unit_test_framework
+		Boost::prg_exec_monitor
+		Boost::test_exec_monitor
+		Boost::unit_test_framework
 	)
 	enable_testing()
 	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
