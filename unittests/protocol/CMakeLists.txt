@@ -12,7 +12,6 @@ endif()
 
 target_link_libraries(protocol_tests
 	Boost::asio
-	Boost::test
 	libavpn
 )
 

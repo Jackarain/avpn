@@ -11,7 +11,13 @@ if (ENABLE_dbus_STATIC)
 	target_link_libraries(dbus_tests dbus-static)
 endif()
 
-target_link_libraries(dbus_tests libavpn Boost::asio Boost::beast Boost::test systemd)
+target_link_libraries(dbus_tests
+	Boost::asio
+	Boost::beast
+
+	libavpn
+	systemd
+)
 
 if (MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.29.30129 AND CMAKE_VERSION VERSION_GREATER 3.20.3)
 	set_property(TARGET dbus_tests PROPERTY CXX_STANDARD 23)

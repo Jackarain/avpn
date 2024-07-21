@@ -13,7 +13,6 @@ endif()
 
 target_link_libraries(reedsolomon_tests
 	Boost::asio
-	Boost::test
 	libavpn
 )
 

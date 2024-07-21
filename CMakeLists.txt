@@ -624,8 +624,6 @@ add_subdirectory(avpn)
 ################################################################################
 
 if (ENABLE_BUILD_TESTS)
-	link_libraries(Boost::test)
-
 	enable_testing()
 	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
 	add_subdirectory(unittests)

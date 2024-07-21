@@ -12,7 +12,6 @@ endif()
 
 target_link_libraries(fec_cache_tests
 	Boost::asio
-	Boost::test
 	libavpn
 )
 
