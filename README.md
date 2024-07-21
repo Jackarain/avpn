@@ -205,12 +205,6 @@ ninja
 | publickey<br>privatekey |		作为server时，指定ecdh的私钥(base64编码)，作为client时，指定为server的ecdh公钥信息(base64编码)。client 本身的密钥对由系统自动随机生成，在握手时通过协议传输公钥到server。server 通过握手协议拿到client的公钥，及本参数指定的密钥对，协商出解密密钥。client 通过本参数指定的server的公钥，及自己生成的密钥对，协商出解密密钥。|
 | genkey |		随机生成一个base64编码的密钥（等同wg genkey）。|
 | pubkey |		给定的一个私钥，计算它的公钥，私钥以base64编码并从stdin输入，公钥将以base64编码输出stdout，对应的私钥生成可使用genkey（等同wg）。|
-| socks_server |		这个参数指定avpn内部运行一个或多个socks server。|
-| socks_interface |		内部运行socks server时，指定对外发起连接时，所bind的interface。|
-| socks_userid<br>socks_passwd |		指定socks server的userid/passwd。|
-| socks_next_proxy |		作为socks server时指定下一个socks server以实现client可跨过2层socks server的目的，这对client来说是无感的。|
-| socks_next_proxy_ssl |		指定socks_next_proxy时，与下一层socks server通信时是否采用ssl加密通信。|
-| ssl_certificate_dir |		作为socks server时，指定ssl证书目录，固定证书相关文件名为：ssl_crt.pem、ssl_key.pem、ssl_dh.pem、ssl_crt.pwd。|
 | tcp |		运行身份作为server时，这个参数指定了监听的tcp地址和端口，一般如--tcp "[::0]:33333"表示tcp监听在ipv6地下::0下的33333端口，再如--tcp "0.0.0.0:33333"表示tcp监听在ipv4地下0.0.0.0下的33333端口。|
 | udp |		运行身份作为server时，这个参数指定了监听的udp地址和端口，一般如--udp "[::0]:33333"表示udp监听在ipv6地下::0下的33333端口，再如--udp "0.0.0.0:33333"表示udp监听在ipv4地下0.0.0.0下的33333端口。|
 | data_shards <br> parity_shards |		这2个参数是fec参数，主要指定多少份data_shards和多少份parity_shards组成一组fec数据，也就是说，在发送data_shards份数据的同时，携带parity_shards份冗余数据。fec算法可以允许任意最多丢失parity_shards份数据。|
