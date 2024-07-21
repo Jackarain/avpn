@@ -370,6 +370,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
+set(BOOST_IOSTREAMS_ENABLE_ZSTD OFF)
+
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
 set_property(TARGET boost_asio PROPERTY FOLDER "third_party")
