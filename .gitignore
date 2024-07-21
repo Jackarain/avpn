@@ -259,6 +259,7 @@ gcc-build/
 ninja-build/
 linux-build/
 withopenssl-build/
+build-*/
 
 # kdev
 .kdev4/
