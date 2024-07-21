@@ -12,6 +12,7 @@ endif()
 
 target_link_libraries(fec_cache_tests
 	Boost::asio
+	Boost::test
 	libavpn
 )
 
@@ -31,14 +32,14 @@ target_include_directories(fec_cache_tests PUBLIC
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	target_compile_options(fec_cache_tests PRIVATE -fcoroutines)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	target_compile_definitions(fec_cache_tests PRIVATE -DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
-if(ENABLE_BUILD_WERROR)
-	if(MSVC)
+if (ENABLE_BUILD_WERROR)
+	if (MSVC)
 		target_compile_options(fec_cache_tests PRIVATE /W4 /WX)
-	elseif(UNIX AND NOT APPLE)
+	elseif (UNIX AND NOT APPLE)
 		if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
 			target_compile_options(fec_cache_tests PRIVATE -Werror -Wall -Wextra -Wno-unknown-pragmas -Wno-deprecated)
 		else()
@@ -47,5 +48,5 @@ if(ENABLE_BUILD_WERROR)
 	endif()
 endif()
 
-add_test (NAME fec_cache_tests COMMAND fec_cache_tests)
+add_test(NAME fec_cache_tests COMMAND fec_cache_tests)
 set_target_properties(fec_cache_tests PROPERTIES FOLDER "AVPN tests")

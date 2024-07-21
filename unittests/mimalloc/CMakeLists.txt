@@ -13,6 +13,7 @@ endif()
 
 target_link_libraries(mimalloc_tests
 	Boost::asio
+	Boost::test
 	libavpn
 )
 
