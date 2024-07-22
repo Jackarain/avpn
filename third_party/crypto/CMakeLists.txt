@@ -1020,7 +1020,10 @@ endif ()
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "Compiler options: ${CMAKE_CXX_FLAGS} ${CRYPTOPP_COMPILE_OPTIONS}")
 message(STATUS "Compiler definitions: ${CRYPTOPP_COMPILE_DEFINITIONS}")
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+if (NOT MSVC)
+    message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+endif()
 
 set_target_properties(cryptopp-static PROPERTIES FOLDER "third_party")
 set_target_properties(cryptopp-static PROPERTIES POSITION_INDEPENDENT_CODE ON)

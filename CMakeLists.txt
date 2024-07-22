@@ -24,6 +24,7 @@ math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
 # Touch cmake everytime for update version
 add_custom_target(invalidate_files ALL
 		COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_LIST_FILE})
+set_target_properties(invalidate_files PROPERTIES FOLDER "third_party")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
@@ -57,7 +58,10 @@ message(STATUS "System version: ${CMAKE_SYSTEM_VERSION}")
 if (WIN32)
 	message(STATUS "Platform version: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
 endif()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+if (NOT MSVC)
+	message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+endif()
 
 # 跨平台性定义.
 message(STATUS "SYSTEM NAME: ${CMAKE_SYSTEM_NAME}")
