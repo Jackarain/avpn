@@ -158,7 +158,7 @@ add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HD
 #   endif()
 #endif()
 
-target_include_directories(zlibstatic SYSTEM BEFORE PUBLIC
+target_include_directories(zlibstatic PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 set_target_properties(zlibstatic PROPERTIES FOLDER "third_party/")
 

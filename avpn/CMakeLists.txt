@@ -119,6 +119,7 @@ endif()
 
 target_link_libraries(avpn
 	libavpn
+	${ZLIB_LIBRARIES}
 )
 
 if (MINGW)

@@ -36,6 +36,7 @@ target_sources(utils
 target_include_directories(utils
 	PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
+	${ZLIB_INCLUDE_DIRS}
 )
 
 target_link_libraries(utils
@@ -47,9 +48,10 @@ target_link_libraries(utils
 	Boost::uuid
 	Boost::nowide
 
-	cryptopp-static
+	cryptopp::cryptopp
 	fmt
 
+	${ZLIB_LIBRARIES}
 	${OPENSSL_LIBRARIES}
 )
 

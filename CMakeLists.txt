@@ -375,6 +375,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 set(BOOST_IOSTREAMS_ENABLE_ZSTD OFF)
+set(BOOST_IOSTREAMS_ENABLE_LZMA OFF)
+set(BOOST_IOSTREAMS_ENABLE_BZIP2 OFF)
+set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
 
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
@@ -418,9 +421,11 @@ endif()
 
 ################################################################################
 
-set(DISABLE_ASM           ON CACHE BOOL "" FORCE)
+set(CRYPTOPP_DISABLE_ASM         ON CACHE BOOL "" FORCE)
+set(CRYPTOPP_BUILD_TESTING       OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(third_party/crypto)
-set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/include)
+set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/src/cryptopp)
 
 ################################################################################
 
@@ -488,7 +493,10 @@ endif()
 if (WIN32 OR NOT ENABLE_SYSTEM_ZLIB)
 	add_subdirectory(third_party/zlib EXCLUDE_FROM_ALL)
 	set(ZLIB_LIBRARIES zlibstatic)
-	set(ZLIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/contrib/minizip)
+	set(ZLIB_INCLUDE_DIRS
+		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
+		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/contrib/minizip
+	)
 else()
 	find_package(ZLIB REQUIRED)
 endif()
@@ -572,7 +580,7 @@ link_libraries(
 #		Boost::multi_index
 
 		fmt
-		cryptopp-static
+		cryptopp::cryptopp
 
 		${OPENSSL_LIBRARIES}
 		${ZLIB_LIBRARIES}
