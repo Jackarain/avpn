@@ -1,0 +1,14 @@
+# Crypto++ package configuration file
+
+prefix=/usr/local
+libdir=${prefix}/lib
+includedir=${prefix}/include
+datadir=${prefix}/share/cryptopp
+
+Name: Crypto++
+URL: https://cryptopp.com/
+Description: Crypto++ cryptographic library (built with CMake)
+Version: 8.9.0
+
+Cflags: -I${includedir}
+Libs: -L${libdir} -lcryptopp
