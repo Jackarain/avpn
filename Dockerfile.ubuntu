@@ -3,9 +3,9 @@ FROM ubuntu:22.04 as builder
 RUN apt-get update && apt-get install -y ca-certificates
 RUN sed -i "s@http://.*archive.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g" /etc/apt/sources.list && sed -i "s@http://.*security.ubuntu.com@https://mirrors.tuna.tsinghua.edu.cn@g" /etc/apt/sources.list
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y cmake gcc g++ ninja-build
+RUN apt-get install -y cmake gcc g++ clang ninja-build
 ADD . /avpn
-RUN cd /avpn && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja && ninja
+RUN cd /avpn && mkdir -p build && cd build && CC=clang CXX=clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -G Ninja && ninja
 
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y ca-certificates
