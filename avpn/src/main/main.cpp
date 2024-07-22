@@ -268,61 +268,58 @@ int main(int argc, char** argv)
 
 	po::options_description desc("Options");
 	desc.add_options()
-		("help,h", "Help message.")
-		("version", "Current version.")
+		("help,h", "Show this help message.")
+		("version", "Display the current version.")
 
-		("config", po::value<std::string>(&config)->value_name("config.conf"), "Load config options from file.")
+		("config", po::value<std::string>(&config)->value_name("config.conf"), "Load configuration options from the specified file.")
 
-		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Identity of self, server/client.")
+		("identity", po::value<std::string>(&identity)->default_value("client")->value_name("client/server"), "Specify the identity of the instance as 'client' or 'server'.")
 
-		("tun", po::value<std::string>(&ifdev)->value_name("tun"), "Tun device driver name, such as wintun/tun9/vtun, etc.")
+		("tun", po::value<std::string>(&ifdev)->value_name("tun"), "Specify the TUN device driver name, such as wintun, tun9, or vtun.")
 
-		("ptun", po::value<std::string>(&ptun)->value_name("unix domain socket path"), "Send Tun fd over unix domain socket.")
-		("utun", po::value<std::string>(&utun)->value_name("unix domain socket path"), "Send Tun packet over unix domain socket.")
+		("ptun", po::value<std::string>(&ptun)->value_name("unix domain socket path"), "Send TUN file descriptor over a Unix domain socket.")
+		("utun", po::value<std::string>(&utun)->value_name("unix domain socket path"), "Send TUN packets over a Unix domain socket.")
 
-		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Tun mtu size(default: 1450).")
+		("mtu", po::value<int>(&mtu_size)->default_value(1450)->value_name("mtu"), "Set the MTU size for the TUN device (default: 1450).")
 
-		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "Upstream servers.")
+		("upstream", po::value<std::vector<std::string>>(&upstreams)->multitoken()->value_name("url [urls ...]"), "List of upstream servers.")
 
-		("privatekey", po::value<std::string>(&privatekey)->value_name("privatekey"), "Communication Security private key.")
-		("publickey", po::value<std::string>(&publickey)->value_name("publickey"), "Communication Security public key.")
+		("genkey", "Generate a new private key and print it to stdout.")
 
-		("genkey", "Generates a new private key and writes it to stdout.")
-		("pubkey", "Calculates a public key and prints it in base64 to standard output from a corresponding private key (generated with genkey) given in base64 on standard input.")
+		("privatekey", po::value<std::string>(&privatekey)->value_name("privatekey"), "Specify the private key for secure communication.")
+		("publickey", po::value<std::string>(&publickey)->value_name("publickey"), "Specify the public key for secure communication.")
 
-		("ssl_certificate_dir", po::value<std::string>(&ssl_certificate_dir)->value_name("path"), "SSL certificate dir.")
+		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "Set the TCP listen addresses for the WebSocket server.")
+		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "Set the UDP listen addresses for the WebSocket server.")
 
-		("tcp", po::value<std::vector<std::string>>(&tcp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket tcp server listen.")
-		("udp", po::value<std::vector<std::string>>(&udp_listens)->multitoken()->value_name("ip:port [ip:port ...]"), "For websocket udp server listen.")
+		("proxy", po::value<std::string>(&proxy)->value_name("proxy"), "Specify a proxy server to use in the format [protocol://]host[:port], supporting socks, http, and haproxy protocols.")
 
-		("proxy", po::value<std::string>(&proxy)->value_name("proxy"), "[protocol://]host[:port] Use this proxy, protocol support socks/http/haproxy.")
+		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Set the number of data shards for Reed-Solomon encoding.")
+		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Set the number of parity shards for Reed-Solomon encoding.")
 
-		("data_shards,d", po::value<int>(&data_shards)->default_value(8)->value_name("N"), "Reedsolomon params of data shards.")
-		("parity_shards,p", po::value<int>(&parity_shards)->default_value(4)->value_name("N"), "Reedsolomon params of parity shards.")
+		("matrix_cache", po::value<int>(&matrix_cache)->default_value(256)->value_name("N"), "Specify the cache size for the Reed-Solomon Vandermonde matrix.")
 
-		("matrix_cache", po::value<int>(&matrix_cache)->default_value(256)->value_name("N"), "Reedsolomon vandermonde matrix cache.")
+		("mode", po::value<int>(&mode)->default_value(0)->value_name("mode"), "Set the data transmission mode: 0 for UDP only, 1 for TCP/UDP mix, 2 for TCP only.")
+		("compress", po::value<std::string>(&compress)->value_name("deflate/lz4/zstd"), "Enable a compression algorithm (deflate, lz4, or zstd).")
 
-		("mode", po::value<int>(&mode)->default_value(0)->value_name("mode"), "Data send mode, 0: only udp, 1: tcp/udp mix, 2: only tcp.")
-		("compress", po::value<std::string>(&compress)->value_name("deflate/lz4/zstd"), "Enable a compression algorithm.")
+		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Set the keepalive interval in milliseconds for TCP and UDP connections.")
 
-		("keepalive", po::value<int>(&keepalive)->default_value(10000)->value_name("ms"), "Keep alive(milliseconds) for tcp and udp.")
+		("noroute", po::value<bool>(&noroute)->value_name(""), "Ignore routes and DNS settings pushed by the server.")
+		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push specified routes to the client.")
+		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push the specified DNS nameserver to the client.")
+		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(""), "Allow all IP network traffic originating on client machines to pass through the server.")
 
-		("noroute", po::value<bool>(&noroute)->value_name(""), "Ignore server pushed routes&dns")
-		("pushroute", po::value<std::vector<std::string>>(&routes)->multitoken()->value_name("routes"), "Push routes to client.")
-		("pushdns", po::value<std::string>(&pushdns)->value_name("ip"), "Push nameserver to client.")
-		("passbyvpn", po::value<bool>(&passbyvpn)->value_name(""), "All IP network traffic originating on client machines to pass through the server.")
+		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "Set the VPN subnet.")
+		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow clients to see each other (client-to-client communication).")
 
-		("subnet", po::value<std::string>(&subnet)->default_value("10.0.0.1/16")->value_name("net/mask"), "VPN subnet.")
-		("c2c", po::value<bool>(&c2c)->default_value(true, "true")->value_name("true/false"), "Allow different clients to be able to see each other.")
+		("controller", po::value<std::string>(&controller)->value_name("ip:port"), "Specify the local controller server's IP and port.")
 
-		("controller", po::value<std::string>(&controller)->value_name("ip:port"), "Controller, local controller server port.")
+		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logging.")
+		("logs_path", po::value<std::string>(&log_directory)->value_name(""), "Specify the directory for log files.")
 
-		("disable_logs", po::value<bool>(&disable_logs)->value_name(""), "Disable logs.")
-		("logs_path", po::value<std::string>(&log_directory)->value_name(""), "Logs dirctory.")
+		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write the process ID to the specified file.")
 
-		("writepid", po::value<std::string>(&writepid_file)->value_name("pidfile"), "Write pit to file")
-
-		("post_up", po::value<std::string>(&post_up_script)->value_name("cmd"), "Command to run after tun device up.")
+		("post_up", po::value<std::string>(&post_up_script)->value_name("cmd"), "Specify a command to run after the TUN device is up.")
 	;
 
 	// 以下参数是为了保持和 openvpn 兼容, 这样可以直接把 avpn 替换掉 openvpn 的二进制, 从而大幅简化 ERX 上的配置.
@@ -358,10 +355,13 @@ int main(int argc, char** argv)
 		// 生成私钥.
 		if (vm.count("genkey"))
 		{
-			std::cout << base64_encode(crypto_util::ecdh_keygen()) << "\n";
+			auto key = base64_encode(crypto_util::ecdh_keygen());
+			std::cout << "private: " << key << "\n";
+			std::cout << "public: " << base64_encode(crypto_util::ecdh_public(key)) << "\n";
 			return EXIT_SUCCESS;
 		}
 
+#if 0
 		if (vm.count("pubkey"))
 		{
 			std::string pkey;
@@ -380,6 +380,7 @@ int main(int argc, char** argv)
 
 			return EXIT_SUCCESS;
 		}
+#endif
 
 		if (vm.count("config"))
 		{
