@@ -143,6 +143,17 @@ set(BASE_SOURCE_DIR
 target_include_directories(avpn PUBLIC ${BASE_SOURCE_DIR})
 target_include_directories(libavpn PUBLIC ${BASE_SOURCE_DIR})
 
+if (ANDROID)
+    # 查找 Android log 库.
+    find_library(
+        log-lib
+        log
+    )
+
+    # target_link_libraries 目标中链接 log 库.
+    target_link_libraries(avpn ${log-lib})
+endif()
+
 if (ENABLE_BUILD_WERROR)
 	if (MSVC)
 		target_compile_options(avpn PRIVATE /W4 /WX)
