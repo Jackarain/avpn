@@ -427,6 +427,8 @@ set(CRYPTOPP_BUILD_TESTING       OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/crypto)
 set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/src/cryptopp)
 
+set_property(TARGET cryptopp PROPERTY FOLDER "third_party")
+
 ################################################################################
 
 find_package(Threads)
