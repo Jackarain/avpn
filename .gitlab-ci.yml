@@ -1,5 +1,6 @@
 stages:
 - build
+- ubuntu
 - cross compile
 - test
 
@@ -12,6 +13,20 @@ Build:
     paths:
       - build/bin/avpn
     expire_in: 1 day
+
+Ubuntu:
+  stage: ubuntu
+  script:
+    - docker buildx build -t avpn:20.04 . -f Dockerfile.ubuntu
+    - docker create --name xs avpn:20.04
+    - mkdir -p build/docker
+    - docker cp xs:/usr/local/bin/avpn build/docker
+    - docker rm xs
+  artifacts:
+    name: "avpn"
+    paths:
+      - build/docker/avpn
+    expire_in: 5 day
 
 CrossCompile:
   stage: cross compile
