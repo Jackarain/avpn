@@ -421,7 +421,7 @@ endif()
 
 ################################################################################
 
-set(CRYPTOPP_DISABLE_ASM         ON CACHE BOOL "" FORCE)
+set(CRYPTOPP_DISABLE_ASM         OFF CACHE BOOL "" FORCE)
 set(CRYPTOPP_BUILD_TESTING       OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(third_party/crypto)
