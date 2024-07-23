@@ -369,27 +369,6 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-#if 0
-		if (vm.count("pubkey"))
-		{
-			std::string pkey;
-
-			for (std::string line; std::getline(std::cin, line);)
-				pkey += line;
-
-			auto priv_key = base64_decode(pkey);
-			if (priv_key.size() != 32)
-			{
-				std::cerr << "Key is not the correct length or format\n";
-				return EXIT_FAILURE;
-			}
-
-			std::cout << base64_encode(crypto_util::ecdh_public(pkey)) << "\n";
-
-			return EXIT_SUCCESS;
-		}
-#endif
-
 		if (vm.count("config"))
 		{
 			if (!std::filesystem::exists(config))
