@@ -5,7 +5,7 @@ RUN apk add --no-cache fortify-headers bsd-compat-headers libgphobos libgomp lib
 
 ADD . /avpn
 
-RUN cd /avpn && mkdir -p build && cd build && CC=clang CXX=clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja && ninja
+RUN cd /avpn && mkdir -p build && cd build && CC=clang CXX=clang++ cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_SNMALLOC_STATIC=ON -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja && ninja
 
 FROM alpine:latest
 
