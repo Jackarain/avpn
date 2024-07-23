@@ -100,6 +100,7 @@ option(ENABLE_SYSTEM_OPENSSL "Build with system openssl support" OFF)
 option(ENABLE_TCMALLOC_STATIC "Build with Tcmalloc support" OFF)
 option(ENABLE_JEMALLOC_STATIC "Build with Jemalloc support" OFF)
 option(ENABLE_MIMALLOC_STATIC "Build with Mimalloc support" OFF)
+option(ENABLE_SNMALLOC_STATIC "Build with snmalloc support" OFF)
 
 option(ENABLE_GIT_VERSION "Enable git version" ON)
 option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
@@ -482,6 +483,19 @@ if (ENABLE_MIMALLOC_STATIC)
 	if (MI_OVERRIDE)
 		add_definitions(-DMI_OVERRIDE) # For preprocessor checks in our source.
 	endif()
+endif()
+
+
+################################################################################
+
+if (ENABLE_SNMALLOC_STATIC)
+	set(SNMALLOC_HEADER_ONLY_LIBRARY ON)
+
+	add_definitions(-DUSE_SNMALLOC)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc EXCLUDE_FROM_ALL)
+
+	link_libraries(snmalloc)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc)
 endif()
 
 ################################################################################

@@ -63,6 +63,14 @@ bool g_avpn_windows_lean_mean = false;
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
+#ifdef USE_SNMALLOC
+#define NO_BOOTSTRAP_ALLOCATOR
+#ifndef NDEBUG
+#define NDEBUG
+#endif
+#include "src/snmalloc/override/new.cc"
+#endif // USE_SNMALLOC
+
 #include "avpn/protocol.hpp"
 #include "utils/crypto.hpp"
 
