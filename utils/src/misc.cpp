@@ -262,24 +262,6 @@ std::string base58_encode(std::string_view input)
 
 //////////////////////////////////////////////////////////////////////////
 
-inline std::string uuid_to_string(boost::uuids::uuid const& u)
-{
-	std::string result;
-	result.reserve(36);
-
-	std::size_t i = 0;
-	boost::uuids::uuid::const_iterator it_data = u.begin();
-	for (; it_data != u.end(); ++it_data, ++i)
-	{
-		const size_t hi = ((*it_data) >> 4) & 0x0F;
-		result += boost::uuids::detail::to_char(hi);
-
-		const size_t lo = (*it_data) & 0x0F;
-		result += boost::uuids::detail::to_char(lo);
-	}
-	return result;
-}
-
 int gen_random_int(int start, int end)
 {
 	std::random_device rd;
@@ -319,12 +301,6 @@ uint32_t gen_unique_number()
 		std::chrono::duration_cast<std::chrono::microseconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count());
 	return base++;
-}
-
-std::string gen_uuid()
-{
-	boost::uuids::uuid guid = boost::uuids::random_generator()();
-	return uuid_to_string(guid);
 }
 
 int32_t run_hook(std::string cmd, std::map<std::string, std::string> env)

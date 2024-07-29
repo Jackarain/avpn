@@ -73,7 +73,6 @@ int avpn_recv_fd(std::string_view);
 int gen_random_int(int start, int end);
 std::string gen_unique_string(const unsigned int len);
 uint32_t gen_unique_number();
-std::string gen_uuid();
 
 #ifdef _WIN32
 
