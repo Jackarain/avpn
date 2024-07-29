@@ -31,7 +31,7 @@ Ubuntu:
 CrossCompile:
   stage: cross compile
   script:
-    - cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_BUILD_TYPE=Debug -DENABLE_USE_WINTUN=OFF -G Ninja
+    - cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_BUILD_TYPE=Debug -DENABLE_USE_WINTUN=OFF -DBOOST_CHARCONV_QUADMATH_FOUND_EXITCODE=OFF -G Ninja
     - cmake --build build --target avpn
   artifacts:
     paths:
