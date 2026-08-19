@@ -1,6 +1,10 @@
-﻿﻿# avpn
+﻿aVPN
+====
+
 
 一个使用 C++20 的 VPN 的高性能实现, 基于 Boost.Asio 协程.
+
+aVPN 是目前世界唯一基于**现代 C++** 的企业级虚拟专用网络实现，主要用于解决企业跨区域虚拟专用网络组建，并保证极高的稳定性。aVPN 展示了在现代 C++ 的支持下，编写为数不多的代码，即实现一个功能完善且强大并跨各大主流平台的虚拟专用网络，它不仅具有虚拟网络组建的功能，还能在丢包较高的环境下，通过纠错算法，保证通信的可靠，且具有降低延迟等特性。
 
 ## 支持平台
 
@@ -8,10 +12,64 @@
 - macOS: utun 内核控制.
 - Windows: wintun 驱动 (tun 通过 wintun 实现).
 
+## 开发环境要求
+
+- 项目基于 C++20 开发，编译器要求 gcc-10.3.1 或更高，clang-13 或更高，msvc-2019 或更高。
+- cmake-3.16 或更高。
+
+## Linux 平台下编译
+
+首先执行 git 克隆源码：
+
+```
+git clone <source url>
+```
+
+然后进入源码目录，执行如下操作：
+
+```
+mkdir build && cd build
+```
+
+```
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+```
+
+上面命令中，`CMAKE_BUILD_TYPE=Debug` 指定了编译为 Debug 类型，如果需要更好的性能，则需要编译为 Release。
+
+在 cmake 命令成功执行完成后，开始输入以下命令编译：
+
+```
+make
+```
+
+通常编译过程不会出现问题，如果出现任何问题，请联系作者，并将完整的错误信息保留并报告给作者。
+
+成功编译后，可执行程序将在 `bin` 目录下生成。
+
+avpn 的 cmake 配置了默认编译选项参数，如果有必要，可以参考 cmake 源文件中的选项开关尝试不同功能，比如可以选择使用 mimalloc、tcmalloc 等分配器，比如使用更快的 mold 链接器，比如打开 systemd 的日志开关，便可将日志记录到 systemd.journal 中。
+
+## Windows 平台下编译
+
+在 git 克隆的源码目录下建立一个 build 目录，然后执行以下命令：
+
+```
+cmake.exe ..
+```
+
+成功完成 cmake 后，cmake 将生成 vc 的项目文件，然后执行以下命令编译 avpn：
+
+```
+msbuild avpn.sln /p:Configuration="Debug"
+```
+
+在完成编译后，同样会生成一个 `avpn.exe` 在 bin 目录，当然也可以直接使用 msvc 打开 avpn.sln 项目文件，通过菜单上的编译命令进行编译。
+
 ## Windows 构建 (MinGW-w64)
 
 ```sh
-cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake \
+mkdir build && cd build
+cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw.cmake \
 	-DENABLE_USE_WINTUN=ON -DENABLE_USE_OPENSSL=ON ..
 ninja
 ```
@@ -19,6 +77,85 @@ ninja
 - `avpn.exe` 内嵌 wintun 驱动 (wintun.sys/inf/cat), 首次运行自动通过 pnputil 安装.
 - `wintun.dll` 由构建脚本拷贝到输出目录, 运行时动态加载.
 - FEC 在 Windows x64 上使用 SSSE3/AVX2 运行时分派加速 (MinGW 与 MSVC 均支持).
+- 在完成编译后，同样会生成一个 `avpn.exe` 在 bin/release。
+
+## Android 平台编译
+
+仓库提供了 `build.android.sh` 脚本自动完成 arm64-v8a、armeabi-v7a、x86、x86_64 四个架构的交叉编译：
+
+```
+./build.android.sh <源码目录> <NDK目录> [host-tag]
+```
+
+例如：
+
+```
+./build.android.sh ~/avpn ~/Android/Sdk/ndk/26.1.10909125 linux-x86_64
+```
+
+其中 `<NDK目录>` 替换为 Android NDK 目录，host-tag 可省略，脚本会根据当前系统自动选择（linux-x86_64 / darwin-x86_64 / windows-x86_64）。编译产物输出到 `release/<arch>/` 目录。
+
+也可以手动使用 NDK 提供的 cmake 工具链编译：
+
+```
+cmake \
+-DANDROID_NDK=${ANDROID_NDK} \
+-DANDROID_ABI=arm64-v8a \
+-DANDROID_PLATFORM=android-23 \
+-DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
+-DCMAKE_ANDROID_NDK=${ANDROID_NDK} \
+-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+-DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+-DCMAKE_SYSTEM_NAME=Android \
+-DCMAKE_SYSTEM_VERSION=23 \
+-DCMAKE_EXE_LINKER_FLAGS="-static" \
+.. \
+-G Ninja
+```
+
+在 cmake 命令成功执行完成后，开始输入以下命令编译：
+
+```
+ninja
+```
+
+成功编译后，可执行程序将在 bin 目录下生成，可在 android 的 termux 中运行，当然同时也需要 root 权限。
+
+## 其它平台交叉编译
+
+这里以 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载编译工具链：
+
+```
+wget https://downloads.openwrt.org/releases/22.03.2/targets/ramips/mt7621/openwrt-sdk-22.03.2-ramips-mt7621_gcc-11.2.0_musl.Linux-x86_64.tar.xz
+```
+
+将 toolchain 相关目录添加到 PATH 中，以便调用 gcc 编译，这里执行：
+
+```
+export STAGING_DIR=${OPENWRT_SDK}/staging_dir
+export PATH=$PATH:${OPENWRT_SDK}/staging_dir/toolchain-mipsel_24kc_gcc-11.2.0_musl/bin
+```
+
+${OPENWRT_SDK} 是 sdk 的解压目录，然后在 avpn 源码目录中创建 build 目录并执行 cmake：
+
+```
+ccmake .. -DCOMPILER=mipsel-openwrt-linux -DCMAKE_SYSTEM_PROCESSOR=mips32 -DCMAKE_TOOLCHAIN_FILE=../cmake/cross.cmake -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release -G Ninja
+```
+
+在这个步骤中，一些平台有必要打开一些编译开关，如 `ENABLE_LINKE_TO_LIBATOMIC`，以及关闭 `ENABLE_STATIC_LINK_TO_GCC`，在完成 cmake 后生成构建文件，然后开始编译：
+
+```
+ninja
+```
+
+没有问题的话，avpn 将会编译生成在 build 的 bin 目录下，拷贝到 openwrt 机器上就可以运行了。
+
+其它架构平台可以参考 avpn 中的 cmake 目录下的 cross.cmake 进行相关修改。
+
+## Docker 构建
+
+当前仓库暂未提供 Dockerfile；如需要容器化构建，可自行编写 Dockerfile，仓库已包含 `.dockerignore`（忽略 build/ 目录）。
 
 ## 运行
 
@@ -36,6 +173,7 @@ avpn.exe --ifdev wintun --nexthop <server-ip>:19090 \
 	--private_key <key> --pkl <peer-pubkey> --data_shards 5 --parity_shards 2
 ```
 
+Linux 下使用相同的参数，只需将 `--ifdev wintun` 替换为 `--ifdev tun0`。
 
 ## Launcher（WebUI 实例管理器）
 
@@ -82,6 +220,42 @@ launcher 启动后，浏览器访问 `http://<host>:18080/` 即可打开 WebUI�
 launcher 会自动为每个实例生成控制通道 URL（`--controller ws://.../rpc`），
 通过 WebSocket + JSON-RPC 采集实例运行状态与日志，无需手工配置。
 
+## 功能参数介绍
+
+除 genkey 外，所有参数均可在命令行或配置文件（--config）中指定，配置文件以 key=value 的格式保存。下面逐一解释各参数的作用：
+
+| 参数 | 说明 |
+| --- | --- |
+| `--help` | 显示帮助信息并退出。 |
+| `--config <file>` | 从指定配置文件加载选项，配置文件为 key=value 格式。 |
+| `--logs_path <dir>` | 指定日志文件目录。 |
+| `--disable_logs` | 关闭日志输出。 |
+| `--ifdev <dev>` | 指定 tun 虚拟网卡名称，如 tun0；Windows 下使用 wintun 虚拟网卡。 |
+| `--ptun_fd <fd>` | 使用外部传入的 tun 设备文件描述符（如通过 SCM_RIGHTS 传递），-1 表示不使用。 |
+| `--utun_fd <fd>` | 通过 Unix Domain Datagram Socket 以 IPC 方式读写 tun 设备时的 fd，-1 表示不使用。 |
+| `--controller <ws://ip:port>` | 控制服务地址，avpn 主动连接该 WebSocket 服务并接受控制命令。 |
+| `--nexthop <ip:port>` | client 端指定下一跳 VPN 服务器地址和端口，gateway 端为空。 |
+| `--tcp_listen <ip:port>` | server 端 TCP 监听地址，可多次指定。 |
+| `--udp_listen <ip:port>` | server 端 UDP 监听地址，可多次指定。 |
+| `--genkey` | 生成一个新的密钥对，将私钥和公钥输出到 stdout。 |
+| `--private_key <key>` | 本机私钥（base64 编码）。 |
+| `--public_key <key>` | 本机公钥（base64 编码）。 |
+| `--pkl <key>` | 远端公钥列表（base64 编码），可多次指定。 |
+| `--mtu_size <mtu>` | Tun MTU 大小，默认为 1450。 |
+| `--keepalive <seconds>` | 心跳间隔，单位秒，默认为 60。 |
+| `--pushroutes <route>` | server 端推送给 client 的路由，可多次指定。 |
+| `--bypassroutes <route>` | client 端绕过 VPN 走物理线路的路由（ip/cidr 或主机名），可多次指定。 |
+| `--pushdns <ip>` | server 端推送给 client 的 DNS。 |
+| `--passbyvpn` | 使用 gateway 作为默认路由，client 所有流量经 server 转发（gateway 需做 NAT）。 |
+| `--ignore_push` | 忽略 server 推送的路由和 DNS。 |
+| `--c2c` | 是否允许 client 之间通过虚拟子网通信，默认关闭。 |
+| `--subnet <网段>` | 指定虚拟子网网段，格式如 10.8.0.0/16 或 fd00::/8。 |
+| `--v6_subnet <网段>` | 指定 IPv6 虚拟子网网段，默认为 fd00::/64。 |
+| `--data_shards <n>` | FEC 数据分片数，默认 0 不启用 FEC；为 1 时退化为按倍数冗余发包。 |
+| `--parity_shards <n>` | FEC 冗余分片数，即最多可丢失的数据包数量；data_shards 为 1 时表示发包倍数（最大 5 倍）。 |
+| `--compress <algo>` | 启用数据压缩，可选算法：deflate、lz4、zstd。 |
+| `--pid_file <path>` | 将进程 PID 写入指定文件（内部使用，由 launcher 设置）。 |
+| `--console_logs` | 强制控制台日志且不使用 ANSI 颜色（内部使用，由 launcher 设置）。 |
 
 ## 文档
 
