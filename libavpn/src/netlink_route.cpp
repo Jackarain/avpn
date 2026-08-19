@@ -7,6 +7,7 @@
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -31,6 +32,12 @@ namespace {
 			::close(fd);
 			return -1;
 		}
+
+		// 防止意外情况下 recv 永久阻塞 (与 iproute2 的 rtnl_talk 超时行为一致).
+		struct timeval tv;
+		tv.tv_sec = 2;
+		tv.tv_usec = 0;
+		::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 		return fd;
 	}
 
@@ -118,7 +125,7 @@ namespace {
 	{
 		n->nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
 		n->nlmsg_type = type;
-		n->nlmsg_flags = NLM_F_REQUEST;
+		n->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
 		if (type == RTM_NEWROUTE)
 			n->nlmsg_flags |= NLM_F_CREATE | NLM_F_REPLACE;
 
