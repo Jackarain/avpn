@@ -1,3 +1,0 @@
-family loongarch
-endian little
-wordsize 64
