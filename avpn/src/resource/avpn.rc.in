@@ -1,15 +1,14 @@
 #include <winresrc.h>
-#include <ntverp.h>
 
-#pragma code_page(1252)
+#pragma code_page(65001)
 
-wintun.cat RCDATA "driver\\wintun.cat"
-wintun.inf RCDATA "driver\\wintun.inf"
-wintun.sys RCDATA "driver\\wintun.sys"
+wintun.cat RCDATA "@AVPN_RESOURCE_DIR@/driver/wintun.cat"
+wintun.inf RCDATA "@AVPN_RESOURCE_DIR@/driver/wintun.inf"
+wintun.sys RCDATA "@AVPN_RESOURCE_DIR@/driver/wintun.sys"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_TINY@,@VERSION_BUILD@
- PRODUCTVERSION @VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_TINY@,0
+ FILEVERSION 0,1,0,0
+ PRODUCTVERSION 0,1,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -24,14 +23,13 @@ BEGIN
     BEGIN
         BLOCK "080404b0"
         BEGIN
-            VALUE "CompanyName", "dmg Company"
-            VALUE "FileDescription", "AVPN"
-            VALUE "FileVersion", "@VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_TINY@,@VERSION_BUILD@"
-            VALUE "InternalName", "AVPN"
-            VALUE "LegalCopyright", "Copyright ? 2019 dmg Technology, Inc."
-            VALUE "OriginalFilename", "AVPN.exe"
-            VALUE "ProductName", "AVPN"
-            VALUE "ProductVersion", "@VERSION_MAJOR@,@VERSION_MINOR@,@VERSION_TINY@,0"
+            VALUE "CompanyName", "avpn"
+            VALUE "FileDescription", "avpn"
+            VALUE "FileVersion", "0.1.0.0"
+            VALUE "InternalName", "avpn"
+            VALUE "OriginalFilename", "avpn.exe"
+            VALUE "ProductName", "avpn"
+            VALUE "ProductVersion", "0.1.0.0"
         END
     END
     BLOCK "VarFileInfo"
