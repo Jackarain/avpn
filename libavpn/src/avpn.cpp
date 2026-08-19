@@ -4,6 +4,7 @@
 #include "libavpn/avpn_protocol.hpp"
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
+#include "libavpn/nat_rule.hpp"
 #include "libavpn/vpn_controller.hpp"
 
 #include <boost/asio/co_spawn.hpp>
@@ -1177,9 +1178,9 @@ namespace libavpn {
 				XLOG_ERR << "set default route failed: " << nl_err;
 
 			// 隧道出口 NAT: 绑定本地源地址的流量统一以虚拟地址出口.
-			::system(("iptables -t nat -C POSTROUTING -o " + dev +
-				" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -o " +
-				dev + " -j MASQUERADE 2>/dev/null").c_str());
+			std::string nat_err;
+			if (!nat_rule_add_masquerade(dev, nat_err))
+				XLOG_WARN << "add MASQUERADE failed: " << nat_err;
 		}
 
 		for (auto& r : scfg.routes)
@@ -1301,8 +1302,8 @@ namespace libavpn {
 				rt.ifname = dev;
 				if (!nl_route_delete(rt, nl_err))
 					XLOG_DBG << "delete default route failed: " << nl_err;
-				::system(("iptables -t nat -D POSTROUTING -o " + dev +
-					" -j MASQUERADE 2>/dev/null").c_str());
+				std::string nat_err;
+				nat_rule_del_masquerade(dev, nat_err);
 			}
 		}
 
