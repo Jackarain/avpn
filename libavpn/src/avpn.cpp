@@ -1590,11 +1590,24 @@ namespace libavpn {
 		int64_t tx_rate = 0;
 		int active = 0;
 		array sessions;
+		// 会话统计统一按客户端视角上报 (rx=客户端上传, tx=客户端下载).
+		// 网关角色时本端 upload/download 与客户端方向相反, 需要交换.
+		bool is_gateway = m_config.nexthop_.empty();
 
 		auto add_session = [&](const std::shared_ptr<avpn_session>& session)
 		{
 			if (!session)
 				return;
+
+			int64_t up_bytes = session->upload_bytes();
+			int64_t down_bytes = session->download_bytes();
+			int64_t up_rate = session->upload_rate();
+			int64_t down_rate = session->download_rate();
+			if (is_gateway)
+			{
+				std::swap(up_bytes, down_bytes);
+				std::swap(up_rate, down_rate);
+			}
 
 			object s;
 			s["vaddr"] = net::ip::address_v4(session->vaddr()).to_string();
@@ -1606,18 +1619,18 @@ namespace libavpn {
 			auto remote = session->remote_udp();
 			s["remote"] = remote.address().to_string() + ":" +
 				std::to_string(remote.port());
-			s["rx_bytes"] = session->upload_bytes();
-			s["tx_bytes"] = session->download_bytes();
-			s["rx_rate_bps"] = session->upload_rate();
-			s["tx_rate_bps"] = session->download_rate();
+			s["rx_bytes"] = up_bytes;
+			s["tx_bytes"] = down_bytes;
+			s["rx_rate_bps"] = up_rate;
+			s["tx_rate_bps"] = down_rate;
 
 			if (session->established())
 			{
 				active++;
-				rx_total += session->upload_bytes();
-				tx_total += session->download_bytes();
-				rx_rate += session->upload_rate();
-				tx_rate += session->download_rate();
+				rx_total += up_bytes;
+				tx_total += down_bytes;
+				rx_rate += up_rate;
+				tx_rate += down_rate;
 			}
 			sessions.emplace_back(std::move(s));
 		};
