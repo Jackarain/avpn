@@ -136,7 +136,10 @@ Linux 下使用相同的参数，只需将 `--ifdev wintun` 替换为 `--ifdev t
 
 `launcher` 用于创建并管理多个 `avpn` 实例：通过内置 WebUI 完成实例的
 创建/启停/删除、配置修改、状态监控与日志查看，实例配置持久化在
-`data_dir/instances.json`。
+`data_dir/instances.json`，运行效果如下图所示：
+
+<img width="1155" height="710" alt="image" src="https://github.com/user-attachments/assets/646f8254-234b-46fd-8c34-2cae18b14cd8" />
+
 
 ### 构建
 
