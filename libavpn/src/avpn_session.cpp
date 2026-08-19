@@ -105,13 +105,22 @@ namespace libavpn {
 		// 压缩器.
 		m_compressor.set_type(compress_type_from_string(config.compress_));
 
-		// FEC 编解码.
-		int ds = std::max(1, config.data_shards_);
-		int ps = std::max(0, config.parity_shards_);
+	}
+
+	// 按协商配置创建/重建 FEC 编解码器.
+	void avpn_session::setup_fec()
+	{
+		int ds = std::max(1, static_cast<int>(m_session_config.data_shards));
+		int ps = std::max(0, static_cast<int>(m_session_config.parity_shards));
 		if (ds > 1 || ps > 0)
 		{
 			m_fec_encoder = std::make_unique<fec_encode_group>(ds, ps);
 			m_fec_decoder = std::make_unique<fec_decode_group>(ds, ps);
+		}
+		else
+		{
+			m_fec_encoder.reset();
+			m_fec_decoder.reset();
 		}
 	}
 
@@ -374,6 +383,7 @@ namespace libavpn {
 			m_session_config.data_shards = 1;
 			m_session_config.parity_shards = 0;
 		}
+		setup_fec();
 
 		// 派生会话密钥.
 		if (!derive_session_keys(m_eph_priv, m_static_priv,
@@ -442,6 +452,7 @@ namespace libavpn {
 			m_session_config.data_shards = 1;
 			m_session_config.parity_shards = 0;
 		}
+		setup_fec();
 		m_vaddr = msg2.config.vaddr;
 
 		// 派生会话密钥.

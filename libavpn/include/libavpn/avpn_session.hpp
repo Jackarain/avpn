@@ -236,6 +236,9 @@ namespace libavpn {
 		// 将恢复/解压后的 IP 包交付给 tun.
 		void deliver_ip_packet(std::vector<uint8_t> data);
 
+		// 按协商配置创建/重建 FEC 编解码器.
+		void setup_fec();
+
 		// 发送数据消息 (由 tun_submit 调用).
 		void send_data_message(const std::vector<uint8_t>& ip_packet);
 
