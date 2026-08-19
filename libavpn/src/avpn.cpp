@@ -15,11 +15,15 @@
 #include <boost/asio/ip/address_v6.hpp>
 
 #include <algorithm>
-#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <sstream>
 #include <string_view>
 #include <thread>
+
+#if defined(__linux__)
+#	include <sys/socket.h>
+#endif
 
 namespace libavpn {
 
@@ -1005,31 +1009,40 @@ namespace libavpn {
 		co_return;
 	}
 
-	// 执行命令并捕获标准输出, 按行返回.
-	static bool run_cmd_capture(const std::string& cmd,
-		std::vector<std::string>& out)
+	// 解析路由目标字符串 (支持 "IP"、"IP/PREFIX", v4/v6) 为 Netlink 路由表项.
+	static bool parse_route_string(const std::string& text, nl_route_entry& rt)
 	{
-#if defined(_WIN32)
-		(void)cmd;
-		(void)out;
+#if defined(__linux__)
+		auto slash = text.find('/');
+		auto host = slash == std::string::npos ?
+			text : text.substr(0, slash);
+		auto prefix_text = slash == std::string::npos ?
+			std::string() : text.substr(slash + 1);
+
+		boost::system::error_code ec;
+		auto v4 = net::ip::make_address_v4(host, ec);
+		if (!ec)
+		{
+			rt.family = AF_INET;
+			rt.dst = v4.to_string();
+			rt.prefix = prefix_text.empty() ?
+				32 : std::atoi(prefix_text.c_str());
+			return true;
+		}
+		auto v6 = net::ip::make_address_v6(host, ec);
+		if (!ec)
+		{
+			rt.family = AF_INET6;
+			rt.dst = v6.to_string();
+			rt.prefix = prefix_text.empty() ?
+				128 : std::atoi(prefix_text.c_str());
+			return true;
+		}
 		return false;
 #else
-		FILE* f = ::popen(cmd.c_str(), "r");
-		if (!f)
-			return false;
-		char buf[512];
-		std::string output;
-		while (::fgets(buf, sizeof(buf), f) != nullptr)
-			output += buf;
-		::pclose(f);
-		std::istringstream ss(output);
-		std::string line;
-		while (std::getline(ss, line))
-		{
-			if (!line.empty())
-				out.push_back(line);
-		}
-		return true;
+		(void)text;
+		(void)rt;
+		return false;
 #endif
 	}
 
@@ -1089,9 +1102,11 @@ namespace libavpn {
 		if (dev.empty())
 			return;
 
-		// 保存当前默认路由, 断开时恢复.
+		// 通过 Netlink 获取当前默认路由, 断开时恢复 (等同 ip route show default).
 		m_saved_default_routes.clear();
-		run_cmd_capture("ip route show default", m_saved_default_routes);
+		std::string nl_err;
+		if (!nl_route_dump_default(m_saved_default_routes, nl_err))
+			XLOG_ERR << "netlink dump default routes failed: " << nl_err;
 		m_routes_modified = true;
 
 		// 隧道对端 (gateway) 虚拟地址: 子网网络地址.
@@ -1103,16 +1118,13 @@ namespace libavpn {
 
 		// 解析物理默认网关, 用于钉住服务器地址与绕过路由.
 		std::string phys_via, phys_dev;
-		if (!m_saved_default_routes.empty())
+		for (auto& rt : m_saved_default_routes)
 		{
-			std::istringstream iss(m_saved_default_routes.front());
-			std::string token;
-			while (iss >> token)
+			if (!rt.gateway.empty() && !rt.ifname.empty())
 			{
-				if (token == "via" && iss >> token)
-					phys_via = token;
-				else if (token == "dev" && iss >> token)
-					phys_dev = token;
+				phys_via = rt.gateway;
+				phys_dev = rt.ifname;
+				break;
 			}
 		}
 
@@ -1125,36 +1137,44 @@ namespace libavpn {
 
 		if (!server_ip.empty() && !phys_via.empty() && !phys_dev.empty())
 		{
-			std::string cmd = "ip route replace " + server_ip +
-				"/32 via " + phys_via + " dev " + phys_dev;
-			if (::system(cmd.c_str()) != 0)
-				XLOG_ERR << "pin server route failed: " << cmd;
-			else
+			nl_route_entry rt;
+			rt.family = AF_INET;
+			rt.dst = server_ip;
+			rt.prefix = 32;
+			rt.gateway = phys_via;
+			rt.ifname = phys_dev;
+			if (nl_route_replace(rt, nl_err))
 				XLOG_INFO << "Pin server route: " << server_ip
 					<< " via " << phys_via << " dev " << phys_dev;
+			else
+				XLOG_ERR << "pin server route failed: " << nl_err;
 		}
 
 		// 删除现有默认路由, 避免与隧道默认路由竞争.
-		for (auto& line : m_saved_default_routes)
+		for (auto& rt : m_saved_default_routes)
 		{
-			if (line.find("dev " + dev) != std::string::npos)
+			if (rt.ifname == dev)
 				continue;
-			std::string cmd = "ip route del " + line;
-			int ret = ::system(cmd.c_str());
-			if (ret != 0)
-				XLOG_DBG << "skip delete default route: " << cmd
-					<< ", ret: " << ret;
+			if (nl_route_delete(rt, nl_err))
+				XLOG_INFO << "Delete default route: "
+					<< nl_route_to_string(rt);
+			else
+				XLOG_DBG << "skip delete default route: " << nl_err;
 		}
 
 		if (scfg.passbyvpn)
 		{
-			std::string cmd = "ip route replace default via " + gw_addr +
-				" dev " + dev;
-			if (::system(cmd.c_str()) != 0)
-				XLOG_ERR << "set default route failed: " << cmd;
-			else
+			nl_route_entry rt;
+			rt.family = AF_INET;
+			rt.dst = "0.0.0.0";
+			rt.prefix = 0;
+			rt.gateway = gw_addr;
+			rt.ifname = dev;
+			if (nl_route_replace(rt, nl_err))
 				XLOG_INFO << "Default route via tunnel: " << gw_addr
 					<< " dev " << dev;
+			else
+				XLOG_ERR << "set default route failed: " << nl_err;
 
 			// 隧道出口 NAT: 绑定本地源地址的流量统一以虚拟地址出口.
 			::system(("iptables -t nat -C POSTROUTING -o " + dev +
@@ -1166,11 +1186,17 @@ namespace libavpn {
 		{
 			if (r.empty())
 				continue;
-			std::string cmd = "ip route replace " + r + " dev " + dev;
-			if (::system(cmd.c_str()) != 0)
-				XLOG_ERR << "push route failed: " << cmd;
-			else
+			nl_route_entry rt;
+			if (!parse_route_string(r, rt))
+			{
+				XLOG_ERR << "parse push route failed: " << r;
+				continue;
+			}
+			rt.ifname = dev;
+			if (nl_route_replace(rt, nl_err))
 				XLOG_INFO << "Push route: " << r << " dev " << dev;
+			else
+				XLOG_ERR << "push route failed: " << r << ", " << nl_err;
 		}
 
 		// 绕过隧道走物理线路的目标 (更具体的路由优先于默认路由).
@@ -1181,13 +1207,17 @@ namespace libavpn {
 			auto targets = resolve_route_target(b, m_main_context);
 			for (auto& t : targets)
 			{
-				std::string cmd = "ip route replace " + t + " via " +
-					phys_via + " dev " + phys_dev;
-				if (::system(cmd.c_str()) != 0)
-					XLOG_ERR << "bypass route failed: " << cmd;
-				else
+				nl_route_entry rt;
+				if (!parse_route_string(t, rt))
+					continue;
+				rt.gateway = phys_via;
+				rt.ifname = phys_dev;
+				if (nl_route_replace(rt, nl_err))
 					XLOG_INFO << "Bypass route: " << t << " via "
 						<< phys_via << " dev " << phys_dev;
+				else
+					XLOG_ERR << "bypass route failed: " << t
+						<< ", " << nl_err;
 			}
 		}
 
@@ -1236,10 +1266,17 @@ namespace libavpn {
 			auto targets = resolve_route_target(b, m_main_context);
 			for (auto& t : targets)
 			{
-				std::string cmd = "ip route replace " + t + " via " +
-					m_bypass_phys_via + " dev " + m_bypass_phys_dev;
-				if (::system(cmd.c_str()) != 0)
-					XLOG_DBG << "refresh bypass route failed: " << cmd;
+				nl_route_entry rt;
+				if (!parse_route_string(t, rt))
+					continue;
+				rt.gateway = m_bypass_phys_via;
+				rt.ifname = m_bypass_phys_dev;
+				std::string nl_err;
+				if (nl_route_replace(rt, nl_err))
+					XLOG_DBG << "Refresh bypass route: " << t;
+				else
+					XLOG_DBG << "refresh bypass route failed: "
+						<< t << ", " << nl_err;
 			}
 		}
 	}
@@ -1251,23 +1288,31 @@ namespace libavpn {
 		m_routes_modified = false;
 
 #if defined(__linux__)
+		std::string nl_err;
 		if (m_tundev)
 		{
 			const std::string& dev = m_tundev->device_name();
 			if (!dev.empty())
 			{
-				::system(("ip route del default dev " + dev +
-					" 2>/dev/null").c_str());
+				nl_route_entry rt;
+				rt.family = AF_INET;
+				rt.dst = "0.0.0.0";
+				rt.prefix = 0;
+				rt.ifname = dev;
+				if (!nl_route_delete(rt, nl_err))
+					XLOG_DBG << "delete default route failed: " << nl_err;
 				::system(("iptables -t nat -D POSTROUTING -o " + dev +
 					" -j MASQUERADE 2>/dev/null").c_str());
 			}
 		}
 
-		for (auto& line : m_saved_default_routes)
+		for (auto& rt : m_saved_default_routes)
 		{
-			std::string cmd = "ip route replace " + line;
-			if (::system(cmd.c_str()) != 0)
-				XLOG_DBG << "restore default route failed: " << cmd;
+			if (nl_route_replace(rt, nl_err))
+				XLOG_INFO << "Restore default route: "
+					<< nl_route_to_string(rt);
+			else
+				XLOG_DBG << "restore default route failed: " << nl_err;
 		}
 		m_saved_default_routes.clear();
 #endif

@@ -9,6 +9,7 @@
 #define INCLUDE__2025_11_20__AVPN_HPP
 
 #include "libavpn/io_context_pool.hpp"
+#include "libavpn/netlink_route.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -298,7 +299,7 @@ namespace libavpn {
 		bool m_use_tcp_transport{ false };
 
 		// client: 握手前保存的默认路由 (断开时恢复).
-		std::vector<std::string> m_saved_default_routes;
+		std::vector<nl_route_entry> m_saved_default_routes;
 
 		// client: 是否已修改系统路由.
 		bool m_routes_modified{ false };
