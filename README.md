@@ -206,8 +206,8 @@ launcher 会自动为每个实例生成控制通道 URL（`--controller ws://...
 | `--passbyvpn` | 使用 gateway 作为默认路由，client 所有流量经 server 转发（gateway 需做 NAT）。 |
 | `--ignore_push` | 忽略 server 推送的路由和 DNS。 |
 | `--c2c` | 是否允许 client 之间通过虚拟子网通信，默认关闭。 |
-| `--subnet <网段>` | 指定虚拟子网网段，格式如 10.8.0.0/16 或 fd00::/8。 |
-| `--v6_subnet <网段>` | 指定 IPv6 虚拟子网网段，默认为 fd00::/64。 |
+| `--subnet <网段>` | 指定虚拟子网网段，格式如 10.8.0.0/16。 |
+| `--v6_subnet <网段>` | 指定 IPv6 虚拟子网网段，默认为 fd00:8888::/64。 |
 | `--data_shards <n>` | FEC 数据分片数，默认 0 不启用 FEC；为 1 时退化为按倍数冗余发包。 |
 | `--parity_shards <n>` | FEC 冗余分片数，即最多可丢失的数据包数量；data_shards 为 1 时表示发包倍数（最大 5 倍）。 |
 | `--compress <algo>` | 启用数据压缩，可选算法：deflate、lz4、zstd。 |

@@ -34,12 +34,12 @@ namespace libavpn {
 	const std::size_t udp_receive_concurrency = std::clamp<std::size_t>(
 		std::thread::hardware_concurrency(), 2, 16);
 
-	// 解析 IPv6 内网子网字符串, 默认 fd00::/64.
+	// 解析 IPv6 内网子网字符串, 默认 fd00:8888::/64.
 	// 低 32 位作为虚拟地址主机位, 因此前缀必须 <= 96.
 	static void parse_v6_subnet(const std::string& text,
 		net::ip::address_v6& net, uint8_t& prefix)
 	{
-		net = net::ip::make_address_v6("fd00::");
+		net = net::ip::make_address_v6("fd00:8888::");
 		prefix = 64;
 		if (text.empty())
 			return;
@@ -304,7 +304,7 @@ namespace libavpn {
 				return;
 			}
 
-			// gateway 模式: IPv6 内网 (fd00::/64) 目标地址低 32 位即虚拟地址.
+			// gateway 模式: IPv6 内网 (默认 fd00:8888::/64) 目标地址低 32 位即虚拟地址.
 			uint32_t dst = 0;
 			std::memcpy(&dst, ip_packet.data() + 24 + 12, 4);
 			dst = ntohl(dst);

@@ -295,7 +295,7 @@ DeviceIoControl(m_wintun_file, TUN_IOCTL_REGISTER_RINGS, &rr, sizeof(rr), ...);
   `ConvertInterfaceLuidToIndex` + `GetIpInterfaceEntry` /
   `SetIpInterfaceEntry` 设置 MTU（IPv4 用 `mtu`，IPv6 用
   `max(mtu, 1280)`）。
-- `configure_v6(vaddr, prefix)`：生成 `fd00::<x>:<x>` 内网地址，
+- `configure_v6(vaddr, prefix)`：生成 `fd00:8888::<x>:<x>` 内网地址，
   `CreateUnicastIpAddressEntry` 设置 IPv6。
 
 ### 4.3 异步读取

@@ -94,10 +94,10 @@ namespace libavpn {
 		bool c2c_{ false };
 
 		// 当 avpn 作为 gateway 时, vpn 子网配置.
-		// 格式如: "10.0.0.0/16" 或 "fd00::/8".
+		// 格式如: "10.0.0.0/16".
 		std::string subnet_;
 
-		// IPv6 内网子网配置, 格式如 "fd00::/64", 默认为 fd00::/64.
+		// IPv6 内网子网配置, 格式如 "fd00:8888::/64", 默认为 fd00:8888::/64.
 		std::string v6_subnet_;
 
 		// fec 数据设置, 指定多少份 fec 数据.

@@ -105,7 +105,7 @@ namespace libavpn {
 		// IPv6 内网前缀长度 (默认 64).
 		uint8_t v6_prefix{ 64 };
 
-		// IPv6 内网网络地址 (默认 fd00::).
+		// IPv6 内网网络地址 (默认 fd00:8888::).
 		net::ip::address_v6 v6_net{};
 
 		// 是否默认通过 gateway 作为全局出口.

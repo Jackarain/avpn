@@ -172,7 +172,7 @@ namespace libavpn {
 	{
 		session_config cfg;
 
-		// 解析 IPv6 内网子网, 默认 fd00::/64.
+		// 解析 IPv6 内网子网, 默认 fd00:8888::/64.
 		boost::system::error_code ec;
 		auto slash = config.v6_subnet_.find('/');
 		auto v6_net_str = slash == std::string::npos ?
@@ -196,7 +196,7 @@ namespace libavpn {
 		}
 		else
 		{
-			cfg.v6_net = net::ip::make_address_v6("fd00::");
+			cfg.v6_net = net::ip::make_address_v6("fd00:8888::");
 			cfg.v6_prefix = 64;
 		}
 		// 低 32 位作为虚拟地址主机位, 前缀必须 <= 96.

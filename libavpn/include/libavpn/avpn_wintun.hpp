@@ -102,7 +102,7 @@ namespace libavpn {
 		// 配置 IPv4 地址/前缀/MTU.
 		bool configure(uint32_t vaddr, uint8_t prefix, int mtu);
 
-		// 配置 IPv6 内网地址 (fd00::<vaddr>/prefix).
+		// 配置 IPv6 内网地址 (fd00:8888::<vaddr>/prefix).
 		bool configure_v6(const net::ip::address_v6& v6_net,
 			uint8_t prefix, uint32_t host);
 
