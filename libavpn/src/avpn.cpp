@@ -68,6 +68,31 @@ namespace libavpn {
 			prefix = 96;
 	}
 
+	// 执行 hook 命令, 命令中的 %i 替换为 tun 接口名.
+	// 执行失败仅记录日志, 不中断 avpn 流程.
+	static void run_hook_cmd(const std::string& cmd, const std::string& dev)
+	{
+		if (cmd.empty())
+			return;
+
+		std::string expanded = cmd;
+		if (!dev.empty())
+		{
+			std::string::size_type pos = 0;
+			while ((pos = expanded.find("%i", pos)) != std::string::npos)
+			{
+				expanded.replace(pos, 2, dev);
+				pos += dev.size();
+			}
+		}
+
+		XLOG_INFO << "Running hook command: " << expanded;
+		int ret = std::system(expanded.c_str());
+		if (ret != 0)
+			XLOG_ERR << "Hook command failed with status " << ret
+				<< ": " << expanded;
+	}
+
 
 	//////////////////////////////////////////////////////////////////////////
 	// DDoS 缓解措施.
@@ -612,6 +637,13 @@ namespace libavpn {
 			parse_v6_subnet(m_config.v6_subnet_, v6_net, v6_prefix);
 			m_tundev->configure_v6(v6_net, v6_prefix, 0xffffffffu);
 
+			// hook: 接口配置完成后执行.
+			if (!m_post_up_done_)
+			{
+				m_post_up_done_ = true;
+				run_hook_cmd(m_config.post_up_, m_tundev->device_name());
+			}
+
 			start_tun_io_task();
 		}
 
@@ -993,6 +1025,14 @@ namespace libavpn {
 				}
 				// 应用 gateway 推送的路由 (passbyvpn / pushroutes).
 				setup_system_routes();
+
+				// hook: 接口配置完成后执行 (重连不销毁
+				// tun, 因此仅执行一次).
+				if (!m_post_up_done_)
+				{
+					m_post_up_done_ = true;
+					run_hook_cmd(m_config.post_up_, m_tundev->device_name());
+				}
 
 				// 等待会话结束 (close handler 会释放 m_tunnel),
 				// 之后继续等待下一次握手并重新配置.
@@ -1482,6 +1522,11 @@ namespace libavpn {
 		m_abort = false;
 		m_started_at = std::time(nullptr);
 
+		// hook: tun 接口启用前执行 (此时接口尚未创建,
+		// %i 替换为配置的接口名, 未配置时原样保留).
+		run_hook_cmd(m_config.pre_up_, m_config.ifdev_);
+		m_post_up_done_ = false;
+
 		// 配置了 controller 时, 启动控制通道 (连接 launcher 的 /rpc 服务).
 		if (!m_config.controller_.empty())
 		{
@@ -1535,6 +1580,10 @@ namespace libavpn {
 			m_tunnel.reset();
 		}
 
+		// hook: tun 接口拆除前执行.
+		run_hook_cmd(m_config.pre_down_, m_tundev ?
+			m_tundev->device_name() : m_config.ifdev_);
+
 		// 恢复被修改的系统路由.
 		restore_system_routes();
 
@@ -1563,6 +1612,10 @@ namespace libavpn {
 		// 关闭 tun.
 		if (m_tundev)
 			m_tundev->close();
+
+		// hook: tun 接口拆除后执行.
+		run_hook_cmd(m_config.post_down_, m_tundev ?
+			m_tundev->device_name() : m_config.ifdev_);
 	}
 
 	boost::json::object avpn_service::status_json() const

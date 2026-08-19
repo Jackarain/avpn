@@ -115,6 +115,14 @@ namespace libavpn {
 
 		// 压缩选项, 指定压缩算法, 可以指定的压缩算法: deflate, lz4, zstd, 默认为空不压缩.
 		std::string compress_;
+
+		// hook 命令, 通过 shell 执行, 支持 %i 替换为 tun 接口名.
+		// pre_up_ 在 tun 接口启用前执行; post_up_ 在接口配置完成后执行;
+		// pre_down_ 在接口拆除前执行; post_down_ 在接口拆除后执行.
+		std::string pre_up_;
+		std::string post_up_;
+		std::string pre_down_;
+		std::string post_down_;
 	};
 
 	// 命名空间及类型别名.
@@ -264,6 +272,9 @@ namespace libavpn {
 
 		// 服务中止标志.
 		std::atomic_bool m_abort{ false };
+
+		// PostUp hook 是否已执行 (客户端重连时接口不销毁, 避免重复执行).
+		bool m_post_up_done_{ false };
 
 		// 周期任务定时器, 停止时 cancel 以唤醒协程自然退出.
 		net::steady_timer m_bandwidth_timer;

@@ -211,6 +211,10 @@ launcher 会自动为每个实例生成控制通道 URL（`--controller ws://...
 | `--data_shards <n>` | FEC 数据分片数，默认 0 不启用 FEC；为 1 时退化为按倍数冗余发包。 |
 | `--parity_shards <n>` | FEC 冗余分片数，即最多可丢失的数据包数量；data_shards 为 1 时表示发包倍数（最大 5 倍）。 |
 | `--compress <algo>` | 启用数据压缩，可选算法：deflate、lz4、zstd。 |
+| `--pre_up <cmd>` | 钩子：在 tun 接口启用前通过 shell 执行，支持 `%i` 替换为接口名。 |
+| `--post_up <cmd>` | 钩子：在 tun 接口配置完成后通过 shell 执行，支持 `%i` 替换为接口名。 |
+| `--pre_down <cmd>` | 钩子：在 tun 接口拆除前通过 shell 执行，支持 `%i` 替换为接口名。 |
+| `--post_down <cmd>` | 钩子：在 tun 接口拆除后通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--pid_file <path>` | 将进程 PID 写入指定文件（内部使用，由 launcher 设置）。 |
 | `--console_logs` | 强制控制台日志且不使用 ANSI 颜色（内部使用，由 launcher 设置）。 |
 
