@@ -13,6 +13,7 @@ import common ;
 import errors ;
 import generators ;
 import regex ;
+import args ;
 
 feature.extend-subfeature toolset intel : platform : vxworks ;
 
@@ -35,10 +36,7 @@ toolset.inherit-flags intel-vxworks : gcc
           <architecture>x86/<address-model>64
         ;
 
-if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
-{
-    .debug-configuration = true ;
-}
+.debug-configuration = [ args.get-arg debug-configuration ] ;
 
 # Initializes the intel-vxworks toolset
 #   version in mandatory
@@ -80,13 +78,7 @@ rule init ( version ? :  command * : options * )
         }
     }
 
-    local m = [ MATCH (..).* : $(version) ] ;
-    local n = [ MATCH (.)\\. : $(m) ] ;
-    if $(n) {
-      m = $(n) ;
-    }
-
-    local major = $(m) ;
+    local major = [ MATCH "([0-9]+)\\." : $(version) ] ;
 
 
       flags intel-vxworks.compile OPTIONS $(condition)/<inlining>off : -inline-level=0 ;
@@ -97,7 +89,7 @@ rule init ( version ? :  command * : options * )
       flags intel-vxworks.link OPTIONS $(condition)/<runtime-link>shared : [ os.environ LDFLAGS_DYNAMIC ] ;
       flags intel-vxworks.compile OPTIONS $(condition)/<link>shared : -fPIC ;
 
-    local minor = [ MATCH ".*\\.(.).*" : $(version) ] ;
+    local minor = [ MATCH "\\.([0-9]+)" : $(version) ] ;
 
 
 }

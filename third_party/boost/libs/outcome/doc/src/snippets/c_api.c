@@ -1,5 +1,5 @@
 /* Example of Outcome used with C APIs
-(C) 2017-2024 Niall Douglas <http://www.nedproductions.biz/> (4 commits)
+(C) 2017-2026 Niall Douglas <http://www.nedproductions.biz/> (4 commits)
 
 
 Boost Software License - Version 1.0 - August 17th, 2003
@@ -43,7 +43,7 @@ DEALINGS IN THE SOFTWARE.
 //
 // The first parameter is some unique identifier for this type which will be used
 // whenever we reference this type in the future.
-CXX_DECLARE_RESULT_SYSTEM(to_string_rettype, size_t);
+CXX_DECLARE_RESULT_SYSTEM(to_string_rettype, size_t)
 
 // Tell C about our extern C++ function `to_string()`
 extern CXX_RESULT_SYSTEM(to_string_rettype) _Z9to_stringPcmi(char *buffer, size_t bufferlen, int v);

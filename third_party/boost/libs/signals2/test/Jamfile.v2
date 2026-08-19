@@ -13,9 +13,12 @@
 import testing ;
 
 project
-    : source-location .
     : requirements
+        <library>/boost/signals2//boost_signals2
+        <library>/boost/test//included
         <hardcode-dll-paths>true
+        <toolset>msvc-14.0:<cxxflags>"/bigobj"
+        <toolset>gcc,<target-os>windows:<cxxflags>"-Wa,-mbig-obj"
 #        <library>/boost/test//boost_unit_test_framework
 #        <link>static
     ;
@@ -23,7 +26,7 @@ project
 rule thread-run ( sources )
 {
     return
-    [ run $(sources) : : : <library>/boost/thread//boost_thread/
+    [ run $(sources) : : : <library>/boost/thread//boost_thread
         <threading>multi ]
     ;
 }
@@ -38,6 +41,7 @@ rule thread-run ( sources )
   [ run deletion_test.cpp ]
   [ thread-run mutex_test.cpp ]
   [ run ordering_test.cpp ]
+  [ run move_construct_only_test.cpp ]
   [ run regression_test.cpp ]
   [ run shared_connection_block_test.cpp ]
   [ run signal_n_test.cpp ]

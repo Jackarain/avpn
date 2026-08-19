@@ -1,137 +1,169 @@
-/* Copyright (c) 2018-2022 Marcelo Zimbres Silva (mzimbres@gmail.com)
+/* Copyright (c) 2018-2025 Marcelo Zimbres Silva (mzimbres@gmail.com)
  *
  * Distributed under the Boost Software License, Version 1.0. (See
  * accompanying file LICENSE.txt)
  */
 
+#include <boost/asio/awaitable.hpp>
+
+#ifndef BOOST_ASIO_HAS_CO_AWAIT
+
+#include <boost/config/pragma_message.hpp>
+
+BOOST_PRAGMA_MESSAGE(
+   "test_conn_echo_stress skipped because BOOST_ASIO_HAS_CO_AWAIT is not defined");
+
+int main() { }
+
+#else
+
 #include <boost/redis/connection.hpp>
+#include <boost/redis/logger.hpp>
+
 #include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
-#include <boost/asio/deferred.hpp>
-#include <boost/system/errc.hpp>
-#define BOOST_TEST_MODULE echo-stress
-#include <boost/test/included/unit_test.hpp>
-#include <iostream>
+#include <boost/asio/error.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/core/lightweight_test.hpp>
+
 #include "common.hpp"
 
-#ifdef BOOST_ASIO_HAS_CO_AWAIT
+#include <cstddef>
+#include <exception>
+#include <iostream>
 
 namespace net = boost::asio;
 using error_code = boost::system::error_code;
 using boost::redis::operation;
 using boost::redis::request;
 using boost::redis::response;
+using boost::redis::resp3::flat_tree;
 using boost::redis::ignore;
 using boost::redis::ignore_t;
 using boost::redis::logger;
 using boost::redis::connection;
 using boost::redis::usage;
 using boost::redis::error;
+using namespace std::chrono_literals;
+
+namespace boost::redis {
 
 std::ostream& operator<<(std::ostream& os, usage const& u)
 {
-   os
-      << "Commands sent: " << u.commands_sent << "\n"
+   os << "Commands sent: " << u.commands_sent << "\n"
       << "Bytes sent: " << u.bytes_sent << "\n"
       << "Responses received: " << u.responses_received << "\n"
       << "Pushes received: " << u.pushes_received << "\n"
-      << "Response bytes received: " << u.response_bytes_received << "\n"
-      << "Push bytes received: " << u.push_bytes_received;
+      << "Bytes received (response): " << u.response_bytes_received << "\n"
+      << "Bytes received (push): " << u.push_bytes_received << "\n"
+      << "Bytes rotated: " << u.bytes_rotated;
 
    return os;
 }
 
-auto push_consumer(std::shared_ptr<connection> conn, int expected) -> net::awaitable<void>
-{
-   int c = 0;
-   for (error_code ec;;) {
-      conn->receive(ec);
-      if (ec == error::sync_receive_push_failed) {
-         ec = {};
-         co_await conn->async_receive(redirect_error(net::use_awaitable, ec));
-      } else if (!ec) {
-         //std::cout << "Skipping suspension." << std::endl;
-      }
+}  // namespace boost::redis
 
-      if (ec) {
-         BOOST_TEST(false);
-         std::cout << "push_consumer error: " << ec.message() << std::endl;
-         co_return;
-      }
-      if (++c == expected)
-         break;
+namespace {
+
+auto receiver(connection& conn, flat_tree& resp, std::size_t expected) -> net::awaitable<void>
+{
+   std::size_t push_counter = 0;
+   while (push_counter != expected) {
+      co_await conn.async_receive2();
+      push_counter += resp.get_total_msgs();
+      resp.clear();
    }
 
-   conn->cancel();
+   conn.cancel();
 }
 
-auto
-echo_session(
-   std::shared_ptr<connection> conn,
-   std::shared_ptr<request> pubs,
-   int n) -> net::awaitable<void>
+auto echo_session(connection& conn, const request& req, std::size_t n) -> net::awaitable<void>
 {
-   for (auto i = 0; i < n; ++i)
-      co_await conn->async_exec(*pubs, ignore, net::deferred);
+   for (auto i = 0u; i < n; ++i)
+      co_await conn.async_exec(req);
 }
 
-auto async_echo_stress(std::shared_ptr<connection> conn) -> net::awaitable<void>
+void rethrow_on_error(std::exception_ptr exc)
 {
-   auto ex = co_await net::this_coro::executor;
-   auto cfg = make_test_config();
-   cfg.health_check_interval = std::chrono::seconds::zero();
-   run(conn, cfg,
-       boost::asio::error::operation_aborted,
-       boost::redis::operation::receive,
-       boost::redis::logger::level::crit);
+   if (exc) {
+      BOOST_TEST(false);
+      std::rethrow_exception(exc);
+   }
+}
 
+request make_pub_req(std::size_t n_pubs)
+{
    request req;
-   req.push("SUBSCRIBE", "channel");
-   co_await conn->async_exec(req, ignore, net::deferred);
+   req.push("PING");
+   for (std::size_t i = 0u; i < n_pubs; ++i)
+      req.push("PUBLISH", "channel", "payload");
+
+   return req;
+}
+
+}  // namespace
+
+int main()
+{
+   // Setup
+   net::io_context ctx;
+   connection conn{ctx};
+   auto cfg = make_test_config();
 
    // Number of coroutines that will send pings sharing the same
    // connection to redis.
-   int const sessions = 150;
+   constexpr std::size_t sessions = 150u;
 
    // The number of pings that will be sent by each session.
-   int const msgs = 200;
+   constexpr std::size_t msgs = 200u;
 
    // The number of publishes that will be sent by each session with
    // each message.
-   int const n_pubs = 25;
+   constexpr std::size_t n_pubs = 25u;
 
    // This is the total number of pushes we will receive.
-   int total_pushes = sessions * msgs * n_pubs + 1;
+   constexpr std::size_t total_pushes = sessions * msgs * n_pubs + 1;
 
-   auto pubs = std::make_shared<request>();
-   pubs->push("PING");
-   for (int i = 0; i < n_pubs; ++i)
-      pubs->push("PUBLISH", "channel", "payload");
+   flat_tree resp;
+   conn.set_receive_response(resp);
+
+   request const pub_req = make_pub_req(n_pubs);
+
+   // Run the connection
+   bool run_finished = false, subscribe_finished = false;
+   conn.async_run(cfg, logger{logger::level::crit}, [&run_finished](error_code ec) {
+      run_finished = true;
+      BOOST_TEST(ec == net::error::operation_aborted);
+      std::clog << "async_run finished" << std::endl;
+   });
 
    // Op that will consume the pushes counting down until all expected
    // pushes have been received.
-   net::co_spawn(ex, push_consumer(conn, total_pushes), net::detached);
+   net::co_spawn(ctx, receiver(conn, resp, total_pushes), rethrow_on_error);
 
-   for (int i = 0; i < sessions; ++i) 
-      net::co_spawn(ex, echo_session(conn, pubs, msgs), net::detached);
+   // Subscribe, then launch the coroutines
+   request req;
+   req.subscribe({"channel"});
+   conn.async_exec(req, ignore, [&](error_code ec, std::size_t) {
+      subscribe_finished = true;
+      BOOST_TEST(ec == error_code());
+
+      for (std::size_t i = 0; i < sessions; ++i)
+         net::co_spawn(ctx, echo_session(conn, pub_req, msgs), rethrow_on_error);
+   });
+
+   // Run the test
+   ctx.run_for(2 * test_timeout);
+   BOOST_TEST(run_finished);
+   BOOST_TEST(subscribe_finished);
+
+   // Print statistics
+   std::cout << "-------------------\n"
+             << "Usage data: \n"
+             << conn.get_usage() << "\n"
+             << "-------------------\n"
+             << "Reallocations: " << resp.get_reallocs() << std::endl;
+
+   return boost::report_errors();
 }
 
-BOOST_AUTO_TEST_CASE(echo_stress)
-{
-   net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
-   net::co_spawn(ioc, async_echo_stress(conn), net::detached);
-   ioc.run();
-
-   std::cout
-      << "-------------------\n"
-      << conn->get_usage()
-      << std::endl;
-}
-
-#else
-BOOST_AUTO_TEST_CASE(dummy)
-{
-   BOOST_TEST(true);
-}
 #endif

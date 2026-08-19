@@ -19,48 +19,48 @@ namespace boost { namespace charconv {
 
 // integer overloads
 
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, bool& value, int base = 10) noexcept = delete;
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, char& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, bool& value, int base = 10) noexcept = delete;
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, char& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, signed char& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, signed char& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned char& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned char& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, short& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, short& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned short& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned short& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, int& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, int& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned int& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned int& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, long& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, long& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned long& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned long& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, long long& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, long long& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
-BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned long long& value, int base = 10) noexcept
+BOOST_CHARCONV_HOST_DEVICE BOOST_CHARCONV_GCC5_CONSTEXPR from_chars_result from_chars(const char* first, const char* last, unsigned long long& value, int base = 10) noexcept
 {
     return detail::from_chars(first, last, value, base);
 }
@@ -172,7 +172,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view
 BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view sv, long double& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 
-#ifdef BOOST_CHARCONV_HAS_FLOAT128
+#ifdef BOOST_CHARCONV_HAS_QUADMATH
 BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view sv, __float128& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 
@@ -186,7 +186,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view
 #ifdef BOOST_CHARCONV_HAS_FLOAT64
 BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view sv, std::float64_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
-#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_FLOAT128)
+#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_QUADMATH)
 BOOST_CHARCONV_DECL from_chars_result from_chars_erange(boost::core::string_view sv, std::float128_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 #ifdef BOOST_CHARCONV_HAS_BRAINFLOAT16
@@ -204,7 +204,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* 
 BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* last, long double& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 
-#ifdef BOOST_CHARCONV_HAS_FLOAT128
+#ifdef BOOST_CHARCONV_HAS_QUADMATH
 BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* last, __float128& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 #ifdef BOOST_CHARCONV_HAS_FLOAT16
@@ -216,7 +216,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* 
 #ifdef BOOST_CHARCONV_HAS_FLOAT64
 BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* last, std::float64_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
-#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_FLOAT128)
+#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_QUADMATH)
 BOOST_CHARCONV_DECL from_chars_result from_chars(const char* first, const char* last, std::float128_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 #ifdef BOOST_CHARCONV_HAS_BRAINFLOAT16
@@ -230,7 +230,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, do
 BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, long double& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 
-#ifdef BOOST_CHARCONV_HAS_FLOAT128
+#ifdef BOOST_CHARCONV_HAS_QUADMATH
 BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, __float128& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 #ifdef BOOST_CHARCONV_HAS_FLOAT16
@@ -242,7 +242,7 @@ BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, st
 #ifdef BOOST_CHARCONV_HAS_FLOAT64
 BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, std::float64_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
-#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_FLOAT128)
+#if defined(BOOST_CHARCONV_HAS_STDFLOAT128) && defined(BOOST_CHARCONV_HAS_QUADMATH)
 BOOST_CHARCONV_DECL from_chars_result from_chars(boost::core::string_view sv, std::float128_t& value, chars_format fmt = chars_format::general) noexcept;
 #endif
 #ifdef BOOST_CHARCONV_HAS_BRAINFLOAT16

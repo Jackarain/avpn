@@ -15,6 +15,7 @@
 #ifndef BOOST_GEOMETRY_ALGORITHMS_DETAIL_RELATE_FOLLOW_HELPERS_HPP
 #define BOOST_GEOMETRY_ALGORITHMS_DETAIL_RELATE_FOLLOW_HELPERS_HPP
 
+#include <memory>
 #include <vector>
 
 #include <boost/core/ignore_unused.hpp>
@@ -47,7 +48,7 @@ template
 <
     std::size_t OpId,
     typename Geometry,
-    typename Tag = typename geometry::tag<Geometry>::type,
+    typename Tag = geometry::tag_t<Geometry>,
     bool IsMulti = util::is_multi<Geometry>::value
 >
 struct for_each_disjoint_geometry_if
@@ -141,8 +142,8 @@ class point_info
 public:
     point_info() : sid_ptr(NULL), pt_ptr(NULL) {}
     point_info(Point const& pt, segment_identifier const& sid)
-        : sid_ptr(boost::addressof(sid))
-        , pt_ptr(boost::addressof(pt))
+        : sid_ptr(std::addressof(sid))
+        , pt_ptr(std::addressof(pt))
     {}
     segment_identifier const& seg_id() const
     {
@@ -172,7 +173,7 @@ class same_single
 {
 public:
     same_single(segment_identifier const& sid)
-        : sid_ptr(boost::addressof(sid))
+        : sid_ptr(std::addressof(sid))
     {}
 
     bool operator()(segment_identifier const& sid) const
@@ -194,7 +195,7 @@ class same_ring
 {
 public:
     same_ring(segment_identifier const& sid)
-        : sid_ptr(boost::addressof(sid))
+        : sid_ptr(std::addressof(sid))
     {}
 
     bool operator()(segment_identifier const& sid) const
@@ -220,7 +221,7 @@ public:
     bool update(segment_identifier const& seg_id)
     {
         bool result = m_seg_id_ptr == 0 || !SameRange(*m_seg_id_ptr)(seg_id);
-        m_seg_id_ptr = boost::addressof(seg_id);
+        m_seg_id_ptr = std::addressof(seg_id);
         return result;
     }
 
@@ -276,7 +277,7 @@ public:
                 // here we know that we possibly left LS
                 // we must still check if we didn't get back on the same point
                 m_exit_operation = exit_op;
-                m_exit_turn_ptr = boost::addressof(turn);
+                m_exit_turn_ptr = std::addressof(turn);
             }
         }
     }
@@ -358,7 +359,7 @@ inline bool turn_on_the_same_ip(Turn const& prev_turn, Turn const& curr_turn,
 }
 
 template <typename IntersectionPoint, typename OperationInfo, typename BoundaryChecker>
-static inline bool is_ip_on_boundary(IntersectionPoint const& ip,
+inline bool is_ip_on_boundary(IntersectionPoint const& ip,
                                      OperationInfo const& operation_info,
                                      BoundaryChecker const& boundary_checker)
 {

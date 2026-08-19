@@ -1,21 +1,28 @@
-# Copyright 2005 Daniel James.
+# Copyright 2026 Joaquin M Lopez Munoz
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-import asciidoctor ;
+import path ;
 
-html unordered.html : unordered.adoc ;
+make html_ : build_antora.sh : @run-script ;
 
-install html_ : unordered.html : <location>html ;
+actions run-script
+{
+    bash $(>)
+}
 
-pdf unordered.pdf : unordered.adoc ;
-explicit unordered.pdf ;
+path-constant DOC_DIR : . ;
+.node_modules = [ path.join $(DOC_DIR) node_modules ] ;
 
-install pdf_ : unordered.pdf : <location>pdf ;
-explicit pdf_ ;
+make cleanup_node_modules_ : html_ : @cleanup-node-modules ;
+
+actions cleanup-node-modules
+{
+    rm -rf $(.node_modules)
+}
 
 ###############################################################################
 alias boostdoc ;
 explicit boostdoc ;
-alias boostrelease : html_ ;
+alias boostrelease : html_ cleanup_node_modules_ ;
 explicit boostrelease ;

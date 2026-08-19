@@ -1,5 +1,5 @@
 #  Copyright Vladimir Prus 2005.
-#  Copyright Antony Polukhin, 2013-2024.
+#  Copyright Antony Polukhin, 2013-2026.
 #
 #  Use, modification and
 #  distribution is subject to the Boost Software License, Version
@@ -8,7 +8,9 @@
 #
 # For more information, see http://www.boost.org/libs/any
 
-import ../../config/checks/config : requires ;
+require-b2 5.0.1 ;
+import-search /boost/config/checks ;
+import config : requires ;
 
 import testing ;
 

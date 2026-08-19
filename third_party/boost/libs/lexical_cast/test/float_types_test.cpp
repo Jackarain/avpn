@@ -2,23 +2,27 @@
 //
 //  See http://www.boost.org for most recent version, including documentation.
 //
-//  Copyright Antony Polukhin, 2011-2024.
+//  Copyright Antony Polukhin, 2011-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt).
 
+#include <sstream>
+#include <type_traits>
+
+#include <boost/cstdint.hpp>
+#include <boost/core/lightweight_test.hpp>
+
 #ifndef BOOST_LEXICAL_CAST_DETAIL_TEST_ON_OLD
+#include <boost/lexical_cast/detail/type_traits.hpp>
 #include <boost/lexical_cast.hpp>
 #else
 // Make sure that tests work the same way on non-optimized version
 #include "lexical_cast_old.hpp"
+#include <boost/lexical_cast/detail/type_traits.hpp>
 #endif
 
-#include <boost/cstdint.hpp>
-#include <boost/core/lightweight_test.hpp>
-#include <boost/type_traits/is_same.hpp>
-#include <boost/type_traits/is_signed.hpp>
 
 #ifndef BOOST_TEST_CLOSE_FRACTION
 // Naiive, but works for most tests in this file 
@@ -302,8 +306,8 @@ void test_float_typess_for_overflows()
     BOOST_TEST_THROWS(lexical_cast<test_t>("1"+s_max_value), bad_lexical_cast);
     BOOST_TEST_THROWS(lexical_cast<test_t>("9"+s_max_value), bad_lexical_cast);
 #endif
-
-    if ( is_same<test_t,float>::value )
+#if !(defined(_LIBCPP_VERSION) && defined(BOOST_LEXICAL_CAST_DETAIL_TEST_ON_OLD))
+    if ( std::is_same<test_t,float>::value )
     {
         BOOST_TEST_THROWS(lexical_cast<test_t>( (std::numeric_limits<double>::max)() ), bad_lexical_cast);
         BOOST_TEST(
@@ -338,6 +342,7 @@ void test_float_typess_for_overflows()
                 <= (std::numeric_limits<long double>::min)() / 2 + std::numeric_limits<test_t>::epsilon()
         );
     }
+#endif
 }
 
 #undef CHECK_CLOSE_ABS_DIFF
@@ -549,7 +554,7 @@ void test_conversion_integral_float()
     BOOST_TEST_EQ(lexical_cast<Integral>(static_cast<Float>(8.0)), 8);
     BOOST_TEST_EQ(lexical_cast<Integral>(static_cast<Float>(16.0)), 16);
 
-    if (boost::is_signed<Integral>::value) {
+    if (boost::detail::lcast::is_signed<Integral>::value) {
         BOOST_TEST_EQ(lexical_cast<Integral>(static_cast<Float>(-1.0)), -1);
         BOOST_TEST_EQ(lexical_cast<Integral>(static_cast<Float>(-8.0)), -8);
         BOOST_TEST_EQ(lexical_cast<Integral>(static_cast<Float>(-16.0)), -16);
@@ -568,6 +573,11 @@ void test_conversion_integral_float()
     BOOST_TEST_THROWS(lexical_cast<Integral>((std::numeric_limits<Float>::max)()), bad_lexical_cast);
     BOOST_TEST_THROWS(lexical_cast<Integral>((std::numeric_limits<Float>::epsilon)()), bad_lexical_cast);
     BOOST_TEST_THROWS(lexical_cast<Integral>((std::numeric_limits<Float>::lowest)()), bad_lexical_cast);
+
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<Float>::quiet_NaN()), bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<Float>::quiet_NaN()), bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<Float>::infinity()), bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<Float>::infinity()), bad_lexical_cast);
 }
 
 

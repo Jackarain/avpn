@@ -6,11 +6,12 @@
 
 #include <boost/redis/connection.hpp>
 #include <boost/redis/resp3/serialization.hpp>
-#include <boost/asio/deferred.hpp>
+
 #include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
 #include <boost/asio/consign.hpp>
+#include <boost/asio/detached.hpp>
 #include <boost/system/errc.hpp>
+
 #include <iostream>
 
 // See the definition in person.proto. This header is automatically
@@ -20,19 +21,20 @@
 #if defined(BOOST_ASIO_HAS_CO_AWAIT)
 
 namespace asio = boost::asio;
+namespace resp3 = boost::redis::resp3;
 using boost::redis::request;
 using boost::redis::response;
 using boost::redis::operation;
 using boost::redis::ignore_t;
 using boost::redis::config;
 using boost::redis::connection;
+using boost::redis::resp3::node_view;
 
 // The protobuf type described in example/person.proto
 using tutorial::person;
 
 // Boost.Redis customization points (example/protobuf.hpp)
-namespace tutorial
-{
+namespace tutorial {
 
 // Below I am using a Boost.Redis to indicate a protobuf error, this
 // is ok for an example, users however might want to define their own
@@ -43,17 +45,17 @@ void boost_redis_to_bulk(std::string& to, person const& u)
    if (!u.SerializeToString(&tmp))
       throw boost::system::system_error(boost::redis::error::invalid_data_type);
 
-   boost::redis::resp3::boost_redis_to_bulk(to, tmp);
+   resp3::boost_redis_to_bulk(to, tmp);
 }
 
-void boost_redis_from_bulk(person& u, std::string_view sv, boost::system::error_code& ec)
+void boost_redis_from_bulk(person& u, node_view const& node, boost::system::error_code& ec)
 {
-   std::string const tmp {sv};
+   std::string const tmp{node.value};
    if (!u.ParseFromString(tmp))
       ec = boost::redis::error::invalid_data_type;
 }
 
-} // tutorial
+}  // namespace tutorial
 
 using tutorial::boost_redis_to_bulk;
 using tutorial::boost_redis_from_bulk;
@@ -62,7 +64,7 @@ asio::awaitable<void> co_main(config cfg)
 {
    auto ex = co_await asio::this_coro::executor;
    auto conn = std::make_shared<connection>(ex);
-   conn->async_run(cfg, {}, asio::consign(asio::detached, conn));
+   conn->async_run(cfg, asio::consign(asio::detached, conn));
 
    person p;
    p.set_name("Louis");
@@ -76,13 +78,12 @@ asio::awaitable<void> co_main(config cfg)
    response<ignore_t, person> resp;
 
    // Sends the request and receives the response.
-   co_await conn->async_exec(req, resp, asio::deferred);
+   co_await conn->async_exec(req, resp);
    conn->cancel();
 
-   std::cout
-      << "Name: " << std::get<1>(resp).value().name() << "\n"
-      << "Age: " << std::get<1>(resp).value().id() << "\n"
-      << "Email: " << std::get<1>(resp).value().email() << "\n";
+   std::cout << "Name: " << std::get<1>(resp).value().name() << "\n"
+             << "Age: " << std::get<1>(resp).value().id() << "\n"
+             << "Email: " << std::get<1>(resp).value().email() << "\n";
 }
 
-#endif // defined(BOOST_ASIO_HAS_CO_AWAIT)
+#endif  // defined(BOOST_ASIO_HAS_CO_AWAIT)

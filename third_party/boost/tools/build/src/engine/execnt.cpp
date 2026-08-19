@@ -44,15 +44,17 @@
 #include "execcmd.h"
 
 #include "lists.h"
+#include "object.h"
 #include "output.h"
 #include "pathsys.h"
 #include "startup.h"
-#include "string.h"
+#include "jam_strings.h"
 
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>
+#include <string.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -355,7 +357,7 @@ void exec_cmd
     if ( list_empty( shell ) )
         shell = default_shell;
 
-    if ( DEBUG_EXECCMD )
+    if ( is_debug_execcmd() )
     {
         if ( is_raw_cmd )
             out_printf( "Executing raw command directly\n" );
@@ -550,7 +552,7 @@ static void invoke_cmd( char const * const command, int32_t const slot )
     /* Let the child inherit stdin, as some commands assume it is available. */
     si.hStdInput = GetStdHandle( STD_INPUT_HANDLE );
 
-    if ( DEBUG_EXECCMD )
+    if ( is_debug_execcmd() )
         out_printf( "Command string for CreateProcessA(): '%s'\n", command );
 
     /* Run the command by creating a sub-process for it. */

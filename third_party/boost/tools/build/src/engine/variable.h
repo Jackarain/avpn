@@ -24,8 +24,6 @@ Distributed under the Boost Software License, Version 1.0.
 
 #include <string>
 
-struct module_t;
-
 void var_defines(struct module_t *, const char * const * e, int preprocess);
 LIST * var_get(struct module_t *, OBJECT * symbol);
 void var_set(struct module_t *, OBJECT * symbol, LIST * value, int flag);
@@ -70,6 +68,9 @@ struct variable
 	}
 	inline variable(const std::string & m, const std::string & v)
 		: variable(m.c_str(), v.c_str())
+	{}
+	inline variable(struct module_t * m, const std::string & v)
+		: variable(m, v.c_str())
 	{}
 
 	// Refer to variable in global/root module.

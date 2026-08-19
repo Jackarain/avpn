@@ -1,4 +1,4 @@
-// Copyright 2013-2024 Antony Polukhin
+// Copyright 2013-2026 Antony Polukhin
 
 // Distributed under the Boost Software License, Version 1.0.
 // (See the accompanying file LICENSE_1_0.txt
@@ -14,10 +14,10 @@
     type is checked against the stored parameter type and an exception is thrown in case of mismatch.
 */
 
-#include <boost/type_index.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <boost/type_index.hpp>
     
 //<-
 // Making `#include <cassert>` visible in docs, while actually using hand-made check

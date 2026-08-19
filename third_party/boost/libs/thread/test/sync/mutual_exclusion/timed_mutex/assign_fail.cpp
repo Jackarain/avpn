@@ -19,12 +19,14 @@
 // timed_mutex& operator=(const timed_mutex&) = delete;
 
 #include <boost/thread/mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 int main()
 {
   boost::timed_mutex m0;
-  boost::timed_mutex m1(m0);
+  boost::timed_mutex m1;
+  m1 = m0;
+  (void)m1;
 }
 
 #include "../../../remove_error_code_unused_warning.hpp"

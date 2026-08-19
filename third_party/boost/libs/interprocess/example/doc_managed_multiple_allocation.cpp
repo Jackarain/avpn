@@ -7,13 +7,13 @@
 // See http://www.boost.org/libs/interprocess for documentation.
 //
 //////////////////////////////////////////////////////////////////////////////
-#if defined(BOOST_INTERPROCESS_MAPPED_FILES)
+#include <boost/interprocess/detail/workaround.hpp>
 
+#if defined(BOOST_INTERPROCESS_MAPPED_FILES)
 
 //[doc_managed_multiple_allocation
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/move/utility_core.hpp> //boost::move
-#include <cassert>//assert
 #include <cstring>//std::memset
 #include <new>    //std::nothrow
 #include <vector> //std::vector
@@ -29,35 +29,18 @@ int main()
    //Remove shared memory on construction and destruction
    struct shm_remove
    {
-   //<-
-   #if 1
       shm_remove() { shared_memory_object::remove(test::get_process_id_name()); }
       ~shm_remove(){ shared_memory_object::remove(test::get_process_id_name()); }
-   #else
-   //->
-      shm_remove() { shared_memory_object::remove("MySharedMemory"); }
-      ~shm_remove(){ shared_memory_object::remove("MySharedMemory"); }
-   //<-
-   #endif
-   //->
    } remover;
    //<-
    (void)remover;
    //->
 
-   //<-
-   #if 1
    managed_shared_memory managed_shm(create_only,test::get_process_id_name(), 65536);
-   #else
-   //->
-   managed_shared_memory managed_shm(create_only,"MySharedMemory", 65536);
-   //<-
-   #endif
-   //->
 
-   //Allocate 16 elements of 100 bytes in a single call. Non-throwing version.
+   //Allocate 16 elements of 100 bytes with a minimal alignment of 4, in a single call. Non-throwing version.
    multiallocation_chain chain;
-   managed_shm.allocate_many(std::nothrow, 100, 16, chain);
+   managed_shm.allocate_many(std::nothrow, 100, 16, 4u, chain);
 
    //Check if the memory allocation was successful
    if(chain.empty()) return 1;
@@ -85,7 +68,7 @@ int main()
    for(std::size_t i = 0; i < 10; ++i)
       sizes[i] = i*3;
 
-   managed_shm.allocate_many(sizes, 10, 1, chain);
+   managed_shm.allocate_many(sizes, 10, 1, 4,  chain);
    managed_shm.deallocate_many(chain);
    return 0;
 }

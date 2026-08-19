@@ -1,5 +1,5 @@
 // Copyright 2016 Klemens Morgenstern
-// Copyright Antony Polukhin, 2017-2024
+// Copyright Antony Polukhin, 2017-2026
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
@@ -9,9 +9,9 @@
 
 #include <boost/config.hpp>
 
-#if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
-
-#include <boost/dll/config.hpp>
+#ifdef BOOST_USE_MODULES
+#include <compare>
+#endif
 #include <boost/variant.hpp>
 
 BOOST_SYMBOL_EXPORT extern int unscoped_var;
@@ -198,6 +198,3 @@ namespace space {
   template BOOST_SYMBOL_EXPORT int my_plugin::Func2<::space::my_plugin>();
   template BOOST_SYMBOL_EXPORT int my_plugin::AFunc<::space::my_plugin>();
 }
-
-
-#endif

@@ -11,12 +11,12 @@
 
 #include <boost/thread/lock_guard.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
-boost::mutex m;
+boost::mutex g_mutex;
 
 void pass()
 {
-  m.lock();
-  boost::lock_guard<boost::mutex> lk(m, boost::adopt_lock);
+  g_mutex.lock();
+  boost::lock_guard<boost::mutex> lk(g_mutex, boost::adopt_lock);
 }

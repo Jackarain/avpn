@@ -27,9 +27,21 @@ jobs:
           - toolset: gcc-9
             cxxstd: "03,11,14,17,2a"
             os: ubuntu-22.04
+            install: [g++-9]
           - toolset: clang-15
             cxxstd: "03,11,14,17,2a"
             os: ubuntu-22.04
+          - toolset: clang-19
+            compiler: clang++-19
+            cxxstd: "20"
+            os: ubuntu-24.04
+            install: &cxx19
+              - clang-19
+              - llvm-19
+              - libclang-rt-19-dev
+              - libc++-19-dev
+              - libc++abi-19-dev
+              - clang-tools-19
           # TODO: fix and uncomment
           #- toolset: clang
           #  cxxstd: "03,11,14,17,2a"
@@ -40,11 +52,11 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
-        run: sudo apt install ${{matrix.install}}
+        run: sudo apt install -y ${{join(matrix.install, ' ')}}
 
       - name: Setup Boost
         run: |
@@ -69,7 +81,54 @@ jobs:
           python tools/boostdep/depinst/depinst.py --include benchmark --include example --include examples --include tools --git_args "--depth 10 --jobs 3" $LIBRARY
           ./bootstrap.sh
           ./b2 -d0 headers
-          ./b2 -j4 variant=debug tools/inspect/build
+          ./b2 -j4 variant=debug tools/inspect
+      
+      - name: Build libbacktrace
+        if: ${{matrix.toolset == 'clang-19'}}
+        run: |
+          # libc++ do not have bundled libbacktrace implementation
+          git clone --depth=1 https://github.com/ianlancetaylor/libbacktrace.git
+          cd libbacktrace
+          CC=clang-19 OBJCOPY=/usr/bin/llvm-objcopy NM=/usr/bin/llvm-nm \
+            ./configure --prefix="$HOME/.local" --with-system-libunwind
+          make -j"$(nproc)"
+          make install
+
+      - name: Run modules tests
+        if: ${{matrix.toolset == 'clang-19'}}
+        run: |
+          cd ../boost-root/libs/$LIBRARY
+          cmake -S test/cmake_subdir_test \
+                -B build_module \
+                -GNinja \
+                -DBOOST_USE_MODULES=1 \
+                -DBUILD_TESTING=1 \
+                -DCMAKE_CXX_STANDARD=23 \
+                -DCMAKE_CXX_COMPILER=${{matrix.compiler}} \
+                -DCMAKE_CXX_FLAGS="-stdlib=libc++ -I$HOME/.local/include" \
+                -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/.local" \
+                -DCMAKE_CXX_MODULE_STD=ON \
+                -DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=0e5b6991-d74f-4b3d-a41c-cf096e0b2508
+          cmake --build build_module
+          ctest --test-dir build_module -VV
+          rm -rf build_module
+
+      - name: Run modules tests without 'import std;'
+        if: ${{matrix.toolset == 'clang-19'}}
+        run: |
+          cd ../boost-root/libs/$LIBRARY
+          cmake -S test/cmake_subdir_test \
+                -B build_module \
+                -GNinja \
+                -DBOOST_USE_MODULES=1 \
+                -DBUILD_TESTING=1 \
+                -DCMAKE_CXX_STANDARD=20 \
+                -DCMAKE_CXX_COMPILER=${{matrix.compiler}} \
+                -DCMAKE_CXX_FLAGS="-stdlib=libc++ -I$HOME/.local/include" \
+                -DCMAKE_EXE_LINKER_FLAGS="-L$HOME/.local"
+          cmake --build build_module
+          ctest --test-dir build_module -VV
+          rm -rf build_module
 
       - name: Run tests
         run: |
@@ -114,10 +173,10 @@ jobs:
             cxxstd: "14,17,latest"
             addrmd: 64
             os: windows-2022
-          - toolset: msvc-14.2
-            cxxstd: "14,17,latest"
+          - toolset: msvc
+            cxxstd: "14,17,20,latest"
             addrmd: 64
-            os: windows-2019
+            os: windows-2025
           #- toolset: gcc
           #  cxxstd: "03,11,14,17,2a"
           #  addrmd: 64
@@ -126,7 +185,7 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -170,13 +229,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04, macos-12, macos-13, macos-14 ]
+        os: [ ubuntu-24.04, ubuntu-22.04, macos-latest, macos-14 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -204,23 +263,26 @@ jobs:
 
       - name: Use library with add_subdirectory
         run: |
-          cd ../boost-root/libs/$LIBRARY/test/cmake_subdir_test
-          mkdir __build__ && cd __build__
-          cmake -DBUILD_SHARED_LIBS=${{matrix.shared}} ..
-          cmake --build .
-          ctest --output-on-failure --no-tests=error
+          cd ../boost-root/libs/$LIBRARY
+          cmake -S test/cmake_subdir_test -B __build__ \
+            -GNinja \
+            -DBUILD_SHARED_LIBS=${{matrix.shared}}
+
+          cmake --build __build__
+          ctest --test-dir __build__ --output-on-failure --no-tests=error
+          rm -rf __build__
 
   posix-cmake-install:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04, macos-12, macos-13, macos-14 ]
+        os: [ ubuntu-24.04, ubuntu-22.04, macos-latest, macos-14 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -265,22 +327,33 @@ jobs:
       - name: Use the installed library
         run: |
           cd ../boost-root/libs/$LIBRARY/test/cmake_install_test && mkdir __build__ && cd __build__
-          cmake -DCMAKE_INSTALL_PREFIX=~/.local ..
-          cmake --build .
+
           export LD_LIBRARY_PATH=$HOME/.local/lib:$LD_LIBRARY_PATH
-          ctest --output-on-failure --no-tests=error
+
+          set -e
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+              BACKENDS_ARRAY=(stacktrace stacktrace_noop stacktrace_basic)
+          else
+              BACKENDS_ARRAY=(stacktrace stacktrace_noop stacktrace_basic stacktrace_backtrace)
+          fi
+          for BACKEND in ${BACKENDS_ARRAY[@]}; do
+              rm -rf *
+              cmake -DCMAKE_INSTALL_PREFIX=~/.local -DBOOST_STACKTRACE_IMPL_BACKEND=${BACKEND} ..
+              cmake --build .
+              ctest --output-on-failure --no-tests=error -V
+          done
 
   posix-cmake-test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-20.04, ubuntu-22.04, macos-12, macos-13, macos-14 ]
+        os: [ ubuntu-24.04, ubuntu-22.04, macos-latest, macos-14 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -326,13 +399,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-2019, windows-2022 ]
+        os: [ windows-2025, windows-2022 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -374,13 +447,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-2019, windows-2022 ]
+        os: [ windows-2025, windows-2022 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -425,10 +498,20 @@ jobs:
         shell: cmd
         run: |
           cd ../boost-root/libs/%LIBRARY%/test/cmake_install_test && mkdir __build__ && cd __build__
-          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix ..
+          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix -DBOOST_STACKTRACE_IMPL_BACKEND=stacktrace ..
           cmake --build . --config Debug
           PATH C:\cmake-prefix\bin;%PATH%
-          ctest --output-on-failure --no-tests=error -C Debug
+          ctest --output-on-failure --no-tests=error -C Debug -V
+
+          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix -DBOOST_STACKTRACE_IMPL_BACKEND=stacktrace_windbg ..
+          cmake --build . --config Debug
+          PATH C:\cmake-prefix\bin;%PATH%
+          ctest --output-on-failure --no-tests=error -C Debug -V
+
+          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix -DBOOST_STACKTRACE_IMPL_BACKEND=stacktrace_windbg_cached  ..
+          cmake --build . --config Debug
+          PATH C:\cmake-prefix\bin;%PATH%
+          ctest --output-on-failure --no-tests=error -C Debug -V
 
       - name: Use the installed library (RelWithDebInfo)
         shell: cmd
@@ -442,13 +525,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-2019, windows-2022 ]
+        os: [ windows-2025, windows-2022 ]
         shared: [ OFF, ON ]
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd

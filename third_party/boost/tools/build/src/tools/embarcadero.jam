@@ -6,7 +6,7 @@
 
 #| tag::doc[]
 
-[[bbv2.reference.tools.compiler.embarcadero]]
+[[b2.reference.tools.compiler.embarcadero]]
 = Embarcadero C++ Compiler
 
 The `embarcadero` module supports the 32-bit command line C++ compiler
@@ -137,6 +137,7 @@ import clang ;
 import gcc ;
 import generators ;
 import errors ;
+import args ;
 
 feature.extend toolset : embarcadero ;
 
@@ -149,6 +150,7 @@ toolset.inherit-flags embarcadero
       <link>shared
       <threading>multi
       <threading>multi/<target-os>windows
+      <stdlib>libstdc++
       <stdlib>gnu
       <stdlib>gnu11
       <stdlib>libc++
@@ -179,9 +181,7 @@ toolset.inherit-flags embarcadero
       <cxxstd>latest/<cxxstd-dialect>iso
     ;
 
-if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ] {
-  .debug-configuration = true ;
-}
+.debug-configuration = [ args.get-arg debug-configuration ] ;
 
 rule init ( version ? :  command * : options * )
 {
@@ -237,11 +237,10 @@ rule init ( version ? :  command * : options * )
     {
       # Determine the version
       if $(command) {
-        local command-string = "$(command)" ;
-        command-string = $(command-string:J=" ") ;
+        local command-string = [ common.make-command-string $(command) ] ;
         local soutput = [ SHELL "$(command-string) --version" ] ;
         version ?= [ MATCH "Embarcadero C[+][+] ([0-9.]+)" : $(soutput) ] ;
-        cl_version = [ MATCH ".+version[ ]+([0-9.]+)" : $(soutput) ] ;
+        cl_version = [ MATCH "version +([0-9.]+)" : $(soutput) ] ;
         if ! $(cl_version)
             {
             cl_version = 5.0 ;
@@ -448,8 +447,8 @@ local rule concatenate ( path : name )
     {
 
     local result ;
-    local has_ending_slash = [ MATCH ".*([/\\])$" : $(path) ] ;
-    local has_backward_slash = [ MATCH ".*([\\])" : $(path) ] ;
+    local has_ending_slash = [ MATCH "([/\\])$" : $(path) ] ;
+    local has_backward_slash = [ MATCH "([\\])" : $(path) ] ;
 
     if $(has_ending_slash)
         {

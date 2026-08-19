@@ -1,18 +1,56 @@
 [/
   Copyright 2021 Peter Dimov
-  Copyright 2022-2024 Andrey Semashev
+  Copyright 2022-2025 Andrey Semashev
   Distributed under the Boost Software License, Version 1.0.
   https://boost.org/LICENSE_1_0.txt)
 ]
 
 [section Revision History]
 
+[section Changes in 1.91.0]
+
+* The header [link core.is_placeholder `boost/is_placeholder.hpp`] has been moved from Bind to Core. ([github_issue 90])
+
+[endsect]
+
+[section Changes in 1.90.0]
+
+* The implementation of `BOOST_TEST_THROWS` and `BOOST_TEST_NO_THROW` macros defined in
+  [link core.lightweight_test `boost/core/lightweight_test.hpp`] has been changed to avoid
+  compiler warnings on some compilers, when the macros are used in `if`/`else` blocks. As
+  a side effect of this change, the semicolon after the macro is now necessary. ([github_pr 205])
+* [link core.data `boost::data`] and [link core.size `boost::size`] are now aliases for `std::data`
+  and `std::size`, respectively, when the latter are provided by compiler. This resolves potential
+  ambiguities when both `boost::` and `std::` alternatives are found by the compiler, e.g. as a result
+  of ADL. ([github_issue 206])
+
+[endsect]
+
+[section Changes in 1.89.0]
+
+* Fixed `bit_ceil` to return 1 for input 0 as per specification. ([github_pr 199])
+* Added support for `std::format` to `boost::core::string_view`. ([github_issue 190])
+
+[endsect]
+
+[section Changes in 1.86.0]
+
+* Added a [link core.pointer_in_range `boost/core/pointer_in_range.hpp`] header with a `pointer_in_range`
+  function template to check if a pointer is within a given range.
+* Fixed `type_name` for abstract classes. ([github_issue 172])
+* Fixed `boost/core/type_name.hpp` compilation error with MSVC with disabled native `wchar_t` type.
+  ([github_issue 173])
+* Added a workaround for an MSVC [@https://developercommunity.visualstudio.com/t/Compiler-bug:-Incorrect-C2247-and-C2248/10690025 bug]
+  causing `empty_value` compilation errors when it is used with a nested class. ([github_pr 175])
+
+[endsect]
+
 [section Changes in 1.85.0]
 
 * Added a new [link core.functor `boost/core/functor.hpp`] header with a `functor` class template
   for wrapping a raw function into a function object class.
 * Changed [link core.null_deleter `null_deleter`], [link core.fclose_deleter `fclose_deleter`]
-  and [link.checked_delete checked deleter] definitions so that they don't bring namespace `boost`
+  and [link core.checked_delete checked deleter] definitions so that they don't bring namespace `boost`
   into argument-dependent lookup in cases like this:
   ```
   std::unique_ptr< std::FILE, boost::fclose_deleter > p1, p2;

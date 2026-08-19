@@ -22,17 +22,13 @@
 namespace boost {
 namespace urls {
 
-/** A view representing path segments in a URL
+/** Non-owning encoded path segment view
 
-    Objects of this type are used to interpret
-    the path as a bidirectional view of segment
-    strings.
-
-    The view does not retain ownership of the
-    elements and instead references the original
-    character buffer. The caller is responsible
-    for ensuring that the lifetime of the buffer
-    extends until it is no longer referenced.
+    Exposes the raw percent-encoded segments of
+    a URL path as a read-only bidirectional range.
+    The view references the original buffer, so
+    callers must keep that storage alive while
+    iterating.
 
     @par Example
     @code
@@ -43,11 +39,9 @@ namespace urls {
     assert( ps.buffer().data() == u.buffer().data() );
     @endcode
 
-    Strings produced when elements are returned
-    have type @ref param_pct_view and represent
-    encoded strings. Strings passed to member
-    functions may contain percent escapes, and
-    throw exceptions on invalid inputs.
+    Elements are returned as encoded strings,
+    preserving escape sequences for callers that
+    need the exact byte representation.
 
     @par Iterator Invalidation
     Changes to the underlying character buffer
@@ -58,7 +52,7 @@ namespace urls {
         @ref segments_encoded_ref,
         @ref segments_ref.
 */
-class segments_encoded_view
+class BOOST_SYMBOL_VISIBLE segments_encoded_view
     : public segments_encoded_base
 {
     friend class url_view_base;
@@ -89,7 +83,7 @@ public:
         @par Exception Safety
         Throws nothing.
     */
-    segments_encoded_view() = default;
+    segments_encoded_view() noexcept;
 
     /** Constructor
 
@@ -163,9 +157,78 @@ public:
         @li <a href="https://datatracker.ietf.org/doc/html/rfc3986#section-3.3"
             >3.3.  Path</a>
     */
-    BOOST_URL_DECL
     segments_encoded_view(
         core::string_view s);
+
+    /** Constructor
+
+        This function creates a new @ref segments_encoded_view
+        from a pair of iterators referring to
+        elements of another encoded segments
+        view. The resulting view references
+        the same underlying character buffer
+        as the original.
+
+        The constructed view preserves the
+        original absolute flag when `first`
+        selects the first segment and otherwise
+        produces an absolute subview: if the
+        source path is relative and `first ==
+        ps.begin()` the new view is relative,
+        and in every other case the subview is
+        absolute with the separator immediately
+        preceding `*first` retained at the front.
+        This ensures the underlying text can be
+        reconstructed by concatenating the buffers
+        of adjacent subviews.
+
+        The caller is responsible for ensuring
+        that the lifetime of the original buffer
+        extends until the constructed view
+        is no longer referenced.
+
+        @par Example
+        @code
+        segments_encoded_view ps( "/path/to/file.txt" );
+
+        segments_encoded_view sub(
+            std::next(ps.begin()),
+            ps.end());
+
+        segments_encoded_view first_half(
+            ps.begin(),
+            std::next(ps.begin()));
+
+        // sub represents "/to/file.txt"
+        std::string combined(
+            first_half.buffer().data(),
+            first_half.buffer().size());
+        combined.append(
+            sub.buffer().data(),
+            sub.buffer().size());
+        BOOST_ASSERT(combined == ps.buffer());
+        @endcode
+
+        @par Preconditions
+        The iterators must be valid and belong to
+        the same @ref segments_encoded_view.
+
+        @par Postconditions
+        `sub.buffer()` references characters in the
+        original `ps.buffer()`.
+
+        @par Complexity
+        Constant
+
+        @par Exception Safety
+        Throws nothing.
+
+        @param first The beginning iterator.
+        @param last The ending iterator.
+    */
+    segments_encoded_view(
+        iterator first,
+        iterator last) noexcept;
 
     /** Assignment
 
@@ -188,10 +251,13 @@ public:
 
         @par Exception Safety
         Throws nothing
+
+        @param other The segments to copy.
+        @return Reference to this object
     */
     segments_encoded_view&
     operator=(
-        segments_encoded_view const&) = default;
+        segments_encoded_view const& other) = default;
 
     /** Conversion
 
@@ -221,8 +287,9 @@ public:
 
         @par Exception Safety
         Throws nothing
+
+        @return A view of the segments.
     */
-    BOOST_URL_DECL
     operator
     segments_view() const noexcept;
 
@@ -230,11 +297,37 @@ public:
 
     BOOST_URL_DECL
     friend
-        system::result<segments_encoded_view>
-        parse_path(core::string_view s) noexcept;
+    system::result<segments_encoded_view>
+    parse_path(core::string_view s) noexcept;
 };
+
+// Forward-declare for inline constructors below.
+// Full declaration in parse_path.hpp; definition in
+// src/parse_path.cpp.
+BOOST_URL_DECL
+system::result<segments_encoded_view>
+parse_path(core::string_view s) noexcept;
 
 } // urls
 } // boost
+
+#include <boost/url/impl/segments_view.hpp>
+#include <boost/url/impl/segments_encoded_view.hpp>
+
+//------------------------------------------------
+//
+// std::ranges::enable_borrowed_range
+//
+//------------------------------------------------
+
+#ifdef BOOST_URL_HAS_CONCEPTS
+#include <ranges>
+namespace std::ranges {
+    template<>
+    inline constexpr bool
+        enable_borrowed_range<
+            boost::urls::segments_encoded_view> = true;
+} // std::ranges
+#endif
 
 #endif

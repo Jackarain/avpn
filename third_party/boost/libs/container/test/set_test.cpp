@@ -1,3 +1,4 @@
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // (C) Copyright Ion Gaztanaga 2004-2013. Distributed under the Boost
@@ -189,6 +190,33 @@ bool node_type_test()
       if(dst.size() != 5)
          return false;
    }
+   {
+      typedef set<test::movable_int, test::less_transparent> set_t;
+      typedef multiset<test::movable_int, test::less_transparent> mset_t;
+
+      set_t set1;
+      mset_t mset1;
+      //extract
+      const test::non_copymovable_int extract_me(1);
+
+      set1.insert(1);
+      mset1.emplace(1);
+      mset1.emplace(1);
+
+      //extract
+      if (!set1.extract(1))
+         return false;
+      if (set1.extract(1))
+         return false;
+
+      if (!mset1.extract(1))
+         return false;
+      if (!mset1.extract(1))
+         return false;
+      if (mset1.extract(1))
+         return false;
+
+   }
    return true;
 }
 
@@ -319,14 +347,14 @@ bool constructor_template_auto_deduction_test()
 
 }}}   //boost::container::test
 
-template<class VoidAllocator, boost::container::tree_type_enum tree_type_value>
+template<class VoidAllocator, boost::container::tree_type_enum tree_type_value, bool Transparent = false>
 struct GetAllocatorSet
 {
    template<class ValueType>
    struct apply
    {
       typedef set < ValueType
-                  , std::less<ValueType>
+                  , typename dtl::if_c<Transparent, test::less_transparent, std::less<ValueType> >::type
                   , typename allocator_traits<VoidAllocator>
                      ::template portable_rebind_alloc<ValueType>::type
                   , typename boost::container::tree_assoc_options
@@ -335,7 +363,7 @@ struct GetAllocatorSet
                   > set_type;
 
       typedef multiset < ValueType
-                  , std::less<ValueType>
+                  , typename dtl::if_c<Transparent, test::less_transparent, std::less<ValueType> >::type
                   , typename allocator_traits<VoidAllocator>
                      ::template portable_rebind_alloc<ValueType>::type
                   , typename boost::container::tree_assoc_options
@@ -352,96 +380,13 @@ void test_merge_from_different_comparison()
    set1.merge(set2);
 }
 
-bool test_heterogeneous_lookups()
-{
-   typedef set<int, test::less_transparent> set_t;
-   typedef multiset<int, test::less_transparent> mset_t;
-
-   set_t set1;
-   mset_t mset1;
-
-   const set_t &cset1 = set1;
-   const mset_t &cmset1 = mset1;
-
-   set1.insert(1);
-   set1.insert(1);
-   set1.insert(2);
-   set1.insert(2);
-   set1.insert(3);
-
-   mset1.insert(1);
-   mset1.insert(1);
-   mset1.insert(2);
-   mset1.insert(2);
-   mset1.insert(3);
-
-   const test::non_copymovable_int find_me(2);
-
-   //find
-   if(*set1.find(find_me) != 2)
-      return false;
-   if(*cset1.find(find_me) != 2)
-      return false;
-   if(*mset1.find(find_me) != 2)
-      return false;
-   if(*cmset1.find(find_me) != 2)
-      return false;
-
-   //count
-   if(set1.count(find_me) != 1)
-      return false;
-   if(cset1.count(find_me) != 1)
-      return false;
-   if(mset1.count(find_me) != 2)
-      return false;
-   if(cmset1.count(find_me) != 2)
-      return false;
-
-   //contains
-   if(!set1.contains(find_me))
-      return false;
-   if(!cset1.contains(find_me))
-      return false;
-   if(!mset1.contains(find_me))
-      return false;
-   if(!cmset1.contains(find_me))
-      return false;
-
-   //lower_bound
-   if(*set1.lower_bound(find_me) != 2)
-      return false;
-   if(*cset1.lower_bound(find_me) != 2)
-      return false;
-   if(*mset1.lower_bound(find_me) != 2)
-      return false;
-   if(*cmset1.lower_bound(find_me) != 2)
-      return false;
-
-   //upper_bound
-   if(*set1.upper_bound(find_me) != 3)
-      return false;
-   if(*cset1.upper_bound(find_me) != 3)
-      return false;
-   if(*mset1.upper_bound(find_me) != 3)
-      return false;
-   if(*cmset1.upper_bound(find_me) != 3)
-      return false;
-
-   //equal_range
-   if(*set1.equal_range(find_me).first != 2)
-      return false;
-   if(*cset1.equal_range(find_me).second != 3)
-      return false;
-   if(*mset1.equal_range(find_me).first != 2)
-      return false;
-   if(*cmset1.equal_range(find_me).second != 3)
-      return false;
-
-   return true;
-}
+//Test the expected sizeof()
+BOOST_CONTAINER_STATIC_ASSERT_MSG(4*sizeof(void*) == sizeof(set<int>), "sizeof has an unexpected value");
+BOOST_CONTAINER_STATIC_ASSERT_MSG(4*sizeof(void*) == sizeof(multiset<int>), "sizeof has an unexpected value");
 
 int main ()
 {
+   using namespace boost::container::test;
    //Recursive container instantiation
    {
       set<recursive_set> set_;
@@ -478,7 +423,15 @@ int main ()
       return 1;
    }
 
-   if(!test_heterogeneous_lookups())
+   if (!test::test_heterogeneous_lookup
+         < set<int, less_transparent>
+         , multiset<int, less_transparent>
+         >())
+      return 1;
+
+   if (!test::test_heterogeneous_insert
+         < set<test::movable_int, less_transparent>
+         >())
       return 1;
 
    ////////////////////////////////////
@@ -550,6 +503,24 @@ int main ()
          , GetAllocatorSet<new_allocator<void>, red_black_tree>::apply<test::moveconstruct_int>::multiset_type
          , MyStdMultiSet>()) {
          std::cout << "Error in set_test<new_allocator<void>, red_black_tree>" << std::endl;
+         return 1;
+      }
+
+      if (0 != test::set_test
+         < GetAllocatorSet<new_allocator<void>, red_black_tree>::apply<test::moveconstruct_int>::set_type
+         , MyStdSet
+         , GetAllocatorSet<new_allocator<void>, red_black_tree>::apply<test::moveconstruct_int>::multiset_type
+         , MyStdMultiSet>()) {
+         std::cout << "Error in set_test<new_allocator<void>, red_black_tree>" << std::endl;
+         return 1;
+      }
+
+      if (0 != test::set_test
+         < GetAllocatorSet<new_allocator<void>, red_black_tree, true>::apply<test::movable_and_copyable_int>::set_type
+         , MyStdSet
+         , GetAllocatorSet<new_allocator<void>, red_black_tree, true>::apply<test::movable_and_copyable_int>::multiset_type
+         , MyStdMultiSet>()) {
+         std::cout << "Error in set_test<new_allocator<void>, red_black_tree>>, transparent" << std::endl;
          return 1;
       }
    }

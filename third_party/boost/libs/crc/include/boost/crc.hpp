@@ -50,26 +50,36 @@ namespace crc_detail {
 
 struct uint_t_8
 {
-    typedef std::uint_least8_t least;
-    typedef std::uint_fast8_t fast;
+    typedef std::uint_least8_t fast; // matches boost::uint_t<8>::fast
 };
 
 struct uint_t_16
 {
-    typedef std::uint_least16_t least;
-    typedef std::uint_fast16_t fast;
+    typedef std::uint_least16_t fast; // matches boost::uint_t<16>::fast
 };
 
 struct uint_t_32
 {
-    typedef std::uint_least32_t least;
-    typedef std::uint_fast32_t fast;
+    typedef std::uint_least32_t fast; // matches boost::uint_t<32>::fast
 };
+
+template<class T> struct remap_long_long
+{
+    typedef T type;
+};
+
+#if ULONG_MAX == ULLONG_MAX
+
+template<> struct remap_long_long<unsigned long long>
+{
+    typedef unsigned long type;
+};
+
+#endif
 
 struct uint_t_64
 {
-    typedef std::uint_least64_t least;
-    typedef std::uint_fast64_t fast;
+    typedef remap_long_long<std::uint_least64_t>::type fast; // matches boost::uint_t<64>::fast
 };
 
 struct uint_t_none
@@ -1660,7 +1670,7 @@ crc_basic<Bits>::get_final_xor_value
     return final_;
 }
 
-/** Returns a whether or not a submitted byte will be \"reflected\" before it is
+/** Returns whether or not a submitted byte will be \"reflected\" before it is
     used to update the interim remainder.  Only the byte-wise operations
     #process_byte, #process_block, and #process_bytes are affected.
 
@@ -1766,7 +1776,7 @@ crc_basic<Bits>::reset
 
     \param[in] bit  The new input bit.
 
-    \post  The interim remainder is updated though a modulo-2 polynomial
+    \post  The interim remainder is updated through a modulo-2 polynomial
       division, where the division steps are altered for unaugmented CRCs.
  */
 template < std::size_t Bits >
@@ -1791,7 +1801,7 @@ crc_basic<Bits>::process_bit
     \param[in] bits  The byte containing the new input bits.
     \param[in] bit_length  The number of bits in the byte to be read.
 
-    \post  The interim remainder is updated though \a bit_length modulo-2
+    \post  The interim remainder is updated through \a bit_length modulo-2
       polynomial divisions, where the division steps are altered for unaugmented
       CRCs.
  */
@@ -1821,7 +1831,7 @@ crc_basic<Bits>::process_bits
 
     \param[in] byte  The new input byte.
 
-    \post  The interim remainder is updated though \c CHAR_BIT modulo-2
+    \post  The interim remainder is updated through \c CHAR_BIT modulo-2
       polynomial divisions, where the division steps are altered for unaugmented
       CRCs.
  */
@@ -1855,7 +1865,7 @@ crc_basic<Bits>::process_byte
     \param[in] bytes_end  Points to one-byte past the address of the memory
       block's last byte, or \a bytes_begin if no bytes are to be read.
 
-    \post  The interim remainder is updated though <code>CHAR_BIT * (((unsigned
+    \post  The interim remainder is updated through <code>CHAR_BIT * (((unsigned
       char const *) bytes_end) - ((unsigned char const *) bytes_begin))</code>
       modulo-2 polynomial divisions, where the division steps are altered for
       unaugmented CRCs.
@@ -1891,7 +1901,7 @@ crc_basic<Bits>::process_block
     \param[in] buffer  The address where the memory block begins.
     \param[in] byte_count  The number of bytes in the memory block.
 
-    \post  The interim remainder is updated though <code>CHAR_BIT *
+    \post  The interim remainder is updated through <code>CHAR_BIT *
       <var>byte_count</var></code> modulo-2 polynomial divisions, where the
       division steps are altered for unaugmented CRCs.
  */
@@ -2161,7 +2171,7 @@ BOOST_CRC_OPTIMAL_NAME::checksum
 
     \param[in] byte  The new input byte.
 
-    \post  The interim remainder is updated though \c CHAR_BIT modulo-2
+    \post  The interim remainder is updated through \c CHAR_BIT modulo-2
       polynomial divisions, where the division steps are altered for unaugmented
       CRCs.
 
@@ -2243,7 +2253,7 @@ BOOST_CRC_OPTIMAL_NAME::operator ()
 
     \note  Unaugmented-style CRC runs perform modulo-2 polynomial division in
       an altered order.  The trailing \a Bits number of zero-valued bits needed
-      to extracted an (unprocessed) checksum is virtually moved to near the
+      to extract an (unprocessed) checksum is virtually moved to near the
       beginning of the message.  This is OK since the XOR operation is
       commutative and associative.  It also means that you can get a checksum
       anytime.  Since data is being read byte-wise, a table of pre-computed

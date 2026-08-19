@@ -17,161 +17,193 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolset: gcc-4.8
-            cxxstd: "03,11"
-            container: ubuntu:18.04
-            os: ubuntu-latest
-            install: g++-4.8
-          - toolset: gcc-4.9
-            cxxstd: "03,11"
-            container: ubuntu:16.04
-            os: ubuntu-latest
-            install: g++-4.9
-          - toolset: gcc-5
-            cxxstd: "03,11,14,1z"
-            container: ubuntu:18.04
-            os: ubuntu-latest
-            install: g++-5
-          - toolset: gcc-6
-            cxxstd: "03,11,14,1z"
-            container: ubuntu:18.04
-            os: ubuntu-latest
-            install: g++-6
           - toolset: gcc-7
             cxxstd: "03,11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-7
           - toolset: gcc-8
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-8
           - toolset: gcc-9
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
           - toolset: gcc-10
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: g++-10
           - toolset: gcc-11
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
           - toolset: gcc-12
             cxxstd: "03,11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: g++-12
           - toolset: gcc-13
             cxxstd: "03,11,14,17,20,2b"
             os: ubuntu-latest
-            container: ubuntu:23.04
+            container: ubuntu:24.04
             install: g++-13
-          - toolset: clang
-            compiler: clang++-3.9
-            cxxstd: "03,11,14"
+          - toolset: gcc-14
+            cxxstd: "03,11,14,17,20,23,2c"
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-3.9
-          - toolset: clang
-            compiler: clang++-4.0
-            cxxstd: "03,11,14"
+            container: ubuntu:24.04
+            install: g++-14
+          - toolset: gcc-15
+            cxxstd: "03,11,14,17,20,23,2c"
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-4.0
-          - toolset: clang
-            compiler: clang++-5.0
-            cxxstd: "03,11,14,1z"
+            container: ubuntu:26.04
+            install: g++-15
+          - toolset: gcc-16
+            cxxstd: "03,11,14,17,20,23,2c"
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-5.0
+            container: ubuntu:26.04
+            install: g++-16
           - toolset: clang
             compiler: clang++-6.0
             cxxstd: "03,11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: clang-6.0
           - toolset: clang
             compiler: clang++-7
             cxxstd: "03,11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: clang-7
           - toolset: clang
             compiler: clang++-8
             cxxstd: "03,11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: clang-8
           - toolset: clang
             compiler: clang++-9
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: clang-9
           - toolset: clang
             compiler: clang++-10
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-10
           - toolset: clang
             compiler: clang++-11
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-11
           - toolset: clang
             compiler: clang++-12
             cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-12
           - toolset: clang
             compiler: clang++-13
             cxxstd: "03,11,14,17,20,2b"
-            os: ubuntu-latest
             container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-13
           - toolset: clang
             compiler: clang++-14
             cxxstd: "03,11,14,17,20,2b"
-            os: ubuntu-latest
             container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-14
           - toolset: clang
             compiler: clang++-15
             cxxstd: "03,11,14,17,20,2b"
-            os: ubuntu-latest
             container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-15
           - toolset: clang
             compiler: clang++-16
             cxxstd: "03,11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:23.04
             install: clang-16
           - toolset: clang
             compiler: clang++-17
             cxxstd: "03,11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:23.10
             install: clang-17
           - toolset: clang
-            cxxstd: "03,11,14,17,2a"
-            os: macos-11
-          - toolset: clang
+            compiler: clang++-18
             cxxstd: "03,11,14,17,20,2b"
-            os: macos-12
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-18
           - toolset: clang
-            cxxstd: "03,11,14,17,20,2b"
-            os: macos-13
+            compiler: clang++-19
+            cxxstd: "03,11,14,17,20,23,2c"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-19
           - toolset: clang
-            cxxstd: "03,11,14,17,20,2b"
+            compiler: clang++-20
+            cxxstd: "03,11,14,17,20,23,2c"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-20
+          - toolset: clang
+            compiler: clang++-21
+            cxxstd: "03,11,14,17,20,23,2c"
+            container: ubuntu:26.04
+            os: ubuntu-latest
+            install: clang-21
+          - toolset: clang
+            compiler: clang++-22
+            cxxstd: "03,11,14,17,20,23,2c"
+            container: ubuntu:26.04
+            os: ubuntu-latest
+            install: clang-22
+          - toolset: clang
             os: macos-14
+            cxxstd: "03,11,14,17,20,2b"
+          - toolset: clang
+            os: macos-15
+            cxxstd: "03,11,14,17,20,23,2c"
+          - toolset: clang
+            os: macos-26
+            cxxstd: "03,11,14,17,20,23,2c"
 
     runs-on: ${{matrix.os}}
-    container: ${{matrix.container}}
+
+    container:
+      image: ${{matrix.container}}
+      volumes:
+        - /node20217:/node20217:rw,rshared
+        - ${{ startsWith(matrix.container, 'ubuntu:1') && '/node20217:/__e/node20:ro,rshared' || ' ' }}
 
     defaults:
       run:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v3
-
       - name: Setup container environment
         if: matrix.container
         run: |
           apt-get update
-          apt-get -y install sudo python3 git g++
+          apt-get -y install sudo python3 git g++ curl xz-utils
+
+      - name: Install nodejs20glibc2.17
+        if: ${{ startsWith( matrix.container, 'ubuntu:1' ) }}
+        run: |
+          curl -LO https://archives.boost.io/misc/node/node-v20.9.0-linux-x64-glibc-217.tar.xz
+          tar -xf node-v20.9.0-linux-x64-glibc-217.tar.xz --strip-components 1 -C /node20217
+          ldd /__e/node20/bin/node
+
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -216,28 +248,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # msvc-14.0 not included, because it fails with "compiler is out of heap space"
-          - toolset: msvc-14.2
-            cxxstd: "14,17,20,latest"
-            addrmd: 32,64
-            os: windows-2019
           - toolset: msvc-14.3
             cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
+          - toolset: msvc-14.5
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2025-vs2026
           - toolset: clang-win
-            cxxstd: "14,17,latest"
+            cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
           - toolset: gcc
             cxxstd: "03,11,14,17,2a"
             addrmd: 64
-            os: windows-2019
+            os: windows-2022
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -272,16 +303,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -320,16 +351,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -378,16 +409,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -434,16 +465,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -462,16 +493,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -499,16 +530,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-11
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -530,14 +561,19 @@ jobs:
           ctest --output-on-failure --no-tests=error
 
   cuda-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: Jimver/cuda-toolkit@v0.2.10
+      - uses: actions/checkout@v6
+
+      - uses: Jimver/cuda-toolkit@v0.2.35
         with:
           cuda: '11.7.1'
           linux-local-args: '["--toolkit"]'
+          use-local-cache: false
+          use-github-cache: false
+          method: network
+          sub-packages: '["nvcc"]'
 
       - name: Setup Boost
         run: |
@@ -565,12 +601,15 @@ jobs:
           nvcc -x cu -I ./include -I ../assert/include -I ../config/include -I ../core/include -std=c++17 -c test/mp_count_if.cpp
 
   cuda-windows:
-    runs-on: windows-2019
+    runs-on: windows-2025
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: Jimver/cuda-toolkit@v0.2.10
-      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/checkout@v6
+
+      - uses: Jimver/cuda-toolkit@v0.2.35
+        with:
+          use-local-cache: false
+          use-github-cache: false
 
       - name: Setup Boost
         run: |
@@ -582,6 +621,7 @@ jobs:
       - name: Run Tests
         shell: cmd
         run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           nvcc -x cu -I ./include -I ../assert/include -I ../config/include -I ../core/include -c test/mp11.cpp || exit /b
           nvcc -x cu -I ./include -I ../assert/include -I ../config/include -I ../core/include -c test/mp_all.cpp || exit /b
           nvcc -x cu -I ./include -I ../assert/include -I ../config/include -I ../core/include -c test/mp_any.cpp || exit /b
@@ -593,13 +633,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -642,13 +681,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -709,13 +747,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd

@@ -1,8 +1,7 @@
 #ifndef BOOST_LEAF_DETAIL_DEMANGLE_HPP_INCLUDED
 #define BOOST_LEAF_DETAIL_DEMANGLE_HPP_INCLUDED
 
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2026 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -16,50 +15,9 @@
 // http://www.boost.org/LICENSE_1_0.txt
 
 #include <boost/leaf/config.hpp>
-
+#include <iosfwd>
+#include <cstdlib>
 #include <cstring>
-
-namespace boost { namespace leaf {
-
-namespace leaf_detail
-{
-    template <int N>
-    BOOST_LEAF_CONSTEXPR inline char const * check_prefix( char const * t, char const (&prefix)[N] )
-    {
-        return std::strncmp(t,prefix,sizeof(prefix)-1)==0 ? t+sizeof(prefix)-1 : t;
-    }
-}
-
-template <class Name>
-inline char const * type()
-{
-    using leaf_detail::check_prefix;
-    char const * t =
-#ifdef __FUNCSIG__
-        __FUNCSIG__;
-#else
-        __PRETTY_FUNCTION__;
-#endif
-#if defined(__clang__)
-    BOOST_LEAF_ASSERT(check_prefix(t,"const char *boost::leaf::type() ")==t+32);
-    return t+32;
-#elif defined(__GNUC__)
-    BOOST_LEAF_ASSERT(check_prefix(t,"const char* boost::leaf::type() ")==t+32);
-    return t+32;
-#else
-    char const * clang_style = check_prefix(t,"const char *boost::leaf::type() ");
-    if( clang_style!=t )
-        return clang_style;
-    char const * gcc_style = check_prefix(t,"const char* boost::leaf::type() ");
-    if( gcc_style!=t )
-        return gcc_style;
-#endif
-    return t;
-}
-
-} }
-
-////////////////////////////////////////
 
 // __has_include is currently supported by GCC and Clang. However GCC 4.9 may have issues and
 // returns 1 for 'defined( __has_include )', while '__has_include' is actually not supported:
@@ -68,123 +26,226 @@ inline char const * type()
 #   if __has_include(<cxxabi.h>)
 #       define BOOST_LEAF_HAS_CXXABI_H
 #   endif
-#elif defined( __GLIBCXX__ ) || defined( __GLIBCPP__ )
+#elif defined(__GLIBCXX__) || defined(__GLIBCPP__)
 #   define BOOST_LEAF_HAS_CXXABI_H
 #endif
 
-#if defined( BOOST_LEAF_HAS_CXXABI_H )
+#if defined(BOOST_LEAF_HAS_CXXABI_H)
 #   include <cxxabi.h>
-//  For some archtectures (mips, mips64, x86, x86_64) cxxabi.h in Android NDK is implemented by gabi++ library
+//  For some architectures (mips, mips64, x86, x86_64) cxxabi.h in Android NDK is implemented by gabi++ library
 //  (https://android.googlesource.com/platform/ndk/+/master/sources/cxx-stl/gabi++/), which does not implement
 //  abi::__cxa_demangle(). We detect this implementation by checking the include guard here.
-#   if defined( __GABIXX_CXXABI_H__ )
+#   if defined(__GABIXX_CXXABI_H__)
 #       undef BOOST_LEAF_HAS_CXXABI_H
-#   else
-#       include <cstdlib>
-#       include <cstddef>
 #   endif
 #endif
 
-#if BOOST_LEAF_CFG_STD_STRING
+namespace boost { namespace leaf {
 
-#include <string>
+namespace detail
+{
+    // The functions below are C++11 constexpr, but we use BOOST_LEAF_ALWAYS_INLINE to control object file
+    // section count / template bloat.
+
+    template <int S1, int S2, int I, bool = S1 >= S2>
+    struct cpp11_prefix
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&)[S1], char const (&)[S2]) noexcept
+        {
+            return false;
+        }
+    };
+    template <int S1, int S2, int I>
+    struct cpp11_prefix<S1, S2, I, true>
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&str)[S1], char const (&prefix)[S2]) noexcept
+        {
+            return str[I] == prefix[I] && cpp11_prefix<S1, S2, I - 1>::check(str, prefix);
+        }
+    };
+    template <int S1, int S2>
+    struct cpp11_prefix<S1, S2, 0, true>
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&str)[S1], char const (&prefix)[S2]) noexcept
+        {
+            return str[0] == prefix[0];
+        }
+    };
+    template <int S1, int S2>
+    BOOST_LEAF_ALWAYS_INLINE constexpr int check_prefix(char const (&str)[S1], char const (&prefix)[S2]) noexcept
+    {
+        return cpp11_prefix<S1, S2, S2 - 2>::check(str, prefix) ? S2 - 1 : 0;
+    }
+
+    ////////////////////////////////////////
+
+    template <int S1, int S2, int I1, int I2, bool = S1 >= S2>
+    struct cpp11_suffix
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&)[S1], char const (&)[S2]) noexcept
+        {
+            return false;
+        }
+    };
+    template <int S1, int S2, int I1, int I2>
+    struct cpp11_suffix<S1, S2, I1, I2, true>
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&str)[S1], char const (&suffix)[S2]) noexcept
+        {
+            return str[I1] == suffix[I2] && cpp11_suffix<S1, S2, I1 - 1, I2 - 1>::check(str, suffix);
+        }
+    };
+    template <int S1, int S2, int I1>
+    struct cpp11_suffix<S1, S2, I1, 0, true>
+    {
+        BOOST_LEAF_ALWAYS_INLINE constexpr static bool check(char const (&str)[S1], char const (&suffix)[S2]) noexcept
+        {
+            return str[I1] == suffix[0];
+        }
+    };
+    template <int S1, int S2>
+    BOOST_LEAF_ALWAYS_INLINE constexpr int check_suffix(char const (&str)[S1], char const (&suffix)[S2]) noexcept
+    {
+        return cpp11_suffix<S1, S2, S1 - 2, S2 - 2>::check(str, suffix) ? S1 - S2 : 0;
+    }
+
+    ////////////////////////////////////////
+
+    template <std::size_t S>
+    BOOST_LEAF_ALWAYS_INLINE std::size_t compute_hash(char const (&str)[S], std::size_t begin, std::size_t end) noexcept
+    {
+        std::size_t h = 2166136261u;
+        for( std::size_t i = begin; i != end; ++i )
+            h = (h ^ static_cast<std::size_t>(str[i])) * 16777619u;
+        return h;
+    }
+} // namespace detail
+
+namespace n
+{
+    struct r
+    {
+        char const * name_not_zero_terminated_at_length;
+        std::size_t length;
+        std::size_t hash;
+    };
+
+#ifdef _MSC_VER
+#   define BOOST_LEAF_CDECL __cdecl
+#else
+#   define BOOST_LEAF_CDECL
+#endif
+
+    template <class T>
+    BOOST_LEAF_ALWAYS_INLINE r BOOST_LEAF_CDECL p()
+    {
+        // C++11 compile-time parsing of __PRETTY_FUNCTION__/__FUNCSIG__. The sizeof hacks are a
+        // workaround for older GCC versions, where __PRETTY_FUNCTION__ is not constexpr, which triggers
+        // compile errors when used in constexpr expressinos, yet evaluating a sizeof exrpession works.
+
+        // We don't try to recognize the compiler based on compiler-specific macros. Any compiler/version
+        // is supported as long as it uses one of the formats we recognize.
+
+        // Unrecognized __PRETTY_FUNCTION__/__FUNCSIG__ formats will result in compiler diagnostics.
+        // In that case, please file an issue on https://github.com/boostorg/leaf.
+
+#define BOOST_LEAF_P(P) (sizeof(char[1 + detail::check_prefix(BOOST_LEAF_PRETTY_FUNCTION, P)]) - 1)
+        // clang style:
+        std::size_t const p01 = BOOST_LEAF_P("r boost::leaf::n::p() [T = ");
+        std::size_t const p02 = BOOST_LEAF_P("r __cdecl boost::leaf::n::p(void) [T = ");
+        // old clang style:
+        std::size_t const p03 = BOOST_LEAF_P("boost::leaf::n::r boost::leaf::n::p() [T = ");
+        std::size_t const p04 = BOOST_LEAF_P("boost::leaf::n::r __cdecl boost::leaf::n::p(void) [T = ");
+        // gcc style:
+        std::size_t const p05 = BOOST_LEAF_P("boost::leaf::n::r boost::leaf::n::p() [with T = ");
+        std::size_t const p06 = BOOST_LEAF_P("boost::leaf::n::r __cdecl boost::leaf::n::p() [with T = ");
+        // msvc style, struct:
+        std::size_t const p07 = BOOST_LEAF_P("struct boost::leaf::n::r __cdecl boost::leaf::n::p<struct ");
+        // msvc style, class:
+        std::size_t const p08 = BOOST_LEAF_P("struct boost::leaf::n::r __cdecl boost::leaf::n::p<class ");
+        // msvc style, enum:
+        std::size_t const p09 = BOOST_LEAF_P("struct boost::leaf::n::r __cdecl boost::leaf::n::p<enum ");
+        // msvc style, built-in type:
+        std::size_t const p10 = BOOST_LEAF_P("struct boost::leaf::n::r __cdecl boost::leaf::n::p<");
+#undef BOOST_LEAF_P
+
+#define BOOST_LEAF_S(S) (sizeof(char[1 + detail::check_suffix(BOOST_LEAF_PRETTY_FUNCTION, S)]) - 1)
+        // clang/gcc style:
+        std::size_t const s01 = BOOST_LEAF_S("]");
+        // msvc style:
+        std::size_t const s02 = BOOST_LEAF_S(">(void)");
+#undef BOOST_LEAF_S
+
+        char static_assert_unrecognized_pretty_function_format_please_file_github_issue[sizeof(
+            char[
+                (s01 && (1 == (!!p01 + !!p02 + !!p03 + !!p04 + !!p05 + !!p06)))
+                ||
+                (s02 && (1 == (!!p07 + !!p08 + !!p09)))
+                ||
+                (s02 && !!p10)
+            ]
+        ) * 2 - 1];
+        (void) static_assert_unrecognized_pretty_function_format_please_file_github_issue;
+
+        if( std::size_t const p = sizeof(char[1 + !!s01 * (p01 + p02 + p03 + p04 + p05 + p06)]) - 1 )
+            return { BOOST_LEAF_PRETTY_FUNCTION + p, s01 - p, detail::compute_hash(BOOST_LEAF_PRETTY_FUNCTION, p, s01) };
+
+        if( std::size_t const p = sizeof(char[1 + !!s02 * (p07 + p08 + p09)]) - 1 )
+            return { BOOST_LEAF_PRETTY_FUNCTION + p, s02 - p, detail::compute_hash(BOOST_LEAF_PRETTY_FUNCTION, p, s02) };
+
+        std::size_t const p = sizeof(char[1 + !!s02 * p10]) - 1;
+        return { BOOST_LEAF_PRETTY_FUNCTION + p, s02 - p, detail::compute_hash(BOOST_LEAF_PRETTY_FUNCTION, p, s02) };
+    }
+
+#undef BOOST_LEAF_CDECL
+
+} // namespace n
+
+} } // namespace boost::leaf
+
+////////////////////////////////////////
 
 namespace boost { namespace leaf {
 
-namespace leaf_detail
+namespace detail
 {
-    inline char const * demangle_alloc( char const * name ) noexcept;
-    inline void demangle_free( char const * name ) noexcept;
-
-    class scoped_demangled_name
+    class demangler
     {
-    private:
-
-        char const * m_p;
+        char const * mangled_name_;
+#ifdef BOOST_LEAF_HAS_CXXABI_H
+        char * demangled_name_ = nullptr;
+#endif
 
     public:
 
-        explicit scoped_demangled_name( char const * name ) noexcept :
-            m_p( demangle_alloc( name ) )
+        explicit demangler(char const * mangled_name) noexcept:
+            mangled_name_(mangled_name)
         {
+            BOOST_LEAF_ASSERT(mangled_name_);
+#ifdef BOOST_LEAF_HAS_CXXABI_H
+            int status = 0;
+            demangled_name_ = abi::__cxa_demangle(mangled_name_, nullptr, nullptr, &status);
+#endif
         }
 
-        ~scoped_demangled_name() noexcept
+        ~demangler() noexcept
         {
-            demangle_free( m_p );
+#ifdef BOOST_LEAF_HAS_CXXABI_H
+            std::free(demangled_name_);
+#endif
         }
 
         char const * get() const noexcept
         {
-            return m_p;
+#ifdef BOOST_LEAF_HAS_CXXABI_H
+            if( demangled_name_ )
+                return demangled_name_;
+#endif
+            return mangled_name_;
         }
-
-        scoped_demangled_name( scoped_demangled_name const& ) = delete;
-        scoped_demangled_name& operator= ( scoped_demangled_name const& ) = delete;
     };
+} // namespace detail
 
-#ifdef BOOST_LEAF_HAS_CXXABI_H
+} } // namespace boost::leaf
 
-    inline char const * demangle_alloc( char const * name ) noexcept
-    {
-        int status = 0;
-        std::size_t size = 0;
-        return abi::__cxa_demangle( name, NULL, &size, &status );
-    }
-
-    inline void demangle_free( char const * name ) noexcept
-    {
-        std::free( const_cast< char* >( name ) );
-    }
-
-    inline std::string demangle( char const * name )
-    {
-        scoped_demangled_name demangled_name( name );
-        char const * p = demangled_name.get();
-        if( !p )
-            p = name;
-        return p;
-    }
-
-#else
-
-    inline char const * demangle_alloc( char const * name ) noexcept
-    {
-        return name;
-    }
-
-    inline void demangle_free( char const * ) noexcept
-    {
-    }
-
-    inline char const * demangle( char const * name )
-    {
-        return name;
-    }
-
-#endif
-}
-
-} }
-
-#else
-
-namespace boost { namespace leaf {
-
-namespace leaf_detail
-{
-    inline char const * demangle( char const * name )
-    {
-        return name;
-    }
-}
-
-} }
-
-#endif
-
-#ifdef BOOST_LEAF_HAS_CXXABI_H
-#   undef BOOST_LEAF_HAS_CXXABI_H
-#endif
-
-#endif
+#endif // #ifndef BOOST_LEAF_DETAIL_DEMANGLE_HPP_INCLUDED

@@ -63,12 +63,12 @@ BOOST_AUTO_TEST_CASE(unwind)
   +should_unwind(ctx);
 }
 
-cobalt::promise<int> return_(std::size_t ms)
+cobalt::promise<int> return_(std::size_t)
 {
   return cobalt::noop(1234);
 }
 
-cobalt::promise<int> return_(std::size_t ms, asio::executor_arg_t,
+cobalt::promise<int> return_(std::size_t, asio::executor_arg_t,
                             boost::cobalt::executor )
 {
   co_return 1234u;
@@ -99,14 +99,30 @@ cobalt::promise<void> throw_()
 cobalt::promise<void> throw_post()
 {
   co_await asio::post(cobalt::this_thread::get_executor(), cobalt::use_op);
-  throw std::runtime_error("throw_");
+  throw std::runtime_error("throw_post");
   co_return ;
+}
+
+BOOST_AUTO_TEST_CASE(bad_executor_)
+{
+  BOOST_REQUIRE(!cobalt::this_thread::has_executor());
+  try
+  {
+    auto t = test0();
+    BOOST_FAIL("Should throw");
+  }
+  catch(std::exception & e) {BOOST_CHECK_EQUAL(e.what(), std::string_view("bad executor"));}
+
 }
 
 
 BOOST_AUTO_TEST_CASE(get)
 {
-  BOOST_CHECK_THROW(throw_().get(), std::exception);
+  asio::io_context ctx;
+  cobalt::this_thread::set_executor(ctx.get_executor());
+  auto t = throw_();
+  BOOST_REQUIRE(t.ready());
+  BOOST_CHECK_THROW(t.get(), std::exception);
 }
 
 cobalt::promise<void> delay_v(asio::io_context &ctx, std::size_t ms)

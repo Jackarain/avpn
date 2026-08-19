@@ -20,18 +20,18 @@
 
 #include <boost/thread/lock_types.hpp>
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
-boost::shared_mutex m;
+boost::shared_mutex g_mutex;
 
 int main()
 {
   boost::upgrade_lock<boost::shared_mutex> lk0;
   BOOST_TEST(lk0.mutex() == 0);
-  boost::upgrade_lock<boost::shared_mutex> lk1(m);
-  BOOST_TEST(lk1.mutex() == &m);
+  boost::upgrade_lock<boost::shared_mutex> lk1(g_mutex);
+  BOOST_TEST(lk1.mutex() == &g_mutex);
   lk1.unlock();
-  BOOST_TEST(lk1.mutex() == &m);
+  BOOST_TEST(lk1.mutex() == &g_mutex);
 
   return boost::report_errors();
 }

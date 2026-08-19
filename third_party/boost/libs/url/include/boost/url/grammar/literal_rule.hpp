@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -41,11 +42,6 @@ namespace grammar {
         @ref delim_rule,
         @ref parse.
 */
-#ifdef BOOST_URL_DOCS
-constexpr
-__implementation_defined__
-literal_rule( char const* s );
-#else
 class literal_rule
 {
     char const* s_ = nullptr;
@@ -73,16 +69,17 @@ public:
     {
     }
 
-    BOOST_URL_DECL
+    BOOST_URL_CXX20_CONSTEXPR
     system::result<value_type>
     parse(
         char const*& it,
         char const* end) const noexcept;
 };
-#endif
 
 } // grammar
 } // urls
 } // boost
+
+#include <boost/url/grammar/impl/literal_rule.hpp>
 
 #endif

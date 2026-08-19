@@ -16,7 +16,9 @@
 #define BOOST_GEOMETRY_INDEX_DETAIL_RTREE_ITERATORS_HPP
 
 #include <iterator>
+#include <memory>
 
+#include <boost/geometry/index/detail/assert.hpp>
 #include <boost/geometry/index/detail/rtree/visitors/iterator.hpp>
 
 namespace boost { namespace geometry { namespace index { namespace detail { namespace rtree { namespace iterators {
@@ -32,14 +34,14 @@ struct end_iterator
 
     reference operator*() const
     {
-        BOOST_GEOMETRY_INDEX_ASSERT(false, "iterator not dereferencable");
+        BOOST_GEOMETRY_INDEX_ASSERT(false, "iterator not dereferenceable");
         pointer p(0);
         return *p;
     }
 
     const value_type * operator->() const
     {
-        BOOST_GEOMETRY_INDEX_ASSERT(false, "iterator not dereferencable");
+        BOOST_GEOMETRY_INDEX_ASSERT(false, "iterator not dereferenceable");
         const value_type * p = 0;
         return p;
     }
@@ -90,7 +92,7 @@ public:
 
     const value_type * operator->() const
     {
-        return boost::addressof(m_visitor.dereference());
+        return std::addressof(m_visitor.dereference());
     }
 
     iterator & operator++()

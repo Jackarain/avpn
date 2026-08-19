@@ -31,7 +31,6 @@ common_install () {
   export SELF=`basename $REPO_NAME`
   export BOOST_CI_TARGET_BRANCH="$TRAVIS_BRANCH"
   export BOOST_CI_SRC_FOLDER=$(pwd)
-  : ${B2_DONT_BOOTSTRAP:=$B2_SEPARATE_BOOTSTRAP}
 
   . ./ci/common_install.sh
 
@@ -55,16 +54,12 @@ common_install () {
 
       popd
   fi
-
-  if [ "$B2_SEPARATE_BOOTSTRAP" = 1 ]; then
-    pushd tools/build
-    B2_TOOLSET= ./bootstrap.sh
-    popd
-    cp tools/build/b2 .
-  fi
 }
 
 common_cmake () {
+    if [ -n "$CMAKE_VERSION" ]; then
+        pip install "cmake == $CMAKE_VERSION"
+    fi
     export CXXFLAGS="-Wall -Wextra -Werror"
     export CMAKE_SHARED_LIBS=${CMAKE_SHARED_LIBS:-1}
     export CMAKE_NO_TESTS=${CMAKE_NO_TESTS:-error}
@@ -76,9 +71,22 @@ common_cmake () {
 
 if [ "$DRONE_JOB_BUILDTYPE" == "boost" ]; then
 
-if [[ $(uname) == "Linux" && ( "$COMMENT" == tsan || "$COMMENT" == asan ) ]]; then
-    echo 0 | sudo tee /proc/sys/kernel/randomize_va_space
-    sudo sysctl vm.mmap_rnd_bits=28
+if [[ $(uname) == "Linux" ]]; then
+    error=0
+    if ! { echo 0 | sudo tee /proc/sys/kernel/randomize_va_space > /dev/null; } && [[ -n ${B2_ASAN:-} ]]; then
+        echo -e "\n\nWARNING: Failed to disable KASLR. ASAN might fail with 'DEADLYSIGNAL'."
+        error=1
+    fi
+    # sysctl just ignores some failures and does't return an error, only output
+    if { ! out=$(sudo sysctl vm.mmap_rnd_bits=28 2>&1) || [[ "$out" == *"ignoring:"* ]]; } && [[ -n ${B2_TSAN:-} ]]; then
+        echo -e "\n\nWARNING: Failed to change KASLR. TSAN might fail with 'FATAL: ThreadSanitizer: unexpected memory mapping'."
+        error=1
+    fi
+    if ((error == 1)); then
+        # shellcheck disable=SC2016
+        [[ "${DRONE_EXTRA_PRIVILEGED:-0}" == "True" ]] || echo 'Try passing `privileged=True` to the job in .drone.star'
+        echo -e "\n"
+    fi
 fi
 
 echo '==================================> INSTALL'
@@ -87,43 +95,36 @@ common_install
 
 echo '==================================> SCRIPT'
 
-export B2_TARGETS=${B2_TARGETS:-"libs/$SELF/test libs/$SELF/example"}
+printf "add-auto-load-safe-path $PWD/bin.v2\n" > ~/.gdbinit
+
+export special_targets=$B2_TARGETS
+export B2_TARGETS=${B2_TARGETS:-"libs/$SELF/test//common libs/$SELF/example libs/$SELF/bench"}
 $BOOST_ROOT/libs/$SELF/ci/travis/build.sh
+
+if [ -z "$special_targets" ]; then
+    export B2_JOBS=1
+    export B2_TARGETS="libs/$SELF/test//heavy"
+    $BOOST_ROOT/libs/$SELF/ci/travis/build.sh
+fi
 
 elif [ "$DRONE_JOB_BUILDTYPE" == "docs" ]; then
 
 echo '==================================> INSTALL'
 
-export SELF=`basename $REPO_NAME`
-
-pwd
-cd ..
-mkdir -p $HOME/cache && cd $HOME/cache
-if [ ! -d doxygen ]; then git clone -b 'Release_1_8_15' --depth 1 https://github.com/doxygen/doxygen.git && echo "not-cached" ; else echo "cached" ; fi
-cd doxygen
-cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release
-cd build
-sudo make install
-cd ../..
-cd ..
-BOOST_BRANCH=develop && [ "$TRAVIS_BRANCH" == "master" ] && BOOST_BRANCH=master || true
-git clone -b $BOOST_BRANCH https://github.com/boostorg/boost.git boost-root --depth 1
-cd boost-root
-export BOOST_ROOT=$(pwd)
-git submodule update --init libs/context
-git submodule update --init tools/boostbook
-git submodule update --init tools/boostdep
+common_install
 git submodule update --init tools/docca
-git submodule update --init tools/quickbook
-rsync -av $TRAVIS_BUILD_DIR/ libs/$SELF
-python tools/boostdep/depinst/depinst.py ../tools/quickbook
-./bootstrap.sh
-./b2 headers
+git submodule update --init tools/boostlook
 
 echo '==================================> SCRIPT'
 
-echo "using doxygen ; using boostbook ; using python : : python3 ;" > tools/build/src/user-config.jam
-./b2 -j3 libs/$SELF/doc//boostrelease
+cat >$BOOST_ROOT/tools/build/src/user-config.jam <<EOF
+using doxygen ;
+using asciidoctor ;
+using python : : python3 ;
+EOF
+
+export B2_TARGETS=libs/$SELF/doc//boostrelease
+$BOOST_ROOT/libs/$SELF/ci/travis/build.sh
 
 elif [ "$DRONE_JOB_BUILDTYPE" == "codecov" ]; then
 
@@ -135,17 +136,6 @@ echo '==================================> SCRIPT'
 
 cd $BOOST_ROOT/libs/$SELF
 ci/travis/codecov.sh
-
-elif [ "$DRONE_JOB_BUILDTYPE" == "valgrind" ]; then
-
-echo '==================================> INSTALL'
-
-common_install
-
-echo '==================================> SCRIPT'
-
-cd $BOOST_ROOT/libs/$SELF
-ci/travis/valgrind.sh
 
 elif [ "$DRONE_JOB_BUILDTYPE" == "coverity" ]; then
 

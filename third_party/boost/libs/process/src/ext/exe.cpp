@@ -25,8 +25,11 @@
 #endif
 
 #if (defined(__APPLE__) && defined(__MACH__))
-#include <sys/proc_info.h>
-#include <libproc.h>
+#include <TargetConditionals.h>
+#if !TARGET_OS_IOS
+  #include <sys/proc_info.h>
+  #include <libproc.h>
+#endif
 #endif
 
 #if (defined(BOOST_PROCESS_V2_WINDOWS) || defined(__linux__) || defined(__ANDROID__) || defined(__sun))
@@ -36,7 +39,7 @@
 #if (defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__))
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#if !defined(__FreeBSD__)
+#if !defined(__FreeBSD__) && !defined(__NetBSD__)
 #include <alloca.h>
 #endif
 #endif
@@ -62,7 +65,7 @@ namespace ext {
 
 filesystem::path exe(HANDLE process_handle)
 {
-    boost::system::error_code ec;
+    error_code ec;
     auto res = exe(process_handle, ec);
     if (ec)
         detail::throw_error(ec, "exe");
@@ -70,8 +73,9 @@ filesystem::path exe(HANDLE process_handle)
 }
 
 
-filesystem::path exe(HANDLE proc, boost::system::error_code & ec)
+filesystem::path exe(HANDLE proc, error_code & ec)
 {
+#if _WIN32_WINNT >= 0x0600
     wchar_t buffer[MAX_PATH];
     // On input, specifies the size of the lpExeName buffer, in characters.
     DWORD size = MAX_PATH;
@@ -80,12 +84,14 @@ filesystem::path exe(HANDLE proc, boost::system::error_code & ec)
         return filesystem::canonical(buffer, ec);
     }
     else
-        BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec)
-
+        BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec);
+#else
+    BOOST_PROCESS_V2_ASSIGN_EC(ec, net::error::operation_not_supported);
+#endif
     return "";
 }
 
-filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code & ec)
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
 {
     if (pid == GetCurrentProcessId())
     {
@@ -106,36 +112,36 @@ filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code
         };
         std::unique_ptr<void, del> proc{detail::ext::open_process_with_debug_privilege(pid, ec)};
         if (proc == nullptr)
-            BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec)
+            BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec);
         else
             return exe(proc.get(), ec);
     }
     return "";
 }
 
-#elif (defined(__APPLE__) && defined(__MACH__))
+#elif (defined(__APPLE__) && defined(__MACH__)) && !TARGET_OS_IOS
 
-filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code & ec)
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
 {
     char buffer[PROC_PIDPATHINFO_MAXSIZE];
     if (proc_pidpath(pid, buffer, sizeof(buffer)) > 0) 
     {
         return filesystem::canonical(buffer, ec);
     }
-    BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec)
+    BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec);
     return "";
 }
 
 #elif (defined(__linux__) || defined(__ANDROID__) || defined(__sun))
 
-filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code & ec)
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
 {
 #if (defined(__linux__) || defined(__ANDROID__))
     return filesystem::canonical(
             filesystem::path("/proc") / std::to_string(pid) / "exe", ec
             );
 #elif defined(__sun)
-    return fileystem::canonical(
+    return filesystem::canonical(
             filesystem::path("/proc") / std::to_string(pid) / "path/a.out", ec
             );
 #endif
@@ -143,7 +149,7 @@ filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code
 
 #elif (defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__))
 
-filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code & ec)
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
 {
 #if (defined(__FreeBSD__) || defined(__DragonFly__))
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, pid};
@@ -162,25 +168,29 @@ filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code
         }
     }
 
-    BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec)
+    BOOST_PROCESS_V2_ASSIGN_LAST_ERROR(ec);
     return "";
 }
 
 #elif defined(__OpenBSD__)
 
-filesystem::path exe(boost::process::v2::pid_type pid, boost::system::error_code & ec)
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
 {
-    BOOST_PROCESS_V2_ASSIGN_EC(ec, ENOTSUP, boost::system::system_category())
+    BOOST_PROCESS_V2_ASSIGN_EC(ec, ENOTSUP, system_category());
     return "";
 }
 
 #else
-#error "Platform not supported"
+filesystem::path exe(boost::process::v2::pid_type pid, error_code & ec)
+{
+  BOOST_PROCESS_V2_ASSIGN_EC(ec, ENOTSUP, system_category());
+  return "";
+}
 #endif
 
 filesystem::path exe(boost::process::v2::pid_type pid)
 {
-    boost::system::error_code ec;
+    error_code ec;
     auto res = exe(pid, ec);
     if (ec)
         detail::throw_error(ec, "exe");

@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,8 +18,8 @@ namespace boost {
 namespace urls {
 namespace grammar {
 
-template<class R>
-BOOST_URL_NO_INLINE
+template<BOOST_URL_CONSTRAINT(Rule) R>
+BOOST_URL_CXX14_CONSTEXPR
 auto
 parse(
     char const*& it,
@@ -36,8 +37,8 @@ parse(
     return r.parse(it, end);
 }
 
-template<class R>
-BOOST_URL_NO_INLINE
+template<BOOST_URL_CONSTRAINT(Rule) R>
+BOOST_URL_CXX14_CONSTEXPR
 auto
 parse(
     core::string_view s,

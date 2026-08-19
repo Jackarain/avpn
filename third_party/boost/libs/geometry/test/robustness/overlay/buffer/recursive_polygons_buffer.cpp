@@ -79,84 +79,42 @@ void create_svg(std::string const& filename
     mapper.map(buffer, "stroke-opacity:0.9;stroke:rgb(0,0,0);fill:none;stroke-width:1");
 }
 
-template <typename MultiPolygon, typename Settings>
-bool verify(std::string const& caseid, MultiPolygon const& mp, MultiPolygon const& buffer, Settings const& settings)
+template <typename Geometry, typename Buffer>
+bool verify_buffer(Geometry const& geometry, Buffer const& buffer, std::string& reason)
 {
-    using polygon_type = typename boost::range_value<MultiPolygon const>::type;
-
-    bool result = true;
+    if (buffer.empty())
+    {
+        reason = "Buffer is empty";
+        return false;
+    }
 
     // Area of buffer must be larger than of original polygon
-    auto const area_mp = bg::area(mp);
+    auto const area_mp = bg::area(geometry);
     auto const area_buf = bg::area(buffer);
-
     if (area_buf < area_mp)
     {
-        result = false;
+        reason = "Buffer area is smaller than input area";
+        return false;    
     }
 
     // Verify if all points are IN the buffer
-    if (result)
+    bool all_within = true;
+    bg::for_each_point(geometry, [&all_within, &buffer](auto const& point)
     {
-        for (auto const& polygon : mp)
-        {
-            typename bg::point_type<polygon_type>::type point;
-            bg::point_on_border(point, polygon);
             if (! bg::within(point, buffer))
             {
-                result = false;
+                all_within = false;
             }
         }
-    }
+    );
 
-    if (result && settings.check_validity)
+    if (! all_within)
     {
-        bg::validity_failure_type failure;
-        if (! bg::is_valid(buffer, failure)
-            && failure != bg::failure_intersecting_interiors)
-        {
-            std::cout << "Buffer is not valid: " << bg::validity_failure_type_message(failure) << std::endl;
-            result = false;
-        }
+        reason = "Not all points are within buffer";
+        return false;
     }
 
-    bool svg = settings.svg;
-    bool wkt = settings.wkt;
-    if (! result)
-    {
-        // The result is wrong, override settings to create a SVG and WKT
-        svg = true;
-        wkt = true;
-    }
-
-    std::string filename;
-
-    {
-        // Generate a unique name
-        std::ostringstream out;
-        out << "rec_pol_buffer_" << geometry_to_crc(mp)
-            << "_" << string_from_type<typename bg::coordinate_type<MultiPolygon>::type>::name()
-       #if defined(BOOST_GEOMETRY_USE_RESCALING)
-            << "_rescaled"
-       #endif
-            << ".";
-        filename = out.str();
-    }
-
-    if (svg)
-    {
-        create_svg(filename + "svg", mp, buffer);
-    }
-
-    if (wkt)
-    {
-        std::ofstream stream(filename + "wkt");
-        // Stream input WKT
-        stream << bg::wkt(mp) << std::endl;
-        // If you need the output WKT, then stream bg::wkt(buffer)
-    }
-
-    return result;
+    return bg::is_valid(buffer, reason);
 }
 
 template <typename MultiPolygon, typename Generator, typename Settings>
@@ -178,6 +136,7 @@ bool test_buffer(MultiPolygon& result, int& index,
     }
     else
     {
+        // Recursive call
         bg::correct(p);
         bg::correct(q);
         if (! test_buffer(p, index, generator, level - 1, settings)
@@ -215,7 +174,7 @@ bool test_buffer(MultiPolygon& result, int& index,
     bg::strategy::buffer::side_straight side_strategy;
     bg::strategy::buffer::join_round join_round_strategy(settings.points_per_circle);
     bg::strategy::buffer::join_miter join_miter_strategy;
-
+    
     try
     {
         switch(settings.join_code)
@@ -241,7 +200,6 @@ bool test_buffer(MultiPolygon& result, int& index,
         MultiPolygon empty;
         std::cout << out.str() << std::endl;
         std::cout << "Exception " << e.what() << std::endl;
-        verify(out.str(), mp, empty, settings);
         return false;
     }
 
@@ -250,7 +208,34 @@ bool test_buffer(MultiPolygon& result, int& index,
         std::cout << " [" << bg::area(mp) << " " << bg::area(buffered) << "]";
     }
 
-    return verify(out.str(), mp, buffered, settings);
+    std::string verification_message;
+    if (verify_buffer(mp, buffered, verification_message))
+    {
+        if (settings.svg)
+        {
+            create_svg(out.str() + ".svg", mp, buffered);
+        }
+        return true;
+    }
+
+    std::string filename;
+
+    {
+        // Generate a unique name
+        std::ostringstream out;
+        out << "rec_pol_buffer_" << geometry_to_crc(mp)
+            << "_" << string_from_type<typename bg::coordinate_type<MultiPolygon>::type>::name()
+            << ".";
+        filename = out.str();
+    }
+
+    std::cout << "Failure" << " " << filename << " : " << verification_message << std::endl;
+    std::ofstream stream(filename + "wkt");
+    // Stream input WKT
+    stream << bg::wkt(mp) << std::endl;
+    // If you need the output WKT, then stream bg::wkt(buffer)
+
+    return false;
 }
 
 

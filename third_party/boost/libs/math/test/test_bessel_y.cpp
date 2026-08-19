@@ -3,7 +3,21 @@
 //  Boost Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#ifndef BOOST_MATH_ENABLE_SYCL
 #include <pch_light.hpp>
+#else
+#define BOOST_MATH_PROMOTE_DOUBLE_POLICY false
+#include "sycl/sycl.hpp"
+#include <boost/math/tools/config.hpp>
+#endif
+
+#ifdef __clang__
+#  pragma clang diagnostic push 
+#  pragma clang diagnostic ignored "-Wliteral-range"
+#elif defined(__GNUC__)
+#  pragma GCC diagnostic push 
+#  pragma GCC diagnostic ignored "-Woverflow"
+#endif
 
 #include "test_bessel_y.hpp"
 
@@ -234,7 +248,11 @@ void expected_results()
       ".*",                          // platform
       largest_type,                  // test type(s)
       ".*(Y[nv]|y).*Random.*",           // test data group
+      #ifdef BOOST_MATH_ENABLE_SYCL
+      ".*", 2000, 1000);
+      #else
       ".*", 1500, 1000);               // test function
+      #endif
    //
    // Fallback for sun has to go after the general cases above:
    //

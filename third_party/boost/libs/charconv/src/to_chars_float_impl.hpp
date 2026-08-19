@@ -121,7 +121,7 @@ inline to_chars_result to_chars_nonfinite(char* first, char* last, Real value, i
 
 #endif // BOOST_CHARCONV_LDBL_BITS == 128
 
-#ifdef BOOST_CHARCONV_HAS_FLOAT128
+#ifdef BOOST_CHARCONV_HAS_QUADMATH
 
 // GCC-5 evaluates the following specialization for other types
 #if defined(__GNUC__) && __GNUC__ == 5
@@ -200,7 +200,7 @@ inline to_chars_result to_chars_nonfinite<__float128>(char* first, char* last, _
 # pragma GCC diagnostic pop
 #endif
 
-#endif // BOOST_CHARCONV_HAS_FLOAT128
+#endif // BOOST_CHARCONV_HAS_QUADMATH
 
 template <typename Unsigned_Integer, typename Real, typename std::enable_if<!std::is_same<Unsigned_Integer, uint128>::value, bool>::type = true>
 Unsigned_Integer convert_value(Real value) noexcept
@@ -273,14 +273,18 @@ to_chars_result to_chars_hex(char* first, char* last, Real value, int precision)
 
         typename std::conditional<std::is_same<Real, float>::value, ieee754_binary32,
             typename std::conditional<std::is_same<Real, double>::value, ieee754_binary64,
-                    #ifdef BOOST_CHARCONV_HAS_FLOAT128
-                    typename std::conditional<std::is_same<Real, __float128>::value || BOOST_CHARCONV_LDBL_BITS == 128, ieee754_binary128, ieee754_binary80>::type
-                    #elif BOOST_CHARCONV_LDBL_BITS == 128
-                    ieee754_binary128
-                    #elif BOOST_CHARCONV_LDBL_BITS == 80
-                    ieee754_binary80
-                    #else
-                    ieee754_binary64
+                    #ifdef BOOST_CHARCONV_HAS_QUADMATH
+                    typename std::conditional<std::is_same<Real, __float128>::value, ieee754_binary128,
+                    #endif
+                        #if BOOST_CHARCONV_LDBL_BITS == 128
+                        ieee754_binary128
+                        #elif BOOST_CHARCONV_LDBL_BITS == 80
+                        ieee754_binary80
+                        #else
+                        ieee754_binary64
+                        #endif
+                    #ifdef BOOST_CHARCONV_HAS_QUADMATH
+                    >::type
                     #endif
             >::type>::type
         #ifdef BOOST_CHARCONV_HAS_FLOAT16
@@ -676,6 +680,7 @@ to_chars_result to_chars_float_impl(char* first, char* last, Real value, chars_f
 
     auto abs_value = std::abs(value);
     constexpr auto max_fractional_value = std::is_same<Real, double>::value ? static_cast<Real>(1e16) : static_cast<Real>(1e7);
+    constexpr auto min_fractional_value = static_cast<Real>(1) / static_cast<Real>(100000); // 1e-1 takes more characters than 0.1
     constexpr auto max_value = static_cast<Real>((std::numeric_limits<Unsigned_Integer>::max)());
 
     // Unspecified precision so we always go with the shortest representation
@@ -683,7 +688,7 @@ to_chars_result to_chars_float_impl(char* first, char* last, Real value, chars_f
     {
         if (fmt == boost::charconv::chars_format::general)
         {
-            if (abs_value >= 1 && abs_value < max_fractional_value)
+            if (abs_value > min_fractional_value && abs_value < max_fractional_value)
             {
                 return to_chars_fixed_impl(first, last, value, fmt, precision);
             }
@@ -766,7 +771,7 @@ to_chars_result to_chars_float_impl(char* first, char* last, Real value, chars_f
     return boost::charconv::detail::to_chars_hex(first, last, value, precision);
 }
 
-#if (BOOST_CHARCONV_LDBL_BITS == 80 || BOOST_CHARCONV_LDBL_BITS == 128)
+#if (BOOST_CHARCONV_LDBL_BITS == 80 || BOOST_CHARCONV_LDBL_BITS == 128) && !defined(BOOST_CHARCONV_LDBL_IS_FLOAT128)
 
 template <>
 to_chars_result to_chars_float_impl(char* first, char* last, long double value, chars_format fmt, int precision) noexcept
@@ -839,7 +844,7 @@ to_chars_result to_chars_float_impl(char* first, char* last, long double value, 
 
 #endif
 
-#ifdef BOOST_CHARCONV_HAS_FLOAT128
+#ifdef BOOST_CHARCONV_HAS_QUADMATH
 
 template <>
 to_chars_result to_chars_float_impl(char* first, char* last, __float128 value, chars_format fmt, int precision) noexcept

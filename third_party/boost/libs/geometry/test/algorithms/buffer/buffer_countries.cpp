@@ -103,10 +103,8 @@ void test_one(std::string const& caseid, std::string const& wkt, double expected
 
     settings.tolerance = 10000.0;
 
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING)
     // in case robustness policies are changed, areas should be adapted
     settings.tolerance = boost::starts_with(caseid, "no") ? 200000.0 : 100000.0;
-#endif
 
     test_one<MP, P>(caseid, wkt, join_round, end_flat,
         expected_area, distance * 1000.0, settings);
@@ -121,6 +119,13 @@ void test_all()
 
     const std::string base_folder = "data/";
     const std::string gr = read_from_wkt_file<mpt>(base_folder + "gr.wkt");
+    if (gr.empty())
+    {
+        // If this file is not found, the others won't be find either.
+        std::cerr << "Error: cannot read WKT files from " << base_folder << std::endl;
+        return;
+    }
+
     const std::string it = read_from_wkt_file<mpt>(base_folder + "it.wkt");
     const std::string nl = read_from_wkt_file<mpt>(base_folder + "nl.wkt");
     const std::string no = read_from_wkt_file<mpt>(base_folder + "no.wkt");
@@ -170,7 +175,7 @@ void test_all()
     test_one<mpt, pt>("nl100", nl,              0, -100);
 
     test_one<mpt, pt>("no1", no,    1819566570720, 1);
-    test_one<mpt, pt>("no2", no,    1865041238129, 2, ut_settings::ignore_validity());
+    test_one<mpt, pt>("no2", no,    1865041238129, 2);
     test_one<mpt, pt>("no5", no,    1973615533600, 5);
     test_one<mpt, pt>("no10", no,   2102034240506, 10);
     test_one<mpt, pt>("no20", no,   2292171257647, 20);
@@ -210,10 +215,6 @@ int test_main(int, char* [])
 
 #if ! defined(BOOST_GEOMETRY_TEST_ONLY_ONE_ORDER)
     test_all<false, bg::model::point<default_test_type, 2, bg::cs::cartesian> >();
-#endif
-
-#if defined(BOOST_GEOMETRY_TEST_FAILURES)
-    BoostGeometryWriteExpectedFailures(1, BG_NO_FAILURES, 2, BG_NO_FAILURES);
 #endif
 
     return 0;

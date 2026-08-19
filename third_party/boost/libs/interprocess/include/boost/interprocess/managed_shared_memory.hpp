@@ -276,6 +276,9 @@ class basic_managed_shared_memory
    //!
    //!This function is not synchronized so no other thread or process should
    //!be reading or writing the file
+   //!
+   //!Since the memory will be remapped after the underlying shared memory
+   //!is grown, it can't work with segments using raw pointers.
    static bool grow(const char *shmname, size_type extra_bytes)
    {
       return base_t::template grow
@@ -369,7 +372,7 @@ typedef basic_managed_shared_memory
 fixed_managed_shared_memory;
 
 //!Typedef for a default basic_managed_shared_memory
-//!of narrow characters to be placed in a fixed address
+//!of wide characters to be placed in a fixed address
 typedef basic_managed_shared_memory
    <wchar_t
    ,rbtree_best_fit<mutex_family, void*>

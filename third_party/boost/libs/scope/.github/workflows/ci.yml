@@ -1,4 +1,4 @@
-# Copyright 2023-2024 Andrey Semashev
+# Copyright 2023-2025 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
 # https://www.boost.org/LICENSE_1_0.txt
@@ -34,13 +34,13 @@ jobs:
         include:
           # Linux, gcc
           - toolset: gcc-4.8
-            cxxstd: "11"
+            cxxstd: "11,1y"
             os: ubuntu-latest
             container: ubuntu:18.04
             install:
               - g++-4.8
           - toolset: gcc-4.9
-            cxxstd: "11"
+            cxxstd: "11,14"
             os: ubuntu-latest
             container: ubuntu:16.04
             install:
@@ -72,21 +72,21 @@ jobs:
               - g++-8
           - toolset: gcc-9
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            os: ubuntu-latest
+            container: ubuntu:20.04
             install:
               - g++-9
           - toolset: gcc-10
             cxxstd: "11,14,17,20"
-            os: ubuntu-20.04
+            os: ubuntu-latest
+            container: ubuntu:20.04
             install:
               - g++-10
           - toolset: gcc-11
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             install:
               - g++-11
-            sources:
-              - "ppa:ubuntu-toolchain-r/test"
           - toolset: gcc-12
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
             os: ubuntu-22.04
@@ -94,20 +94,28 @@ jobs:
               - g++-12
           - toolset: gcc-13
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-latest
-            container: ubuntu:23.04
+            os: ubuntu-24.04
             install:
               - g++-13
+          - toolset: gcc-14
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
+            os: ubuntu-24.04
+            install:
+              - g++-14
+          - toolset: gcc-15
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
+            os: ubuntu-latest
+            container: ubuntu:25.04
+            install:
+              - g++-15
           - name: UBSAN
-            toolset: gcc-11
-            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu"
+            toolset: gcc-13
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
             ubsan: 1
             build_variant: debug
-            os: ubuntu-20.04
+            os: ubuntu-24.04
             install:
-              - g++-11
-            sources:
-              - "ppa:ubuntu-toolchain-r/test"
+              - g++-13
 
           # Linux, clang
           - toolset: clang
@@ -134,7 +142,7 @@ jobs:
           - toolset: clang
             compiler: clang++-3.8
             cxxstd: "11,14"
-            os: ubuntu-20.04
+            os: ubuntu-latest
             container: ubuntu:16.04
             install:
               - clang-3.8
@@ -186,13 +194,15 @@ jobs:
           - toolset: clang
             compiler: clang++-9
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            os: ubuntu-latest
+            container: ubuntu:20.04
             install:
               - clang-9
           - toolset: clang
             compiler: clang++-10
             cxxstd: "11,14,17,20"
-            os: ubuntu-20.04
+            os: ubuntu-latest
+            container: ubuntu:20.04
             install:
               - clang-10
           - toolset: clang
@@ -201,6 +211,8 @@ jobs:
             os: ubuntu-22.04
             install:
               - clang-11
+              - g++-11
+            gcc_toolchain: 11
           # Note: clang-12 through 15 do not fully support C++23, so it is not compatible with libstdc++-13 in this mode
           - toolset: clang
             compiler: clang++-12
@@ -237,64 +249,74 @@ jobs:
           - toolset: clang
             compiler: clang++-16
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             install:
               - clang-16
-            sources:
-              - "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main"
-            source_keys:
-              - "https://apt.llvm.org/llvm-snapshot.gpg.key"
+              - g++-11
+            gcc_toolchain: 11
           - toolset: clang
             compiler: clang++-17
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             install:
               - clang-17
-            sources:
-              - "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
-            source_keys:
-              - "https://apt.llvm.org/llvm-snapshot.gpg.key"
+              - g++-11
+            gcc_toolchain: 11
           - toolset: clang
-            compiler: clang++-17
-            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-22.04
+            compiler: clang++-18
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
+            os: ubuntu-24.04
             install:
-              - clang-17
-              - libc++-17-dev
-              - libc++abi-17-dev
-            sources:
-              - "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main"
-            source_keys:
-              - "https://apt.llvm.org/llvm-snapshot.gpg.key"
+              - clang-18
+              - g++-13
+          - toolset: clang
+            compiler: clang++-19
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
+            os: ubuntu-24.04
+            install:
+              - clang-19
+          - toolset: clang
+            compiler: clang++-20
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
+            os: ubuntu-latest
+            container: ubuntu:25.04
+            install:
+              - clang-20
+          - toolset: clang
+            compiler: clang++-20
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
             cxxflags: -stdlib=libc++
             linkflags: -stdlib=libc++
+            os: ubuntu-latest
+            container: ubuntu:25.04
+            install:
+              - clang-20
+              - libc++-20-dev
+              - libc++abi-20-dev
           - name: UBSAN
             toolset: clang
-            compiler: clang++-15
-            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
+            compiler: clang++-18
+            cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu,26-gnu"
             cxxflags: -stdlib=libc++
             linkflags: "-stdlib=libc++ -lubsan"
             ubsan: 1
             build_variant: debug
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             install:
-              - clang-15
-              - libc++-15-dev
-              - libc++abi-15-dev
+              - clang-18
+              - libc++-18-dev
+              - libc++abi-18-dev
 
-          - toolset: clang
-            cxxstd: "11,14,17,20,2b"
-            os: macos-12
-          - toolset: clang
-            cxxstd: "11,14,17,20,2b"
-            os: macos-13
           - toolset: clang
             cxxstd: "11,14,17,20,2b"
             os: macos-14
+          - toolset: clang
+            cxxstd: "11,14,17,20,23"
+            os: macos-15
 
           - name: CMake tests
             cmake_tests: 1
-            os: ubuntu-20.04
+            os: ubuntu-22.04
 
     timeout-minutes: 15
     runs-on: ${{matrix.os}}
@@ -313,6 +335,22 @@ jobs:
                 echo "GHA_CONTAINER=${{matrix.container}}" >> $GITHUB_ENV
                 if [ -f "/etc/debian_version" ]
                 then
+                    # Use Azure APT mirrors in containers to avoid HTTP errors due to DDoS filters triggered by lots of CI jobs launching concurrently.
+                    # Note that not all Ubuntu versions support "mirror+file:..." URIs in APT sources, so just use Azure mirrors exclusively.
+                    # Note also that on recent Ubuntu versions DEB822 format is used for source files.
+                    APT_SOURCES=()
+                    if [ -d "/etc/apt/sources.list.d" ]
+                    then
+                        readarray -t APT_SOURCES < <(find "/etc/apt/sources.list.d" -type f -name '*.sources' -print)
+                    fi
+                    if [ -f "/etc/apt/sources.list" ]
+                    then
+                        APT_SOURCES+=("/etc/apt/sources.list")
+                    fi
+                    if [ "${#APT_SOURCES[@]}" -gt 0 ]
+                    then
+                        sed -i -E -e 's!([^ ]+) (http|https)://(archive|security)\.ubuntu\.com/ubuntu[^ ]*(.*)!\1 http://azure.archive.ubuntu.com/ubuntu/\4!' "${APT_SOURCES[@]}"
+                    fi
                     apt-get -o Acquire::Retries=$NET_RETRY_COUNT update
                     if [ "$(apt-cache search "^python-is-python3$" | wc -l)" -ne 0 ]
                     then
@@ -524,22 +562,17 @@ jobs:
         run: |
             cd boost-root
             cd __build_static__
-            ctest --output-on-failure --no-tests=error
+            ctest --output-on-failure --no-tests=error -j $BUILD_JOBS
 
   windows:
+    defaults:
+      run:
+        shell: cmd
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc-14.0
-            cxxstd: "14"
-            addrmd: 32,64
-            os: windows-2019
-            extra_tests: 1
-          - toolset: msvc-14.2
-            cxxstd: "14,17,20,latest"
-            addrmd: 32,64
-            os: windows-2019
           - toolset: msvc-14.3
             cxxstd: "14,17,20,latest"
             addrmd: 32,64
@@ -549,16 +582,23 @@ jobs:
             addrmd: 32,64
             os: windows-2022
           - toolset: gcc
-            cxxstd: "11,14,17,2a"
+            cxxstd: "11,14,17,20,23"
             addrmd: 64
-            os: windows-2019
+            os: windows-2022
+
+          - name: CMake MSVC tests
+            cmake_tests: 1
+            os: windows-2022
+          - name: CMake MinGW-w64 tests
+            cmake_tests: 1
+            os: windows-2022
+            cmake_generator: "MinGW Makefiles"
 
     timeout-minutes: 15
     runs-on: ${{matrix.os}}
 
     steps:
       - name: Setup Boost
-        shell: cmd
         run: |
             echo GITHUB_REPOSITORY: %GITHUB_REPOSITORY%
             for /f %%i in ("%GITHUB_REPOSITORY%") do set LIBRARY=%%~nxi
@@ -590,11 +630,13 @@ jobs:
             rmdir /s /q "..\snapshot"
             git submodule update --init tools/boostdep
             python tools/boostdep/depinst/depinst.py --git_args "--jobs %GIT_FETCH_JOBS%" %LIBRARY%
-            cmd /c bootstrap
-            b2 -d0 headers
+            if "${{matrix.cmake_tests}}" == "" (
+                cmd /c bootstrap
+                b2 -d0 headers
+            )
 
       - name: Run tests
-        shell: cmd
+        if: matrix.cmake_tests == ''
         run: |
             cd boost-root
             if "${{matrix.extra_tests}}" == "" set BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
@@ -602,3 +644,20 @@ jobs:
             if not "${{matrix.addrmd}}" == "" set ADDRMD=address-model=${{matrix.addrmd}}
             if not "${{matrix.build_variant}}" == "" (set BUILD_VARIANT=variant=${{matrix.build_variant}}) else (set BUILD_VARIANT=variant=%DEFAULT_BUILD_VARIANT%)
             b2 -j %NUMBER_OF_PROCESSORS% libs/%LIBRARY%/test toolset=${{matrix.toolset}} %CXXSTD% %ADDRMD% %BUILD_VARIANT% embed-manifest-via=linker
+
+      - name: Build CMake tests
+        if: matrix.cmake_tests
+        run: |
+            if not "${{matrix.cmake_generator}}" == "" set "CMAKE_GENERATOR=${{matrix.cmake_generator}}"
+            cd boost-root
+            mkdir __build_static__
+            cd __build_static__
+            cmake -DBOOST_INCLUDE_LIBRARIES=%LIBRARY% -DBUILD_TESTING=ON ..
+            cmake --build . --config Release --target tests -j %NUMBER_OF_PROCESSORS%
+
+      - name: Run CMake tests
+        if: matrix.cmake_tests
+        run: |
+            cd boost-root
+            cd __build_static__
+            ctest -C Release --output-on-failure --no-tests=error -j %NUMBER_OF_PROCESSORS%

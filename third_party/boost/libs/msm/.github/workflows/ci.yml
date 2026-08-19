@@ -17,127 +17,107 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolset: gcc-5
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: g++-5
-          - toolset: gcc-6
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: g++-6
-          - toolset: gcc-7
-            cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: g++-7
-          - toolset: gcc-8
-            cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
-            install: g++-8
           - toolset: gcc-9
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: g++-9
           - toolset: gcc-10
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:24.04
+            os: ubuntu-latest
             install: g++-10
           - toolset: gcc-11
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:24.04
+            os: ubuntu-latest
             install: g++-11
           - toolset: gcc-12
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:24.04
+            os: ubuntu-latest
             install: g++-12
           - toolset: gcc-13
             cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:23.04
             install: g++-13
-          - toolset: clang
-            compiler: clang++-3.9
-            cxxstd: "11,14"
+          - toolset: gcc-14
+            cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-3.9
-          - toolset: clang
-            compiler: clang++-4.0
-            cxxstd: "11,14"
+            install: g++-14
+          - toolset: gcc-15
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:25.04
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-4.0
-          - toolset: clang
-            compiler: clang++-5.0
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-5.0
-          - toolset: clang
-            compiler: clang++-6.0
-            cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-6.0
-          - toolset: clang
-            compiler: clang++-7
-            cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-7
-          - toolset: clang
-            compiler: clang++-8
-            cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-8
-          - toolset: clang
-            compiler: clang++-9
-            cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
-            install: clang-9
-          - toolset: clang
-            compiler: clang++-10
-            cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
-            install: clang-10
+            install: g++-15
           - toolset: clang
             compiler: clang++-11
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-11
           - toolset: clang
             compiler: clang++-12
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-12
           - toolset: clang
             compiler: clang++-13
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-13
           - toolset: clang
             compiler: clang++-14
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: clang-14
           - toolset: clang
             compiler: clang++-15
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:24.04
+            os: ubuntu-latest
             install: clang-15
           - toolset: clang
             compiler: clang++-16
             cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:23.04
             install: clang-16
           - toolset: clang
-            cxxstd: "11,14,17,2a"
-            os: macos-11
+            compiler: clang++-17
+            cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
+          - toolset: clang
+            compiler: clang++-18
+            cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-18
+          - toolset: clang
+            compiler: clang++-19
+            cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-19
+          - toolset: clang
+            compiler: clang++-20
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-20
           - toolset: clang
             cxxstd: "11,14,17,20,2b"
-            os: macos-12
+            os: macos-14
           - toolset: clang
             cxxstd: "11,14,17,20,2b"
-            os: macos-13
+            os: macos-15
 
     runs-on: ${{matrix.os}}
     container: ${{matrix.container}}
@@ -186,27 +166,80 @@ jobs:
         run: |
           echo "using ${{matrix.toolset}} : : ${{matrix.compiler}} ;" > ~/user-config.jam
 
+      - name: Download nlohmann/json
+        run: |
+          cd ../boost-root/libs/$LIBRARY
+          python3 scripts/download_nlohmann_json.py
+
       - name: Run tests
         run: |
           cd ../boost-root
           ./b2 -j3 libs/$LIBRARY/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} variant=debug,release
+
+  posix-cmake-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages
+        if: matrix.install
+        run: sudo apt install ${{matrix.install}}
+
+      - name: Setup Boost
+        run: |
+          echo GITHUB_REPOSITORY: $GITHUB_REPOSITORY
+          LIBRARY=${GITHUB_REPOSITORY#*/}
+          echo LIBRARY: $LIBRARY
+          echo "LIBRARY=$LIBRARY" >> $GITHUB_ENV
+          echo GITHUB_BASE_REF: $GITHUB_BASE_REF
+          echo GITHUB_REF: $GITHUB_REF
+          REF=${GITHUB_BASE_REF:-$GITHUB_REF}
+          REF=${REF#refs/heads/}
+          echo REF: $REF
+          BOOST_BRANCH=develop && [ "$REF" == "master" ] && BOOST_BRANCH=master || true
+          echo BOOST_BRANCH: $BOOST_BRANCH
+          cd ..
+          git clone -b $BOOST_BRANCH --depth 1 https://github.com/boostorg/boost.git boost-root
+          cd boost-root
+          cp -r $GITHUB_WORKSPACE/* libs/$LIBRARY
+          git submodule update --init tools/boostdep
+          python tools/boostdep/depinst/depinst.py --git_args "--jobs 3" $LIBRARY
+
+      - name: Configure
+        run: |
+          cd ../boost-root
+          mkdir __build__ && cd __build__
+          cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DBUILD_TESTING=ON ..
+
+      - name: Build tests
+        run: |
+          cd ../boost-root/__build__
+          cmake --build . --target tests
+
+      - name: Run tests
+        run: |
+          cd ../boost-root/__build__
+          ctest --output-on-failure --no-tests=error
 
   windows:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc-14.0
-            cxxstd: "14,latest"
-            addrmd: 32,64
-            os: windows-2019
-          - toolset: msvc-14.2
-            cxxstd: "14,17,20,latest"
-            addrmd: 32,64
-            os: windows-2019
           - toolset: msvc-14.3
             cxxstd: "14,17,20,latest"
-            addrmd: 32,64
+            addrmd: 32
+            os: windows-2022
+          - toolset: msvc-14.3
+            cxxstd: "14,17,20,latest"
+            addrmd: 64
             os: windows-2022
           - toolset: clang-win
             cxxstd: "14,17,latest"
@@ -215,7 +248,7 @@ jobs:
           - toolset: gcc
             cxxstd: "11,14,17,2a"
             addrmd: 64
-            os: windows-2019
+            os: windows-2022
 
     runs-on: ${{matrix.os}}
 
@@ -244,8 +277,79 @@ jobs:
           cmd /c bootstrap
           b2 -d0 headers
 
+      - name: Download nlohmann/json
+        shell: cmd
+        run: |
+          cd ../boost-root/libs/%LIBRARY%
+          python3 scripts/download_nlohmann_json.py
+
       - name: Run tests
         shell: cmd
         run: |
           cd ../boost-root
           b2 -j3 libs/%LIBRARY%/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} address-model=${{matrix.addrmd}} variant=debug,release embed-manifest-via=linker
+
+  antora:
+    name: Antora docs
+    strategy:
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest }
+          - { name: Ubuntu, os: ubuntu-latest }
+          - { name: macOS, os: macos-15 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install packages
+        uses: alandefreitas/cpp-actions/package-install@v1.9.3
+        with:
+          apt-get: git cmake
+
+      - name: Clone Boost.MSM
+        uses: actions/checkout@v4
+
+      - name: Clone Boost
+        uses: alandefreitas/cpp-actions/boost-clone@v1.9.3
+        id: boost-clone
+        with:
+          branch: ${{ (github.ref_name == 'master' && github.ref_name) || 'develop' }}
+          boost-dir: ../boost-source
+          scan-modules-dir: .
+          scan-modules-ignore: msm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Setup Ninja
+        if: runner.os == 'Windows'
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Build Antora docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+
+          cd ..
+          BOOST_SRC_DIR="$(pwd)/boost-source"
+          export BOOST_SRC_DIR
+
+          cd msm
+          cd doc
+          bash ./build_antora.sh
+
+          # Antora returns zero even if it fails, so we check if the site directory exists.
+          if [ ! -d "build" ]
+          then
+              echo "Antora build failed"
+              exit 1
+          fi
+
+      - name: Create Antora docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: antora-docs-${{ matrix.name }}
+          path: doc/build

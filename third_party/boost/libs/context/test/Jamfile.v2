@@ -12,12 +12,16 @@ import modules ;
 import os ;
 import testing ;
 import toolset ;
-import ../../config/checks/config : requires ;
+import-search /boost/config/checks ;
+import config : requires ;
 using flags ;
 
 project boost/context/test
     : requirements
+      <library>/boost/array//boost_array
+      <library>/boost/lexical_cast//boost_lexical_cast
       <library>/boost/context//boost_context
+      <library>/boost/variant//boost_variant
       <target-os>linux,<toolset>gcc,<segmented-stacks>on:<cxxflags>-fsplit-stack
       <target-os>linux,<toolset>gcc,<segmented-stacks>on:<cxxflags>-DBOOST_USE_SEGMENTED_STACKS
       <toolset>clang,<segmented-stacks>on:<cxxflags>-fsplit-stack
@@ -37,6 +41,10 @@ rule native-impl ( properties * )
     {
         result = <build>no ;
     }
+    else if ( <target-os>windows in $(properties) && <architecture>arm in $(properties) && <address-model>64 in $(properties) )
+    {
+        return <context-impl>winfib ;   # for windows arm64 always use winfib and skip ASM
+    }
     else if ( ! ( <target-os>windows in $(properties) ) )
     {
         result = <context-impl>ucontext ;
@@ -47,6 +55,22 @@ rule native-impl ( properties * )
     }
     return $(result) ;
 }
+
+rule fcontext-impl ( properties * )
+{
+    # Skip on Windows ARM64
+    if ( <target-os>windows in $(properties) &&
+         <architecture>arm in $(properties) &&
+         <address-model>64 in $(properties) )
+    {
+        return <build>no ; # for windows arm64 always use winfib and skip fcontext
+    }
+    else
+    {
+        return <context-impl>fcontext ;
+    }
+}
+
 
 obj is_libstdcxx : is_libstdcxx.cpp ;
 explicit is_libstdcxx ;
@@ -91,7 +115,7 @@ test-suite minimal :
 
 [ run test_fiber.cpp :
     : :
-    <context-impl>fcontext
+    <conditional>@fcontext-impl
     [ requires cxx11_auto_declarations
                cxx11_constexpr
                cxx11_defaulted_functions
@@ -146,7 +170,7 @@ test-suite minimal :
 
 [ run test_callcc.cpp :
     : :
-    <context-impl>fcontext
+     <conditional>@fcontext-impl
     [ requires cxx11_auto_declarations
                cxx11_constexpr
                cxx11_defaulted_functions

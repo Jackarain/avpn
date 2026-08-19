@@ -1,9 +1,11 @@
-// Copyright John Maddock 2006.
-// Copyright Paul A. Bristow 2007, 2009
+//  Copyright John Maddock 2006.
+//  Copyright Paul A. Bristow 2007, 2009
+//  Copyright Matt Borland 2024.
 //  Use, modification and distribution are subject to the
 //  Boost Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <boost/math/tools/config.hpp>
 #include <boost/math/concepts/real_concept.hpp>
 #define BOOST_TEST_MAIN
 #include <boost/test/unit_test.hpp>
@@ -19,6 +21,11 @@
 
 #ifndef SC_
 #define SC_(x) static_cast<typename table_type<T>::type>(BOOST_JOIN(x, L))
+#endif
+
+#ifdef BOOST_MATH_NO_EXCEPTIONS
+#  undef BOOST_CHECK_THROW
+#  define BOOST_CHECK_THROW(x, y)
 #endif
 
 template <class Real, class T>
@@ -165,6 +172,20 @@ void test_erf(T, const char* name)
    if(std::numeric_limits<T>::min_exponent <= -4500)
    {
       do_test_erfc_inv<T>(erfc_inv_big_data, name, "Inverse Erfc Function: extreme values");
+   }
+
+   BOOST_CHECK_EQUAL(boost::math::erf(T(0)), T(0));
+   BOOST_CHECK_EQUAL(boost::math::erfc(T(0)), T(1));
+
+   BOOST_CHECK(boost::math::erf(boost::math::tools::root_epsilon<T>() / 8) > T(0));
+   BOOST_CHECK(boost::math::erf(boost::math::tools::epsilon<T>() / 32) >= T(0));
+   BOOST_CHECK(boost::math::erfc(boost::math::tools::epsilon<T>() / 32) <= T(1));
+
+   const bool has_negative_zero { ((boost::math::signbit)(-T(0)) != 0) };
+
+   if(has_negative_zero)
+   {
+      BOOST_CHECK_EQUAL(boost::math::erf(-T(0)), -T(0));
    }
 
    BOOST_IF_CONSTEXPR(std::numeric_limits<T>::has_quiet_NaN)

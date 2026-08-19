@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 Antony Polukhin
+// Copyright (c) 2018-2026 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -23,7 +23,7 @@ int main() {
 // FIXME: https://github.com/boostorg/pfr/issues/131
 #if defined(__clang__) && __cplusplus >= 202002L
 
-# if BOOST_PFR_USE_LOOPHOLE == 0 && BOOST_PFR_USE_CPP17 == 0
+# if BOOST_PFR_USE_LOOPHOLE == 0 && BOOST_PFR_USE_CPP17 == 0 && BOOST_PFR_USE_CPP26 == 0
 #   error This test should fail on classic engine
 #endif
 

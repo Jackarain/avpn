@@ -144,6 +144,14 @@ struct url_test
             BOOST_TEST_EQ(u2.buffer(), "x://y/z?q#f");
         }
 
+        // self-move assignment preserves state
+        {
+            url u("http://example.com");
+            auto& ref = u;
+            u = std::move(ref);
+            BOOST_TEST_EQ(u.buffer(), "http://example.com");
+        }
+
         // url(core::string_view)
         {
             url u("http://example.com/path/to/file.txt?#");
@@ -250,6 +258,52 @@ struct url_test
                     "https://special-api.com/some/path");
             };
             f(url{"https://"}.set_host("special-api.com").set_path("some/path"));
+        }
+
+        {
+            // issue #919
+            core::string_view s = "http://[fe80::1%25eth0]/";
+            url u0 = parse_uri(s).value();
+            BOOST_TEST_EQ(u0.host_type(), host_type::ipv6);
+
+            // Round-trip ipv6_address
+            ipv6_address a = u0.host_ipv6_address();
+            u0.set_host_ipv6(a);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip zone_id
+            std::string z = u0.zone_id();
+            u0.set_zone_id(z);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip encoded_zone_id
+            pct_string_view ez = u0.encoded_zone_id();
+            u0.set_encoded_zone_id(ez);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip host
+            std::string h = u0.host();
+            u0.set_host(h);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip encoded host
+            pct_string_view eh = u0.encoded_host();
+            u0.set_encoded_host(eh);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip host_address
+            std::string ha = u0.host_address();
+            u0.set_host_address(ha);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Round-trip encoded_host_address
+            pct_string_view eha = u0.encoded_host_address();
+            u0.set_encoded_host_address(eha);
+            BOOST_TEST_CSTR_EQ(u0.buffer(), s);
+
+            // Copy constructor
+            url u1b(s);
+            BOOST_TEST_EQ(u0, u1b);
         }
     }
 
@@ -858,6 +912,26 @@ struct url_test
             BOOST_TEST(u.set_path_absolute(true));
             u.encoded_segments().push_back("y");
             });
+
+        // issue #921: path %2F round-trip
+        {
+            url u("https://example.com/a/b/c/d%2Fe%2Ff/g/h");
+            BOOST_TEST_CSTR_EQ(u.buffer(), "https://example.com/a/b/c/d%2Fe%2Ff/g/h");
+            BOOST_TEST(u.encoded_path() == "/a/b/c/d%2Fe%2Ff/g/h");
+            BOOST_TEST(u.path() == "/a/b/c/d/e/f/g/h");
+
+            // set_encoded_path with encoded value (should round-trip correctly)
+            u.set_encoded_path(u.encoded_path());
+            BOOST_TEST_CSTR_EQ(u.buffer(), "https://example.com/a/b/c/d%2Fe%2Ff/g/h");
+            BOOST_TEST(u.encoded_path() == "/a/b/c/d%2Fe%2Ff/g/h");
+            BOOST_TEST(u.path() == "/a/b/c/d/e/f/g/h");
+
+            // set_path with decoded value (impossible to round-trip)
+            u.set_path(u.path());
+            BOOST_TEST_CSTR_EQ(u.buffer(), "https://example.com/a/b/c/d/e/f/g/h");
+            BOOST_TEST(u.encoded_path() == "/a/b/c/d/e/f/g/h");
+            BOOST_TEST(u.path() == "/a/b/c/d/e/f/g/h");
+        }
     }
 
     //--------------------------------------------
@@ -1027,6 +1101,15 @@ struct url_test
                 BOOST_TEST_CSTR_EQ(u, "https:path2");
             }
         }
+
+        // issue #920
+        {
+            url u("https://www.example.org/path/index.html?a%20b=5%206&x%20y=34#frag");
+            url ref("?asdf%20qwer=1%202%20");
+            BOOST_TEST(u.resolve(ref));
+            BOOST_TEST_CSTR_EQ(u.buffer(), "https://www.example.org/path/index.html?asdf%20qwer=1%202%20");
+            BOOST_TEST(!u.has_fragment());
+        }
     }
 
     //--------------------------------------------
@@ -1137,6 +1220,80 @@ struct url_test
 
         }
 
+        // issue 985
+        // Authority ambiguity: ".." segments
+        // canceling regular segments can expose
+        // "//" without any dot prefix, producing
+        // a path that round-trips as an authority.
+        {
+            auto check_roundtrip = [](
+                core::string_view input)
+            {
+                url original = parse_uri_reference(
+                    input).value();
+                url normalized(original);
+                normalized.normalize();
+                auto r = parse_uri_reference(
+                    normalized.buffer());
+                BOOST_TEST(r.has_value());
+                if (!r.has_value())
+                {
+                    return;
+                }
+                url_view reparsed = r.value();
+                BOOST_TEST_EQ(
+                    original.has_authority(),
+                    reparsed.has_authority());
+                BOOST_TEST_EQ(
+                    normalized.encoded_path(),
+                    reparsed.encoded_path());
+                BOOST_TEST_EQ(
+                    original.is_path_absolute(),
+                    normalized.is_path_absolute());
+            };
+            // ".." cancels segments, exposing "//"
+            check_roundtrip("scheme:/a/..//evil");
+            check_roundtrip("scheme:/a/b/../..//evil");
+            check_roundtrip("scheme:/a/..//");
+            check_roundtrip("scheme:/a/..//path");
+            // ".." partially cancels
+            check_roundtrip("scheme:/a/./b/..//evil");
+            // relative path with ".."
+            check_roundtrip("a/..//evil");
+            check_roundtrip("a/b/../..//evil");
+            // dot prefix hiding "//"
+            check_roundtrip("scheme:/.//evil");
+            check_roundtrip(".//evil");
+            check_roundtrip("././/evil");
+            // issue 985 (scheme ambiguity variant):
+            // ".." cancels segments, exposing ":" in
+            // the first segment of a schemeless URL.
+            // All colons must be encoded, not just the
+            // first, because segment-nz-nc does not
+            // allow ":" at all.
+            check_roundtrip("a/../b:c");
+            check_roundtrip("a/b/../../c:d");
+            check_roundtrip("./a/../b:c");
+            // multiple colons in the exposed segment
+            check_roundtrip("a/../b:c:d");
+            check_roundtrip("a/../b:c:d:e");
+            // issue 931: normalization can produce a
+            // LONGER string. "a/../::::" is 10 bytes,
+            // but dot removal exposes "::::" as the
+            // first segment, and encoding all colons
+            // produces "%3A%3A%3A%3A" (12 bytes).
+            check_roundtrip("a/../::::");
+            check_roundtrip("a/../:b:c:d:e:f");
+            // ".." cancels colon segment AND exposes
+            // "//": colon encoding is wasted (segment
+            // disappears), but path shield is created
+            check_roundtrip("./b:c/..//x");
+            // ".." cancels non-colon segment, colon
+            // segment survives as first segment with
+            // "//" deeper in path
+            check_roundtrip("./b:c/d/..//x");
+        }
+
         // normalize path
         {
             auto check = [](core::string_view p,
@@ -1174,6 +1331,21 @@ struct url_test
             check(".", "");
             check("..", "..");
             check("", "");
+        }
+
+        // normalize path without authority: a "//" path must
+        // grow the buffer before prepending the "/." shield.
+        // https://github.com/boostorg/url/issues/992
+        {
+            auto check = [](core::string_view p,
+                            core::string_view e) {
+                url u = parse_origin_form(p).value();
+                u.normalize();
+                BOOST_TEST_EQ(u.encoded_path(), e);
+            };
+            check("//", "/.//");
+            check("///", "/.///");
+            check("////", "/.////");
         }
 
         // inequality

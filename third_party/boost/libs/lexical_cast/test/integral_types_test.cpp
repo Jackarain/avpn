@@ -4,7 +4,7 @@
 //
 //  Copyright Terje Sletteb and Kevlin Henney, 2005.
 //  Copyright Alexander Nasonov, 2006.
-//  Copyright Antony Polukhin, 2011-2024.
+//  Copyright Antony Polukhin, 2011-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
@@ -19,17 +19,20 @@
 //
 #define _SCL_SECURE_NO_WARNINGS
 
-#include <boost/lexical_cast.hpp>
-
 #include <boost/cstdint.hpp>
 
 #include <boost/core/lightweight_test.hpp>
 
+#include <boost/lexical_cast/detail/type_traits.hpp>
+
 #include <boost/type_traits/integral_promotion.hpp>
-#include <boost/type_traits/make_unsigned.hpp>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <memory>
+#include <type_traits>
+
+#include <boost/lexical_cast.hpp>
 
 #if (defined(BOOST_HAS_LONG_LONG) || defined(BOOST_HAS_MS_INT64)) \
     && !(defined(BOOST_MSVC) && BOOST_MSVC < 1300)
@@ -249,7 +252,7 @@ void test_conversion_from_string_to_integral(CharT)
         }
 
         typedef typename boost::integral_promotion<T>::type promoted;
-        if ( !(boost::is_same<T, promoted>::value) )
+        if ( !(std::is_same<T, promoted>::value) )
         {
             promoted prom = max_val;
             s = to_str<CharT>(max_val);
@@ -564,7 +567,7 @@ template <typename SignedT>
 void test_integral_conversions_on_min_max_impl()
 {
     typedef SignedT signed_t;
-    typedef typename boost::make_unsigned<signed_t>::type unsigned_t;
+    typedef typename boost::detail::lcast::make_unsigned<signed_t>::type unsigned_t;
 
     typedef std::numeric_limits<signed_t> s_limits;
     typedef std::numeric_limits<unsigned_t> uns_limits;

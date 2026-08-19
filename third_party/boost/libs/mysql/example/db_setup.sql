@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+-- Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 --
 -- Distributed under the Boost Software License, Version 1.0. (See accompanying
 -- file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -82,7 +82,6 @@ DELIMITER ;
 
 -- User
 DROP USER IF EXISTS 'example_user'@'%';
-CREATE USER 'example_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-ALTER USER 'example_user'@'%' IDENTIFIED BY 'example_password';
+CREATE USER 'example_user'@'%' IDENTIFIED BY 'example_password';
 GRANT ALL PRIVILEGES ON boost_mysql_examples.* TO 'example_user'@'%';
 FLUSH PRIVILEGES;

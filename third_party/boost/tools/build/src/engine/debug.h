@@ -9,11 +9,9 @@
 #define BJAM_DEBUG_H
 
 #include "config.h"
+#include "jam_fwd.h"
 #include "constants.h"
-#include "object.h"
 #include "psnip_debug_trap.h"
-#include "output.h"
-
 
 typedef struct profile_info
 {
@@ -58,7 +56,7 @@ double profile_clock();
 OBJECT * profile_make_local( char const * );
 #define PROFILE_ENTER_LOCAL( scope ) \
     static OBJECT * constant_LOCAL_##scope = 0; \
-    if (DEBUG_PROFILE && !constant_LOCAL_##scope) constant_LOCAL_##scope = profile_make_local( #scope ); \
+    if (is_debug_profile() && !constant_LOCAL_##scope) constant_LOCAL_##scope = profile_make_local( #scope ); \
     PROFILE_ENTER( LOCAL_##scope )
 #define PROFILE_EXIT_LOCAL( scope ) PROFILE_EXIT( LOCAL_##scope )
 

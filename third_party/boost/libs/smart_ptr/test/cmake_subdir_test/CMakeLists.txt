@@ -11,7 +11,6 @@ add_subdirectory(../../../assert boostorg/assert)
 add_subdirectory(../../../config boostorg/config)
 add_subdirectory(../../../core boostorg/core)
 add_subdirectory(../../../move boostorg/move)
-add_subdirectory(../../../static_assert boostorg/static_assert)
 add_subdirectory(../../../throw_exception boostorg/throw_exception)
 add_subdirectory(../../../type_traits boostorg/type_traits)
 
@@ -21,4 +20,4 @@ target_link_libraries(quick Boost::smart_ptr Boost::core)
 enable_testing()
 add_test(quick quick)
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>)
+add_custom_target(check VERBATIM COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>)

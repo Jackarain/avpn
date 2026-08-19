@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,6 +9,7 @@
 #define BOOST_MYSQL_CONNECT_PARAMS_HPP
 
 #include <boost/mysql/any_address.hpp>
+#include <boost/mysql/character_set.hpp>
 #include <boost/mysql/ssl_mode.hpp>
 #include <boost/mysql/string_view.hpp>
 
@@ -19,16 +20,10 @@ namespace boost {
 namespace mysql {
 
 /**
- * \brief (EXPERIMENTAL) Parameters to be used with \ref any_connection connect functions.
+ * \brief Parameters to be used with \ref any_connection connect functions.
  * \details
  * To be passed to \ref any_connection::connect and \ref any_connection::async_connect.
- * Includes the server address and MySQL handshake parameters.
- * \n
- * Contrary to \ref handshake_params, this is an owning type.
- *
- * \par Experimental
- * This part of the API is experimental, and may change in successive
- * releases without previous notice.
+ * Includes the server address and MySQL handshake parameters. This is an owning type.
  */
 struct connect_params
 {
@@ -70,6 +65,29 @@ struct connect_params
      * \details Disabled by default.
      */
     bool multi_queries{false};
+
+    /**
+     * \brief The character set that the server uses as its default.
+     * \details
+     * Set this value if you know the character set that your server is configured to use
+     * by default, as an optimization. It affects how the connection tracks its current
+     * character set (see \ref any_connection::current_character_set):
+     *
+     * \li If \ref connection_collation is set to \ref invalid_collation_id,
+     *     after connection establishment, the connection's character set is assumed to be
+     *     this one.
+     * \li After a successful \ref any_connection::async_reset_connection, the connection's
+     *     character set is assumed to be this one (resetting restores the server's default).
+     *
+     * Leave it value-initialized (the default) if you don't know the server's default
+     * character set, in which case the above operations leave the current character set unknown.
+     *
+     * When you set this value, you are promising the library that your server is configured
+     * to use this character set as its default. This is not checked at runtime, and failing
+     * to fulfill this promise can lead to vulnerabilities. Use it only as an optimization if
+     * you know what you are doing.
+     */
+    character_set server_default_charset{};
 };
 
 }  // namespace mysql

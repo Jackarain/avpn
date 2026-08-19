@@ -1,15 +1,18 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#include <boost/mysql/client_errc.hpp>
 #include <boost/mysql/datetime.hpp>
+#include <boost/mysql/error_code.hpp>
 #include <boost/mysql/field_view.hpp>
 #include <boost/mysql/mysql_collations.hpp>
 #include <boost/mysql/string_view.hpp>
 
+#include <boost/mysql/impl/internal/protocol/capabilities.hpp>
 #include <boost/mysql/impl/internal/protocol/serialization.hpp>
 
 #include <boost/core/span.hpp>
@@ -22,6 +25,7 @@
 #include "serialization_test.hpp"
 #include "test_common/assert_buffer_equals.hpp"
 #include "test_common/create_basic.hpp"
+#include "test_common/printing.hpp"
 #include "test_unit/mock_message.hpp"
 
 using namespace boost::mysql::detail;
@@ -30,13 +34,14 @@ namespace collations = boost::mysql::mysql_collations;
 using boost::span;
 using boost::mysql::date;
 using boost::mysql::datetime;
+using boost::mysql::error_code;
 using boost::mysql::field_view;
 using boost::mysql::string_view;
 
 BOOST_AUTO_TEST_SUITE(test_serialization)
 
 // spotcheck: multi-frame messages handled correctly by serialize_top_level
-BOOST_AUTO_TEST_CASE(serialize_top_level_)
+BOOST_AUTO_TEST_CASE(serialize_top_level_multiframe)
 {
     constexpr std::size_t frame_size = 8u;
     const std::array<std::uint8_t, 11> payload{
@@ -46,9 +51,22 @@ BOOST_AUTO_TEST_CASE(serialize_top_level_)
                                              4,  5,  6,  7,  8,  3, 0, 0, 43, 9, 10, 11};
 
     std::vector<std::uint8_t> buff{80, 81, 82, 83, 85};
-    std::uint8_t seqnum = serialize_top_level(mock_message{payload}, buff, 42, frame_size);
-    BOOST_TEST(seqnum == 44u);
+    auto result = serialize_top_level(mock_message{payload}, buff, 42, 0xffff, frame_size);
+    BOOST_TEST(result.err == error_code());
+    BOOST_TEST(result.seqnum == 44u);
     BOOST_MYSQL_ASSERT_BUFFER_EQUALS(buff, expected);
+}
+
+// spotcheck: max size correctly propagated
+BOOST_AUTO_TEST_CASE(serialize_top_level_error_max_size)
+{
+    const std::array<std::uint8_t, 11> payload{
+        {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+    };
+    std::vector<std::uint8_t> buff;
+    auto result = serialize_top_level(mock_message{payload}, buff, 42, 8u);
+    BOOST_TEST(result.err == boost::mysql::client_errc::max_buffer_size_exceeded);
+    BOOST_TEST(result.seqnum == 0u);
 }
 
 BOOST_AUTO_TEST_CASE(quit)
@@ -78,17 +96,6 @@ BOOST_AUTO_TEST_CASE(query)
     const std::uint8_t serialized[] =
         {0x03, 0x73, 0x68, 0x6f, 0x77, 0x20, 0x64, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x73};
     do_serialize_test(cmd, serialized);
-}
-
-// Query strings may be large. We consider framing when serializing them
-BOOST_AUTO_TEST_CASE(query_framing)
-{
-    query_command cmd{"show databases"};
-    const std::uint8_t serialized[] = {
-        0, 0, 0, 0, 0x03, 0x73, 0x68, 0x6f, 0x77, 0x20, 0x64, 0x61,  // frame 1
-        0, 0, 0, 0, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x73         // frame 2
-    };
-    do_serialize_test(cmd, serialized, 8u);
 }
 
 BOOST_AUTO_TEST_CASE(prepare_statement)
@@ -240,13 +247,13 @@ BOOST_AUTO_TEST_CASE(login_request_)
          0x35, 0xa5, 0xff, 0xdb, 0x3f, 0x48, 0xe6, 0xfc, 0x34, 0xc9}
     };
 
-    constexpr std::uint32_t caps = CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES |
-                                   CLIENT_PROTOCOL_41 | CLIENT_INTERACTIVE | CLIENT_TRANSACTIONS |
-                                   CLIENT_SECURE_CONNECTION | CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS |
-                                   CLIENT_PS_MULTI_RESULTS | CLIENT_PLUGIN_AUTH | CLIENT_CONNECT_ATTRS |
-                                   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |
-                                   CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |
-                                   CLIENT_DEPRECATE_EOF;
+    constexpr auto caps = capabilities::long_password | capabilities::long_flag | capabilities::local_files |
+                          capabilities::protocol_41 | capabilities::interactive | capabilities::transactions |
+                          capabilities::secure_connection | capabilities::multi_statements |
+                          capabilities::multi_results | capabilities::ps_multi_results |
+                          capabilities::plugin_auth | capabilities::connect_attrs |
+                          capabilities::plugin_auth_lenenc_data | capabilities::can_handle_expired_passwords |
+                          capabilities::session_track | capabilities::deprecate_eof;
 
     struct
     {
@@ -256,7 +263,7 @@ BOOST_AUTO_TEST_CASE(login_request_)
     } test_cases[] = {
         {
          "without_db", {
-                capabilities(caps),
+                caps,
                 16777216,  // max packet size
                 collations::utf8_general_ci,
                 "root",  // username
@@ -271,7 +278,7 @@ BOOST_AUTO_TEST_CASE(login_request_)
          },
         {
          "with_db",            {
-                capabilities(caps | CLIENT_CONNECT_WITH_DB),
+                caps | capabilities::connect_with_db,
                 16777216,  // max packet size
                 collations::utf8_general_ci,
                 "root",  // username
@@ -296,11 +303,12 @@ BOOST_AUTO_TEST_CASE(login_request_)
 
 BOOST_AUTO_TEST_CASE(ssl_request_)
 {
-    constexpr std::uint32_t caps = CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES | CLIENT_PROTOCOL_41 |
-                                   CLIENT_INTERACTIVE | CLIENT_SSL | CLIENT_TRANSACTIONS |
-                                   CLIENT_SECURE_CONNECTION | CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS |
-                                   CLIENT_PS_MULTI_RESULTS | CLIENT_PLUGIN_AUTH | CLIENT_CONNECT_ATTRS |
-                                   CLIENT_SESSION_TRACK | (1UL << 29);
+    constexpr auto caps = capabilities::long_flag | capabilities::local_files | capabilities::protocol_41 |
+                          capabilities::interactive | capabilities::ssl | capabilities::transactions |
+                          capabilities::secure_connection | capabilities::multi_statements |
+                          capabilities::multi_results | capabilities::ps_multi_results |
+                          capabilities::plugin_auth | capabilities::connect_attrs |
+                          capabilities::session_track | static_cast<capabilities>(1UL << 29);
 
     // Data
     ssl_request value{

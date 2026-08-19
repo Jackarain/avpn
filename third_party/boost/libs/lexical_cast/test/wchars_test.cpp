@@ -2,15 +2,20 @@
 //
 //  See http://www.boost.org for most recent version, including documentation.
 //
-//  Copyright Antony Polukhin, 2011-2024.
+//  Copyright Antony Polukhin, 2011-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt).
 
+#include <boost/core/lightweight_test.hpp>
+
 #include <boost/lexical_cast.hpp>
 
-#include <boost/core/lightweight_test.hpp>
+#if defined(BOOST_USE_MODULES)
+#undef BOOST_USE_MODULES
+#endif
+#include <boost/lexical_cast/detail/lcast_char_constants.hpp>
 
 #if defined(BOOST_NO_STRINGSTREAM) || defined(BOOST_NO_STD_WSTRING)
 #define BOOST_LCAST_NO_WCHAR_T

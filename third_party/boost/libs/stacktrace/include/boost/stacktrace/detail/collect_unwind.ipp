@@ -1,4 +1,4 @@
-// Copyright Antony Polukhin, 2016-2024.
+// Copyright Antony Polukhin, 2016-2026.
 //
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
@@ -12,8 +12,7 @@
 #   pragma once
 #endif
 
-#include <boost/stacktrace/safe_dump_to.hpp>
-
+#if !defined(BOOST_STACKTRACE_INTERFACE_UNIT)
 // On iOS 32-bit ARM architecture _Unwind_Backtrace function doesn't exist, symbol is undefined.
 // Forcing libc backtrace() function usage.
 #include <boost/predef.h>
@@ -28,10 +27,13 @@
 #include <unwind.h>
 #endif
 #include <cstdio>
+#endif // !defined(BOOST_STACKTRACE_INTERFACE_UNIT)
 
 #if !defined(_GNU_SOURCE) && !defined(BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED) && !defined(BOOST_WINDOWS)
 #error "Boost.Stacktrace requires `_Unwind_Backtrace` function. Define `_GNU_SOURCE` macro or `BOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED` if _Unwind_Backtrace is available without `_GNU_SOURCE`."
 #endif
+
+#include <boost/stacktrace/safe_dump_to.hpp>
 
 namespace boost { namespace stacktrace { namespace detail {
 
@@ -88,7 +90,7 @@ std::size_t this_thread_frames::collect(native_frame_ptr_t* out_frames, std::siz
 #else
     boost::stacktrace::detail::unwind_state state = { skip, out_frames, out_frames + max_frames_count };
     ::_Unwind_Backtrace(&boost::stacktrace::detail::unwind_callback, &state);
-    frames_count = state.current - out_frames;
+    frames_count = static_cast<std::size_t>(state.current - out_frames);
 #endif //defined(BOOST_STACKTRACE_USE_LIBC_BACKTRACE_FUNCTION)
 
     if (frames_count && out_frames[frames_count - 1] == 0) {

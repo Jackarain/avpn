@@ -2,7 +2,7 @@
 # Distributed under the Boost Software License, Version 1.0.
 # https://www.boost.org/LICENSE_1_0.txt
 
-cmake_minimum_required(VERSION 3.8...3.20)
+cmake_minimum_required(VERSION 3.8...3.31)
 
 project(boost_system VERSION "${BOOST_SUPERPROJECT_VERSION}" LANGUAGES CXX)
 
@@ -14,6 +14,7 @@ target_include_directories(boost_system INTERFACE include)
 target_link_libraries(boost_system
   INTERFACE
     Boost::assert
+    Boost::compat
     Boost::config
     Boost::throw_exception
     Boost::variant2
@@ -22,7 +23,7 @@ target_link_libraries(boost_system
 
 target_compile_features(boost_system INTERFACE cxx_std_11)
 
-if(CMAKE_VERSION VERSION_GREATER 3.18 AND CMAKE_GENERATOR MATCHES "Visual Studio")
+if(NOT CMAKE_VERSION VERSION_LESS 3.19 AND CMAKE_GENERATOR MATCHES "Visual Studio")
 
   file(GLOB_RECURSE boost_system_IDEFILES CONFIGURE_DEPENDS include/*.hpp)
   source_group(TREE ${PROJECT_SOURCE_DIR}/include FILES ${boost_system_IDEFILES} PREFIX "Header Files")

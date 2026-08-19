@@ -138,16 +138,17 @@ public:
         doMatrix<false>(
             "HTTP/1.1 200 OK\r\n"
             "Server: test\r\n"
-            "Expect: Expires, MD5-Fingerprint\r\n"
             "Transfer-Encoding: chunked\r\n"
+            "Trailer: Content-Digest, X-Forwarded-For\r\n"
             "\r\n"
             "5\r\n"
             "*****\r\n"
             "2;a;b=1;c=\"2\"\r\n"
             "--\r\n"
             "0;d;e=3;f=\"4\"\r\n"
-            "Expires: never\r\n"
-            "MD5-Fingerprint: -\r\n"
+            "Content-Digest: 123\r\n"
+            "Signature: xyz\r\n"
+            "X-Forwarded-For: 203.0.113.195\r\n"
             "\r\n",
             [&](parser_type<false> const& p)
             {
@@ -160,8 +161,9 @@ public:
                 BEAST_EXPECT(m.reason() == "OK");
                 BEAST_EXPECT(m["Server"] == "test");
                 BEAST_EXPECT(m["Transfer-Encoding"] == "chunked");
-                BEAST_EXPECT(m["Expires"] == "never");
-                BEAST_EXPECT(m["MD5-Fingerprint"] == "-");
+                BEAST_EXPECT(m["Content-Digest"] == "123");
+                BEAST_EXPECT(! m.contains("Signature"));
+                BEAST_EXPECT(! m.contains("X-Forwarded-For"));
                 BEAST_EXPECT(m.body() == "*****--");
             }
         );
@@ -327,6 +329,193 @@ public:
     }
 
     void
+    testTrailerHeaders()
+    {
+        // standard trailer not listed in `Trailer` fields
+        {
+            error_code ec;
+            parser_type<false> p;
+            p.eager(true);
+            p.put(
+                buf("HTTP/1.1 200 OK\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Content-Digest: 123\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+
+            // standard, not listed in Trailer
+            BEAST_EXPECT(! p.get().contains(field::content_digest));
+        }
+
+        // parser::merge_all_trailers(false);
+        {
+            error_code ec;
+            parser_type<false> p;
+            p.eager(true);
+            p.put(
+                buf("HTTP/1.1 200 OK\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "Trailer: Signature, X-Forwarded-For\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Content-Digest: 123\r\n"
+                    "Signature: xyz\r\n"
+                    "X-Forwarded-For: 203.0.113.195\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+
+            // standard, listed in Trailer
+            BEAST_EXPECT(p.get()[field::signature] == "xyz");
+
+            // standard, not listed in Trailer
+            BEAST_EXPECT(! p.get().contains(field::content_digest));
+            // non-standard, listed in Trailer
+            BEAST_EXPECT(! p.get().contains(field::x_forwarded_for));
+        }
+
+        // parser::merge_all_trailers(true);
+        {
+            error_code ec;
+            parser_type<false> p;
+            p.eager(true);
+            p.merge_all_trailers(true);
+            p.put(
+                buf("HTTP/1.1 200 OK\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "Trailer: Signature, X-Forwarded-For\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Content-Digest: 123\r\n"
+                    "Signature: xyz\r\n"
+                    "X-Forwarded-For: 203.0.113.195\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+
+            // standard, listed in Trailer
+            BEAST_EXPECT(p.get()[field::signature] == "xyz");
+            // non-standard, listed in Trailer
+            BEAST_EXPECT(p.get()[field::x_forwarded_for] == "203.0.113.195");
+
+            // standard, not listed in Trailer
+            BEAST_EXPECT(! p.get().contains(field::content_digest));
+        }
+
+        // rfc7230 section 4.1.2: framing and connection control
+        // fields carried in a trailer must not affect the message
+        {
+            error_code ec;
+            parser_type<false> p;
+            p.eager(true);
+            p.put(
+                buf("HTTP/1.1 200 OK\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Connection: close\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+            // Connection in the trailer must not close the connection
+            BEAST_EXPECT(p.keep_alive());
+        }
+        {
+            error_code ec;
+            parser_type<true> p;
+            p.eager(true);
+            p.put(
+                buf("GET / HTTP/1.1\r\n"
+                    "Host: localhost\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Connection: upgrade\r\n"
+                    "Upgrade: websocket\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+            // Upgrade in the trailer must not mark the message as upgrade
+            BEAST_EXPECT(! p.upgrade());
+        }
+
+        // framing/connection control fields are dropped even when they
+        // are listed in `Trailer` and merge_all_trailers(true) is set
+        {
+            error_code ec;
+            parser_type<false> p;
+            p.eager(true);
+            p.merge_all_trailers(true);
+            p.put(
+                buf("HTTP/1.1 200 OK\r\n"
+                    "Transfer-Encoding: chunked\r\n"
+                    "Trailer: Connection, Proxy-Connection, Upgrade, "
+                        "Transfer-Encoding, Content-Length, Trailer, Host\r\n"
+                    "\r\n"
+                    "0\r\n"
+                    "Connection: close\r\n"
+                    "Proxy-Connection: close\r\n"
+                    "Upgrade: websocket\r\n"
+                    "Transfer-Encoding: gzip\r\n"
+                    "Content-Length: 42\r\n"
+                    "Trailer: Evil\r\n"
+                    "Host: evil.example\r\n"
+                    "\r\n"),
+                ec);
+            BEAST_EXPECT(p.is_done());
+
+            // fields absent from the header must not be added
+            BEAST_EXPECT(! p.get().contains(field::connection));
+            BEAST_EXPECT(! p.get().contains(field::proxy_connection));
+            BEAST_EXPECT(! p.get().contains(field::upgrade));
+            BEAST_EXPECT(! p.get().contains(field::content_length));
+            BEAST_EXPECT(! p.get().contains(field::host));
+
+            // fields present in the header must not be duplicated
+            BEAST_EXPECT(p.get().count(field::transfer_encoding) == 1);
+            BEAST_EXPECT(p.get()[field::transfer_encoding] == "chunked");
+            BEAST_EXPECT(p.get().count(field::trailer) == 1);
+        }
+    }
+
+    void
+    testHeaderFieldLimits()
+    {
+        auto big_field_name  = std::string(fields::max_name_size + 1, 'a');
+        auto big_field_value = std::string(fields::max_value_size + 1, 'a');
+
+        {
+            parser_type<false> p;
+            p.header_limit((std::numeric_limits<std::uint32_t>::max)());
+            error_code ec;
+            flat_buffer b;
+            ostream(b) <<
+                "HTTP/1.1 200 OK\r\n"
+                << big_field_name
+                <<": value\r\n"
+                "\r\n";
+            put(b.data(), p, ec);
+            BEAST_EXPECT(ec == error::header_field_name_too_large);
+        }
+        {
+            parser_type<false> p;
+            p.header_limit((std::numeric_limits<std::uint32_t>::max)());
+            error_code ec;
+            flat_buffer b;
+            ostream(b) <<
+                "HTTP/1.1 200 OK\r\n"
+                << "name: "
+                << big_field_value << "\r\n"
+                << "\r\n";
+            put(b.data(), p, ec);
+            BEAST_EXPECT(ec == error::header_field_value_too_large);
+        }
+    }
+
+    void
     testIssue818()
     {
         // Make sure that the parser clears pre-existing fields
@@ -436,7 +625,8 @@ public:
 
         ostream(b) << "0\r\n"; // needs an extra CRLF
         used = p.put(b.data(), ec);
-        BEAST_EXPECT(used == 0);
+        BEAST_EXPECT(used == 3);
+        b.consume(used);
         BEAST_EXPECT(ec == error::need_more);
 
         ostream(b) << "\r";
@@ -446,7 +636,7 @@ public:
 
         ostream(b) << "\n";
         used = p.put(b.data(), ec);
-        BEAST_EXPECT(used == 5);
+        BEAST_EXPECT(used == 2);
         BEAST_EXPECT(!ec);
         BEAST_EXPECT(p.is_done());
     }
@@ -457,7 +647,9 @@ public:
         testParse();
         testNeedMore<flat_buffer>();
         testNeedMore<multi_buffer>();
+        testHeaderFieldLimits();
         testGotSome();
+        testTrailerHeaders();
         testIssue818();
         testIssue1187();
         testIssue1880();

@@ -25,19 +25,15 @@ class url_base;
 class params_view;
 #endif
 
-/** A view representing query parameters in a URL
+/** Mutable decoded query parameter proxy
 
-    Objects of this type are used to interpret
-    the query parameters as a bidirectional view
-    of key/value pairs.
-    The view does not retain ownership of the
-    elements and instead references the original
-    url. The caller is responsible for ensuring
-    that the lifetime of the referenced url
-    extends until it is no longer referenced.
-    The view is modifiable; calling non-const
-    members causes changes to the referenced
-    url.
+    This container presents the decoded query
+    parameters of a @ref url_base as a bidirectional
+    range whose modifying operations update the
+    underlying URL in-place. It references (but
+    does not own) the character buffer, so the
+    referenced URL must stay alive while the proxy
+    is used.
 
     <br>
 
@@ -76,8 +72,18 @@ class params_view;
     @li @ref replace, @ref set : Modified
         elements and all elements
         after (including `end()`).
+
+    @par Reads vs. writes
+    Although this is a mutable proxy, all
+    observer helpers inherited from
+    @ref params_base (such as @ref contains,
+    @ref find, and @ref get_or) operate in the
+    same way as they do on @ref params_view:
+    they perform their lookup against the
+    current contents of the referenced URL
+    without modifying it.
 */
-class BOOST_URL_DECL params_ref
+class BOOST_SYMBOL_VISIBLE params_ref
     : public params_base
 {
     friend class url_base;
@@ -180,6 +186,7 @@ public:
         Calls to allocate may throw.
 
         @param other The params to assign.
+        @return `*this`
     */
     params_ref&
     operator=(
@@ -210,6 +217,7 @@ public:
         Calls to allocate may throw.
 
         @param init The list of params to assign.
+        @return `*this`
     */
     params_ref&
     operator=(
@@ -217,6 +225,8 @@ public:
             param_view> init);
 
     /** Conversion
+
+        @return A view of the query parameters.
     */
     operator
     params_view() const noexcept;
@@ -243,6 +253,8 @@ public:
         @code
         Throws nothing.
         @endcode
+
+        @return A reference to the url.
     */
     url_base&
     url() const noexcept
@@ -343,8 +355,8 @@ public:
         Strong guarantee.
         Calls to allocate may throw.
 
-        @param first, last The range of params
-        to assign.
+        @param first The first element to assign.
+        @param last One past the last element to assign.
     */
     template<class FwdIt>
     void
@@ -437,10 +449,9 @@ public:
         Strong guarantee.
         Calls to allocate may throw.
 
+        @param first The first element to append.
+        @param last One past the last element to append.
         @return An iterator to the first new element.
-
-        @param first, last The range of params
-        to append.
     */
     template<class FwdIt>
     iterator
@@ -550,9 +561,9 @@ public:
         @param before An iterator before which
         the element is inserted. This may
         be equal to `end()`.
-
-        @param first, last The range of params
-        to insert.
+        @param first The first element to insert.
+        @param last One past the last element to insert.
+        @return An iterator to the first element inserted, or `before` if `first == last`.
     */
     template<class FwdIt>
     iterator
@@ -610,11 +621,9 @@ public:
         @par Exception Safety
         Throws nothing.
 
-        @return An iterator to one past
-        the removed range.
-
-        @param first, last The range of
-        elements to erase.
+        @param first The first element to remove.
+        @param last One past the last element to remove.
+        @return An iterator to one past the removed range.
     */
     iterator
     erase(
@@ -761,11 +770,11 @@ public:
         element inserted, or one past `to` if
         `first == last`.
 
-        @param from,to The range of elements to
-        replace.
-
-        @param first, last The range of params
-        to assign.
+        @param from The first element to replace.
+        @param to One past the last element to replace.
+        @param first The first element to insert.
+        @param last One past the last element to insert.
+        @return An iterator to the first element inserted, or one past `to` if `first == last`.
     */
     template<class FwdIt>
     iterator
@@ -951,5 +960,21 @@ private:
 // This is in <boost/url/url_base.hpp>
 //
 // #include <boost/url/impl/params_ref.hpp>
+
+//------------------------------------------------
+//
+// std::ranges::enable_borrowed_range
+//
+//------------------------------------------------
+
+#ifdef BOOST_URL_HAS_CONCEPTS
+#include <ranges>
+namespace std::ranges {
+    template<>
+    inline constexpr bool
+        enable_borrowed_range<
+            boost::urls::params_ref> = true;
+} // std::ranges
+#endif
 
 #endif

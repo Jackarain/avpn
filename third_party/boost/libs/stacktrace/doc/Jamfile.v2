@@ -1,4 +1,4 @@
-# Copyright Antony Polukhin, 2016-2024.
+# Copyright Antony Polukhin, 2016-2026.
 # Use, modification, and distribution are
 # subject to the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -9,9 +9,9 @@ import doxygen ;
 
 doxygen autodoc
    :
-      [ glob ../../../boost/stacktrace.hpp ]
-      [ glob ../../../boost/stacktrace/*.hpp ]
-      [ glob ../../../boost/stacktrace/detail/frame_decl.hpp ]
+      [ glob ../include/boost/stacktrace.hpp ]
+      [ glob ../include/boost/stacktrace/*.hpp ]
+      [ glob ../include/boost/stacktrace/detail/frame_decl.hpp ]
    :
         <doxygen:param>EXTRACT_ALL=NO
         <doxygen:param>HIDE_UNDOC_MEMBERS=YES

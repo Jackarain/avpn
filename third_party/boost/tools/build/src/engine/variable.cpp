@@ -40,6 +40,8 @@
 #include "pathsys.h"
 #include "jam_strings.h"
 #include "output.h"
+#include "strview.h"
+#include "value.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,87 +73,71 @@ static void var_dump( OBJECT * symbol, LIST * value, const char * what );
  * Otherwise, split the value at blanks.
  */
 
-void var_defines( struct module_t * module, const char * const * e, int preprocess )
+void var_defines(struct module_t * module, const char * const * e, int preprocess)
 {
-    string buf[ 1 ];
+	for (; *e; ++e)
+	{
+		::b2::string_view def(*e);
+		::b2::string_view var = def;
+		::b2::string_view val;
+		auto eq = def.find('=');
+		if (eq != ::b2::string_view::npos)
+		{
+			var = ::b2::string_view(def.begin(), eq);
+			val = ::b2::string_view(def.begin() + eq + 1);
+		}
+		b2::jam::variable jam_var { module,
+			std::string { var.begin(), var.end() }.c_str() };
+		// std::printf(">> var_defines: *e = %s\n", *e);
+		// for (auto v : jam_var.get())
+		// {
+		// 	std::printf("   '%s'\n", v->str());
+		// }
 
-    string_new( buf );
+		// No value to set var with.
+		if (val.empty()) continue;
 
-    for ( ; *e; ++e )
-    {
-        const char * val;
+		// Skip pre-processing, to just set the raw value.
+		if (preprocess == 0)
+		{
+			jam_var = ::b2::list_ref { ::b2::value_ref { val } };
+			continue;
+		}
 
-        if ( ( val = strchr( *e, '=' ) )
-#if defined( OS_MAC )
-            /* On the mac (MPW), the var=val is actually var\0val */
-            /* Think different. */
-            || ( val = *e + strlen( *e ) )
-#endif
-        )
-        {
-            LIST * l = L0;
-            int32_t const len = int32_t(strlen( val + 1 ));
-            int const quoted = ( val[ 1 ] == '"' ) && ( val[ len ] == '"' ) &&
-                ( len > 1 );
+		// Quoted values do not get separator-split. But do get unquoted.
+		if (val.size() >= 2 && val.front() == '"' && val.back() == '"')
+		{
+			jam_var = ::b2::list_ref { ::b2::value_ref {
+				val.substr(1, val.size() - 2) } };
+			continue;
+		}
 
-            if ( quoted && preprocess )
-            {
-                string_append_range( buf, val + 2, val + len );
-                l = list_push_back( l, object_new( buf->value ) );
-                string_truncate( buf, 0 );
-            }
-            else
-            {
-                const char * p;
-                const char * pp;
-                char split =
-#if defined( OPT_NO_EXTERNAL_VARIABLE_SPLIT )
-                    '\0'
-#elif defined( OS_MAC )
-                    ','
-#else
-                    ' '
-#endif
-                    ;
-
-                /* Split *PATH at :'s, not spaces. */
-                if ( val - 4 >= *e )
-                {
-                    if ( !strncmp( val - 4, "PATH", 4 ) ||
-                        !strncmp( val - 4, "Path", 4 ) ||
-                        !strncmp( val - 4, "path", 4 ) )
-                        split = SPLITPATH;
-                }
-
-                /* Do the split. */
-                for
-                (
-                    pp = val + 1;
-                    preprocess && ( ( p = strchr( pp, split ) ) != 0 );
-                    pp = p + 1
-                )
-                {
-                    string_append_range( buf, pp, p );
-                    l = list_push_back( l, object_new( buf->value ) );
-                    string_truncate( buf, 0 );
-                }
-
-                l = list_push_back( l, object_new( pp ) );
-            }
-
-            /* Get name. */
-            string_append_range( buf, *e, val );
-            {
-                OBJECT * varname = object_new( buf->value );
-                var_set( module, varname, l, VAR_SET );
-                object_free( varname );
-            }
-            string_truncate( buf, 0 );
-        }
-    }
-    string_free( buf );
+		// Split on separator, either space or path.
+		jam_var = ::b2::list_cref {};
+		{
+			char split = ' ';
+			/* Split *PATH at :'s, not spaces. */
+			if (var.ends_with("PATH") || var.ends_with("Path")
+				|| var.ends_with("path"))
+				split = SPLITPATH;
+			/* Do the split. */
+			for (::b2::string_view::size_type p0 = 0; p0 < val.size();)
+			{
+				auto p1 = val.find(split, p0);
+				if (p1 == val.npos)
+				{
+					jam_var += ::b2::value_ref { val.substr(p0) };
+					p0 = val.npos;
+				}
+				else
+				{
+					jam_var += ::b2::value_ref { val.substr(p0, p1 - p0) };
+					p0 = p1 + 1;
+				}
+			}
+		}
+	}
 }
-
 
 /* Last returned variable value saved so we may clear it in var_done(). */
 static LIST * saved_var = L0;
@@ -201,14 +187,14 @@ LIST * var_get( struct module_t * module, OBJECT * symbol )
 
         if ( ( n = module_get_fixed_var( module, symbol ) ) != -1 )
         {
-            if ( DEBUG_VARGET )
+            if ( is_debug_varget() )
                 var_dump( symbol, module->fixed_variables[ n ], "get" );
             result = module->fixed_variables[ n ];
         }
         else if ( module->variables && ( v = (VARIABLE *)hash_find(
             module->variables, symbol ) ) )
         {
-            if ( DEBUG_VARGET )
+            if ( is_debug_varget() )
                 var_dump( v->symbol, v->value, "get" );
             result = v->value;
         }
@@ -252,7 +238,7 @@ LIST * var_get( struct module_t * module, OBJECT * symbol )
                 if ( module->variables && ( v = (VARIABLE *)hash_find(
                     module->variables, symbol ) ) )
                 {
-                    if ( DEBUG_VARGET )
+                    if ( is_debug_varget() )
                         var_dump( v->symbol, v->value, "get" );
                     result = v->value;
                 }
@@ -295,7 +281,7 @@ void var_set( struct module_t * module, OBJECT * symbol, LIST * value, int flag
 {
     LIST * * v = var_enter( module, symbol );
 
-    if ( DEBUG_VARSET )
+    if ( is_debug_varset() )
         var_dump( symbol, value, "set" );
 
     switch ( flag )
@@ -327,7 +313,7 @@ LIST * var_swap( struct module_t * module, OBJECT * symbol, LIST * value )
 {
     LIST * * v = var_enter( module, symbol );
     LIST * oldvalue = *v;
-    if ( DEBUG_VARSET )
+    if ( is_debug_varset() )
         var_dump( symbol, value, "set" );
     *v = value;
     return oldvalue;

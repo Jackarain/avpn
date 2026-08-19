@@ -2,7 +2,7 @@
 //
 //  See http://www.boost.org for most recent version, including documentation.
 //
-//  Copyright Antony Polukhin, 2013-2024.
+//  Copyright Antony Polukhin, 2013-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
@@ -10,10 +10,10 @@
 //
 // Test lexical_cast usage with long filesystem::path. Bug 7704.
 
-#include <boost/lexical_cast.hpp>
-
 #include <boost/core/lightweight_test.hpp>
 #include <boost/filesystem/path.hpp>
+
+#include <boost/lexical_cast.hpp>
 
 void test_filesystem()
 {

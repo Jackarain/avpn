@@ -1,34 +1,45 @@
 // Copyright 2014 Renato Tegon Forti, Antony Polukhin.
-// Copyright Antony Polukhin, 2015-2024.
+// Copyright Antony Polukhin, 2015-2026.
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
 // or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+/// \file boost/dll/library_info.hpp
+/// \brief Contains only the boost::dll::library_info class that is capable of
+/// extracting different information from binaries.
+
 #ifndef BOOST_DLL_LIBRARY_INFO_HPP
 #define BOOST_DLL_LIBRARY_INFO_HPP
 
-#include <boost/dll/config.hpp>
-#include <boost/assert.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/predef/os.h>
-#include <boost/predef/architecture.h>
-#include <boost/throw_exception.hpp>
-#include <boost/type_traits/integral_constant.hpp>
+#include <boost/dll/detail/config.hpp>
 
-#include <fstream>
-
-#include <boost/dll/detail/pe_info.hpp>
-#include <boost/dll/detail/elf_info.hpp>
-#include <boost/dll/detail/macho_info.hpp>
+#if !defined(BOOST_USE_MODULES) || defined(BOOST_DLL_INTERFACE_UNIT)
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 # pragma once
 #endif
 
-/// \file boost/dll/library_info.hpp
-/// \brief Contains only the boost::dll::library_info class that is capable of
-/// extracting different information from binaries.
+#include <boost/dll/config.hpp>
+
+#if !defined(BOOST_DLL_INTERFACE_UNIT)
+#include <boost/assert.hpp>
+#include <boost/noncopyable.hpp>
+#include <boost/predef/os.h>
+#include <boost/predef/architecture.h>
+#include <boost/throw_exception.hpp>
+
+#if !defined(BOOST_DLL_USE_STD_MODULE)
+#include <fstream>
+#include <type_traits>
+#endif // !defined(BOOST_DLL_USE_STD_MODULE)
+#endif // !defined(BOOST_DLL_INTERFACE_UNIT)
+
+#include <boost/dll/detail/pe_info.hpp>
+#include <boost/dll/detail/elf_info.hpp>
+#include <boost/dll/detail/macho_info.hpp>
+
+BOOST_DLL_BEGIN_MODULE_EXPORT
 
 namespace boost { namespace dll {
 
@@ -50,15 +61,15 @@ private:
     } fmt_;
 
     /// @cond
-    inline static void throw_if_in_32bit_impl(boost::true_type /* is_32bit_platform */) {
+    inline static void throw_if_in_32bit_impl(std::true_type /* is_32bit_platform */) {
         boost::throw_exception(std::runtime_error("Not native format: 64bit binary"));
     }
 
-    inline static void throw_if_in_32bit_impl(boost::false_type /* is_32bit_platform */) BOOST_NOEXCEPT {}
+    inline static void throw_if_in_32bit_impl(std::false_type /* is_32bit_platform */) noexcept {}
 
 
     inline static void throw_if_in_32bit() {
-        throw_if_in_32bit_impl( boost::integral_constant<bool, (sizeof(void*) == 4)>() );
+        throw_if_in_32bit_impl( std::integral_constant<bool, (sizeof(void*) == 4)>() );
     }
 
     static void throw_if_in_windows() {
@@ -116,6 +127,7 @@ public:
     * \param library_path Path to the binary file from which the info must be extracted.
     * \param throw_if_not_native_format Throw an exception if this file format is not
     * supported by OS.
+    * \throws std::exception based exceptions.
     */
     explicit library_info(const boost::dll::fs::path& library_path, bool throw_if_not_native_format = true)
         : f_(
@@ -142,6 +154,7 @@ public:
 
     /*!
     * \return List of sections that exist in binary file.
+    * \throws std::exception based exceptions.
     */
     std::vector<std::string> sections() {
         switch (fmt_) {
@@ -158,6 +171,7 @@ public:
 
     /*!
     * \return List of all the exportable symbols from all the sections that exist in binary file.
+    * \throws std::exception based exceptions.
     */
     std::vector<std::string> symbols() {
         switch (fmt_) {
@@ -175,6 +189,7 @@ public:
     /*!
     * \param section_name Name of the section from which symbol names must be returned.
     * \return List of symbols from the specified section.
+    * \throws std::exception based exceptions.
     */
     std::vector<std::string> symbols(const char* section_name) {
         switch (fmt_) {
@@ -206,4 +221,9 @@ public:
 };
 
 }} // namespace boost::dll
+
+BOOST_DLL_END_MODULE_EXPORT
+
+#endif // !defined(BOOST_USE_MODULES) || defined(BOOST_DLL_INTERFACE_UNIT)
+
 #endif // BOOST_DLL_LIBRARY_INFO_HPP

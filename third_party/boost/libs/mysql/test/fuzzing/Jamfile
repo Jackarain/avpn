@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+# Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -36,10 +36,11 @@ for local fuzzer in $(all_fuzzers)
     make /tmp/corpus/$(fuzzer) : : common.MkDir ;
     make /tmp/mincorpus/$(fuzzer) : : common.MkDir ;
 
-    # Build the fuzzer
+    # Build the fuzzer. Fail the build if openssl is not found
     exe $(fuzzer)
         : 
             /boost/mysql/test//boost_mysql
+            /boost/mysql/test//fail_if_no_openssl
             $(fuzzer).cpp
         : requirements
             <include>../common/include

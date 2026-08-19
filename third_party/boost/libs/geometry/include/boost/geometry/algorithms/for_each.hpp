@@ -117,13 +117,13 @@ struct fe_point_type
     typedef util::transcribe_const_t
         <
             Range,
-            typename point_type<Range>::type
+            point_type_t<Range>
         > type;
 };
 
 
 template <typename Range>
-struct fe_point_type_is_referencable
+struct fe_point_type_is_referenceable
 {
     static const bool value =
         std::is_const<Range>::value
@@ -138,7 +138,7 @@ struct fe_point_type_is_referencable
 template
 <
     typename Range,
-    bool UseReferences = fe_point_type_is_referencable<Range>::value
+    bool UseReferences = fe_point_type_is_referenceable<Range>::value
 >
 struct fe_point_call_f
 {
@@ -192,7 +192,7 @@ struct fe_point_range
 template
 <
     typename Range,
-    bool UseReferences = fe_point_type_is_referencable<Range>::value
+    bool UseReferences = fe_point_type_is_referenceable<Range>::value
 >
 struct fe_segment_call_f
 {
@@ -369,7 +369,7 @@ namespace dispatch
 template
 <
     typename Geometry,
-    typename Tag = typename tag_cast<typename tag<Geometry>::type, multi_tag>::type
+    typename Tag = tag_cast_t<tag_t<Geometry>, multi_tag>
 >
 struct for_each_point: not_implemented<Tag>
 {};
@@ -427,7 +427,7 @@ struct for_each_point<MultiGeometry, multi_tag>
 template
 <
     typename Geometry,
-    typename Tag = typename tag<Geometry>::type
+    typename Tag = tag_t<Geometry>
 >
 struct for_each_segment: not_implemented<Tag>
 {};

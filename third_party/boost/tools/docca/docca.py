@@ -10,10 +10,12 @@
 #
 
 import argparse
+import importlib
+import io
 import jinja2
 import json
-import io
 import os.path
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -106,6 +108,27 @@ class UrlLink(Phrase):
             result = self.url
         return result
 
+class EmDash:
+    def __init__(self, *args, **kw):
+        pass
+
+    @property
+    def text(self):
+        return '\u2014'
+
+    def __len__(self):
+        return 0
+
+class EnDash:
+    def __init__(self, *args, **kw):
+        pass
+
+    @property
+    def text(self):
+        return '\u2013'
+
+    def __len__(self):
+        return 0
 
 class Block:
     pass
@@ -307,6 +330,7 @@ def make_blocks(element, index):
     for child in element:
         func = {
             'itemizedlist': make_list,
+            'orderedlist': make_ordered_list,
             'simplesect': make_section,
             'programlisting': make_codeblock,
             'parameterlist': make_parameters,
@@ -332,6 +356,13 @@ def make_list(element, index):
         assert child.tag == 'listitem'
         items.append(make_blocks(child, index))
     return List(element.get('type'), items)
+
+def make_ordered_list(element, index):
+    items = []
+    for child in element:
+        assert child.tag == 'listitem'
+        items.append(make_blocks(child, index))
+    return List(element.get('type') or List.Arabic, items)
 
 def make_parameters(element, index):
     result = []
@@ -363,7 +394,7 @@ def make_parameters(element, index):
 
 def make_section(element, index):
     title = None
-    if element and element[0].tag == 'title':
+    if len(element) and element[0].tag == 'title':
         title = phrase_content(element[0], index)
     title = Paragraph(title or [])
 
@@ -451,6 +482,8 @@ def make_phrase(element, index, allow_missing_refs=False):
         'ulink': make_url_link,
         'linebreak': make_linebreak,
         'ref': make_entity_reference,
+        'mdash': EmDash,
+        'ndash': EnDash,
     }[element.tag]
     return func(element, index, allow_missing_refs=allow_missing_refs)
 
@@ -510,6 +543,23 @@ _chartable = {
 def remove_endlines(s):
     return s.translate(_chartable)
 
+_noexcept_pattern = re.compile(r'(?<=\bnoexcept\()')
+def parse_noexcept_condition(argstring):
+    match = _noexcept_pattern.search(argstring)
+    if match:
+        parens = 1
+        start = match.start(0)
+        end = -1
+        for i in range(start, len(argstring)):
+            if not parens:
+                end = i
+                break
+            if argstring[i] == '(':
+                parens += 1
+            elif argstring[i]== ')':
+                parens -= 1
+        assert parens == 0
+        return argstring[start:end]
 
 class Location():
     def __init__(self, elem):
@@ -671,10 +721,13 @@ class Templatable(Entity):
 
     def resolve_references(self):
         super().resolve_references()
-        self.template_parameters = [
-            Parameter(elem, self)
-            for elem in (self._template_parameters or [])
-        ]
+        params = (
+            self._template_parameters
+            if self._template_parameters is not None
+                and len(self._template_parameters)
+            else []
+        )
+        self.template_parameters = [Parameter(elem, self) for elem in params]
         delattr(self, '_template_parameters')
 
 
@@ -741,9 +794,32 @@ class Scope(Entity):
                     key = (member.name, member.access, member.kind)
                     self.members[key] = member
                 else:
+                    if member and member.name in self.members:
+                        member = work_around_repeated_member(self, member)
+                    if member is None:
+                        continue
                     assert member.name not in self.members
                     self.members[member.name] = member
 
+
+    def resolve_references(self):
+        super().resolve_references()
+        bad_keys = []
+        for key, member in self.members.items():
+            if isinstance(member, OverloadSet):
+                good_funcs = [
+                    func for func in member
+                    if self.index.get(func.id) is func
+                ]
+                if good_funcs:
+                    member.funcs = good_funcs
+                else:
+                    bad_keys.append(key)
+            elif self.index[member.id] is not member:
+                bad_keys.append(key)
+
+        for key in bad_keys:
+            del self.members[key]
 
 class Namespace(Scope, Compound):
     declarator = 'namespace'
@@ -866,6 +942,12 @@ class Function(Value):
 
         self._parameters = element.findall('param')
 
+        self.noexcept_condition = None
+        if self.is_noexcept:
+            self.noexcept_condition = element.get('noexceptexpression')
+            if not self.noexcept_condition:
+                self.noexcept_condition = parse_noexcept_condition(args)
+
     @property
     def kind(self):
         if self.is_friend:
@@ -905,7 +987,7 @@ class Function(Value):
             return self.name < other.name
 
         if self.name == other.name:
-            if self.scope == parent.scope:
+            if self.scope == other.scope:
                 return self.overload_index < other.overload_index
             return self.scope < other.scope
 
@@ -942,10 +1024,25 @@ class Parameter():
             assert self.type[-1].endswith('(&)')
             self.type[-1] = self.type[-1][:-3]
 
+        self.args = text_with_refs(element.find('argsstring'), parent.index)
+        if self.args:
+            assert isinstance(self.type[-1], str)
+            assert isinstance(self.args[0], str)
+            assert self.type[-1].endswith('(*')
+            assert self.args[0].startswith(')(')
+            self.type[-1] = self.type[-1][:-2]
+            self.args[0] = self.args[0][1:]
+
 
 class OverloadSet():
     @staticmethod
     def create(element, section, parent, index):
+        if (index.get( element.get('id') )
+            and (section.get('kind') != 'related'
+                 or not isinstance(parent, Class))
+        ):
+            return None
+
         func = Function(element, section, parent, index)
 
         key = (func.name, func.access, func.kind)
@@ -1008,6 +1105,7 @@ class Variable(Value):
         super().__init__(element, parent, index)
         self._value = element.find('initializer')
         self._type = element.find('type')
+        self._args = element.find('argsstring')
 
     def resolve_references(self):
         super().resolve_references()
@@ -1017,6 +1115,15 @@ class Variable(Value):
 
         self.type = resolve_type(self._type, self.index)
         delattr(self, '_type')
+
+        self.args = text_with_refs(self._args, self.index)
+        delattr(self, '_args')
+        if (self.args
+            and self.type[-1].endswith('(*')
+            and self.args[0].startswith(')(')
+        ):
+            self.type[-1] = self.type[-1][:-2]
+            self.args[0] = self.args[0][1:]
 
 
 class Enumerator(Variable):
@@ -1047,6 +1154,28 @@ class TypeAlias(Member, Type):
         super().resolve_references()
         self.aliased = text_with_refs(self._aliased, self.index)
         delattr(self, '_aliased')
+
+
+def work_around_repeated_member(scope, member):
+    scope_loc = scope.location
+    member_loc = member.location
+    old_member = scope.members[member.name]
+    old_member_loc = old_member.location
+    if (scope.is_specialization and
+            scope_loc and
+            member_loc and
+            old_member_loc and
+            member_loc.file == scope_loc.file and
+            member_loc.line >= scope_loc.line and
+            (old_member_loc.file != scope_loc.file or
+                old_member_loc.line < scope_loc.line)):
+        # the new member's declaration is in the same file as the
+        # specialization's declaration and follows it; the old member's
+        # declarattion is either in a different file or preceeds the
+        # specialization's declaration
+        del scope.members[member.name]
+        return member
+    return None
 
 
 class AcceptOneorNone(argparse.Action):
@@ -1090,6 +1219,11 @@ def parse_args(args):
         action=AcceptOneorNone,
         help='Jinja2 template to use for output')
     parser.add_argument(
+        '-E', '--extension',
+        action='append',
+        default=[],
+        help='Extension module')
+    parser.add_argument(
         '-I', '--include',
         action='append',
         default=[],
@@ -1132,6 +1266,13 @@ def load_configs(args):
     for file_name in args.config:
         with open(file_name, 'r', encoding='utf-8') as file:
             result.update( json.load(file) )
+    if 'allowed_prefixes' not in result:
+        allowed_prefixes = ['']
+        default_ns = result.get('default_namespace')
+        if default_ns:
+            allowed_prefixes[0] = default_ns + '::'
+        result['allowed_prefixes'] = allowed_prefixes
+
     return result
 
 def collect_compound_refs(file):
@@ -1211,6 +1352,7 @@ def construct_environment(loader, config):
     env.globals['Section'] = Section
     env.globals['ParameterList'] = ParameterList
     env.globals['Config'] = config
+    env.globals['re'] = re
 
     env.tests['Entity'] = lambda x: isinstance(x, Entity)
     env.tests['Templatable'] = lambda x: isinstance(x, Templatable)
@@ -1227,7 +1369,7 @@ def construct_environment(loader, config):
     env.tests['Enumerator'] = lambda x: isinstance(x, Enumerator)
     env.tests['Function'] = lambda x: isinstance(x, Function)
     env.tests['OverloadSet'] = lambda x: isinstance(x, OverloadSet)
-    env.tests['Parameter'] = lambda x: isinstance(x, OverloadSet)
+    env.tests['Parameter'] = lambda x: isinstance(x, Parameter)
 
     env.tests['Phrase'] = lambda x: isinstance(x, Phrase)
     env.tests['Linebreak'] = lambda x: isinstance(x, Linebreak)
@@ -1236,6 +1378,8 @@ def construct_environment(loader, config):
     env.tests['Monospaced'] = lambda x: isinstance(x, Monospaced)
     env.tests['EntityRef'] = lambda x: isinstance(x, EntityRef)
     env.tests['UrlLink'] = lambda x: isinstance(x, UrlLink)
+    env.tests['EmDash'] = lambda x: isinstance(x, EmDash)
+    env.tests['EnDash'] = lambda x: isinstance(x, EnDash)
 
     env.tests['Block'] = lambda x: isinstance(x, Block)
     env.tests['Paragraph'] = lambda x: isinstance(x, Paragraph)
@@ -1249,6 +1393,29 @@ def construct_environment(loader, config):
     env.tests['ParameterDescription'] = lambda x: isinstance(x, ParameterDescription)
     env.tests['ParameterItem'] = lambda x: isinstance(x, ParameterItem)
 
+    return env
+
+def load_extensions(files):
+    result = []
+    counter = 0
+    for file in files:
+        module = None
+        if not os.path.exists(file):
+            raise RuntimeError('Could not find module %s' % file)
+
+        name = 'docca._ext' + str(counter)
+        spec = importlib.util.spec_from_file_location(name, file)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        result.append(module)
+        counter += 1
+
+    return result
+
+def install_extensions(env, exts):
+    for ext in exts:
+        ext.install_docca_extension(env)
     return env
 
 def render(env, file_name, output, data):
@@ -1274,6 +1441,9 @@ def main(args, stdin, stdout, script):
 
         env = construct_environment(
             jinja2.FileSystemLoader(include_dirs), config)
+
+        exts = load_extensions(args.extension)
+        env = install_extensions(env, exts)
 
         render(env, template, file, data)
 

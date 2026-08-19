@@ -79,7 +79,9 @@ struct ut_settings : ut_base_settings
     bool validity_false_negative_b = false;
     bool validity_false_negative_sym = false;
 
-    explicit ut_settings(double p = 0.0001, bool validity = true, bool sd = true)
+    static constexpr double default_tolerance = 0.0001;
+
+    explicit ut_settings(double p = default_tolerance, bool validity = true, bool sd = true)
         : ut_base_settings(validity)
         , percentage(p)
         , sym_difference(sd)
@@ -131,9 +133,6 @@ void difference_output(std::string const& caseid, G1 const& g1, G2 const& g2, Ou
             << string_from_type<coordinate_type>::name()
             << (ccw ? "_ccw" : "")
             << (open ? "_open" : "")
-#if defined(BOOST_GEOMETRY_USE_RESCALING)
-            << "_rescaled"
-#endif
             << ".svg";
 
         std::ofstream svg(filename.str().c_str());
@@ -218,7 +217,6 @@ std::string test_difference(std::string const& caseid, G1 const& g1, G2 const& g
 #if ! defined(BOOST_GEOMETRY_NO_BOOST_TEST)
     if (settings.test_validity_of_diff(dtype))
     {
-        // std::cout << bg::dsv(result) << std::endl;
         typedef bg::model::multi_polygon<OutputType> result_type;
         std::string message;
         bool const valid = check_validity<result_type>::apply(result, caseid, g1, g2, message);
@@ -230,8 +228,7 @@ std::string test_difference(std::string const& caseid, G1 const& g1, G2 const& g
 
     difference_output(caseid, g1, g2, result);
 
-#if ! (defined(BOOST_GEOMETRY_TEST_ONLY_ONE_TYPE) \
-    || defined(BOOST_GEOMETRY_DEBUG_ASSEMBLE))
+#if ! defined(BOOST_GEOMETRY_TEST_ONLY_ONE_TYPE)
     {
         // Test inserter functionality
         // Test if inserter returns output-iterator (using Boost.Range copy)
@@ -258,18 +255,6 @@ std::string test_difference(std::string const& caseid, G1 const& g1, G2 const& g
 
 
 #if ! defined(BOOST_GEOMETRY_NO_BOOST_TEST)
-#if defined(BOOST_GEOMETRY_USE_RESCALING)
-    if (expected_point_count >= 0)
-    {
-        std::size_t const n = bg::num_points(result);
-        BOOST_CHECK_MESSAGE(bg::math::abs(int(n) - expected_point_count) < 3,
-                "difference: " << caseid
-                << " #points expected: " << expected_point_count
-                << " detected: " << n
-                << " type: " << (type_for_assert_message<G1, G2>())
-                );
-    }
-#endif
 
     if (! expected_count.empty())
     {

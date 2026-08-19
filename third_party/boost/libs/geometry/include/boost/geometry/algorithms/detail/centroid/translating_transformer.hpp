@@ -19,8 +19,8 @@
 
 
 #include <cstddef>
+#include <memory>
 
-#include <boost/core/addressof.hpp>
 #include <boost/core/ref.hpp>
 
 #include <boost/geometry/core/cs.hpp>
@@ -45,17 +45,16 @@ namespace detail { namespace centroid
 // cartesian. But if it was needed then one should translate using
 // CS-specific technique, e.g. in spherical/geographic a translation
 // vector should contain coordinates being multiplies of 2PI or 360 deg.
-template <typename Geometry,
-          typename CastedTag = typename tag_cast
-                                <
-                                    typename tag<Geometry>::type,
-                                    areal_tag
-                                >::type,
-    typename CSTag = typename cs_tag<Geometry>::type>
+template
+<
+    typename Geometry,
+    typename CastedTag = tag_cast_t<tag_t<Geometry>, areal_tag>,
+    typename CSTag = cs_tag_t<Geometry>
+>
 struct translating_transformer
 {
-    typedef typename geometry::point_type<Geometry>::type point_type;
-    typedef boost::reference_wrapper<point_type const> result_type;
+    using point_type = geometry::point_type_t<Geometry>;
+    using result_type = boost::reference_wrapper<point_type const>;
 
     explicit translating_transformer(Geometry const&) {}
     explicit translating_transformer(point_type const&) {}
@@ -73,8 +72,8 @@ struct translating_transformer
 template <typename Geometry>
 struct translating_transformer<Geometry, areal_tag, cartesian_tag>
 {
-    typedef typename geometry::point_type<Geometry>::type point_type;
-    typedef point_type result_type;
+    using point_type = geometry::point_type_t<Geometry>;
+    using result_type = point_type;
 
     explicit translating_transformer(Geometry const& geom)
         : m_origin(NULL)
@@ -83,12 +82,12 @@ struct translating_transformer<Geometry, areal_tag, cartesian_tag>
             pt_it = geometry::points_begin(geom);
         if ( pt_it != geometry::points_end(geom) )
         {
-            m_origin = boost::addressof(*pt_it);
+            m_origin = std::addressof(*pt_it);
         }
     }
 
     explicit translating_transformer(point_type const& origin)
-        : m_origin(boost::addressof(origin))
+        : m_origin(std::addressof(origin))
     {}
 
     result_type apply(point_type const& pt) const

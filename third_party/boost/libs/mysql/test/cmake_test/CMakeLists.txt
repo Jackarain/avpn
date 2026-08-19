@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+# Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,13 +20,16 @@ else()
         asio
         assert
         charconv
+        compat
         config
+        container
         core
         describe
         endian
         intrusive
         mp11
         optional
+        pfr
         system
         throw_exception
         variant2
@@ -34,9 +37,7 @@ else()
         # Secondary dependencies
         align
         context
-        coroutine
         date_time
-        static_assert
         container_hash
         move
         detail
@@ -63,12 +64,10 @@ else()
         regex
         tuple
         unordered
-        container
         integer
         conversion
         function_types
         fusion
-        functional
         typeof
     )
 

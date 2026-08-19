@@ -12,6 +12,7 @@
 #define BOOST_CONTAINER_TEST_SET_TEST_HEADER
 
 #include <boost/container/detail/config_begin.hpp>
+#include <boost/container/detail/compare_functors.hpp>
 #include "check_equal_containers.hpp"
 #include "print_container.hpp"
 #include "movable_int.hpp"
@@ -823,6 +824,54 @@ int set_test ()
       if(!CheckEqualContainers(boostmultiset, stdmultiset)) return 1;
    }
 
+   {  //erase_if
+      boostset.clear();
+      boostmultiset.clear();
+      stdset.clear();
+      stdmultiset.clear();
+
+      {
+         IntType aux_vect[(std::size_t)MaxElem];
+         IntType aux_vect2[(std::size_t)MaxElem];
+         IntType aux_vect3[(std::size_t)MaxElem];
+
+         for(int i = 0; i < MaxElem; ++i){
+            aux_vect[i] = i;
+            aux_vect2[i] = i;
+            aux_vect3[i] = i;
+         }
+
+         boostset.     insert(boost::make_move_iterator(&aux_vect[0]),  boost::make_move_iterator(&aux_vect[0]  + MaxElem));
+         boostmultiset.insert(boost::make_move_iterator(&aux_vect2[0]), boost::make_move_iterator(&aux_vect2[0] + MaxElem));
+         boostmultiset.insert(boost::make_move_iterator(&aux_vect3[0]), boost::make_move_iterator(&aux_vect3[0] + MaxElem));
+      }
+
+      for(int i = 0; i < MaxElem; ++i){
+         stdset.insert(i);
+         stdmultiset.insert(i);
+         stdmultiset.insert(i);
+      }
+
+      for(int i = 0; i < MaxElem; ++i) {
+         //erase_if
+         const int setkey = (i + MaxElem/2) % MaxElem;
+         if (1 != erase_if(boostset, equal_to_value<int>(setkey)))
+            return 1;
+         if (0 != erase_if(boostset, equal_to_value<int>(setkey)))
+            return 1;
+         stdset.erase(setkey);
+         if(!test::CheckEqualContainers(boostset, stdset)) return false;
+
+         //erase_if
+         if (2 != erase_if(boostmultiset, equal_to_value<int>(setkey)))
+            return 1;
+         if (0 != erase_if(boostmultiset, equal_to_value<int>(setkey)))
+            return 1;
+         stdmultiset.erase(setkey);
+         if(!test::CheckEqualContainers(boostmultiset, stdmultiset)) return false;
+      }
+   }
+
    if(set_test_copyable<MyBoostSet, MyStdSet, MyBoostMultiSet, MyStdMultiSet>
       (dtl::bool_<boost::container::test::is_copyable<IntType>::value>())){
       return 1;
@@ -952,6 +1001,146 @@ bool instantiate_constructors()
    }
    return true;
 }
+
+
+
+
+
+
+
+template<typename IntSetType, typename IntMultisetType>
+bool test_heterogeneous_lookup()
+{
+   typedef IntSetType set_t;
+   typedef IntMultisetType mset_t;
+   
+   set_t set1;
+   mset_t mset1;
+
+   const set_t &cset1 = set1;
+   const mset_t &cmset1 = mset1;
+
+   set1.insert(1);
+   set1.insert(1);
+   set1.insert(2);
+   set1.insert(2);
+   set1.insert(3);
+
+   mset1.insert(1);
+   mset1.insert(1);
+   mset1.insert(2);
+   mset1.insert(2);
+   mset1.insert(3);
+
+   const test::non_copymovable_int find_me(2);
+
+   //find
+   if(*set1.find(find_me) != 2)
+      return false;
+   if(*cset1.find(find_me) != 2)
+      return false;
+   if(*mset1.find(find_me) != 2)
+      return false;
+   if(*cmset1.find(find_me) != 2)
+      return false;
+
+   //count
+   if(set1.count(find_me) != 1)
+      return false;
+   if(cset1.count(find_me) != 1)
+      return false;
+   if(mset1.count(find_me) != 2)
+      return false;
+   if(cmset1.count(find_me) != 2)
+      return false;
+
+   //contains
+   if(!set1.contains(find_me))
+      return false;
+   if(!cset1.contains(find_me))
+      return false;
+   if(!mset1.contains(find_me))
+      return false;
+   if(!cmset1.contains(find_me))
+      return false;
+
+   //lower_bound
+   if(*set1.lower_bound(find_me) != 2)
+      return false;
+   if(*cset1.lower_bound(find_me) != 2)
+      return false;
+   if(*mset1.lower_bound(find_me) != 2)
+      return false;
+   if(*cmset1.lower_bound(find_me) != 2)
+      return false;
+
+   //upper_bound
+   if(*set1.upper_bound(find_me) != 3)
+      return false;
+   if(*cset1.upper_bound(find_me) != 3)
+      return false;
+   if(*mset1.upper_bound(find_me) != 3)
+      return false;
+   if(*cmset1.upper_bound(find_me) != 3)
+      return false;
+
+   //equal_range
+   if(*set1.equal_range(find_me).first != 2)
+      return false;
+   if(*cset1.equal_range(find_me).second != 3)
+      return false;
+   if(*mset1.equal_range(find_me).first != 2)
+      return false;
+   if(*cmset1.equal_range(find_me).second != 3)
+      return false;
+
+   //erase
+   if (set1.erase(find_me) != 1)
+      return false;
+   if (set1.erase(find_me) != 0)
+      return false;
+   if (mset1.erase(find_me) != 2)
+      return false;
+   if (mset1.erase(find_me) != 0)
+      return false;
+
+   return true;
+}
+
+template<typename MovableIntSetType>
+bool test_heterogeneous_insert()
+{
+   typedef MovableIntSetType set_t;
+
+   set_t set1;
+   const set_t &cset1 = set1;
+
+   //insert
+   if(!set1.insert(1).second)
+      return false;
+   if (cset1.find(1) == cset1.end())
+      return false;
+   if(set1.insert(1).second)
+      return false;
+   if (cset1.find(1) == cset1.end())
+      return false;
+
+   //insert with hint
+   if(set1.find(2) != set1.end())
+      return false;
+   typename set_t::iterator i = set1.insert(set1.begin(), 2);
+   if(i != set1.insert(set1.end(), 2))
+      return false;
+   if (cset1.find(2) == cset1.end())
+      return false;
+   return true;
+}
+
+
+
+
+
+
 
 }  //namespace test{
 }  //namespace container {

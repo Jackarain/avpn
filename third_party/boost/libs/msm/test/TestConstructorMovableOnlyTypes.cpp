@@ -13,15 +13,19 @@
 // file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
+// Front-end constructor arguments are not supported by backmp11.
+#define BOOST_MSM_TEST_SKIP_BACKMP11
+
 #include <memory>
 // back-end
-#include <boost/msm/back/state_machine.hpp>
+#include "BackCommon.hpp"
 //front-end
 #include <boost/msm/front/state_machine_def.hpp>
 #ifndef BOOST_MSM_NONSTANDALONE_TEST
-#define BOOST_TEST_MODULE MyTest
+#define BOOST_TEST_MODULE test_constructor_movable_only_types
 #endif
 #include <boost/test/unit_test.hpp>
+#include <boost/make_unique.hpp>
 
 namespace msm = boost::msm;
 namespace mpl = boost::mpl;
@@ -94,11 +98,11 @@ namespace
     };
 
     // Pick a back-end
-    typedef msm::back::state_machine<bistable_switch_> bistable_switch;
+    typedef get_test_machines<bistable_switch_> bistable_switches;
 
-    BOOST_AUTO_TEST_CASE(my_test)
+    BOOST_AUTO_TEST_CASE_TEMPLATE(test_constructor_movable_only_types, bistable_switch, bistable_switches)
     {
-        auto bulp = std::make_unique<Lightbulp>(3);
+        auto bulp = boost::make_unique<Lightbulp>(3);
 
         bistable_switch bs(std::move(bulp), 5);
         BOOST_CHECK_MESSAGE(bs.bulp_->current == 10, "Wrong returned current value");
@@ -114,4 +118,3 @@ namespace
         bs.stop();
     }
 }
-

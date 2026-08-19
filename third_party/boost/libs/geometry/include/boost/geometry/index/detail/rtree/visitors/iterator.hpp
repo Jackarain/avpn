@@ -16,6 +16,8 @@
 #ifndef BOOST_GEOMETRY_INDEX_DETAIL_RTREE_VISITORS_ITERATOR_HPP
 #define BOOST_GEOMETRY_INDEX_DETAIL_RTREE_VISITORS_ITERATOR_HPP
 
+#include <memory>
+
 #include <boost/geometry/index/detail/rtree/node/concept.hpp>
 #include <boost/geometry/index/detail/rtree/node/node_elements.hpp>
 #include <boost/geometry/index/detail/rtree/node/variant_visitor.hpp>
@@ -56,7 +58,7 @@ public:
 
     inline void operator()(leaf const& n)
     {
-        m_values = ::boost::addressof(rtree::elements(n));
+        m_values = std::addressof(rtree::elements(n));
         m_current = rtree::elements(n).begin();
     }
 
@@ -82,7 +84,7 @@ public:
     {
         for (;;)
         {
-            // if leaf is choosen, move to the next value in leaf
+            // if leaf is chosen, move to the next value in leaf
             if ( m_values )
             {
                 // there are more values in the current leaf
@@ -96,7 +98,7 @@ public:
                     m_values = 0;
                 }
             }
-            // if leaf isn't choosen, move to the next leaf
+            // if leaf isn't chosen, move to the next leaf
             else
             {
                 // return if there is no more nodes to traverse

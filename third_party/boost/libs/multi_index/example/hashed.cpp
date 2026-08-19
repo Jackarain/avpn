@@ -1,6 +1,6 @@
 /* Boost.MultiIndex example of use of hashed indices.
  *
- * Copyright 2003-2008 Joaquin M Lopez Munoz.
+ * Copyright 2003-2025 Joaquin M Lopez Munoz.
  * Distributed under the Boost Software License, Version 1.0.
  * (See accompanying file LICENSE_1_0.txt or copy at
  * http://www.boost.org/LICENSE_1_0.txt)
@@ -37,19 +37,15 @@ struct word_counter_entry
   word_counter_entry(std::string word_):word(word_),occurrences(0){}
 };
 
-/* see Compiler specifics: Use of member_offset for info on
- * BOOST_MULTI_INDEX_MEMBER
- */
-
 typedef multi_index_container<
   word_counter_entry,
   indexed_by<
     ordered_non_unique<
-      BOOST_MULTI_INDEX_MEMBER(word_counter_entry,unsigned int,occurrences),
+      member<word_counter_entry,unsigned int,&word_counter_entry::occurrences>,
       std::greater<unsigned int> /* sorted beginning with most frequent */
     >,
     hashed_unique<
-      BOOST_MULTI_INDEX_MEMBER(word_counter_entry,std::string,word)
+      member<word_counter_entry,std::string,&word_counter_entry::word>
     >
   >
 > word_counter;
@@ -70,23 +66,23 @@ int main()
 
   std::string text=
     "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha "
-    "mucho tiempo que vivÌa un hidalgo de los de lanza en astillero, adarga "
-    "antigua, rocÌn flaco y galgo corredor. Una olla de algo m·s vaca que "
-    "carnero, salpicÛn las m·s noches, duelos y quebrantos los s·bados, "
-    "lantejas los viernes, alg˙n palomino de aÒadidura los domingos, "
-    "consumÌan las tres partes de su hacienda. El resto della concluÌan sayo "
+    "mucho tiempo que viv√≠a un hidalgo de los de lanza en astillero, adarga "
+    "antigua, roc√≠n flaco y galgo corredor. Una olla de algo m√°s vaca que "
+    "carnero, salpic√≥n las m√°s noches, duelos y quebrantos los s√°bados, "
+    "lantejas los viernes, alg√∫n palomino de a√±adidura los domingos, "
+    "consum√≠an las tres partes de su hacienda. El resto della conclu√≠an sayo "
     "de velarte, calzas de velludo para las fiestas, con sus pantuflos de lo "
-    "mesmo, y los dÌas de entresemana se honraba con su vellorÌ de lo m·s "
-    "fino. TenÌa en su casa una ama que pasaba de los cuarenta, y una "
+    "mesmo, y los d√≠as de entresemana se honraba con su vellor√≠ de lo m√°s "
+    "fino. Ten√≠a en su casa una ama que pasaba de los cuarenta, y una "
     "sobrina que no llegaba a los veinte, y un mozo de campo y plaza, que "
-    "asÌ ensillaba el rocÌn como tomaba la podadera. Frisaba la edad de "
-    "nuestro hidalgo con los cincuenta aÒos; era de complexiÛn recia, seco "
+    "as√≠ ensillaba el roc√≠n como tomaba la podadera. Frisaba la edad de "
+    "nuestro hidalgo con los cincuenta a√±os; era de complexi√≥n recia, seco "
     "de carnes, enjuto de rostro, gran madrugador y amigo de la caza. "
-    "Quieren decir que tenÌa el sobrenombre de Quijada, o Quesada, que en "
+    "Quieren decir que ten√≠a el sobrenombre de Quijada, o Quesada, que en "
     "esto hay alguna diferencia en los autores que deste caso escriben; "
-    "aunque, por conjeturas verosÌmiles, se deja entender que se llamaba "
+    "aunque, por conjeturas veros√≠miles, se deja entender que se llamaba "
     "Quejana. Pero esto importa poco a nuestro cuento; basta que en la "
-    "narraciÛn dÈl no se salga un punto de la verdad.";
+    "narraci√≥n d√©l no se salga un punto de la verdad.";
 
   /* feed the text into the container */
 

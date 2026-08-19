@@ -25,6 +25,7 @@ target_link_libraries(boost_geometry
     Boost::config
     Boost::core
     Boost::function_types
+    Boost::graph
     Boost::iterator
     Boost::lexical_cast
     Boost::math
@@ -35,11 +36,9 @@ target_link_libraries(boost_geometry
     Boost::qvm
     Boost::range
     Boost::rational
-    Boost::static_assert
     Boost::throw_exception
     Boost::tokenizer
     Boost::tuple
-    Boost::type_traits
     Boost::utility
     Boost::variant
 )
@@ -100,9 +99,12 @@ if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
           config
           algorithm
           any
+          crc
+          graph
           lexical_cast
           math
           multiprecision
+          program_options
           qvm
           rational
           serialization
@@ -123,7 +125,13 @@ if(BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
   endif()
 
   enable_testing()
-  add_subdirectory(test)
+  add_subdirectory(test EXCLUDE_FROM_ALL)
+  add_subdirectory(index/test EXCLUDE_FROM_ALL)
 
+endif()
+
+if(BUILD_DOCUMENTATION)
+  add_subdirectory(doc/src/examples)
+  add_subdirectory(doc/src/docutils/tools/support_status)
 endif()
 

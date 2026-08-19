@@ -17,15 +17,19 @@ target_link_libraries(boost_interprocess
     Boost::assert
     Boost::config
     Boost::container
-    Boost::core
-    Boost::integer
     Boost::intrusive
     Boost::move
-    Boost::static_assert
-    Boost::type_traits
-    Boost::unordered
     Boost::winapi
 )
+
+if(NOT CMAKE_VERSION VERSION_LESS 3.19 AND CMAKE_GENERATOR MATCHES "Visual Studio")
+
+  file(GLOB_RECURSE boost_interprocess_IDEFILES CONFIGURE_DEPENDS include/*.hpp)
+  source_group(TREE ${PROJECT_SOURCE_DIR}/include FILES ${boost_interprocess_IDEFILES} PREFIX "Header Files")
+  list(APPEND boost_interprocess_IDEFILES extra/boost_interprocess.natvis)
+  target_sources(boost_interprocess PRIVATE ${boost_interprocess_IDEFILES})
+
+endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(boost_interprocess INTERFACE rt)

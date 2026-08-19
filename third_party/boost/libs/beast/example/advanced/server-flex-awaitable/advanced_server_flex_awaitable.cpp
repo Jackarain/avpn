@@ -20,7 +20,6 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
 #include <boost/beast/ssl.hpp>
-#include <boost/scope/scope_exit.hpp>
 
 #include <algorithm>
 #include <cstdlib>
@@ -232,6 +231,13 @@ public:
 
         @param completion_token The completion token that will be adapted.
 
+        @note @p completion_token must have an associated executor that matches
+        the one the child task runs on (e.g. via @c net::bind_executor). This is
+        because @c emit() can run on a different thread than the task, and
+        @c co_spawn dispatches the cancellation to the handler's associated
+        executor; without one, the signal is emitted inline on the calling
+        thread, racing with the task.
+
         @par Thread Safety
         @e Distinct @e objects: Safe.@n
         @e Shared @e objects: Safe.
@@ -243,17 +249,42 @@ public:
         auto lg = std::lock_guard{ mtx_ };
         auto cs = css_.emplace(css_.end());
 
+        class remover
+        {
+            task_group* tg_;
+            decltype(css_)::iterator cs_;
+
+        public:
+            remover(
+                task_group* tg,
+                decltype(css_)::iterator cs)
+                : tg_{ tg }
+                , cs_{ cs }
+            {
+            }
+
+            remover(remover&& other) noexcept
+                : tg_{ std::exchange(other.tg_, nullptr) }
+                , cs_{ other.cs_ }
+            {
+            }
+
+            ~remover()
+            {
+                if(tg_)
+                {
+                    auto lg = std::lock_guard{ tg_->mtx_ };
+                    if(tg_->css_.erase(cs_) == tg_->css_.end())
+                        tg_->cv_.cancel();
+                }
+            }
+        };
+
         return net::bind_cancellation_slot(
             cs->slot(),
             net::consign(
                 std::forward<CompletionToken>(completion_token),
-                boost::scope::make_scope_exit(
-                    [this, cs]()
-                    {
-                        auto lg = std::lock_guard{ mtx_ };
-                        if(css_.erase(cs) == css_.end())
-                            cv_.cancel();
-                    })));
+                remover{ this, cs }));
     }
 
     /** Emits the signal to all child tasks and invokes the slot's
@@ -338,8 +369,7 @@ net::awaitable<void, executor_type>
 run_websocket_session(
     Stream& stream,
     beast::flat_buffer& buffer,
-    http::request<http::string_body> req,
-    beast::string_view doc_root)
+    http::request<http::string_body> req)
 {
     auto cs = co_await net::this_coro::cancellation_state;
     auto ws = websocket::stream<Stream&>{ stream };
@@ -414,7 +444,7 @@ run_session(
             beast::get_lowest_layer(stream).expires_never();
 
             co_await run_websocket_session(
-                stream, buffer, parser.release(), doc_root);
+                stream, buffer, parser.release());
 
             co_return;
         }
@@ -509,23 +539,25 @@ listen(
             throw boost::system::system_error{ ec };
 
         net::co_spawn(
-            std::move(socket_executor),
+            socket_executor,
             detect_session(stream_type{ std::move(socket) }, ctx, doc_root),
-            task_group.adapt(
-                [](std::exception_ptr e)
-                {
-                    if(e)
+            net::bind_executor(
+                socket_executor,
+                task_group.adapt(
+                    [](std::exception_ptr e)
                     {
-                        try
+                        if(e)
                         {
-                            std::rethrow_exception(e);
+                            try
+                            {
+                                std::rethrow_exception(e);
+                            }
+                            catch(std::exception& e)
+                            {
+                                std::cerr << "Error in session: " << e.what() << "\n";
+                            }
                         }
-                        catch(std::exception& e)
-                        {
-                            std::cerr << "Error in session: " << e.what() << "\n";
-                        }
-                    }
-                }));
+                    })));
     }
 }
 
@@ -557,7 +589,9 @@ handle_signals(task_group& task_group)
     }
     else // SIGTERM
     {
-        executor.get_inner_executor().context().stop();
+        net::query(
+            executor.get_inner_executor(),
+            net::execution::context).stop();
     }
 }
 
@@ -591,24 +625,27 @@ main(int argc, char* argv[])
     task_group task_group{ ioc.get_executor() };
 
     // Create and launch a listening coroutine
+    auto listener_executor = net::make_strand(ioc);
     net::co_spawn(
-        net::make_strand(ioc),
+        listener_executor,
         listen(task_group, ctx, endpoint, doc_root),
-        task_group.adapt(
-            [](std::exception_ptr e)
-            {
-                if(e)
+        net::bind_executor(
+            listener_executor,
+            task_group.adapt(
+                [](std::exception_ptr e)
                 {
-                    try
+                    if(e)
                     {
-                        std::rethrow_exception(e);
+                        try
+                        {
+                            std::rethrow_exception(e);
+                        }
+                        catch(std::exception& e)
+                        {
+                            std::cerr << "Error in listener: " << e.what() << "\n";
+                        }
                     }
-                    catch(std::exception& e)
-                    {
-                        std::cerr << "Error in listener: " << e.what() << "\n";
-                    }
-                }
-            }));
+                })));
 
     // Create and launch a signal handler coroutine
     net::co_spawn(

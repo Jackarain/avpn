@@ -2,18 +2,19 @@
 //
 //  See http://www.boost.org for most recent version, including documentation.
 //
-//  Copyright Antony Polukhin, 2011-2024.
+//  Copyright Antony Polukhin, 2011-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt).
 
-#include <boost/lexical_cast.hpp>
+#include <type_traits>
 
 #include <boost/core/cmath.hpp>
-#include <boost/type_traits/is_same.hpp>
 
 #include <boost/core/lightweight_test.hpp>
+
+#include <boost/lexical_cast.hpp>
 
 #if defined(BOOST_NO_STRINGSTREAM) || defined(BOOST_NO_STD_WSTRING)
 #define BOOST_LCAST_NO_WCHAR_T
@@ -46,7 +47,7 @@ bool is_neg_nan(T value)
     * It is a IA64 feature, or it is a boost::math feature, not a lexical_cast bug */
 #if defined(__ia64__) || defined(_M_IA64)
     return (boost::core::isnan)(value)
-            && ( boost::is_same<T, long double >::value || (boost::core::signbit)(value) );
+            && ( std::is_same<T, long double >::value || (boost::core::signbit)(value) );
 #else
     return (boost::core::isnan)(value) && (boost::core::signbit)(value);
 #endif
@@ -208,11 +209,34 @@ void test_inf_nan_long_double()
     BOOST_TEST(true);
 }
 
+template <class Integral>
+void test_inf_nan_to_integral()
+{
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<float>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<float>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<float>::infinity()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<float>::infinity()), boost::bad_lexical_cast);
+
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<double>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<double>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<double>::infinity()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<double>::infinity()), boost::bad_lexical_cast);
+
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<long double>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<long double>::quiet_NaN()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(std::numeric_limits<long double>::infinity()), boost::bad_lexical_cast);
+    BOOST_TEST_THROWS(lexical_cast<Integral>(-std::numeric_limits<long double>::infinity()), boost::bad_lexical_cast);
+}
+
 int main()
 {
     test_inf_nan_float();
     test_inf_nan_double();
     test_inf_nan_long_double();
+
+    test_inf_nan_to_integral<int>();
+    test_inf_nan_to_integral<bool>();
+    test_inf_nan_to_integral<short>();
 
     return boost::report_errors();
 }

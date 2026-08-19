@@ -27,8 +27,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 //  include the Slex lexer related stuff
-#include <libs/wave/samples/cpp_tokens/slex_token.hpp>            // token type
-#include <libs/wave/samples/cpp_tokens/slex/cpp_slex_lexer.hpp>   // lexer type
+#include <cpp_tokens/slex_token.hpp>            // token type
+#include <cpp_tokens/slex/cpp_slex_lexer.hpp>   // lexer type
 
 typedef boost::wave::cpplexer::slex_token<> token_type;
 typedef boost::wave::cpplexer::slex::slex_iterator<token_type> lexer_type;
@@ -59,7 +59,7 @@ main(int argc, char *argv[])
         token_type::string_type instr(data->token);
 
         lexer_type it = lexer_type(instr.begin(), instr.end(), pos, 
-                                   boost::wave::support_cpp2a);
+                                   boost::wave::support_cpp2b);
         lexer_type end = lexer_type();
 
         // verify the correct outcome of the tokenization

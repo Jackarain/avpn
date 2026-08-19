@@ -5,10 +5,11 @@
  */
 
 #include <boost/redis/connection.hpp>
-#include <boost/asio/deferred.hpp>
+
 #include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
 #include <boost/asio/consign.hpp>
+#include <boost/asio/detached.hpp>
+
 #include <iostream>
 
 #if defined(BOOST_ASIO_HAS_CO_AWAIT)
@@ -23,7 +24,7 @@ using boost::redis::connection;
 auto co_main(config cfg) -> asio::awaitable<void>
 {
    auto conn = std::make_shared<connection>(co_await asio::this_coro::executor);
-   conn->async_run(cfg, {}, asio::consign(asio::detached, conn));
+   conn->async_run(cfg, asio::consign(asio::detached, conn));
 
    // A request containing only a ping command.
    request req;
@@ -33,10 +34,10 @@ auto co_main(config cfg) -> asio::awaitable<void>
    response<std::string> resp;
 
    // Executes the request.
-   co_await conn->async_exec(req, resp, asio::deferred);
+   co_await conn->async_exec(req, resp);
    conn->cancel();
 
    std::cout << "PING: " << std::get<0>(resp).value() << std::endl;
 }
 
-#endif // defined(BOOST_ASIO_HAS_CO_AWAIT)
+#endif  // defined(BOOST_ASIO_HAS_CO_AWAIT)

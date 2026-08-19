@@ -25,9 +25,10 @@ This library understands the grammars related to URLs and provides functionality
 == Features
 
 While the library is general purpose, special care has been taken to ensure that the implementation and data representation are friendly to network programs which need to handle URLs efficiently and securely, including the case where the inputs come from untrusted sources.
-Interfaces are provided for using error codes instead of exceptions as needed, and most algorithms have the means to opt-out of dynamic memory allocation.
+Interfaces are provided for using error codes instead of exceptions as needed, and most algorithms have the means to opt out of dynamic memory allocation.
 Another feature of the library is that all modifications leave the URL in a valid state.
 Code which uses this library is easy to read, flexible, and performant.
+See the xref:design.adoc[design rationale] for more on these design principles.
 
 Boost.URL offers these features:
 
@@ -42,7 +43,7 @@ Boost.URL offers these features:
 
 [NOTE]
 ====
-Currently the library does not handle
+The library does not handle
 https://www.rfc-editor.org/rfc/rfc3987.html[Internationalized Resource Identifiers,window=blank_] (IRIs).
 These are different from URLs, come from Unicode strings instead of low-ASCII strings, and are covered by a separate specification.
 ====
@@ -51,7 +52,7 @@ These are different from URLs, come from Unicode strings instead of low-ASCII st
 
 The library requires a compiler supporting at least C++11.
 
-Aliases for standard types, such as `error_code` or `string_view`, use their Boost equivalents.
+For standard types, such as cpp:std::error_code[] or cpp:std::string_view[], the library uses their Boost equivalents cpp:boost::system::error_code[] and cpp:boost::core::string_view[].
 
 Boost.URL works great on embedded devices.
 It can be used in a way that avoids all dynamic memory allocations.

@@ -12,20 +12,19 @@
 #include <boost/thread/lock_types.hpp>
 #include <boost/thread/strict_lock.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
-boost::mutex m0;
-boost::mutex m1;
+boost::mutex g_mutex0;
+boost::mutex g_mutex1;
 
 int main()
 {
-  boost::unique_lock<boost::mutex> lk0(m0);
-  boost::unique_lock<boost::mutex> lk1(m1);
+  boost::unique_lock<boost::mutex> lk0(g_mutex0);
+  boost::unique_lock<boost::mutex> lk1(g_mutex1);
   boost::nested_strict_lock<boost::unique_lock<boost::mutex> > nlk0(lk0);
   boost::nested_strict_lock<boost::unique_lock<boost::mutex> > nlk1(lk1);
   lk1 = lk0;
-
+  (void)lk1;
 }
 
 #include "../../../../remove_error_code_unused_warning.hpp"
-

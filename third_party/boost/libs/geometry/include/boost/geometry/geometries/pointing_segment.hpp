@@ -12,10 +12,10 @@
 #define BOOST_GEOMETRY_GEOMETRIES_POINTING_SEGMENT_HPP
 
 #include <cstddef>
+#include <memory>
 #include <type_traits>
 
 #include <boost/concept/assert.hpp>
-#include <boost/core/addressof.hpp>
 
 #include <boost/geometry/core/access.hpp>
 #include <boost/geometry/core/assert.hpp>
@@ -61,8 +61,8 @@ public:
     {}
 
     inline pointing_segment(point_type const& p1, point_type const& p2)
-        : first(boost::addressof(p1))
-        , second(boost::addressof(p2))
+        : first(std::addressof(p1))
+        , second(std::addressof(p2))
     {}
 };
 
@@ -78,23 +78,20 @@ namespace traits
 template <typename Point>
 struct tag<model::pointing_segment<Point> >
 {
-    typedef segment_tag type;
+    using type = segment_tag;
 };
 
 template <typename Point>
 struct point_type<model::pointing_segment<Point> >
 {
-    typedef Point type;
+    using type = Point;
 };
 
 template <typename Point, std::size_t Dimension>
 struct indexed_access<model::pointing_segment<Point>, 0, Dimension>
 {
-    typedef model::pointing_segment<Point> segment_type;
-    typedef typename geometry::coordinate_type
-        <
-            segment_type
-        >::type coordinate_type;
+    using segment_type = model::pointing_segment<Point>;
+    using coordinate_type = geometry::coordinate_type_t<segment_type>;
 
     static inline coordinate_type get(segment_type const& s)
     {
@@ -113,11 +110,8 @@ struct indexed_access<model::pointing_segment<Point>, 0, Dimension>
 template <typename Point, std::size_t Dimension>
 struct indexed_access<model::pointing_segment<Point>, 1, Dimension>
 {
-    typedef model::pointing_segment<Point> segment_type;
-    typedef typename geometry::coordinate_type
-        <
-            segment_type
-        >::type coordinate_type;
+    using segment_type = model::pointing_segment<Point>;
+    using coordinate_type = geometry::coordinate_type_t<segment_type>;
 
     static inline coordinate_type get(segment_type const& s)
     {

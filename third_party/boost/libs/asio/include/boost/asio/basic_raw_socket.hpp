@@ -2,7 +2,7 @@
 // basic_raw_socket.hpp
 // ~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -28,6 +28,7 @@
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
 
 #if !defined(BOOST_ASIO_BASIC_RAW_SOCKET_FWD_DECL)
 #define BOOST_ASIO_BASIC_RAW_SOCKET_FWD_DECL
@@ -340,7 +341,7 @@ public:
    * This function is used to send data on the raw socket. The function call
    * will block until the data has been sent successfully or an error occurs.
    *
-   * @param buffers One ore more data buffers to be sent on the socket.
+   * @param buffers One or more data buffers to be sent on the socket.
    *
    * @returns The number of bytes sent.
    *
@@ -371,7 +372,7 @@ public:
    * This function is used to send data on the raw socket. The function call
    * will block until the data has been sent successfully or an error occurs.
    *
-   * @param buffers One ore more data buffers to be sent on the socket.
+   * @param buffers One or more data buffers to be sent on the socket.
    *
    * @param flags Flags specifying how the send call is to be made.
    *
@@ -1350,6 +1351,7 @@ private:
   };
 };
 
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 

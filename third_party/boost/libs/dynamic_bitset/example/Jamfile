@@ -7,10 +7,7 @@
 #
 # -----------------------------------------------------------
 
-exe timing_tests 
-    : timing_tests.cpp 
-      ../../timer/build//boost_timer
-    ;
+project : requirements <library>/boost/dynamic_bitset//boost_dynamic_bitset ;
 
 exe example1
     : example1.cpp

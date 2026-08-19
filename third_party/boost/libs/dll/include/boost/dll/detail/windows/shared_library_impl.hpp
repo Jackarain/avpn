@@ -1,5 +1,5 @@
 // Copyright 2014 Renato Tegon Forti, Antony Polukhin.
-// Copyright Antony Polukhin, 2015-2024.
+// Copyright Antony Polukhin, 2015-2026.
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
@@ -9,43 +9,52 @@
 #define BOOST_DLL_SHARED_LIBRARY_IMPL_HPP
 
 #include <boost/dll/config.hpp>
+
 #include <boost/dll/shared_library_load_mode.hpp>
 #include <boost/dll/detail/aggressive_ptr_cast.hpp>
 #include <boost/dll/detail/system_error.hpp>
 #include <boost/dll/detail/windows/path_from_handle.hpp>
 
-#include <boost/move/utility.hpp>
+#if !defined(BOOST_DLL_INTERFACE_UNIT)
 #include <boost/core/invoke_swap.hpp>
 
 #include <boost/winapi/dll.hpp>
 
-#ifdef BOOST_HAS_PRAGMA_ONCE
-# pragma once
-#endif
+#if !defined(BOOST_DLL_USE_STD_MODULE)
+#include <utility>  // std::move
+#endif // !defined(BOOST_DLL_USE_STD_MODULE)
+#endif // !defined(BOOST_DLL_INTERFACE_UNIT)
+
+#include <boost/dll/shared_library_load_mode.hpp>
+#include <boost/dll/detail/aggressive_ptr_cast.hpp>
+#include <boost/dll/detail/system_error.hpp>
+#include <boost/dll/detail/windows/path_from_handle.hpp>
 
 namespace boost { namespace dll { namespace detail {
 
 class shared_library_impl {
-    BOOST_MOVABLE_BUT_NOT_COPYABLE(shared_library_impl)
-
 public:
     typedef boost::winapi::HMODULE_ native_handle_t;
 
-    shared_library_impl() BOOST_NOEXCEPT
-        : handle_(NULL)
+    shared_library_impl() noexcept
+        : shared_library_impl(nullptr)
     {}
 
-    ~shared_library_impl() BOOST_NOEXCEPT {
+    ~shared_library_impl() noexcept {
         unload();
     }
 
-    shared_library_impl(BOOST_RV_REF(shared_library_impl) sl) BOOST_NOEXCEPT
+    shared_library_impl(shared_library_impl&& sl) noexcept
         : handle_(sl.handle_)
     {
-        sl.handle_ = NULL;
+        sl.handle_ = nullptr;
     }
 
-    shared_library_impl & operator=(BOOST_RV_REF(shared_library_impl) sl) BOOST_NOEXCEPT {
+    explicit shared_library_impl(native_handle_t handle) noexcept
+        : handle_(handle)
+    {}
+
+    shared_library_impl & operator=(shared_library_impl&& sl) noexcept {
         swap(sl);
         return *this;
     }
@@ -56,7 +65,7 @@ public:
         return actual_path;
     }
 
-    void load(boost::dll::fs::path sl, load_mode::type portable_mode, boost::dll::fs::error_code &ec) {
+    void load(boost::dll::fs::path sl, load_mode::type portable_mode, std::error_code &ec) {
         typedef boost::winapi::DWORD_ native_mode_t;
         native_mode_t native_mode = static_cast<native_mode_t>(portable_mode);
         unload();
@@ -111,22 +120,22 @@ public:
         }
     }
 
-    bool is_loaded() const BOOST_NOEXCEPT {
+    bool is_loaded() const noexcept {
         return (handle_ != 0);
     }
 
-    void unload() BOOST_NOEXCEPT {
+    void unload() noexcept {
         if (handle_) {
             boost::winapi::FreeLibrary(handle_);
             handle_ = 0;
         }
     }
 
-    void swap(shared_library_impl& rhs) BOOST_NOEXCEPT {
+    void swap(shared_library_impl& rhs) noexcept {
         boost::core::invoke_swap(handle_, rhs.handle_);
     }
 
-    boost::dll::fs::path full_module_path(boost::dll::fs::error_code &ec) const {
+    boost::dll::fs::path full_module_path(std::error_code &ec) const {
         return boost::dll::detail::path_from_handle(handle_, ec);
     }
 
@@ -134,16 +143,16 @@ public:
         return L".dll";
     }
 
-    void* symbol_addr(const char* sb, boost::dll::fs::error_code &ec) const BOOST_NOEXCEPT {
+    void* symbol_addr(const char* sb, std::error_code &ec) const noexcept {
         if (is_resource()) {
             // `GetProcAddress` could not be called for libraries loaded with
             // `LOAD_LIBRARY_AS_DATAFILE`, `LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE`
             // or `LOAD_LIBRARY_AS_IMAGE_RESOURCE`.
-            ec = boost::dll::fs::make_error_code(
-                boost::dll::fs::errc::operation_not_supported
+            ec = std::make_error_code(
+                std::errc::operation_not_supported
             );
 
-            return NULL;
+            return nullptr;
         }
 
         // Judging by the documentation of GetProcAddress
@@ -152,20 +161,20 @@ public:
         void* const symbol = boost::dll::detail::aggressive_ptr_cast<void*>(
             boost::winapi::get_proc_address(handle_, sb)
         );
-        if (symbol == NULL) {
+        if (symbol == nullptr) {
             ec = boost::dll::detail::last_error_code();
         }
 
         return symbol;
     }
 
-    native_handle_t native() const BOOST_NOEXCEPT {
+    native_handle_t native() const noexcept {
         return handle_;
     }
 
 private:
     // Returns true if this load attempt should be the last one.
-    bool load_impl(const boost::dll::fs::path &load_path, boost::winapi::DWORD_ mode, boost::dll::fs::error_code &ec) {
+    bool load_impl(const boost::dll::fs::path &load_path, boost::winapi::DWORD_ mode, std::error_code &ec) {
         handle_ = boost::winapi::LoadLibraryExW(load_path.c_str(), 0, mode);
         if (handle_) {
             return true;
@@ -181,7 +190,7 @@ private:
         return false;
     }
 
-    bool is_resource() const BOOST_NOEXCEPT {
+    bool is_resource() const noexcept {
         return false; /*!!(
             reinterpret_cast<boost::winapi::ULONG_PTR_>(handle_) & static_cast<boost::winapi::ULONG_PTR_>(3)
         );*/

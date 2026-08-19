@@ -1,4 +1,4 @@
-// Copyright 2013-2024 Antony Polukhin
+// Copyright 2013-2026 Antony Polukhin
 
 // Distributed under the Boost Software License, Version 1.0.
 // (See the accompanying file LICENSE_1_0.txt
@@ -12,9 +12,9 @@
     Example works with and without RTTI."
 */
 
+#include <iostream>
 #include <boost/type_index.hpp>
 #include <boost/type_index/runtime_cast/register_runtime_class.hpp>
-#include <iostream>
 
 struct A {
     BOOST_TYPE_INDEX_REGISTER_CLASS

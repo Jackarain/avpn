@@ -29,10 +29,13 @@ void test()
 {
 #if (!defined BOOST_NO_CXX11_RVALUE_REFERENCES)
   boost::optional<int> v = Wrapper();
-  BOOST_TEST(v);
+  //BOOST_TEST(v);
+  boost::optional<boost::optional<int>> vv;
+  bool xx = vv?true : false;
+  (void)xx;
   BOOST_TEST_EQ(*v, 7);
 #endif
-} 
+}
 
 int main()
 {

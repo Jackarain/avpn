@@ -34,8 +34,6 @@
 #include <boost/mpl/pop_front.hpp>
 #include <boost/mpl/size.hpp>
 
-#include <boost/type_traits/is_same.hpp>
-
 #include <boost/geometry/core/access.hpp>
 #include <boost/geometry/core/coordinate_dimension.hpp>
 #include <boost/geometry/core/coordinate_system.hpp>
@@ -57,7 +55,7 @@ struct all_same :
             bool,
             boost::mpl::count_if<
                 Sequence,
-                boost::is_same<
+                std::is_same<
                     typename boost::mpl::front<Sequence>::type,
                     boost::mpl::_
                 >
@@ -140,7 +138,7 @@ struct access
             >
     >
 {
-    typedef typename coordinate_type<Sequence>::type ctype;
+    using ctype = coordinate_type_t<Sequence>;
 
     static inline ctype get(Sequence const& point)
     {
@@ -165,7 +163,7 @@ struct tag
             >
     >
 {
-    typedef point_tag type;
+    using type = point_tag;
 };
 
 

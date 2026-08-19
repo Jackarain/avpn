@@ -14,6 +14,7 @@ import common ;
 import errors ;
 import generators ;
 import regex ;
+import args ;
 
 feature.extend-subfeature toolset intel : platform : darwin ;
 
@@ -36,10 +37,7 @@ toolset.inherit-flags intel-darwin : gcc
           <architecture>x86/<address-model>64
         ;
 
-if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
-{
-    .debug-configuration = true ;
-}
+.debug-configuration = [ args.get-arg debug-configuration ] ;
 
 # Initializes the intel-darwin toolset
 #   version in mandatory
@@ -81,15 +79,9 @@ rule init ( version ? :  command * : options * )
         }
     }
 
-    local m = [ MATCH (..).* : $(version) ] ;
-    local n = [ MATCH (.)\\. : $(m) ] ;
-    if $(n) {
-      m = $(n) ;
-    }
+    local major = [ MATCH "([0-9]+)\\." : $(version) ] ;
 
-    local major = $(m) ;
-
-    if $(major) = "9" {
+    if $(major) = 9 {
       flags intel-darwin.compile OPTIONS $(condition)/<inlining>off : -Ob0 ;
       flags intel-darwin.compile OPTIONS $(condition)/<inlining>on : -Ob1  ;
       flags intel-darwin.compile OPTIONS $(condition)/<inlining>full : -Ob2  ;
@@ -110,10 +102,10 @@ rule init ( version ? :  command * : options * )
       flags intel-darwin.link OPTIONS $(condition)/<runtime-link>shared : -shared-intel -lstdc++ -lpthread ;
     }
 
-    local minor = [ MATCH ".*\\.(.).*" : $(version) ] ;
+    local minor = [ MATCH "\\.([0-9]+)" : $(version) ] ;
 
     # wchar_t char_traits workaround for compilers older than 10.2
-    if $(major) = "9" || ( $(major) = "10" && ( $(minor) = "0" || $(minor) = "1" ) ) {
+    if $(major) = 9 || ( $(major) = 10 && ( $(minor) = 0 || $(minor) = 1 ) ) {
         flags intel-darwin.compile DEFINES $(condition) : __WINT_TYPE__=int : unchecked ;
     }
 
@@ -199,5 +191,5 @@ actions link bind LIBRARIES
 
 actions link.dll bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" -single_module -dynamiclib -install_name "$(<[1]:D=)" "$(>)"  "$(LIBRARIES)" -l$(FINDLIBS-SA) -l$(FINDLIBS-ST) $(OPTIONS)
+    "$(CONFIG_COMMAND)" $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" -dynamiclib -install_name "$(<[1]:D=)" "$(>)"  "$(LIBRARIES)" -l$(FINDLIBS-SA) -l$(FINDLIBS-ST) $(OPTIONS)
 }

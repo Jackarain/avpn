@@ -21,12 +21,12 @@
 
 #include <boost/thread/null_mutex.hpp>
 #include <boost/thread/thread.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 #include "../../../timming.hpp"
 
 #if defined BOOST_THREAD_USES_CHRONO
 
-boost::null_mutex m;
+boost::null_mutex g_mutex;
 
 typedef boost::chrono::steady_clock Clock;
 typedef Clock::time_point time_point;
@@ -39,9 +39,9 @@ const ms max_diff(BOOST_THREAD_TEST_TIME_MS);
 void f1()
 {
   time_point t0 = Clock::now();
-  BOOST_TEST(m.try_lock_until(Clock::now() + ms(250)) == true);
+  BOOST_TEST(g_mutex.try_lock_until(Clock::now() + ms(250)) == true);
   time_point t1 = Clock::now();
-  m.unlock();
+  g_mutex.unlock();
   ns d = t1 - t0 ;
   BOOST_THREAD_TEST_IT(d, ns(max_diff));
 }
@@ -50,9 +50,9 @@ void f1()
 int main()
 {
   {
-    m.lock();
+    g_mutex.lock();
     boost::thread t(f1);
-    m.unlock();
+    g_mutex.unlock();
     t.join();
   }
 

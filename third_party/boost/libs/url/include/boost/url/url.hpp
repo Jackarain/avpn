@@ -60,7 +60,7 @@ namespace urls {
         @ref parse_uri_reference,
         @ref resolve.
 */
-class BOOST_URL_DECL url
+class BOOST_SYMBOL_VISIBLE url
     : public url_base
 {
     friend std::hash<url>;
@@ -267,6 +267,7 @@ public:
         Throws nothing.
 
         @param u The url to assign from.
+        @return A reference to this object.
     */
     url&
     operator=(url&& u) noexcept;
@@ -293,6 +294,7 @@ public:
         @throw std::length_error `u.size() > max_size()`.
 
         @param u The url to copy.
+        @return A reference to this object.
     */
     url&
     operator=(
@@ -322,6 +324,7 @@ public:
         Calls to allocate may throw.
 
         @param u The url to copy.
+        @return A reference to this object.
     */
     url&
     operator=(url const& u)
@@ -388,7 +391,8 @@ public:
         @par Exception Safety
         Throws nothing
 
-        @param v0, v1 The objects to swap
+        @param v0 The first object to swap
+        @param v1 The second object to swap
 
         @see
             @ref url::swap
@@ -446,6 +450,10 @@ public:
     url& set_host_ipv4(ipv4_address const& addr) { url_base::set_host_ipv4(addr); return *this; }
     /// @copydoc url_base::set_host_ipv6
     url& set_host_ipv6(ipv6_address const& addr) { url_base::set_host_ipv6(addr); return *this; }
+    /// @copydoc url_base::set_zone_id
+    url& set_zone_id(core::string_view s) { url_base::set_zone_id(s); return *this; }
+    /// @copydoc url_base::set_encoded_zone_id
+    url& set_encoded_zone_id(pct_string_view const& s) { url_base::set_encoded_zone_id(s); return *this; }
     /// @copydoc url_base::set_host_ipvfuture
     url& set_host_ipvfuture(core::string_view s) { url_base::set_host_ipvfuture(s); return *this; }
     /// @copydoc url_base::set_host_name
@@ -471,7 +479,7 @@ public:
     /// @copydoc url_base::set_encoded_query
     url& set_encoded_query(pct_string_view s) { url_base::set_encoded_query(s); return *this; }
     /// @copydoc url_base::set_params
-    url& set_params(std::initializer_list<param_view> ps) { url_base::set_params(ps); return *this; }
+    url& set_params(std::initializer_list<param_view> ps, encoding_opts opts = {}) { url_base::set_params(ps, opts); return *this; }
     /// @copydoc url_base::set_encoded_params
     url& set_encoded_params(std::initializer_list< param_pct_view > ps) { url_base::set_encoded_params(ps); return *this; }
     /// @copydoc url_base::remove_query
@@ -543,5 +551,8 @@ private:
 };
 } // std
 #endif
+
+#include <boost/url/parse.hpp>
+#include <boost/url/impl/url.hpp>
 
 #endif

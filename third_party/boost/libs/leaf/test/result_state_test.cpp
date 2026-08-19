@@ -1,5 +1,4 @@
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -61,7 +60,7 @@ struct val
 
     friend bool operator==( val const & a, val const & b ) noexcept
     {
-        return a.id==b.id;
+        return a.id == b.id;
     }
 
     friend std::ostream & operator<<( std::ostream & os, val const & v ) noexcept
@@ -104,12 +103,12 @@ bool eq_value( leaf::result<val> & r, val v )
     leaf::result<val> const & cr = r;
     val const & cv = v;
     return
-        r.value()==v &&
-        cr.value()==cv &&
-        *r.operator->()==v &&
-        *cr.operator->()==cv &&
-        *r==v &&
-        *cr==cv;
+        r.value() == v &&
+        cr.value() == cv &&
+        *r.operator->() == v &&
+        *cr.operator->() == cv &&
+        *r == v &&
+        *cr == cv;
 }
 
 int main()
@@ -270,7 +269,7 @@ int main()
         BOOST_TEST(!r2);
         {
             val x;
-            BOOST_TEST(ctx.handle_error<val>(r2.error(), [&]{ return x; }) == x);
+            BOOST_TEST_EQ(ctx.handle_error<val>(r2.error(), [&]{ return x; }), x);
         }
         BOOST_TEST_EQ(err::count, 1);
         BOOST_TEST_EQ(val::count, 0);
@@ -370,11 +369,11 @@ int main()
     }
     BOOST_TEST_EQ(err::count, 0);
     BOOST_TEST_EQ(val::count, 0);
-#endif
+#endif // #if BOOST_LEAF_CFG_CAPTURE
 
     // ^^ result<T> ^^
 
-    /////////////////////////////////////////////////////////////
+    ////////////////////////////////////////
 
     // vv result<void> vv
 
@@ -382,12 +381,12 @@ int main()
         leaf::result<void> r1;
         BOOST_TEST(r1);
         r1.value();
-        BOOST_TEST(r1.operator->() != 0);
+        BOOST_TEST(r1.operator->());
         *r1;
         leaf::result<void> r2 = std::move(r1);
         BOOST_TEST(r2);
         r2.value();
-        BOOST_TEST(r2.operator->() != 0);
+        BOOST_TEST(r2.operator->());
         *r2;
     }
 
@@ -395,12 +394,12 @@ int main()
         leaf::result<void> r1;
         BOOST_TEST(r1);
         r1.value();
-        BOOST_TEST(r1.operator->() != 0);
+        BOOST_TEST(r1.operator->());
         *r1;
         leaf::result<void> r2; r2=std::move(r1);
         BOOST_TEST(r2);
         r2.value();
-        BOOST_TEST(r2.operator->() != 0);
+        BOOST_TEST(r2.operator->());
         *r2;
     }
 
@@ -412,14 +411,14 @@ int main()
         auto active_context = activate_context(ctx);
         leaf::result<void> r1 = leaf::new_error( e_err { } );
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2 = std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
     { // void error copy -> move
@@ -428,14 +427,14 @@ int main()
         leaf::error_id err = leaf::new_error( e_err{ } );
         leaf::result<void> r1 = err;
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2 = std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
 
@@ -445,14 +444,14 @@ int main()
         leaf::result<void> r1 = leaf::new_error( e_err { } );
         ctx.deactivate();
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2; r2=std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
         ctx.handle_error<void>(r2.error(), []{ });
         BOOST_TEST_EQ(err::count, 1);
     }
@@ -463,14 +462,14 @@ int main()
         leaf::error_id err = leaf::new_error( e_err{ } );
         leaf::result<void> r1 = err;
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2; r2=std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
 
@@ -482,14 +481,14 @@ int main()
                 return leaf::new_error(e_err{ });
             });
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2 = std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
     { // void error copy -> capture -> move
@@ -500,14 +499,14 @@ int main()
                 return leaf::result<void>(err);
             });
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2 = std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
 
@@ -518,14 +517,14 @@ int main()
                 return leaf::new_error(e_err{ });
             });
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2; r2=std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
     { // void error copy -> capture -> assign-move
@@ -536,17 +535,17 @@ int main()
                 return leaf::result<void>(err);
             });
         BOOST_TEST(!r1);
-        BOOST_TEST(r1.operator->() == 0);
+        BOOST_TEST(!r1.operator->());
         BOOST_TEST_EQ(err::count, 1);
         leaf::error_id r1e = r1.error();
         leaf::result<void> r2; r2=std::move(r1);
         leaf::error_id r2e = r2.error();
         BOOST_TEST_EQ(r1e, r2e);
         BOOST_TEST(!r2);
-        BOOST_TEST(r2.operator->() == 0);
+        BOOST_TEST_EQ(r2.operator->(), nullptr);
     }
     BOOST_TEST_EQ(err::count, 0);
-#endif
+#endif // #if BOOST_LEAF_CFG_CAPTURE
 
     {
         leaf::result<int> r = leaf::error_id();

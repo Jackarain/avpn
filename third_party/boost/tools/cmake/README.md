@@ -125,6 +125,11 @@ or `cmake-gui`:
   Directory in which to install the compiled libraries. Can be relative to
   `CMAKE_INSTALL_PREFIX`. Default `lib`.
 
+* [`CMAKE_INSTALL_DATADIR`](https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html)
+
+  Directory in which to install the data files (e.g. debugger visualizers).
+  Can be relative to `CMAKE_INSTALL_PREFIX`. Default `share`.
+
 * `BOOST_INSTALL_CMAKEDIR`
 
   Directory in which to install the CMake configuration files. Default `lib/cmake`.
@@ -288,6 +293,14 @@ are given below.
   When ON, enables the Windows API backend. Defaults to ON under Windows, OFF
   otherwise.
 
+### Math
+
+* `BOOST_MATH_BUILD_WITH_LEGACY_FUNCTIONS`
+
+  When ON, builds the C99/TR1 targets as: `boost_math_c99f` `boost_math_c99`, `boost_math_c99l` (if your platform has long double support),
+   `boost_math_tr1f`, `boost_math_tr1`, and `boost_math_tr1l` (if your platform has long double support).
+  With CMake Version >= 3.13 these 4-6 targets can be linked with the single target `boost_math_legacy_targets`. Defaults to OFF.
+
 ### Stacktrace
 
 * `BOOST_STACKTRACE_ENABLE_NOOP`
@@ -318,6 +331,13 @@ are given below.
   When ON, builds the `boost_stacktrace_windbg_cached` library variant.
   Defaults to ON under Windows when WinDbg support is autodetected and when
   `thread_local` is supported, otherwise OFF.
+
+### Test
+
+* `BOOST_TEST_HEADERS_ONLY`
+
+  When ON, installs only headers required for using the header-only variant of
+  the Unit Test Framework. Defaults to OFF.
 
 ### Thread
 

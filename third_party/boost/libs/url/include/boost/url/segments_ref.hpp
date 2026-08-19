@@ -24,22 +24,14 @@ class url_base;
 class segments_view;
 #endif
 
-/** A view representing path segments in a URL
+/** Mutable decoded path segment proxy
 
-    Objects of this type are used to interpret
-    the path as a bidirectional view of segments,
-    where each segment is a string with percent
-    escapes automatically decoded.
-
-    The view does not retain ownership of the
-    elements and instead references the original
-    character buffer. The caller is responsible
-    for ensuring that the lifetime of the buffer
-    extends until it is no longer referenced.
-
-    The view is modifiable; calling non-const
-    members causes changes to the referenced
-    url.
+    Presents the decoded path segments of a
+    @ref url_base as a bidirectional range whose
+    modifiers update the underlying URL. The proxy
+    references the URL’s storage directly, so the
+    owning URL must remain alive while the proxy
+    is used.
 
     @par Example
     @code
@@ -82,7 +74,7 @@ class segments_view;
         @ref segments_encoded_view,
         @ref segments_view.
 */
-class segments_ref
+class BOOST_SYMBOL_VISIBLE segments_ref
     : public segments_base
 {
     url_base* u_ = nullptr;
@@ -151,16 +143,14 @@ public:
         Calls to allocate may throw.
 
         @param other The segments to assign.
+        @return A reference to this object.
     */
-    /** @{ */
-    BOOST_URL_DECL
     segments_ref&
     operator=(segments_ref const& other);
 
-    BOOST_URL_DECL
+    /// @copydoc segments_ref::operator=(segments_ref const&)
     segments_ref&
     operator=(segments_view const& other);
-    /** @} */
 
     /** Assignment
 
@@ -199,8 +189,8 @@ public:
         Calls to allocate may throw.
 
         @param init The list of segments to assign.
+        @return A reference to this object.
     */
-    BOOST_URL_DECL
     segments_ref&
     operator=(std::initializer_list<
         core::string_view> init);
@@ -209,8 +199,9 @@ public:
 
         @see
             @ref segments_view.
+
+        @return A view of the segments.
     */
-    BOOST_URL_DECL
     operator
     segments_view() const noexcept;
 
@@ -234,6 +225,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return A reference to the url.
     */
     url_base&
     url() const noexcept
@@ -304,7 +297,6 @@ public:
 
         @param init The list of segments to assign.
     */
-    BOOST_URL_DECL
     void
     assign(std::initializer_list<
         core::string_view> init);
@@ -337,8 +329,8 @@ public:
         Strong guarantee.
         Calls to allocate may throw.
 
-        @param first, last The range of segments
-        to assign.
+        @param first The beginning of the range of segments to assign.
+        @param last The end of the range of segments to assign.
     */
     template<class FwdIt>
     void
@@ -373,7 +365,6 @@ public:
 
         @param s The segment to insert.
     */
-    BOOST_URL_DECL
     iterator
     insert(
         iterator before,
@@ -421,7 +412,6 @@ public:
 
         @param init The list of segments to insert.
     */
-    BOOST_URL_DECL
     iterator
     insert(
         iterator before,
@@ -464,8 +454,8 @@ public:
         the range is inserted. This may
         be equal to `end()`.
 
-        @param first, last The range of segments
-        to insert.
+        @param first The beginning of the range of segments to insert.
+        @param last The end of the range of segments to insert.
     */
     template<class FwdIt>
     iterator
@@ -516,10 +506,9 @@ public:
         @return An iterator to one past
         the removed range.
 
-        @param first, last The range of
-        segments to erase.
+        @param first The beginning of the range to remove.
+        @param last The end of the range to remove.
     */
-    BOOST_URL_DECL
     iterator
     erase(
         iterator first,
@@ -551,7 +540,6 @@ public:
 
         @param s The string to assign.
     */
-    BOOST_URL_DECL
     iterator
     replace(
         iterator pos,
@@ -577,11 +565,11 @@ public:
 
         @return An iterator to the new segment.
 
-        @param from, to The range of segments to replace.
+        @param from The beginning of the range of segments to replace.
+        @param to The end of the range of segments to replace.
 
         @param s The string to assign.
     */
-    BOOST_URL_DECL
     iterator
     replace(
         iterator from,
@@ -617,11 +605,11 @@ public:
         segment inserted, or one past `to` if
         `init.size() == 0`.
 
-        @param from, to The range of segments to replace.
+        @param from The beginning of the range of segments to replace.
+        @param to The end of the range of segments to replace.
 
         @param init The list of segments to assign.
     */
-    BOOST_URL_DECL
     iterator
     replace(
         iterator from,
@@ -657,9 +645,10 @@ public:
         segment inserted, or one past `to` if
         `init.size() == 0`.
 
-        @param from, to The range of segments to replace.
-
-        @param first, last The range of segments to assign.
+        @param from The beginning of the range of segments to replace.
+        @param to The end of the range of segments to replace.
+        @param first The beginning of the range of segments to assign.
+        @param last The end of the range of segments to assign.
     */
     template<class FwdIt>
     iterator
@@ -739,5 +728,21 @@ private:
 // url_base.hpp because of a circular dependency
 //
 // #include <boost/url/impl/segments_ref.hpp>
+
+//------------------------------------------------
+//
+// std::ranges::enable_borrowed_range
+//
+//------------------------------------------------
+
+#ifdef BOOST_URL_HAS_CONCEPTS
+#include <ranges>
+namespace std::ranges {
+    template<>
+    inline constexpr bool
+        enable_borrowed_range<
+            boost::urls::segments_ref> = true;
+} // std::ranges
+#endif
 
 #endif

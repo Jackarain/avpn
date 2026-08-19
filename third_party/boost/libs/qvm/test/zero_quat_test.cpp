@@ -1,5 +1,4 @@
-// Copyright 2008-2022 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2008-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -19,11 +18,11 @@ namespace
         using namespace boost::qvm;
         test_qvm::quaternion<Q1> v1=zero_quat<float>();
         for( int i=0; i!=4; ++i )
-                BOOST_TEST(!v1.a[i]);
+                BOOST_TEST_EQ(v1.a[i], 0);
         test_qvm::quaternion<Q2> v2(42,1);
         set_zero(v2);
         for( int i=0; i!=4; ++i )
-                BOOST_TEST(!v2.a[i]);
+                BOOST_TEST_EQ(v2.a[i], 0);
         }
     }
 

@@ -1,6 +1,6 @@
 /* Common base for Boost.Unordered open-addressing tables.
  *
- * Copyright 2022-2024 Joaquin M Lopez Munoz.
+ * Copyright 2022-2026 Joaquin M Lopez Munoz.
  * Copyright 2023 Christian Mazakas.
  * Copyright 2024 Braden Ganetsky.
  * Distributed under the Boost Software License, Version 1.0.
@@ -16,6 +16,7 @@
 #include <boost/assert.hpp>
 #include <boost/config.hpp>
 #include <boost/config/workaround.hpp>
+#include <boost/container_hash/hash_is_avalanching.hpp>
 #include <boost/core/allocator_traits.hpp>
 #include <boost/core/bit.hpp>
 #include <boost/core/empty_value.hpp>
@@ -28,7 +29,7 @@
 #include <boost/unordered/detail/mulx.hpp>
 #include <boost/unordered/detail/static_assert.hpp>
 #include <boost/unordered/detail/type_traits.hpp>
-#include <boost/unordered/hash_traits.hpp>
+#include <boost/unordered/detail/unordered_printers.hpp>
 #include <climits>
 #include <cmath>
 #include <cstddef>
@@ -922,6 +923,8 @@ inline unsigned int unchecked_countr_zero(int x)
   unsigned long r;
   _BitScanForward(&r,(unsigned long)x);
   return (unsigned int)r;
+#elif defined(BOOST_GCC)||defined(BOOST_CLANG)
+  return (unsigned int)__builtin_ctz((unsigned int)x);
 #else
   BOOST_UNORDERED_ASSUME(x!=0);
   return (unsigned int)boost::core::countr_zero((unsigned int)x);
@@ -1016,6 +1019,11 @@ struct table_arrays
     typename boost::pointer_traits<value_type_pointer>::template
       rebind<group_type>;
   using group_type_pointer_traits=boost::pointer_traits<group_type_pointer>;
+
+  // For natvis purposes
+  using char_pointer=
+    typename boost::pointer_traits<value_type_pointer>::template
+      rebind<unsigned char>;
 
   table_arrays(
     std::size_t gsi,std::size_t gsm,
@@ -1341,7 +1349,7 @@ template <typename Container, typename K>
 using is_emplace_kv_able = std::integral_constant<bool,
   is_map<Container>::value &&
     (is_similar<K, typename Container::key_type>::value ||
-      is_complete_and_move_constructible<typename Container::key_type>::value)>;
+      std::is_move_constructible<typename Container::key_type>::value)>;
 
 /* table_core. The TypePolicy template parameter is used to generate
  * instantiations suitable for either maps or sets, and introduces non-standard
@@ -1420,7 +1428,7 @@ public:
   using size_policy=pow2_size_policy;
   using prober=pow2_quadratic_prober;
   using mix_policy=typename std::conditional<
-    hash_is_avalanching<Hash>::value,
+    boost::hash_is_avalanching<Hash>::value,
     no_mix,
     mulx_mix
   >::type;
@@ -1453,6 +1461,11 @@ public:
   using stats=table_core_stats;
 #endif
 
+#if defined(BOOST_GCC)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
   table_core(
     std::size_t n=default_bucket_count,const Hash& h_=Hash(),
     const Pred& pred_=Pred(),const Allocator& al_=Allocator()):
@@ -1460,6 +1473,10 @@ public:
     allocator_base{empty_init,al_},arrays(new_arrays(n)),
     size_ctrl{initial_max_load(),0}
     {}
+
+#if defined(BOOST_GCC)
+#pragma GCC diagnostic pop
+#endif
 
   /* genericize on an ArraysFn so that we can do things like delay an
    * allocation for the group_access data required by cfoa after the move
@@ -2075,6 +2092,11 @@ private:
   using pred_base=empty_value<Pred,1>;
   using allocator_base=empty_value<Allocator,2>;
 
+#if defined(BOOST_GCC)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
   /* used by allocator-extended move ctor */
 
   table_core(Hash&& h_,Pred&& pred_,const Allocator& al_):
@@ -2084,6 +2106,10 @@ private:
     size_ctrl{initial_max_load(),0}
   {
   }
+
+#if defined(BOOST_GCC)
+#pragma GCC diagnostic pop
+#endif
 
   arrays_type new_arrays(std::size_t n)const
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2023 Marcelo Zimbres Silva (mzimbres@gmail.com)
+/* Copyright (c) 2018-2025 Marcelo Zimbres Silva (mzimbres@gmail.com)
  *
  * Distributed under the Boost Software License, Version 1.0. (See
  * accompanying file LICENSE.txt)
@@ -9,18 +9,19 @@
 
 #include <boost/redis/resp3/type.hpp>
 
+#include <cstddef>
+#include <string>
+#include <string_view>
+
 namespace boost::redis::resp3 {
 
-/** \brief A node in the response tree.
- *  \ingroup high-level-api
+/** @brief A node in the response tree.
  *
- *  RESP3 can contain recursive data structures: A map of sets of
- *  vector of etc. As it is parsed each element is passed to user
- *  callbacks (push parser). The signature of this
- *  callback is `f(resp3::node<std::string_view)`. This class is called a node
+ *  RESP3 can contain recursive data structures, like a map of sets of
+ *  vectors. This class is called a node
  *  because it can be seen as the element of the response tree. It
- *  is a template so that users can use it with owing strings e.g.
- *  `std::string` or `boost::static_string` etc.
+ *  is a template so that users can use it with any string type, like
+ *  `std::string` or `boost::static_string`.
  *
  *  @tparam String A `std::string`-like type.
  */
@@ -46,19 +47,34 @@ struct basic_node {
  *  @param b Right hand side node object.
  */
 template <class String>
-auto operator==(basic_node<String> const& a, basic_node<String> const& b)
+bool operator==(basic_node<String> const& a, basic_node<String> const& b)
 {
+   // clang-format off
    return a.aggregate_size == b.aggregate_size
        && a.depth == b.depth
        && a.data_type == b.data_type
        && a.value == b.value;
+   // clang-format on
 };
 
-/** @brief A node in the response tree.
- *  @ingroup high-level-api
+/** @brief Inequality operator for RESP3 nodes.
+ *  @relates basic_node
+ *
+ *  @param a Left hand side node object.
+ *  @param b Right hand side node object.
  */
+template <class String>
+bool operator!=(basic_node<String> const& a, basic_node<String> const& b)
+{
+   return !(a == b);
+};
+
+/// A node in the response tree that owns its data.
 using node = basic_node<std::string>;
 
-} // boost::redis::resp3
+/// A node in the response tree that does not own its data.
+using node_view = basic_node<std::string_view>;
 
-#endif // BOOST_REDIS_RESP3_NODE_HPP
+}  // namespace boost::redis::resp3
+
+#endif  // BOOST_REDIS_RESP3_NODE_HPP

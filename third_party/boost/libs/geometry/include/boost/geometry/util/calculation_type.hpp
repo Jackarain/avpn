@@ -17,8 +17,6 @@
 #define BOOST_GEOMETRY_UTIL_CALCULATION_TYPE_HPP
 
 
-#include <boost/static_assert.hpp>
-
 #include <boost/geometry/util/select_coordinate_type.hpp>
 #include <boost/geometry/util/select_most_precise.hpp>
 
@@ -53,18 +51,18 @@ template
 >
 struct calculation_type
 {
-    BOOST_STATIC_ASSERT((
+    static_assert(
         std::is_fundamental
             <
                 DefaultFloatingPointCalculationType
-            >::value
-        ));
-    BOOST_STATIC_ASSERT((
+            >::value,
+        "DefaultFloatingPointCalculationType must be fundamental.");
+    static_assert(
         std::is_fundamental
             <
                 DefaultIntegralCalculationType
-            >::value
-        ));
+            >::value,
+        "DefaultIntegralCalculationType must be fundamental.");
 
 
     typedef std::conditional_t
@@ -108,7 +106,7 @@ struct unary
 {
     typedef typename detail::calculation_type
         <
-            typename geometry::coordinate_type<Geometry>::type,
+            geometry::coordinate_type_t<Geometry>,
             CalculationType,
             DefaultFloatingPointCalculationType,
             DefaultIntegralCalculationType
@@ -153,7 +151,7 @@ struct ternary
         <
             typename select_most_precise
                 <
-                    typename coordinate_type<Geometry1>::type,
+                    coordinate_type_t<Geometry1>,
                     typename select_coordinate_type
                         <
                             Geometry2,

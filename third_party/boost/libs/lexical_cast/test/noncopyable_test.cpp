@@ -3,7 +3,7 @@
 //  See http://www.boost.org for most recent version, including documentation.
 //
 //  Copyright Alexander Nasonov, 2007.
-//  Copyright Antony Polukhin, 2023-2024.
+//  Copyright Antony Polukhin, 2023-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
@@ -11,10 +11,11 @@
 //
 //  Test that Source can be non-copyable.
 
-#include <boost/lexical_cast.hpp>
 #include <boost/core/noncopyable.hpp>
 
 #include <boost/core/lightweight_test.hpp>
+
+#include <boost/lexical_cast.hpp>
 
 class Noncopyable : private boost::noncopyable
 {

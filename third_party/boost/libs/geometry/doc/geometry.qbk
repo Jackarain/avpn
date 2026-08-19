@@ -14,7 +14,7 @@
 [library Geometry
     [quickbook 1.5]
     [authors [Gehrels, Barend], [Lalande, Bruno], [Loskot, Mateusz], [Wulkiewicz, Adam], [Karavelas, Menelaos], [Fisikopoulos, Vissarion]]
-    [copyright 2009-2021 Barend Gehrels, Bruno Lalande, Mateusz Loskot, Adam Wulkiewicz, Oracle and/or its affiliates]
+    [copyright 2009-2024 Barend Gehrels, Bruno Lalande, Mateusz Loskot, Adam Wulkiewicz, Oracle and/or its affiliates]
     [purpose Documentation of Boost.Geometry library]
     [license
         Distributed under the Boost Software License, Version 1.0.
@@ -29,6 +29,7 @@
 [def __0dim__  pointlike (e.g. point)]
 [def __1dim__  linear (e.g. linestring)]
 [def __2dim__  areal (e.g. polygon)]
+[def __3dim__  volumetric (e.g. polyhedral_surface)]
 [def __single__  single (e.g. point, polygon)]
 [def __multi__  multiple (e.g. multi_point, multi_polygon)]
 [def __cart__  Cartesian]
@@ -110,7 +111,7 @@ Boost.Geometry contains contributions by:
 
 * Akira Takahashi (adaption of Boost.Fusion)
 * Alfredo Correa (adaption of Boost.Array)
-* Andrew Hundt (varray container, aka. static_vector)
+* Andrew Hundt (varray container, aka static_vector)
 * Federico Fern\u00E1ndez (preliminary version of R-tree spatial index)
 * Karsten Ahnert (patch for cross-track distance)
 * Mats Taraldsvik (documentation: adapting a legacy model)

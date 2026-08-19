@@ -2,7 +2,7 @@
 // co_composed.hpp
 // ~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -48,6 +48,7 @@
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
 namespace detail {
 
 #if defined(BOOST_ASIO_HAS_STD_COROUTINE)
@@ -713,7 +714,7 @@ public:
     derived_type& promise = *static_cast<derived_type*>(this);
     promise.state().return_value_ = std::move(value);
     promise.state().work_.reset();
-    promise.state().on_suspend_->arg_ = this;
+    promise.state().on_suspend_->arg_ = &promise;
     promise.state().on_suspend_->fn_ =
       [](void* p)
       {
@@ -843,18 +844,22 @@ public:
   {
     if (owner_)
       *owner_ = this;
+#if !defined(BOOST_ASIO_NO_EXCEPTIONS)
     throw;
+#else // !defined(BOOST_ASIO_NO_EXCEPTIONS)
+    std::terminate();
+#endif // !defined(BOOST_ASIO_NO_EXCEPTIONS)
   }
 
-  template <async_operation Op>
-  auto await_transform(Op&& op
+  template <BOOST_ASIO_ASYNC_OPERATION Op>
+  auto await_transform(Op&& op,
 #if defined(BOOST_ASIO_ENABLE_HANDLER_TRACKING)
 # if defined(BOOST_ASIO_HAS_SOURCE_LOCATION)
-      , boost::asio::detail::source_location location
-        = boost::asio::detail::source_location::current()
+      boost::asio::detail::source_location location
+        = boost::asio::detail::source_location::current(),
 # endif // defined(BOOST_ASIO_HAS_SOURCE_LOCATION)
 #endif // defined(BOOST_ASIO_ENABLE_HANDLER_TRACKING)
-    )
+      constraint_t<is_async_operation<Op>::value> = 0)
   {
     class [[nodiscard]] awaitable
     {
@@ -963,7 +968,7 @@ public:
 
             Handler handler(std::move(a.promise_.state_.handler_));
             std::tuple<decay_t<Args>...> result(
-                std::move(static_cast<std::tuple<Args&&...>>(a.result_)));
+                std::move(static_cast<std::tuple<Args&&...>&>(a.result_)));
 
             co_composed_handler_base<Executors, Handler,
               Return>(std::move(composed_handler));
@@ -990,7 +995,13 @@ private:
 
   union block
   {
+#if defined(BOOST_ASIO_MSVC) && !defined(__clang__)
+    // Force 16-byte alignment as std::max_align_t is only 8-byte aligned on
+    // MSVC, but the compiler may emit aligned SSE stores into the storage.
+    alignas(16) std::max_align_t max_align;
+#else // defined(BOOST_ASIO_MSVC) && !defined(__clang__)
     std::max_align_t max_align;
+#endif // defined(BOOST_ASIO_MSVC) && !defined(__clang__)
     alignas(allocator_type) char pad[alignof(allocator_type)];
   };
 
@@ -1104,7 +1115,7 @@ private:
 };
 
 template <typename... Signatures, typename Implementation, typename Executors>
-inline initiate_co_composed<Implementation, Executors, Signatures...>
+inline initiate_co_composed<decay_t<Implementation>, Executors, Signatures...>
 make_initiate_co_composed(Implementation&& implementation,
     composed_io_executors<Executors>&& executors)
 {
@@ -1148,6 +1159,7 @@ struct associator<Associator,
 
 #endif // !defined(GENERATING_DOCUMENTATION)
 
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 
@@ -1194,6 +1206,7 @@ struct coroutine_traits<void,
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
 
 /// Creates an initiation function object that may be used to launch a
 /// coroutine-based composed asynchronous operation.
@@ -1313,6 +1326,7 @@ inline auto co_composed(Implementation&& implementation,
             io_objects_or_executors))...));
 }
 
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 

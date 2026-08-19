@@ -17,7 +17,7 @@
 #include <numeric>
 #include <random>
 
-#include "zlib-1.2.12/zlib.h"
+#include "zlib-1.3.1/zlib.h"
 
 #include "fixtures/CVE_2018_25032/default.hpp"
 #include "fixtures/CVE_2018_25032/fixed.hpp"
@@ -638,10 +638,6 @@ public:
     void
     run() override
     {
-        log <<
-            "sizeof(deflate_stream) == " <<
-            sizeof(deflate_stream) << std::endl;
-
         testDeflate(zlib_compressor);
         testDeflate(beast_compressor);
         testInvalidSettings(zlib_compressor);

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2024 Antony Polukhin
+// Copyright (c) 2019-2026 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -6,6 +6,11 @@
 #include <type_traits>
 
 #include <boost/pfr/core.hpp>
+
+#if defined(BOOST_USE_MODULES) // TODO: fix for BOOST_USE_MODULES
+int main() {}
+
+#else
 
 template <class T>
 struct unconstrained_template {
@@ -45,7 +50,7 @@ int main() {
         "Precise reflection with template constructors sanity check fails"
     );
 
-    boost::pfr::detail::enable_if_constructible_helper_t<aggregate_unconstrained, 2> foo;
+    boost::pfr::detail::enable_if_initializable_helper_t<aggregate_unconstrained, 2> foo;
     (void)foo;
 
     static_assert(
@@ -67,3 +72,5 @@ int main() {
     aggregate_unconstrained aggr{3, 4};
     return boost::pfr::get<1>(aggr).value_.value_ - 4;
 }
+
+#endif

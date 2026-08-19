@@ -20,16 +20,16 @@
 
 #include <boost/thread/lock_types.hpp>
 #include <boost/thread/mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
-boost::mutex m;
+boost::mutex g_mutex;
 
 int main()
 {
   {
     boost::unique_lock<boost::mutex> lk0;
     BOOST_TEST(bool(lk0) == false);
-    boost::unique_lock<boost::mutex> lk1(m);
+    boost::unique_lock<boost::mutex> lk1(g_mutex);
     BOOST_TEST(bool(lk1) == true);
     lk1.unlock();
     BOOST_TEST(bool(lk1) == false);
@@ -38,7 +38,7 @@ int main()
   {
     boost::unique_lock<boost::mutex> lk0;
     if (lk0) BOOST_TEST(false);
-    boost::unique_lock<boost::mutex> lk1(m);
+    boost::unique_lock<boost::mutex> lk1(g_mutex);
     if (!lk1) BOOST_TEST(false);
     lk1.unlock();
     if (lk1) BOOST_TEST(false);

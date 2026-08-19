@@ -1,6 +1,6 @@
 # Boost.MultiIndex tests Jamfile
 #
-# Copyright 2003-2020 Joaquín M López Muñoz.
+# Copyright 2003-2026 JoaquÃ­n M LÃ³pez MuÃ±oz.
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE_1_0.txt or copy at
 # http://www.boost.org/LICENSE_1_0.txt)
@@ -8,6 +8,7 @@
 # See http://www.boost.org/libs/multi_index for library home page.
 
 import os ;
+import testing ;
 import type ;
 
 # Windows Vista UAC has an heuristic by which executable files whose name
@@ -18,8 +19,8 @@ import type ;
 # Problem bypassed by changing the EXE names containing a taboo word.
 # Thanks to Rene Rivera for guidance on the use of the <tag> feature.
 
-rule change-test_update-exe-name ( name : type ? : property-set ) 
-{ 
+rule change-test_update-exe-name ( name : type ? : property-set )
+{
     if [ os.on-windows ] && [ type.is-subtype $(type) EXE ]
     {
         return test_updat.exe ;
@@ -28,10 +29,15 @@ rule change-test_update-exe-name ( name : type ? : property-set )
 
 project
     : requirements
+      <library>/boost/multi_index//boost_multi_index
+      <library>/boost/foreach//boost_foreach
+      <library>/boost/iterator//boost_iterator
+      <library>/boost/mpl//boost_mpl
       <toolset>msvc:<define>_SCL_SECURE_NO_WARNINGS
       <toolset>msvc:<define>_CRT_SECURE_NO_WARNINGS
       <toolset>msvc:<define>_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
       <toolset>msvc:<cxxflags>/wd4494
+      <toolset>gcc-16:<cxxflags>-fno-thread-jumps # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=119321
     ;
 
 obj boost_multi_index_key_supported : check_bmi_key_supported.cpp  ;
@@ -46,7 +52,8 @@ test-suite "multi_index" :
     [ run test_conv_iterators.cpp   test_conv_iterators_main.cpp   ]
     [ run test_copy_assignment.cpp  test_copy_assignment_main.cpp  ]
     [ run test_hash_ops.cpp         test_hash_ops_main.cpp         ]
-    [ run test_iterators.cpp        test_iterators_main.cpp        ]
+    [ run test_iterators.cpp        test_iterators_main.cpp
+          /boost/foreach//boost_foreach                            ]
     [ run test_key.cpp              test_key_main.cpp
         : : :
         [ check-target-builds boost_multi_index_key_supported
@@ -54,10 +61,13 @@ test-suite "multi_index" :
             : : <build>no                                        ] ]
     [ run test_key_extractors.cpp   test_key_extractors_main.cpp   ]
     [ run test_list_ops.cpp         test_list_ops_main.cpp         ]
+    [ run test_mmap.cpp             test_mmap_main.cpp             
+          /boost/interprocess//boost_interprocess
+          /boost/uuid//boost_uuid                                  ]
     [ run test_modifiers.cpp        test_modifiers_main.cpp        ]
     [ run test_mpl_ops.cpp          test_mpl_ops_main.cpp          ]
     [ run test_node_handling.cpp    test_node_handling_main.cpp    ]
-    [ run test_observers.cpp        test_observers_main.cpp        ]    
+    [ run test_observers.cpp        test_observers_main.cpp        ]
     [ run test_projection.cpp       test_projection_main.cpp       ]
     [ run test_range.cpp            test_range_main.cpp            ]
     [ run test_rank_ops.cpp         test_rank_ops_main.cpp         ]
@@ -66,11 +76,15 @@ test-suite "multi_index" :
     [ run test_serialization.cpp    test_serialization1.cpp
           test_serialization2.cpp   test_serialization3.cpp
           test_serialization_main.cpp
-          /boost/serialization//boost_serialization                ]
+          /boost/serialization//boost_serialization
+        : : :
+        <toolset>clang-3.5:<build>no
+        <toolset>clang-3.6:<build>no                               ]
     [ run test_set_ops.cpp          test_set_ops_main.cpp          ]
     [ run test_special_set_ops.cpp  test_special_set_ops_main.cpp  ]
-    [ run test_update.cpp           test_update_main.cpp 
-        : : : 
+    [ run test_update.cpp           test_update_main.cpp
+        : : :
+        -<tag>@%boostcpp.tag
         -<tag>@$(BOOST_JAMROOT_MODULE)%$(BOOST_JAMROOT_MODULE).tag
         <tag>@change-test_update-exe-name                          ]
     ;

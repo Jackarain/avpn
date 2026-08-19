@@ -337,6 +337,21 @@ public:
         // length not canonical
         bad(string_view("\x81\x7e\x00\x7d", 4));
         bad(string_view("\x81\x7f\x00\x00\x00\x00\x00\x00\xff\xff", 10));
+
+        // 64-bit length with the most significant bit set
+        {
+            echo_server es{log};
+            net::io_context ioc;
+            stream<test::stream> ws{ioc};
+            ws.next_layer().connect(es.stream());
+            ws.handshake("localhost", "/");
+            ws.next_layer().append(
+                string_view("\x81\x7f\xff\xff\xff\xff\xff\xff\xff\xff", 10));
+            error_code ec;
+            multi_buffer b;
+            ws.read(b, ec);
+            BEAST_EXPECTS(ec == error::bad_size, ec.message());
+        }
     }
 
     void
@@ -349,9 +364,9 @@ public:
             stream<test::stream> ws{ioc};
             ws.next_layer().connect(es.stream());
             ws.handshake("localhost", "/");
-            // too-big message frame indicates payload of 2^64-1
+            // too-big message frame indicates payload of 2^63-1
             net::write(ws.next_layer(), sbuf(
-                "\x81\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"));
+                "\x81\xff\x7f\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"));
             multi_buffer b;
             error_code ec;
             ws.read(b, ec);
@@ -1115,6 +1130,145 @@ public:
     }
 
     void
+    testIssue3028()
+    {
+        auto msg = sbuf(
+            "wkaqsefsjynzktlawklztjjpzrasqgkxlhdkmgbqtvxvqn"
+            "ciekvocenenoawnfdpesvxbqgohblexlnzdvizyjbmekyi"
+            "gnrjfurknkcflbhkcmwmqzhizqdnltfimsfgyhcgeieiuk"
+            "rjrmdkfgizfakmfkonuuuwyemjjzsxnhxjvqpxlaimoqef"
+            "xbpqtjeuqpixjikxnfwyspkwywrhpynielsprzfpqpkgxn"
+            "eamswbpfywwdaicyjuebutrnljqhatbkfowfxkbyafhkgx"
+            "pgetcdzctbbesoyanockavckncdyuewiaxssmdewdwyiid"
+            "jemizrtjicmxhqxpbtsdquzwfkphbbldkqdgjbcczbiaxf"
+            "preamtbbqtrqvqaukhltdadwfoqtojpieqyipirscqdzfr"
+            "hbdyhdqpjtrmnprvphfyplmmwzvvwujrlxlljdfwgjnobu"
+            "lxozuysikvfzcacseoztlqhtxeuecqvygsfzmeywwtgfss"
+            "ptwbnvplsirilcwapomabqjrpxshakgldnrpexpbqtzroo"
+            "awyfueagvxptrqyrpzozdnwqflbgviqmsnewzdovaqfgdq"
+            "ophacrbpskdymbuvneuirbgekveyrpuuqhgzqhnogyylsw"
+            "ffsbdiuxarrliimzrzhcqsbqibmursximesnmkimkydvuz"
+            "tgvmaotnycavsixnvwlsrhjvkcrodohiwtrdovjmkiswbq"
+            "umxsacowiygdztvkhdxjgwzplpdlimocxyftqgcfsqdlsn"
+            "wcvgnujvpgptfubffcgajwzvktaztwfvlbbalawkmnhsag"
+            "oevmctztwatgqlsxgxzgpiwainrmvzswvsotfkctgioqdw"
+            "uzvkvhxhhylpmxcvptkdywscdhullqiferhzwmjdbzlqzz"
+            "pfnlppegbvrjdzstmlgnnoodknjcrvnizfigcijepyrjue"
+            "clxortfyzyorurmldqqckaamcnkhxdmsqwwwsdkpuctvdo"
+            "nlolqynufpvfqtidmptewhlzvzzzwlcnnmdenqaedprkxl"
+            "xwsikfysilibsdfwiocdeimxhimnkqgaixxsmqxagxgjej"
+            "droqbilhadmgfovvoxfynmakxprnevltwvhdwwmrbglojj"
+            "yirxjplkucrxwoyjokhpfbdfuwtszqeqdqdbotlcqjjmrx"
+            "cezxwmjadwoduketuoidxpcaayzemzcebartsonxsunity"
+            "tugxijrdmxfaxjjmvedlvlspaghkzdaqwsdudeawrkfysw"
+            "nzdxwmolazwiuutmtizwymexcpcbtjfxoerogcocediyfx"
+            "qqcokcjdwdlubaawjxmcptrzvehukyqbxyjiclyzfikbez"
+            "pqnigelrqbvdgoqrbirgtxszdemclahlivxdruipjoczgf"
+            "ccvocukfihbtqlyuvoiptdqijoaiscmibciozqtopuipms"
+            "qcawhwelcsukaxnvrzzgdsckawwpugrpdqspmlvffzidvi"
+            "agndsjkwakvuaijrdneqzaerjjmosvkxhdlpajgcrqeglf"
+            "bknernbwucgqmxkqaojdjemrslunovugiixmsmrfawthzr"
+            "mlwuksvlllpjbpbkepabppiaftdmvtwuvyedwjuspkxebu"
+            "glauomevvfiwdmnxtbbbvcyvklsyvzevhioyygwnuptdzz"
+            "mqwlqesqfoujokzqobyzqdpkpbbsixfvfubazvglxrfgto"
+            "zgzujnxjtihwvvxyavpymdxjyyepgrxnqeldfkjesvhnmz"
+            "ygnafpumcwzossrejurszinstrjygyxlsjpeekflkgoagl"
+            "nbmhdssxrjvjjcnssiccrcyzhglikjddjsvnymlmgcdzyb"
+            "erpfhbaynowpyzqaqrjkmbnbcjuwlmjxjmhwfomykbkvhc"
+            "blvnjpykuqfbbvuwrkjgtiqsxpltacnpmdyetmvhrvjzyh"
+            "dfetlytsvmutibygrpzhzvjmaqxqlgyvfxhrsapfrlknse"
+            "zzrdbzpemviyccheninsecqinxvavvkfvcsuepzhrxzuhk"
+            "bzjajoqjtgzzflvcnqkeednobfcdymtlhfhdrnbascfbql"
+            "vgewukfejmdfiogcxyrdospneadldytparvbzuohoyanve"
+            "rfbappanncqojtbkytqpugrmgiqxbadwqulkbpwrjgclfh"
+            "cnqhdyvioqpbqfambbiwmocvfiafvrrigkhrtwpnogunme"
+            "kwawsqbqzgzojavfijugpbhsuqivpqseylxmbyotrzddfd"
+            "rmzuxnfabqoxxotmwqctyzqwjlxyikxggyyokiwhhdqwrv"
+            "kjgzqfgprlsseuqfwdglczrmxoamysnqzwsbifwcdusqmn"
+            "btvtenlvhoxccvngeegcknjqkuqnjgdjuqqgdfotxjatvm"
+            "qjklvykrwwvhlqvemvmtaptnovmfblpyzzzjqneojpbvfr"
+            "ckgfmuhyygagntghkhkodoqrisshegseijoqnuwlwdzgya"
+            "jrcnewxkjabcbdlwkhfjgutmxbvxcopewmqhkolntvwcvf"
+            "vmbwhebwoektwlhqgsxdynhmvvvuxlnthswgwiwhhsvfwl"
+            "iewtcflrjilbclcboyqwjjtdqbsfjthjnlagrajwaoccjv"
+            "gvlfolhou");
+
+        permessage_deflate pmd;
+        pmd.client_enable = true;
+        pmd.server_enable = true;
+
+        // read
+        {
+            net::io_context ioc;
+            stream<test::stream> wsc{ioc};
+            stream<test::stream> wss{ioc};
+            wsc.set_option(pmd);
+            wss.set_option(pmd);
+            wsc.next_layer().connect(wss.next_layer());
+            wsc.async_handshake(
+                "localhost", "/", [](error_code){});
+            wss.async_accept([](error_code){});
+            ioc.run();
+            ioc.restart();
+            BEAST_EXPECT(wsc.is_open());
+            BEAST_EXPECT(wss.is_open());
+            for(int i = 0; i < 3; ++i)
+            {
+                wsc.write(net::buffer(msg));
+                do
+                {
+                    char buf[1];
+                    error_code ec;
+                    wss.read_some(net::buffer(buf), ec);
+                    if(! BEAST_EXPECTS(!ec, ec.message()))
+                        break;
+                } while(!wss.is_message_done());
+            }
+        }
+
+        // async read
+        {
+            net::io_context ioc;
+            stream<test::stream> wsc{ioc};
+            stream<test::stream> wss{ioc};
+            wsc.set_option(pmd);
+            wss.set_option(pmd);
+            wsc.next_layer().connect(wss.next_layer());
+            wsc.async_handshake(
+                "localhost", "/", [](error_code){});
+            wss.async_accept([](error_code){});
+            ioc.run();
+            ioc.restart();
+            BEAST_EXPECT(wsc.is_open());
+            BEAST_EXPECT(wss.is_open());
+            struct read_some_handler
+            {
+                stream<test::stream>* wss;
+                net::mutable_buffer buf;
+                void
+                operator()(error_code ec, std::size_t)
+                {
+                    if(! BEAST_EXPECTS(!ec, ec.message()))
+                        return;
+
+                    if(!wss->is_message_done())
+                        wss->async_read_some(buf, *this);
+                }
+            };
+            for(int i = 0; i < 3; ++i)
+            {
+                wsc.write(net::buffer(msg));
+                char buf[1];
+                wss.async_read_some(
+                    net::buffer(buf),
+                    read_some_handler{ &wss, net::buffer(buf) });
+                ioc.run();
+                ioc.restart();
+            }
+        }
+    }
+
+    void
     testMoveOnly()
     {
         net::io_context ioc;
@@ -1160,6 +1314,7 @@ public:
         testIssue954();
         testIssue1630();
         testIssue2879();
+        testIssue3028();
         testIssueBF1();
         testIssueBF2();
         testMoveOnly();

@@ -22,11 +22,14 @@
 namespace boost {
 namespace urls {
 
-/** Common functionality for containers
+/** Decoded query parameter helper base
 
-    This base class is used by the library
-    to provide common member functions for
-    containers. This cannot be instantiated
+    This base centralizes the read-only,
+    percent-decoded query parameter algorithms
+    (iteration, lookup, counting) that are
+    shared by @ref params_view and @ref params_ref.
+
+    This class should not be instantiated
     directly; Instead, use one of the
     containers or functions:
 
@@ -36,7 +39,7 @@ namespace urls {
     @li @ref params_encoded_ref
     @li @ref params_encoded_view
 */
-class BOOST_URL_DECL params_base
+class BOOST_SYMBOL_VISIBLE params_base
 {
     friend class url_view_base;
     friend class params_ref;
@@ -85,11 +88,7 @@ public:
         iterators with static storage
         duration or as long-lived objects.
     */
-#ifdef BOOST_URL_DOCS
-    using iterator = __see_below__;
-#else
     class iterator;
-#endif
 
     /// @copydoc iterator
     using const_iterator = iterator;
@@ -145,6 +144,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return The maximum number of characters possible.
     */
     static
     constexpr
@@ -171,6 +172,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return The buffer.
     */
     pct_string_view
     buffer() const noexcept;
@@ -187,6 +190,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return `true` if there are no params.
     */
     bool
     empty() const noexcept;
@@ -203,6 +208,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return The number of params.
     */
     std::size_t
     size() const noexcept;
@@ -214,6 +221,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return An iterator to the beginning.
     */
     iterator
     begin() const noexcept;
@@ -225,6 +234,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return An iterator to the end.
     */
     iterator
     end() const noexcept;
@@ -258,6 +269,8 @@ public:
         the value @ref ignore_case is passed
         here, the comparison is
         case-insensitive.
+
+        @return `true` if a matching key exists.
     */
     bool
     contains(
@@ -292,11 +305,52 @@ public:
         the value @ref ignore_case is passed
         here, the comparison is
         case-insensitive.
+
+        @return The number of matching keys.
     */
     std::size_t
     count(
         core::string_view key,
         ignore_case_param ic = {}) const noexcept;
+
+    /** Return the value for a key or a fallback
+
+        This convenience function searches for the
+        first parameter matching `key` and returns
+        its decoded value. If no parameter with the
+        specified key exists, the provided fallback
+        `value` is returned instead. When the key is
+        found but the parameter has no value, an
+        empty string is returned.
+
+        @par Example
+        @code
+        url_view u( "/path?first=John&last=Doe" );
+        assert( u.params().get_or( "first", "n/a" ) == "John" );
+        assert( u.params().get_or( "missing", "n/a" ) == "n/a" );
+        @endcode
+
+        @par Complexity
+        Linear in `this->buffer().size()`.
+
+        @par Exception Safety
+        Calls to allocate may throw.
+
+        @param key The key to match.
+        @param value The fallback string returned
+        when no matching key exists. If this
+        parameter is omitted, an empty string is
+        used.
+        @param ic Optional case-insensitive compare
+        indicator.
+
+        @return The decoded value or the fallback.
+    */
+    std::string
+    get_or(
+        core::string_view key,
+        core::string_view value = {},
+        ignore_case_param ic = {}) const;
 
     /** Find a matching key
 
@@ -504,8 +558,11 @@ private:
     @code
     return os << ps.buffer();
     @endcode
+
+    @param os The output stream to write to
+    @param qp The parameters to write
+    @return A reference to the output stream, for chaining
 */
-BOOST_URL_DECL
 std::ostream&
 operator<<(
     std::ostream& os,

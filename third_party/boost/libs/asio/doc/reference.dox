@@ -126,7 +126,9 @@ INPUT                  = ./../../../boost/asio.hpp \
                          ./../../../boost/asio/execution \
                          ./../../../boost/asio/experimental \
                          ./model_dox.txt \
+                         ./overview_dox.txt \
                          ./noncopyable_dox.txt \
+                         ./requirements_dox.txt \
                          ./std_exception_dox.txt
 INPUT_ENCODING         = UTF-8
 INPUT_FILE_ENCODING    =
@@ -317,11 +319,14 @@ PREDEFINED             = GENERATING_DOCUMENTATION \
                          BOOST_ASIO_CONSTEXPR=constexpr \
                          BOOST_ASIO_NOEXCEPT=noexcept \
                          BOOST_ASIO_NODISCARD= \
+                         BOOST_ASIO_INLINE_VARIABLE= \
                          BOOST_ASIO_COMPLETION_SIGNATURE=typename \
                          BOOST_ASIO_COMPLETION_HANDLER_FOR(s)=typename \
                          BOOST_ASIO_COMPLETION_TOKEN_FOR(s)=typename \
                          "BOOST_ASIO_COMPLETION_SIGNATURES_TPARAMS=typename... Signatures" \
                          BOOST_ASIO_COMPLETION_SIGNATURES_TARGS=Signatures... \
+                         BOOST_ASIO_DEPRECATED_MSG(m)= \
+                         BOOST_ASIO_DISPOSITION=typename \
                          "BOOST_ASIO_INITFN_RESULT_TYPE(t,a)=void_or_deduced" \
                          "BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(t,a)=void_or_deduced" \
                          "BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(t,a)=void_or_deduced" \
@@ -338,8 +343,6 @@ PREDEFINED             = GENERATING_DOCUMENTATION \
                          BOOST_ASIO_SVC_TARG1= \
                          BOOST_ASIO_SVC_T=asio::detail::service \
                          BOOST_ASIO_SVC_T1=asio::detail::service \
-                         BOOST_ASIO_CONST_BUFFER=const_buffer \
-                         BOOST_ASIO_MUTABLE_BUFFER=mutable_buffer \
                          BOOST_ASIO_SYNC_OP_VOID=void \
                          BOOST_ASIO_STRING_VIEW_PARAM=string_view \
                          BOOST_ASIO_UNUSED_VARIABLE= \
@@ -351,7 +354,9 @@ PREDEFINED             = GENERATING_DOCUMENTATION \
                          BOOST_ASIO_AUTO_RETURN_TYPE_PREFIX(t)=auto \
                          "BOOST_ASIO_AUTO_RETURN_TYPE_PREFIX2(t0,t1)=auto" \
                          "BOOST_ASIO_AUTO_RETURN_TYPE_PREFIX3(t0,t1,t2)=auto" \
-                         BOOST_ASIO_AUTO_RETURN_TYPE_SUFFIX(t)=
+                         BOOST_ASIO_AUTO_RETURN_TYPE_SUFFIX(t)= \
+                         BOOST_ASIO_INLINE_NAMESPACE_BEGIN= \
+                         BOOST_ASIO_INLINE_NAMESPACE_END=
 EXPAND_AS_DEFINED      =
 SKIP_FUNCTION_MACROS   = YES
 #---------------------------------------------------------------------------

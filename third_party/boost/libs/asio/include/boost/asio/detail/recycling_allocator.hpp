@@ -2,7 +2,7 @@
 // detail/recycling_allocator.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -24,6 +24,7 @@
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
 namespace detail {
 
 template <typename T, typename Purpose = thread_info_base::default_tag>
@@ -54,7 +55,7 @@ public:
         thread_context::top_of_thread_call_stack(),
         sizeof(T) * n, alignof(T));
 #else // !defined(BOOST_ASIO_DISABLE_SMALL_BLOCK_RECYCLING)
-    void* p = boost::asio::aligned_new(align, s);
+    void* p = boost::asio::aligned_new(alignof(T), sizeof(T) * n);
 #endif // !defined(BOOST_ASIO_DISABLE_SMALL_BLOCK_RECYCLING)
     return static_cast<T*>(p);
   }
@@ -108,6 +109,7 @@ struct get_recycling_allocator<std::allocator<T>, Purpose>
 };
 
 } // namespace detail
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 

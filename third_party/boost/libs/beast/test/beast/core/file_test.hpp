@@ -16,7 +16,6 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <fstream>
 #include <iterator>
 #include <string>
 #include <type_traits>
@@ -33,17 +32,17 @@ template<class File, bool append_unicode_suffix = false>
 void
 test_file()
 {
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         is_file<File>::value);
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         ! std::is_copy_constructible<File>::value);
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         ! std::is_copy_assignable<File>::value);
 
     namespace fs = boost::filesystem;
 
     static constexpr
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
     boost::winapi::WCHAR_ unicode_suffix[] = { 0xd83e, 0xdd84, 0x0000 }; // UTF-16-LE unicorn
 #else
     char                  unicode_suffix[] = { '\xf0', '\x9f', '\xa6', '\x84', '\x00' }; // UTF-8 unicorn
@@ -112,8 +111,8 @@ test_file()
         [](fs::path const& path)
         {
             // no exceptions - failure will result in an empty string
-            std::ifstream in;
-            in.open(path.native());
+            fs::ifstream in;
+            in.open(path);
             noskipws(in);
             auto s = std::string(
                 std::istream_iterator<char>(in),
@@ -441,6 +440,87 @@ test_file()
             auto pos = f.pos(ec);
             BEAST_EXPECT(! ec);
             BEAST_EXPECT(pos == 4);
+        }
+        remove(path);
+    }
+
+    // https://github.com/boostorg/beast/issues/3035
+    //
+    // A successful operation must clear `ec`.
+    {
+        string_view const s = "Hello, world!";
+
+        // write
+        {
+            File f;
+            {
+                error_code ec = error::timeout;
+                f.open(path, file_mode::write, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                error_code ec = error::timeout;
+                f.write(s.data(), s.size(), ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                error_code ec = error::timeout;
+                f.write(s.data(), 0, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                error_code ec = error::timeout;
+                auto n = f.size(ec);
+                BEAST_EXPECTS(! ec, ec.message());
+                BEAST_EXPECT(n == s.size());
+            }
+            {
+                error_code ec = error::timeout;
+                f.pos(ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                error_code ec = error::timeout;
+                f.seek(0, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                error_code ec = error::timeout;
+                f.close(ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+        }
+
+        // read
+        {
+            File f;
+            {
+                error_code ec = error::timeout;
+                f.open(path, file_mode::read, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                std::string buf;
+                buf.resize(s.size());
+                error_code ec = error::timeout;
+                auto n = f.read(&buf[0], buf.size(), ec);
+                BEAST_EXPECTS(! ec, ec.message());
+                BEAST_EXPECT(n == s.size());
+                BEAST_EXPECT(buf == s);
+            }
+            {
+                char c;
+                error_code ec = error::timeout;
+                f.read(&c, 0, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+            }
+            {
+                char c;
+                error_code ec = error::timeout;
+                auto n = f.read(&c, 1, ec);
+                BEAST_EXPECTS(! ec, ec.message());
+                BEAST_EXPECT(n == 0);
+            }
         }
         remove(path);
     }

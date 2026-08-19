@@ -28,9 +28,6 @@ namespace urls {
     @tparam T type of resource associated with
     each path template
 
-    @tparam N maximum number of replacement fields
-    in a path template
-
     @par Exception Safety
 
     @li Functions marked `noexcept` provide the
@@ -54,6 +51,11 @@ public:
     /// Constructor
     router() = default;
 
+    router(router const&) = delete;
+    router& operator=(router const&) = delete;
+    router(router&&) noexcept = default;
+    router& operator=(router&&) noexcept = default;
+
     /** Route the specified URL path to a resource
 
         @param path A url path with dynamic segments
@@ -66,19 +68,20 @@ public:
     void
     insert(core::string_view pattern, U&& v);
 
-    /** Match URL path to corresponding resource
+    /** Match URL path to the corresponding resource
 
         @param request Request path
         @return The match results
      */
     T const*
-    find(segments_encoded_view path, matches_base& m) const noexcept;
+    find(segments_encoded_view path, matches& m) const noexcept
+    {
+        return find_impl(path, m);
+    }
 
-#ifdef BOOST_URL_DOCS
-    /// @copydoc find
+private:
     T const*
-    find(segments_encoded_view path, matches& m) const noexcept;
-#endif
+    find_impl(segments_encoded_view path, matches_base& m) const noexcept;
 };
 
 } // urls
@@ -87,4 +90,3 @@ public:
 #include "impl/router.hpp"
 
 #endif
-

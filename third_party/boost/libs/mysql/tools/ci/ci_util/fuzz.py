@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #
-# Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+# Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,7 +18,6 @@ from .install_boost import install_boost
 def fuzz_build(
     source_dir: Path,
     boost_branch: str,
-    db: str,
     server_host: str,
 ) -> None:
     # Config
@@ -43,7 +42,7 @@ def fuzz_build(
     generate_seed_corpus()
 
     # Setup DB (required for injection testing)
-    db_setup(source_dir, db, server_host)
+    db_setup(source_dir, server_host)
 
     # Build and run the fuzzing targets
     run([

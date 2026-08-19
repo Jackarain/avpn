@@ -17,148 +17,181 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolset: gcc-4.8
-            cxxstd: "11"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: g++-4.8
-          - toolset: gcc-5
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: g++-5
-          - toolset: gcc-6
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: g++-6
           - toolset: gcc-7
             cxxstd: "11,14,17"
+            container: ubuntu:20.04
             os: ubuntu-latest
-            container: ubuntu:18.04
+            install: g++-7
           - toolset: gcc-8
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-8
           - toolset: gcc-9
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
           - toolset: gcc-10
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-10
           - toolset: gcc-11
             cxxstd: "11,14,17,2a"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
           - toolset: gcc-12
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-22.04
+            container: ubuntu:22.04
+            os: ubuntu-latest
             install: g++-12
           - toolset: gcc-13
             cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            container: ubuntu:23.04
             install: g++-13
           - toolset: gcc-14
             cxxstd: "11,14,17,20,2b"
-            os: ubuntu-latest
             container: ubuntu:24.04
+            os: ubuntu-latest
             install: g++-14
-          - toolset: clang
-            compiler: clang++-3.9
-            cxxstd: "11,14"
+          - toolset: gcc-15
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:26.04
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-3.9
-          - toolset: clang
-            compiler: clang++-4.0
-            cxxstd: "11,14"
+            install: g++-15
+          - toolset: gcc-16
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:26.04
             os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-4.0
-          - toolset: clang
-            compiler: clang++-5.0
-            cxxstd: "11,14,1z"
-            os: ubuntu-latest
-            container: ubuntu:18.04
-            install: clang-5.0
+            install: g++-16
           - toolset: clang
             compiler: clang++-6.0
             cxxstd: "11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: clang-6.0
           - toolset: clang
             compiler: clang++-7
             cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-7
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-7 libc++-7-dev libc++abi-7-dev
           - toolset: clang
             compiler: clang++-8
             cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-8
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-8 libc++-8-dev libc++abi-8-dev
           - toolset: clang
             compiler: clang++-9
             cxxstd: "11,14,17"
-            os: ubuntu-20.04
-            install: clang-9
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-9 libc++-9-dev libc++abi-9-dev
           - toolset: clang
             compiler: clang++-10
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-10 libc++-10-dev libc++abi-10-dev
           - toolset: clang
             compiler: clang++-11
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-11 libc++-11-dev libc++abi-11-dev
           - toolset: clang
             compiler: clang++-12
             cxxstd: "11,14,17,20"
-            os: ubuntu-20.04
+            stdlib: "native,libc++"
+            container: ubuntu:20.04
+            os: ubuntu-latest
+            install: clang-12 libc++-12-dev libc++abi-12-dev
           - toolset: clang
             compiler: clang++-13
             cxxstd: "11,14,17,20,2b"
+            stdlib: "native,libc++"
             container: ubuntu:22.04
             os: ubuntu-latest
-            install: clang-13
+            install: clang-13 libc++-13-dev libc++abi-13-dev
           - toolset: clang
             compiler: clang++-14
             cxxstd: "11,14,17,20,2b"
+            stdlib: "native,libc++"
             container: ubuntu:22.04
             os: ubuntu-latest
-            install: clang-14
+            install: clang-14 libc++-14-dev libc++abi-14-dev
           - toolset: clang
             compiler: clang++-15
             cxxstd: "11,14,17,20,2b"
             container: ubuntu:22.04
+            stdlib: "native,libc++"
             os: ubuntu-latest
-            install: clang-15
+            install: clang-15 libc++-15-dev libc++abi-15-dev
           - toolset: clang
             compiler: clang++-16
             cxxstd: "11,14,17,20,2b"
-            container: ubuntu:23.04
+            stdlib: "native,libc++"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            install: clang-16
+            install: clang-16 libc++-16-dev libc++abi-16-dev
           - toolset: clang
             compiler: clang++-17
             cxxstd: "11,14,17,20,2b"
-            container: ubuntu:23.10
+            stdlib: "native,libc++"
+            container: ubuntu:24.04
             os: ubuntu-latest
-            install: clang-17
+            install: clang-17 libc++-17-dev libc++abi-17-dev
           - toolset: clang
             compiler: clang++-18
             cxxstd: "11,14,17,20,2b"
+            stdlib: "native,libc++"
             container: ubuntu:24.04
             os: ubuntu-latest
-            install: clang-18
+            install: clang-18 libc++-18-dev libc++abi-18-dev
           - toolset: clang
+            compiler: clang++-19
             cxxstd: "11,14,17,20,2b"
-            os: macos-12
+            stdlib: "native,libc++"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-19 libc++-19-dev libc++abi-19-dev
           - toolset: clang
-            cxxstd: "11,14,17,20,2b"
-            os: macos-13
+            compiler: clang++-20
+            cxxstd: "11,14,17,20,23,2c"
+            stdlib: "native,libc++"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-20 libc++-20-dev libc++abi-20-dev
+          - toolset: clang
+            compiler: clang++-21
+            cxxstd: "11,14,17,20,23,2c"
+            stdlib: "native,libc++"
+            container: ubuntu:26.04
+            os: ubuntu-latest
+            install: clang-21 libc++-21-dev libc++abi-21-dev
+          - toolset: clang
+            compiler: clang++-22
+            cxxstd: "11,14,17,20,23,2c"
+            stdlib: "native,libc++"
+            container: ubuntu:26.04
+            os: ubuntu-latest
+            install: clang-22 libc++-22-dev libc++abi-22-dev
           - toolset: clang
             cxxstd: "11,14,17,20,2b"
             os: macos-14
+          - toolset: clang
+            cxxstd: "11,14,17,20,2b"
+            os: macos-15
+          - toolset: clang
+            cxxstd: "11,14,17,20,23,2c"
+            os: macos-26
 
     runs-on: ${{matrix.os}}
     container: ${{matrix.container}}
@@ -168,13 +201,13 @@ jobs:
         shell: bash
 
     steps:
-      - uses: actions/checkout@v3
-
       - name: Setup container environment
         if: matrix.container
         run: |
           apt-get update
-          apt-get -y install sudo python3 git g++
+          apt-get -y install sudo python3 git g++ curl xz-utils
+
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -212,38 +245,34 @@ jobs:
       - name: Run tests
         run: |
           cd ../boost-root
-          ./b2 -j3 libs/$LIBRARY/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} variant=debug,release
+          ./b2 -j3 libs/$LIBRARY/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} variant=debug,release ${{ matrix.stdlib && format('stdlib={0}', matrix.stdlib) }}
 
   windows:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc-14.0
-            cxxstd: "14"
-            addrmd: 32,64
-            os: windows-2019
-          - toolset: msvc-14.2
-            cxxstd: "14,17,20,latest"
-            addrmd: 32,64
-            os: windows-2019
           - toolset: msvc-14.3
             cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
+          - toolset: msvc-14.5
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2025-vs2026
           - toolset: clang-win
             cxxstd: "14,17,20,latest"
             addrmd: 32,64
-            os: windows-2022
+            os: windows-latest
           - toolset: gcc
             cxxstd: "11,14,17,2a"
             addrmd: 64
-            os: windows-2019
+            os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -278,16 +307,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-          - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
-          - os: macos-14
+          - os: ubuntu-latest
+          - os: macos-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -326,16 +352,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-          - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
-          - os: macos-14
+          - os: ubuntu-latest
+          - os: macos-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -384,16 +407,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-          - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
-          - os: macos-14
+          - os: ubuntu-latest
+          - os: macos-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -435,18 +455,68 @@ jobs:
           cd ../boost-root/__build__
           ctest --output-on-failure --no-tests=error
 
+  posix-cmake-use:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install packages
+        if: matrix.install
+        run: sudo apt-get -y install ${{matrix.install}}
+
+      - name: Setup Boost
+        run: |
+          echo GITHUB_REPOSITORY: $GITHUB_REPOSITORY
+          LIBRARY=${GITHUB_REPOSITORY#*/}
+          echo LIBRARY: $LIBRARY
+          echo "LIBRARY=$LIBRARY" >> $GITHUB_ENV
+          echo GITHUB_BASE_REF: $GITHUB_BASE_REF
+          echo GITHUB_REF: $GITHUB_REF
+          REF=${GITHUB_BASE_REF:-$GITHUB_REF}
+          REF=${REF#refs/heads/}
+          echo REF: $REF
+          BOOST_BRANCH=develop && [ "$REF" == "master" ] && BOOST_BRANCH=master || true
+          echo BOOST_BRANCH: $BOOST_BRANCH
+          cd ..
+          git clone -b $BOOST_BRANCH --depth 1 https://github.com/boostorg/boost.git boost-root
+          cd boost-root
+          cp -r $GITHUB_WORKSPACE/* libs/$LIBRARY
+          git submodule update --init tools/boostdep
+          python tools/boostdep/depinst/depinst.py --git_args "--jobs 3" $LIBRARY
+          ./bootstrap.sh
+          ./b2 -d0 headers
+
+      - name: Install Boost --with-library
+        run: |
+          cd ../boost-root
+          ./b2 -j3 --with-$LIBRARY --prefix=$HOME/.local install
+
+      - name: Use the installed library
+        run: |
+          cd ../boost-root/libs/$LIBRARY/test/cmake_install_test && mkdir __build__ && cd __build__
+          cmake -DCMAKE_INSTALL_PREFIX=~/.local ..
+          cmake --build .
+          ctest --output-on-failure --no-tests=error
+
   windows-cmake-subdir:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -489,13 +559,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -556,13 +625,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -613,4 +681,59 @@ jobs:
         shell: cmd
         run: |
           cd ../boost-root/__build__
+          ctest --output-on-failure --no-tests=error -C Release
+
+  windows-cmake-use:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Boost
+        shell: cmd
+        run: |
+          echo GITHUB_REPOSITORY: %GITHUB_REPOSITORY%
+          for /f %%i in ("%GITHUB_REPOSITORY%") do set LIBRARY=%%~nxi
+          echo LIBRARY: %LIBRARY%
+          echo LIBRARY=%LIBRARY%>>%GITHUB_ENV%
+          echo GITHUB_BASE_REF: %GITHUB_BASE_REF%
+          echo GITHUB_REF: %GITHUB_REF%
+          if "%GITHUB_BASE_REF%" == "" set GITHUB_BASE_REF=%GITHUB_REF%
+          set BOOST_BRANCH=develop
+          for /f %%i in ("%GITHUB_BASE_REF%") do if "%%~nxi" == "master" set BOOST_BRANCH=master
+          echo BOOST_BRANCH: %BOOST_BRANCH%
+          cd ..
+          git clone -b %BOOST_BRANCH% --depth 1 https://github.com/boostorg/boost.git boost-root
+          cd boost-root
+          xcopy /s /e /q %GITHUB_WORKSPACE% libs\%LIBRARY%\
+          git submodule update --init tools/boostdep
+          python tools/boostdep/depinst/depinst.py --git_args "--jobs 3" %LIBRARY%
+          cmd /c bootstrap
+          b2 -d0 headers
+
+      - name: Install Boost --with-library
+        shell: cmd
+        run: |
+          cd ../boost-root
+          b2 -j3 --with-%LIBRARY% install
+
+      - name: Use the installed library (Debug)
+        shell: cmd
+        run: |
+          cd ../boost-root/libs/%LIBRARY%/test/cmake_install_test && mkdir __build__ && cd __build__
+          cmake -DBoost_ROOT=C:/Boost ..
+          cmake --build . --config Debug
+          ctest --output-on-failure --no-tests=error -C Debug
+
+      - name: Use the installed library (Release)
+        shell: cmd
+        run: |
+          cd ../boost-root/libs/%LIBRARY%/test/cmake_install_test/__build__
+          cmake --build . --config Release
           ctest --output-on-failure --no-tests=error -C Release

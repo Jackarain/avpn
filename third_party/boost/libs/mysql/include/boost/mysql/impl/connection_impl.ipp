@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -11,11 +11,13 @@
 #pragma once
 
 #include <boost/mysql/character_set.hpp>
+#include <boost/mysql/diagnostics.hpp>
 #include <boost/mysql/pipeline.hpp>
 
 #include <boost/mysql/detail/connection_impl.hpp>
 
 #include <boost/mysql/impl/internal/sansio/connection_state.hpp>
+#include <boost/mysql/impl/internal/sansio/connection_state_data.hpp>
 
 #include <boost/throw_exception.hpp>
 
@@ -69,7 +71,7 @@ boost::mysql::metadata_mode boost::mysql::detail::connection_impl::meta_mode() c
 
 void boost::mysql::detail::connection_impl::set_meta_mode(metadata_mode v) { st_->data().meta_mode = v; }
 
-bool boost::mysql::detail::connection_impl::ssl_active() const { return st_->data().ssl_active(); }
+bool boost::mysql::detail::connection_impl::ssl_active() const { return st_->data().tls_active; }
 
 bool boost::mysql::detail::connection_impl::backslash_escapes() const
 {
@@ -90,23 +92,32 @@ boost::system::result<boost::mysql::character_set> boost::mysql::detail::connect
     return charset;
 }
 
+boost::optional<std::uint32_t> boost::mysql::detail::connection_impl::connection_id() const
+{
+    const auto& data = st_->data();
+    if (data.status == connection_status::not_connected)
+        return {};
+    else
+        return data.connection_id;
+}
+
 boost::mysql::detail::run_pipeline_algo_params boost::mysql::detail::connection_impl::make_params_pipeline(
     const pipeline_request& req,
-    std::vector<stage_response>& response,
-    diagnostics& diag
+    std::vector<stage_response>& response
 )
 {
     const auto& req_impl = access::get_impl(req);
-    return {&diag, req_impl.buffer_, req_impl.stages_, &response};
+    return {req_impl.buffer_, req_impl.stages_, &response};
 }
 
 template <class AlgoParams>
 boost::mysql::detail::any_resumable_ref boost::mysql::detail::setup(
     connection_state& st,
+    diagnostics& diag,
     const AlgoParams& params
 )
 {
-    return st.setup(params);
+    return st.setup(diag, params);
 }
 
 template <class AlgoParams>
@@ -118,7 +129,7 @@ typename AlgoParams::result_type boost::mysql::detail::get_result(const connecti
 #ifdef BOOST_MYSQL_SEPARATE_COMPILATION
 
 #define BOOST_MYSQL_INSTANTIATE_SETUP(op_params_type) \
-    template any_resumable_ref setup<op_params_type>(connection_state&, const op_params_type&);
+    template any_resumable_ref setup<op_params_type>(connection_state&, diagnostics&, const op_params_type&);
 
 #define BOOST_MYSQL_INSTANTIATE_GET_RESULT(op_params_type) \
     template op_params_type::result_type get_result<op_params_type>(const connection_state&);

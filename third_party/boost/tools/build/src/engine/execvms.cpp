@@ -34,8 +34,10 @@
 #include "jam.h"
 #include "lists.h"
 #include "execcmd.h"
+#include "object.h"
 #include "output.h"
 #include "startup.h"
+#include "jam_strings.h"
 
 #ifdef OS_VMS
 
@@ -265,7 +267,7 @@ void exec_cmd
 
         fclose( f );
 
-        if ( DEBUG_EXECCMD )
+        if ( is_debug_execcmd() )
         {
             FILE * f;
             char buf[ WRTLEN + 1 ] = { 0 };

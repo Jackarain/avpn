@@ -10,6 +10,7 @@
 // Test that header file is self-contained.
 #include <boost/json/array.hpp>
 
+#include <boost/core/detail/static_assert.hpp>
 #include <boost/json/monotonic_resource.hpp>
 
 #include <forward_list>
@@ -22,8 +23,8 @@
 namespace boost {
 namespace json {
 
-BOOST_STATIC_ASSERT( std::is_nothrow_destructible<array>::value );
-BOOST_STATIC_ASSERT( std::is_nothrow_move_constructible<array>::value );
+BOOST_CORE_STATIC_ASSERT( std::is_nothrow_destructible<array>::value );
+BOOST_CORE_STATIC_ASSERT( std::is_nothrow_move_constructible<array>::value );
 
 class array_test
 {
@@ -940,6 +941,24 @@ public:
                 BOOST_TEST(a[3].as_array().size() == 3);
                 BOOST_TEST(a[4].is_string());
             });
+
+            // value aliases an element and insertion reallocates
+            fail_loop([&](storage_ptr const& sp)
+            {
+                array a(sp);
+                a.reserve(4);
+                a.emplace_back(1);
+                a.emplace_back(2);
+                a.emplace_back(3);
+                a.emplace_back(4);
+                BOOST_TEST(a.capacity() == a.size());
+                a.insert(a.begin(), 6, a[0]);
+                BOOST_TEST(a.size() == 10);
+                for(std::size_t i = 0; i < 7; ++i)
+                    BOOST_TEST(a[i].as_int64() == 1);
+                BOOST_TEST(a[9].as_int64() == 4);
+                check_storage(a, sp);
+            });
         }
 
         // insert(const_iterator, InputIt, InputIt)
@@ -1166,6 +1185,24 @@ public:
                 array a(3, v, sp);
                 a.resize(5, v);
                 BOOST_TEST(a.size() == 5);
+                check_storage(a, sp);
+            });
+
+            // value aliases an element and the resize reallocates
+            fail_loop([&](storage_ptr const& sp)
+            {
+                array a(sp);
+                a.reserve(4);
+                a.emplace_back(10);
+                a.emplace_back(20);
+                a.emplace_back(30);
+                a.emplace_back(40);
+                BOOST_TEST(a.capacity() == a.size());
+                a.resize(12, a[1]);
+                BOOST_TEST(a.size() == 12);
+                BOOST_TEST(a[1].as_int64() == 20);
+                for(std::size_t i = 4; i < 12; ++i)
+                    BOOST_TEST(a[i].as_int64() == 20);
                 check_storage(a, sp);
             });
         }

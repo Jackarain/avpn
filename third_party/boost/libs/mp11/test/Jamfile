@@ -1,16 +1,22 @@
 #  Boost.Mp11 Library Test Jamfile
 #
-#  Copyright 2015-2019 Peter Dimov
+#  Copyright 2015-2024 Peter Dimov
 #
 #  Distributed under the Boost Software License, Version 1.0.
 #  See accompanying file LICENSE_1_0.txt or copy at
 #  http://www.boost.org/LICENSE_1_0.txt
 
+import-search /boost/config/checks ;
+
 import testing ;
-import ../../config/checks/config : requires ;
+import config : requires ;
 
 project
   : requirements
+    <library>/boost/mp11//boost_mp11
+    <library>/boost/config//boost_config
+    <library>/boost/core//boost_core
+    <library>/boost/mpl//boost_mpl
 
     [ requires cxx11_variadic_templates cxx11_template_aliases cxx11_decltype cxx11_hdr_tuple ]
 
@@ -145,6 +151,7 @@ run mp_with_index.cpp ;
 run mp_with_index_cx.cpp ;
 run mp_from_sequence.cpp ;
 run mp_from_sequence_2.cpp ;
+run mp_from_sequence_3.cpp ;
 run mp_min_element.cpp ;
 run mp_min_element_2.cpp ;
 run mp_min_element_q.cpp ;
@@ -243,6 +250,7 @@ run mp_similar.cpp ;
 run mp_map_find.cpp ;
 run mp_map_find_2.cpp ;
 run mp_map_find_3.cpp ;
+run mp_map_find_4.cpp ;
 run mp_map_contains.cpp ;
 run mp_map_insert.cpp ;
 run mp_map_replace.cpp ;
@@ -257,6 +265,9 @@ run mp_bind.cpp ;
 run mp_bind_q.cpp ;
 run mp_bind_front.cpp ;
 run mp_bind_back.cpp ;
+
+# lambda
+run mp_lambda.cpp ;
 
 # mpl
 run mpl.cpp : ;

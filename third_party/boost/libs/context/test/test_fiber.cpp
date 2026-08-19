@@ -501,13 +501,36 @@ void test_badcatch() {
         BOOST_CHECK_EQUAL( 3., value3);
         // the destruction of ctx here will cause a forced_unwind to be thrown that is not caught
         // in fn19.  That will trigger the "not caught" assertion in ~forced_unwind.  Getting that
-        // assertion to propogate bak here cleanly is non-trivial, and there seems to not be a good
+        // assertion to propagate back here cleanly is non-trivial, and there seems to not be a good
         // way to hook directly into the assertion when it happens on an alternate stack.
         std::move( f);
     }
     BOOST_CHECK_EQUAL( 7, value1);
     BOOST_CHECK_EQUAL( 4., value3);
 #endif
+}
+
+void test_uncaught_exceptions() {
+    int i = 42;
+    {
+        ctx::fiber f{
+            [&i](ctx::fiber && f ) {
+                struct scope_test {
+                    int &i_;
+                    scope_test( int &i) :
+                        i_(i) {
+                    }
+                    ~scope_test() {
+                        i_ = std::uncaught_exceptions();
+                    }
+                };
+                scope_test scope( i);
+                return std::move( f).resume();
+                i = 84;
+        }};
+        f = std::move(f).resume();
+    }
+    BOOST_CHECK_EQUAL( i, 1);
 }
 
 int main()
@@ -529,6 +552,7 @@ int main()
 #endif
     test_goodcatch();
     test_badcatch();
+    test_uncaught_exceptions();
 
     return boost::report_errors();
 }

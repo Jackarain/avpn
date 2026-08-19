@@ -28,6 +28,7 @@ template <class RealType> bool instantiate_mixed_runner_result<RealType>::value;
 
 #include <boost/math/special_functions.hpp>
 #include <boost/concept_archetype.hpp>
+#include <boost/concept_check.hpp>
 #include <boost/math/distributions.hpp>
 
 #if !defined(BOOST_MATH_NO_DISTRIBUTION_CONCEPT_TESTS)
@@ -74,6 +75,33 @@ BOOST_MATH_DECLARE_DISTRIBUTIONS(double, test_policy)
 #endif
 
 template <class RealType>
+void instantiate_for_fixed_precision_only(RealType, const std::true_type&)
+{
+   using namespace boost;
+   using namespace boost::math;
+   using namespace boost::math::concepts;
+
+#ifdef TEST_GROUP_1
+#if !defined(BOOST_MATH_NO_DISTRIBUTION_CONCEPT_TESTS)
+   function_requires<DistributionConcept<landau_distribution<RealType> > >();
+   function_requires<DistributionConcept<landau_distribution<RealType, test_policy> > >();
+   function_requires<DistributionConcept<dist_test::landau > >();
+   function_requires<DistributionConcept<mapairy_distribution<RealType> > >();
+   function_requires<DistributionConcept<mapairy_distribution<RealType, test_policy> > >();
+   function_requires<DistributionConcept<dist_test::mapairy > >();
+   function_requires<DistributionConcept<holtsmark_distribution<RealType> > >();
+   function_requires<DistributionConcept<holtsmark_distribution<RealType, test_policy> > >();
+   function_requires<DistributionConcept<dist_test::holtsmark> >();
+   function_requires<DistributionConcept<saspoint5_distribution<RealType> > >();
+   function_requires<DistributionConcept<saspoint5_distribution<RealType, test_policy> > >();
+   function_requires<DistributionConcept<dist_test::saspoint5> >();
+#endif
+#endif
+}
+template <class RealType>
+void instantiate_for_fixed_precision_only(RealType, const std::false_type&){}
+
+template <class RealType>
 void instantiate(RealType)
 {
    instantiate_runner_result<RealType>::value = false;
@@ -118,6 +146,9 @@ void instantiate(RealType)
    function_requires<DistributionConcept<triangular_distribution<RealType> > >();
    function_requires<DistributionConcept<uniform_distribution<RealType> > >();
    function_requires<DistributionConcept<weibull_distribution<RealType> > >();
+
+   instantiate_for_fixed_precision_only(RealType(), std::integral_constant<bool, std::numeric_limits<RealType>::is_specialized && (std::numeric_limits<RealType>::digits <= 113) && (std::numeric_limits<RealType>::radix == 2)>());
+
    #endif // !defined(BOOST_MATH_NO_DISTRIBUTION_CONCEPT_TESTS)
 #endif
 #ifndef BOOST_MATH_INSTANTIATE_MINIMUM
@@ -232,6 +263,8 @@ void instantiate(RealType)
    boost::math::tgamma_lower(v1, v2);
    boost::math::gamma_p(v1, v2);
    boost::math::gamma_q(v1, v2);
+   boost::math::lgamma_q(v1, v2);
+   boost::math::lgamma_p(v1, v2);
    boost::math::gamma_p_inv(v1, v2);
    boost::math::gamma_q_inv(v1, v2);
    boost::math::gamma_p_inva(v1, v2);
@@ -338,6 +371,7 @@ void instantiate(RealType)
    boost::math::jacobi_theta4m1(v1, v2);
    boost::math::jacobi_theta4m1tau(v1, v2);
    boost::math::hypot(v1, v2);
+   boost::math::hypot(v1, v2, v3);
    boost::math::sinc_pi(v1);
    boost::math::sinhc_pi(v1);
    boost::math::asinh(v1);
@@ -510,6 +544,8 @@ void instantiate(RealType)
    boost::math::tgamma_lower(v1 * 1, v2 - 0);
    boost::math::gamma_p(v1 * 1, v2 + 0);
    boost::math::gamma_q(v1 * 1, v2 + 0);
+   boost::math::lgamma_q(v1 * 1, v2 + 0);
+   boost::math::lgamma_p(v1 * 1, v2 + 0);
    boost::math::gamma_p_inv(v1 * 1, v2 + 0);
    boost::math::gamma_q_inv(v1 * 1, v2 + 0);
    boost::math::gamma_p_inva(v1 * 1, v2 + 0);
@@ -761,6 +797,8 @@ void instantiate(RealType)
    boost::math::tgamma_lower(v1, v2, pol);
    boost::math::gamma_p(v1, v2, pol);
    boost::math::gamma_q(v1, v2, pol);
+   boost::math::lgamma_q(v1, v2, pol);
+   boost::math::lgamma_p(v1, v2, pol);
    boost::math::gamma_p_inv(v1, v2, pol);
    boost::math::gamma_q_inv(v1, v2, pol);
    boost::math::gamma_p_inva(v1, v2, pol);
@@ -1038,6 +1076,8 @@ void instantiate(RealType)
    test::tgamma_lower(v1, v2);
    test::gamma_p(v1, v2);
    test::gamma_q(v1, v2);
+   test::lgamma_q(v1, v2);
+   test::lgamma_p(v1, v2);
    test::gamma_p_inv(v1, v2);
    test::gamma_q_inv(v1, v2);
    test::gamma_p_inva(v1, v2);
@@ -1319,6 +1359,8 @@ void instantiate_mixed(RealType)
    boost::math::gamma_p(i, s);
    boost::math::gamma_p(fr, lr);
    boost::math::gamma_q(i, s);
+   boost::math::lgamma_q(i, s);
+   boost::math::lgamma_p(i, s);
    boost::math::gamma_q(fr, lr);
    boost::math::gamma_p_inv(i, fr);
    boost::math::gamma_q_inv(s, fr);
@@ -1534,6 +1576,8 @@ void instantiate_mixed(RealType)
    boost::math::gamma_p(i, s, pol);
    boost::math::gamma_p(fr, lr, pol);
    boost::math::gamma_q(i, s, pol);
+   boost::math::lgamma_q(i, s, pol);
+   boost::math::lgamma_p(i, s, pol);
    boost::math::gamma_q(fr, lr, pol);
    boost::math::gamma_p_inv(i, fr, pol);
    boost::math::gamma_q_inv(s, fr, pol);
@@ -1718,11 +1762,6 @@ void instantiate_mixed(RealType)
    boost::math::owens_t(fr, dr, pol);
    boost::math::owens_t(i, s, pol);
    boost::math::lambert_w0(i, pol);
-   {
-      int i_zero { 0 };
-
-      boost::math::lambert_wm1(i_zero, pol);
-   }
    boost::math::lambert_w0_prime(i, pol);
 #endif
 #ifdef TEST_GROUP_11
@@ -1750,7 +1789,11 @@ void instantiate_mixed(RealType)
    test::gamma_p(i, s);
    test::gamma_p(fr, lr);
    test::gamma_q(i, s);
+   test::lgamma_q(i, s);
+   test::lgamma_p(i, s);
    test::gamma_q(fr, lr);
+   test::lgamma_q(fr, lr);
+   test::lgamma_p(fr, lr);
    test::gamma_p_inv(i, fr);
    test::gamma_q_inv(s, fr);
    test::gamma_p_inva(i, lr);
@@ -1919,11 +1962,6 @@ void instantiate_mixed(RealType)
    test::owens_t(fr, dr);
    test::owens_t(i, s);
    boost::math::lambert_w0(i);
-   {
-      int i_zero { 0 };
-
-      boost::math::lambert_wm1(i_zero);
-   }
    boost::math::lambert_w0_prime(i);
 #endif
 #endif

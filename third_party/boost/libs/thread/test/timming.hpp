@@ -7,14 +7,14 @@
 #define BOOST_THREAD_TEST_TIMMING_HPP
 
 #include <boost/thread/detail/config.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 #if ! defined BOOST_THREAD_TEST_TIME_MS
 #ifdef __linux__
 #define BOOST_THREAD_TEST_TIME_MS 75
 #else
 // Windows, Cygwin, macOS all need this
-#define BOOST_THREAD_TEST_TIME_MS 400
+#define BOOST_THREAD_TEST_TIME_MS 700
 #endif
 #endif
 

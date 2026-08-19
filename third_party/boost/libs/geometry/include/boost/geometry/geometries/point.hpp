@@ -23,8 +23,6 @@
 #include <cstddef>
 #include <type_traits>
 
-#include <boost/static_assert.hpp>
-
 #include <boost/geometry/core/access.hpp>
 #include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/coordinate_type.hpp>
@@ -73,7 +71,7 @@ namespace model
 \brief Basic point class, having coordinates defined in a neutral way
 \details Defines a neutral point class, fulfilling the Point Concept.
     Library users can use this point class, or use their own point classes.
-    This point class is used in most of the samples and tests of Boost.Geometry
+    This point class is used in most of the samples and tests of Boost.Geometry.
     This point class is used occasionally within the library, where a temporary
     point class is necessary.
 \ingroup geometries
@@ -95,7 +93,7 @@ template
 >
 class point
 {
-    BOOST_STATIC_ASSERT(DimensionCount > 0);
+    static_assert(DimensionCount > 0, "Point dimension must be positive.");
 
     // The following enum is used to fully instantiate the
     // CoordinateSystem class and check the correctness of the units
@@ -197,7 +195,7 @@ public:
         BOOST_GEOMETRY_ASSERT(m_created == 1);
         BOOST_GEOMETRY_ASSERT(m_values_initialized[K] == 1);
 #endif
-        BOOST_STATIC_ASSERT(K < DimensionCount);
+        static_assert(K < DimensionCount, "Coordinate dimension out of bounds.");
         return m_values[K];
     }
 
@@ -211,7 +209,7 @@ public:
         BOOST_GEOMETRY_ASSERT(m_created == 1);
         m_values_initialized[K] = 1;
 #endif
-        BOOST_STATIC_ASSERT(K < DimensionCount);
+        static_assert(K < DimensionCount, "Coordinate dimension out of bounds.");
         m_values[K] = value;
     }
 
@@ -240,7 +238,7 @@ template
 >
 struct tag<model::point<CoordinateType, DimensionCount, CoordinateSystem> >
 {
-    typedef point_tag type;
+    using type = point_tag;
 };
 
 template

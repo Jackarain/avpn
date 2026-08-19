@@ -13,16 +13,21 @@
 #pragma once
 
 #include <boost/pfr/detail/config.hpp>
+
 #include <boost/pfr/detail/core.hpp>
-#include <boost/pfr/detail/sequence_tuple.hpp>
-#include <boost/pfr/detail/make_integer_sequence.hpp>
-#include <boost/pfr/detail/fields_count.hpp>
-#include <boost/pfr/detail/stdarray.hpp>
 #include <boost/pfr/detail/fake_object.hpp>
+#include <boost/pfr/detail/fields_count.hpp>
+#include <boost/pfr/detail/for_each_field.hpp>
+#include <boost/pfr/detail/make_integer_sequence.hpp>
+#include <boost/pfr/detail/sequence_tuple.hpp>
+#include <boost/pfr/detail/stdarray.hpp>
+
+#if !defined(BOOST_PFR_INTERFACE_UNIT)
 #include <type_traits>
 #include <string_view>
 #include <array>
 #include <memory> // for std::addressof
+#endif
 
 namespace boost { namespace pfr { namespace detail {
 
@@ -99,7 +104,7 @@ consteval auto name_of_field_impl() noexcept {
     static_assert(!sv.empty(),
         "====================> Boost.PFR: Field reflection parser configured in a wrong way. "
         "Please define the BOOST_PFR_FUNCTION_SIGNATURE to a compiler specific macro, "
-        "that outputs the whole function signature including non-type template parameters."  
+        "that outputs the whole function signature including non-type template parameters."
     );
 
     constexpr auto skip = detail::make_core_name_skip BOOST_PFR_CORE_NAME_PARSING;
@@ -211,8 +216,8 @@ constexpr std::string_view get_name() noexcept {
         "====================> Boost.PFR: It is impossible to extract name from old C array since it doesn't have named members"
     );
     static_assert(
-        sizeof(T) && BOOST_PFR_USE_CPP17,
-        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 macro enabled."
+        sizeof(T) && (BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_CPP26),
+        "====================> Boost.PFR: Extraction of field's names is allowed only when the BOOST_PFR_USE_CPP17 or the BOOST_PFR_USE_CPP26 macro enabled."
    );
 
    return stored_name_of_field<T, I>.data();

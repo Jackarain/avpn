@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -7,6 +7,8 @@
 
 #ifndef BOOST_MYSQL_IMPL_INTERNAL_SANSIO_PING_HPP
 #define BOOST_MYSQL_IMPL_INTERNAL_SANSIO_PING_HPP
+
+#include <boost/mysql/diagnostics.hpp>
 
 #include <boost/mysql/detail/algo_params.hpp>
 
@@ -21,13 +23,12 @@ namespace detail {
 class read_ping_response_algo
 {
     int resume_point_{0};
-    diagnostics* diag_;
     std::uint8_t seqnum_{0};
 
 public:
-    read_ping_response_algo(diagnostics* diag, std::uint8_t seqnum) noexcept : diag_(diag), seqnum_(seqnum) {}
+    read_ping_response_algo(std::uint8_t seqnum) noexcept : seqnum_(seqnum) {}
 
-    next_action resume(connection_state_data& st, error_code ec)
+    next_action resume(connection_state_data& st, diagnostics& diag, error_code ec)
     {
         switch (resume_point_)
         {
@@ -38,20 +39,24 @@ public:
             if (ec)
                 return ec;
 
-            // Process the OK packet
-            return st.deserialize_ok(*diag_);
+            // Process the OK packet and done
+            ec = st.deserialize_ok(diag);
         }
-        return next_action();
+
+        return ec;
     }
 };
 
-inline run_pipeline_algo_params setup_ping_pipeline(connection_state_data& st, ping_algo_params params)
+inline run_pipeline_algo_params setup_ping_pipeline(connection_state_data& st)
 {
+    // The ping request is fixed size and small. No buffer limit is enforced on it.
     st.write_buffer.clear();
-    auto seqnum = serialize_top_level(ping_command{}, st.write_buffer);
-    st.shared_pipeline_stages[0] = {pipeline_stage_kind::ping, seqnum, {}};
+    st.shared_pipeline_stages[0] = {
+        pipeline_stage_kind::ping,
+        serialize_top_level_checked(ping_command{}, st.write_buffer),
+        {}
+    };
     return {
-        params.diag,
         st.write_buffer,
         {st.shared_pipeline_stages.data(), 1},
         nullptr

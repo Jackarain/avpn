@@ -13,6 +13,7 @@
 #include <boost/url/grammar.hpp>
 
 #include <boost/url/authority_view.hpp>
+#include <boost/url/decode.hpp>
 #include <boost/url/decode_view.hpp>
 #include <boost/url/encode.hpp>
 #include <boost/url/encoding_opts.hpp>
@@ -43,6 +44,7 @@
 #include <boost/url/segments_ref.hpp>
 #include <boost/url/segments_view.hpp>
 #include <boost/url/static_url.hpp>
+#include <boost/url/string_view.hpp>
 #include <boost/core/detail/string_view.hpp>
 #include <boost/url/url.hpp>
 #include <boost/url/url_base.hpp>

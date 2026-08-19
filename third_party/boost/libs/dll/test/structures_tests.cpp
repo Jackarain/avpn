@@ -1,5 +1,5 @@
 // Copyright 2014 Renato Tegon Forti, Antony Polukhin.
-// Copyright Antony Polukhin, 2015-2024.
+// Copyright Antony Polukhin, 2015-2026.
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
@@ -7,9 +7,6 @@
 
 // For more information, see http://www.boost.org
 
-#include <boost/dll/detail/elf_info.hpp>
-#include <boost/dll/detail/pe_info.hpp>
-#include <boost/dll/detail/macho_info.hpp>
 #include <boost/core/lightweight_test.hpp>
 #include <boost/predef/os.h>
 
@@ -24,6 +21,10 @@
 #else
     #include <elf.h>
 #endif
+
+#include <boost/dll/detail/elf_info.hpp>
+#include <boost/dll/detail/pe_info.hpp>
+#include <boost/dll/detail/macho_info.hpp>
 
 namespace dd = boost::dll::detail;
 

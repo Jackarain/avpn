@@ -1,5 +1,5 @@
 --
--- Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+-- Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 --
 -- Distributed under the Boost Software License, Version 1.0. (See accompanying
 -- file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -10,6 +10,7 @@ SET NAMES utf8;
 SET session sql_mode = 'ALLOW_INVALID_DATES'; -- allow zero and invalid dates
 SET session time_zone = '+02:00'; -- arbitrary, but should match whatever we use in database_types
 SET global max_allowed_packet = 83886080; -- 0x5000000 - for max packet size tests
+SET global max_connections = 5000; -- thread safety tests use a lot of connections and may be run in parallel
 
 START TRANSACTION;
 
@@ -246,8 +247,9 @@ INSERT INTO types_date VALUES
     ("yregular_invalid_date_leap100",     "1900-02-29")
 ;
 
+-- A bug in MySQL 5.x requires us to set this collation to binary to get the correct order
 CREATE TABLE types_datetime(
-    id VARCHAR(50) NOT NULL PRIMARY KEY,
+    id VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL PRIMARY KEY,
     field_0 DATETIME(0),
     field_1 DATETIME(1),
     field_2 DATETIME(2),
@@ -490,22 +492,31 @@ INSERT INTO types_flags VALUES
 
 -- Users
 DROP USER IF EXISTS 'integ_user'@'%';
-CREATE USER 'integ_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-ALTER USER 'integ_user'@'%' IDENTIFIED BY 'integ_password';
+CREATE USER 'integ_user'@'%' IDENTIFIED BY 'integ_password';
 GRANT ALL PRIVILEGES ON boost_mysql_integtests.* TO 'integ_user'@'%';
 
-DROP USER IF EXISTS 'mysqlnp_user'@'%';
-CREATE USER 'mysqlnp_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-ALTER USER 'mysqlnp_user'@'%' IDENTIFIED BY 'mysqlnp_password';
-GRANT ALL PRIVILEGES ON boost_mysql_integtests.* TO 'mysqlnp_user'@'%';
-
-DROP USER IF EXISTS 'mysqlnp_empty_password_user'@'%';
-CREATE USER 'mysqlnp_empty_password_user'@'%' IDENTIFIED WITH 'mysql_native_password';
-ALTER USER 'mysqlnp_empty_password_user'@'%' IDENTIFIED BY '';
-GRANT ALL PRIVILEGES ON boost_mysql_integtests.* TO 'mysqlnp_empty_password_user'@'%';
+-- Some containers don't allow remote root access. Enable it.
+CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY ''; 
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 
 -- Stored procedures
 DELIMITER //
+
+CREATE PROCEDURE get_lock_checked(
+    IN lock_name VARCHAR(255),
+    IN timeout_seconds INT
+)
+BEGIN
+    DECLARE lock_status INT;
+    
+    -- Attempt to acquire the lock
+    SELECT GET_LOCK(lock_name, timeout_seconds) INTO lock_status;
+    
+    -- Check if the lock was acquired
+    IF lock_status <> 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Failed to acquire lock';
+    END IF;
+END //
 
 CREATE PROCEDURE sp_insert(IN pin VARCHAR(255))
 BEGIN
@@ -537,12 +548,6 @@ END //
 CREATE PROCEDURE sp_signal()
 BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An error occurred', MYSQL_ERRNO = 1002;
-END //
-
-CREATE PROCEDURE sp_spotchecks()
-BEGIN
-    SELECT * FROM multifield_table WHERE id = 1;
-    SELECT * FROM one_row_table;
 END //
 
 DELIMITER ;

@@ -20,6 +20,9 @@ or copy at http://boost.org/LICENSE_1_0.txt)
   ]
 ]
 
+[template github_issue[key]'''<ulink url="https://github.com/boostorg/core/issues/'''[key]'''">#'''[key]'''</ulink>''']
+[template github_pr[key]'''<ulink url="https://github.com/boostorg/core/pull/'''[key]'''">PR#'''[key]'''</ulink>''']
+
 [template simplesect[title]
 [block '''<simplesect><title>'''[title]'''</title>''']]
 
@@ -34,7 +37,7 @@ criteria for inclusion is that the utility component be:
 * simple,
 * used by other Boost libraries, and
 * not dependent on any other Boost modules except Core
-  itself, Config, Assert, StaticAssert, or ThrowException.
+  itself, Config, Assert, or ThrowException.
 
 [endsect]
 
@@ -58,6 +61,7 @@ criteria for inclusion is that the utility component be:
 [include functor.qbk]
 [include identity.qbk]
 [include ignore_unused.qbk]
+[include is_placeholder.qbk]
 [include is_same.qbk]
 [include launder.qbk]
 [include lightweight_test.qbk]

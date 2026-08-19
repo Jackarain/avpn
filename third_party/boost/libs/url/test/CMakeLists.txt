@@ -18,7 +18,7 @@ endif()
 if (BOOST_URL_WARNINGS_AS_ERRORS)
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7)
-            set(BOOST_URL_TEST_FLAGS "-Wall -Werror -Wno-unused-but-set-variable -Wno-maybe-uninitialized")
+            set(BOOST_URL_TEST_FLAGS "-Wall -Werror -Wno-unused-but-set-variable")
         else()
             set(BOOST_URL_TEST_FLAGS "-Wall -Werror -Wno-unused-but-set-variable")
         endif()
@@ -47,10 +47,7 @@ if (BOOST_URL_WARNINGS_AS_ERRORS)
     endif()
 endif()
 
-
-set(SUITE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../extra/test_main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../extra/test_suite.hpp)
+file(GLOB_RECURSE SUITE_FILES CONFIGURE_DEPENDS ../extra/test_suite/*.cpp ../extra/test_suite/*.hpp)
 
 add_subdirectory(unit)
 add_subdirectory(extra)

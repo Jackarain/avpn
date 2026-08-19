@@ -113,8 +113,7 @@ namespace dispatch
                     ring_identifier id, RingPropertyMap& ring_properties,
                     Strategy const& strategy)
         {
-            typedef typename geometry::ring_type<Polygon>::type ring_type;
-            typedef select_rings<ring_tag, ring_type> per_ring;
+            using per_ring = select_rings<ring_tag, geometry::ring_type_t<Polygon>>;
 
             per_ring::apply(exterior_ring(polygon), geometry, id, ring_properties, strategy);
 
@@ -131,8 +130,7 @@ namespace dispatch
                 ring_identifier id, RingPropertyMap& ring_properties,
                 Strategy const& strategy)
         {
-            typedef typename geometry::ring_type<Polygon>::type ring_type;
-            typedef select_rings<ring_tag, ring_type> per_ring;
+            using per_ring = select_rings<ring_tag, geometry::ring_type_t<Polygon>>;
 
             per_ring::apply(exterior_ring(polygon), id, ring_properties, strategy);
 
@@ -153,7 +151,7 @@ namespace dispatch
                     ring_identifier id, RingPropertyMap& ring_properties,
                     Strategy const& strategy)
         {
-            typedef select_rings<polygon_tag, typename boost::range_value<Multi>::type> per_polygon;
+            using per_polygon = select_rings<polygon_tag, typename boost::range_value<Multi>::type>;
 
             id.multi_index = 0;
             for (auto it = boost::begin(multi); it != boost::end(multi); ++it)
@@ -240,7 +238,8 @@ inline void update_ring_selection(Geometry1 const& geometry1,
             TurnInfoMap const& turn_info_map,
             RingPropertyMap const& all_ring_properties,
             RingPropertyMap& selected_ring_properties,
-            Strategy const& strategy)
+            Strategy const& strategy,
+            bool include_on_boundary = false)
 {
     selected_ring_properties.clear();
 
@@ -263,22 +262,29 @@ inline void update_ring_selection(Geometry1 const& geometry1,
             continue;
         }
 
-        // Check if the ring is within the other geometry, by taking
-        // a point lying on the ring
+        // Check if the ring is within the other geometry, by using
+        // a point on the ring.
+        int code = 0;
         switch(id.source_index)
         {
             // within
             case 0 :
-                info.within_other = range_in_geometry(pair.second.point,
-                                                      geometry1, geometry2,
-                                                      strategy) > 0;
+                code = range_in_geometry(pair.second.point,
+                                         geometry1, geometry2, strategy);
                 break;
             case 1 :
-                info.within_other = range_in_geometry(pair.second.point,
-                                                      geometry2, geometry1,
-                                                      strategy) > 0;
+                code = range_in_geometry(pair.second.point,
+                                         geometry2, geometry1, strategy);
                 break;
         }
+
+        // Code 0: the point is located on the boundary. Normally such a
+        // situation is resolved by the turns (the rings are traversed).
+        // But if the overlay produced no turns at all, and the inputs are (nearly)
+        // coincident without any segment intersection being detected (such as
+        // issue 1471), then a point on the boundary should be counted as being
+        // within the other geometry.
+        info.within_other = include_on_boundary ? code >= 0 : code > 0;
 
         if (decide<OverlayType>::include(id, info))
         {
@@ -305,10 +311,11 @@ template
 inline void select_rings(Geometry1 const& geometry1, Geometry2 const& geometry2,
             RingTurnInfoMap const& turn_info_per_ring,
             RingPropertyMap& selected_ring_properties,
-            Strategy const& strategy)
+            Strategy const& strategy,
+            bool include_on_boundary = false)
 {
-    typedef typename geometry::tag<Geometry1>::type tag1;
-    typedef typename geometry::tag<Geometry2>::type tag2;
+    using tag1 = geometry::tag_t<Geometry1>;
+    using tag2 = geometry::tag_t<Geometry2>;
 
     RingPropertyMap all_ring_properties;
     dispatch::select_rings<tag1, Geometry1>::apply(geometry1, geometry2,
@@ -320,7 +327,7 @@ inline void select_rings(Geometry1 const& geometry1, Geometry2 const& geometry2,
 
     update_ring_selection<OverlayType>(geometry1, geometry2, turn_info_per_ring,
                 all_ring_properties, selected_ring_properties,
-                strategy);
+                strategy, include_on_boundary);
 }
 
 template
@@ -334,18 +341,17 @@ template
 inline void select_rings(Geometry const& geometry,
             RingTurnInfoMap const& turn_info_per_ring,
             RingPropertyMap& selected_ring_properties,
-            Strategy const& strategy)
+            Strategy const& strategy,
+            bool include_on_boundary = false)
 {
-    typedef typename geometry::tag<Geometry>::type tag;
-
     RingPropertyMap all_ring_properties;
-    dispatch::select_rings<tag, Geometry>::apply(geometry,
+    dispatch::select_rings<geometry::tag_t<Geometry>, Geometry>::apply(geometry,
                 ring_identifier(0, -1, -1), all_ring_properties,
                 strategy);
 
     update_ring_selection<OverlayType>(geometry, geometry, turn_info_per_ring,
                 all_ring_properties, selected_ring_properties,
-                strategy);
+                strategy, include_on_boundary);
 }
 
 

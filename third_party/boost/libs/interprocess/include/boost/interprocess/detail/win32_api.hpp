@@ -31,10 +31,6 @@
 #include <string>
 #include <vector>
 
-#ifdef BOOST_USE_WINDOWS_H
-#include <windows.h>
-#endif
-
 #if defined(_MSC_VER)
 #  pragma once
 #  pragma comment( lib, "Advapi32.lib" )
@@ -43,6 +39,9 @@
 #endif
 
 #if defined (BOOST_INTERPROCESS_WINDOWS)
+#  ifdef BOOST_USE_WINDOWS_H
+#     include <windows.h>
+#  endif
 #  include <cstdarg>
 #  include <boost/detail/interlocked.hpp>
 #else
@@ -1038,7 +1037,7 @@ struct function_address_holder
    }
 
    public:
-   static farproc_t get(const unsigned int id)
+   static void* get(const unsigned int id)
    {
       BOOST_ASSERT(id < (unsigned int)NumFunction);
       for(unsigned i = 0; FunctionStates[id] < 2; ++i){
@@ -1054,7 +1053,7 @@ struct function_address_holder
             sleep_tick();
          }
       }
-      return FunctionAddresses[id];
+      return reinterpret_cast<void*>(FunctionAddresses[id]);
    }
 };
 
@@ -1243,8 +1242,8 @@ class nt_query_mem_deleter
       (SystemTimeOfDayInfoLength + sizeof(unsigned long) + sizeof(boost::winapi::DWORD_))*2;
 
    public:
-   explicit nt_query_mem_deleter(std::size_t object_name_info_size)
-      : m_size(object_name_info_size + rename_offset + rename_suffix)
+   explicit nt_query_mem_deleter(unsigned long object_name_info_size)
+      : m_size(static_cast<unsigned long>(object_name_info_size + rename_offset + rename_suffix))
       , m_buf(new char [m_size])
    {}
 
@@ -1270,7 +1269,7 @@ class nt_query_mem_deleter
       return static_cast<unsigned long>(m_size - rename_offset - SystemTimeOfDayInfoLength*2);
    }
 
-   std::size_t file_rename_information_size() const
+   unsigned long file_rename_information_size() const
    {  return static_cast<unsigned long>(m_size);  }
 
    private:
@@ -1324,7 +1323,7 @@ inline bool unlink_file(const CharT *filename)
    //- Close the handle. If there are no file users, it will be deleted.
    //  Otherwise it will be used by already connected handles but the
    //  file name can't be used to open this file again
-   BOOST_TRY{
+   BOOST_INTERPROCESS_TRY{
       NtSetInformationFile_t pNtSetInformationFile =
          reinterpret_cast<NtSetInformationFile_t>(dll_func::get(dll_func::NtSetInformationFile));
 
@@ -1418,9 +1417,9 @@ inline bool unlink_file(const CharT *filename)
          return true;
       }
    }
-   BOOST_CATCH(...){
+   BOOST_INTERPROCESS_CATCH(...){
       return false;
-   } BOOST_CATCH_END
+   } BOOST_INTERPROCESS_CATCH_END
    return true;
 }
 
@@ -1444,7 +1443,7 @@ inline bool get_registry_value_buffer(hkey key_type, const CharT *subkey_name, c
       reg_closer key_closer(key);
 
       //Obtain the value
-      unsigned long size = buflen;
+      unsigned long size = static_cast<unsigned long>(buflen);
       unsigned long type;
       buflen = 0;
       bret = 0 == reg_query_value_ex( key, value_name, 0, &type, (unsigned char*)buf, &size);
@@ -1717,16 +1716,17 @@ class eventlog_handle_closer
 // requested record in the buffer.
 template<class CharT>
 inline bool find_record_in_buffer( const void* pBuffer, unsigned long dwBytesRead, const CharT *provider_name
-                                 , unsigned int id_to_find, interprocess_eventlogrecord *&pevent_log_record)
+                                 , unsigned int id_to_find, const interprocess_eventlogrecord *&pevent_log_record)
 {
    const unsigned char * pRecord = static_cast<const unsigned char*>(pBuffer);
    const unsigned char * pEndOfRecords = pRecord + dwBytesRead;
 
    while (pRecord < pEndOfRecords){
-      interprocess_eventlogrecord *pTypedRecord = (interprocess_eventlogrecord*)(void*)pRecord;
+      const interprocess_eventlogrecord *pTypedRecord = (const interprocess_eventlogrecord*)(const void*)pRecord;
       // Check provider, written at the end of the fixed-part of the record
 
-      if (0 == winapi_traits<CharT>::cmp(provider_name, (CharT*)(void*)(pRecord + sizeof(interprocess_eventlogrecord))))
+      const CharT *const pName = static_cast<const CharT*>(static_cast<const void*>(pRecord + sizeof(interprocess_eventlogrecord)));
+      if (0 == winapi_traits<CharT>::cmp(provider_name, pName))
       {
          // Check event id
          if(id_to_find == (pTypedRecord->EventID & 0xFFFF)){
@@ -1794,7 +1794,7 @@ inline bool get_last_bootup_time(std::string &stamp)
             }
             else
             {
-               interprocess_eventlogrecord *pTypedRecord;
+               const interprocess_eventlogrecord *pTypedRecord;
                // Print the contents of each record in the buffer.
                if(find_record_in_buffer(heap_deleter.get(), dwBytesRead, provider_name, event_id, pTypedRecord)){
                   char stamp_str[sizeof(unsigned long)*3+1];
@@ -1860,7 +1860,7 @@ inline bool get_last_bootup_time(std::wstring &stamp)
             }
             else
             {
-               interprocess_eventlogrecord *pTypedRecord;
+               const interprocess_eventlogrecord *pTypedRecord;
                // Print the contents of each record in the buffer.
                if(find_record_in_buffer(heap_deleter.get(), dwBytesRead, provider_name, event_id, pTypedRecord)){
                   wchar_t stamp_str[sizeof(unsigned long)*3+1];

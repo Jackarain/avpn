@@ -1,14 +1,27 @@
 // Copyright 2014 Renato Tegon Forti, Antony Polukhin.
-// Copyright Antony Polukhin, 2015-2024.
+// Copyright Antony Polukhin, 2015-2026.
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
 // or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+/// \file boost/dll/shared_library_load_mode.hpp
+/// \brief Contains only the boost::dll::load_mode::type enum and operators related to it.
+
 #ifndef BOOST_DLL_SHARED_LIBRARY_MODE_HPP
 #define BOOST_DLL_SHARED_LIBRARY_MODE_HPP
 
+#include <boost/dll/detail/config.hpp>
+
+#if !defined(BOOST_USE_MODULES) || defined(BOOST_DLL_INTERFACE_UNIT)
+
+#ifdef BOOST_HAS_PRAGMA_ONCE
+# pragma once
+#endif
+
 #include <boost/dll/config.hpp>
+
+#if !defined(BOOST_DLL_INTERFACE_UNIT)
 #include <boost/predef/os.h>
 #include <boost/predef/library/c.h>
 
@@ -17,13 +30,9 @@
 #else
 #   include <dlfcn.h>
 #endif
+#endif // !defiend(BOOST_DLL_INTERFACE_UNIT)
 
-#ifdef BOOST_HAS_PRAGMA_ONCE
-# pragma once
-#endif
-
-/// \file boost/dll/shared_library_load_mode.hpp
-/// \brief Contains only the boost::dll::load_mode::type enum and operators related to it.
+BOOST_DLL_BEGIN_MODULE_EXPORT
 
 namespace boost { namespace dll { namespace load_mode {
 
@@ -207,42 +216,46 @@ enum type {
 
 
 /// Free operators for load_mode::type flag manipulation.
-BOOST_CONSTEXPR inline type operator|(type left, type right) BOOST_NOEXCEPT {
+BOOST_CONSTEXPR inline type operator|(type left, type right) noexcept {
     return static_cast<type>(
         static_cast<unsigned int>(left) | static_cast<unsigned int>(right)
     );
 }
-BOOST_CXX14_CONSTEXPR inline type& operator|=(type& left, type right) BOOST_NOEXCEPT {
+BOOST_CXX14_CONSTEXPR inline type& operator|=(type& left, type right) noexcept {
     left = left | right;
     return left;
 }
 
-BOOST_CONSTEXPR inline type operator&(type left, type right) BOOST_NOEXCEPT {
+BOOST_CONSTEXPR inline type operator&(type left, type right) noexcept {
     return static_cast<type>(
         static_cast<unsigned int>(left) & static_cast<unsigned int>(right)
     );
 }
-BOOST_CXX14_CONSTEXPR inline type& operator&=(type& left, type right) BOOST_NOEXCEPT {
+BOOST_CXX14_CONSTEXPR inline type& operator&=(type& left, type right) noexcept {
     left = left & right;
     return left;
 }
 
-BOOST_CONSTEXPR inline type operator^(type left, type right) BOOST_NOEXCEPT {
+BOOST_CONSTEXPR inline type operator^(type left, type right) noexcept {
     return static_cast<type>(
         static_cast<unsigned int>(left) ^ static_cast<unsigned int>(right)
     );
 }
-BOOST_CXX14_CONSTEXPR inline type& operator^=(type& left, type right) BOOST_NOEXCEPT {
+BOOST_CXX14_CONSTEXPR inline type& operator^=(type& left, type right) noexcept {
     left = left ^ right;
     return left;
 }
 
-BOOST_CONSTEXPR inline type operator~(type left) BOOST_NOEXCEPT {
+BOOST_CONSTEXPR inline type operator~(type left) noexcept {
     return static_cast<type>(
         ~static_cast<unsigned int>(left)
     );
 }
 
 }}} // boost::dll::load_mode
+
+BOOST_DLL_END_MODULE_EXPORT
+
+#endif // !defined(BOOST_USE_MODULES) || defined(BOOST_DLL_INTERFACE_UNIT)
 
 #endif // BOOST_DLL_SHARED_LIBRARY_MODE_HPP

@@ -2,16 +2,12 @@
 // subject to the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#include <boost/iterator/is_readable_iterator.hpp>
 #include <deque>
 #include <iterator>
-#include <iostream>
 #include <cstddef> // std::ptrdiff_t
-#include <boost/static_assert.hpp>
+#include <boost/config.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/iterator/is_readable_iterator.hpp>
-
-// Last, for BOOST_NO_LVALUE_RETURN_DETECTION
-#include <boost/iterator/detail/config_def.hpp>
 
 struct v
 {
@@ -78,19 +74,40 @@ struct proxy_iterator2
 
 int main()
 {
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<v*>::value);
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<v const*>::value);
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<std::deque<v>::iterator>::value);
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<std::deque<v>::const_iterator>::value);
-    BOOST_STATIC_ASSERT(!boost::is_readable_iterator<std::back_insert_iterator<std::deque<v> > >::value);
-    BOOST_STATIC_ASSERT(!boost::is_readable_iterator<std::ostream_iterator<v> >::value);
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<proxy_iterator>::value);
-    BOOST_STATIC_ASSERT(!boost::is_readable_iterator<proxy_iterator2>::value);
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<value_iterator>::value);
+    static_assert(boost::is_readable_iterator<v*>::value,
+                  "boost::is_readable_iterator<v*>::value is expected to be true.");
+    static_assert(boost::is_readable_iterator<v const*>::value,
+                  "boost::is_readable_iterator<v const*>::value is expected to be true.");
+    static_assert(boost::is_readable_iterator<std::deque<v>::iterator>::value,
+                  "boost::is_readable_iterator<std::deque<v>::iterator>::value is expected to be true.");
+    static_assert(boost::is_readable_iterator<std::deque<v>::const_iterator>::value,
+                  "boost::is_readable_iterator<std::deque<v>::const_iterator>::value is expected to be true.");
+    static_assert(!boost::is_readable_iterator<std::back_insert_iterator<std::deque<v>>>::value,
+                  "boost::is_readable_iterator<std::back_insert_iterator<std::deque<v>>>::value is expected to be false.");
+    static_assert(!boost::is_readable_iterator<std::ostream_iterator<v>>::value,
+                  "boost::is_readable_iterator<std::ostream_iterator<v>>::value is expected to be false.");
+    static_assert(boost::is_readable_iterator<proxy_iterator>::value,
+                  "boost::is_readable_iterator<proxy_iterator>::value is expected to be true.");
+    static_assert(!boost::is_readable_iterator<proxy_iterator2>::value,
+                  "boost::is_readable_iterator<proxy_iterator2>::value is expected to be false.");
+    static_assert(boost::is_readable_iterator<value_iterator>::value,
+                  "boost::is_readable_iterator<value_iterator>::value is expected to be true.");
 
     // Make sure inaccessible copy constructor doesn't prevent
     // readability
-    BOOST_STATIC_ASSERT(boost::is_readable_iterator<noncopyable_iterator>::value);
+    static_assert(boost::is_readable_iterator<noncopyable_iterator>::value,
+                  "boost::is_readable_iterator<noncopyable_iterator>::value is expected to be true.");
+
+#if !defined(BOOST_NO_CXX14_VARIABLE_TEMPLATES)
+    static_assert(boost::is_readable_iterator_v<v*>,
+                  "boost::is_readable_iterator_v<v*> is expected to be true.");
+    static_assert(boost::is_readable_iterator_v<v const*>,
+                  "boost::is_readable_iterator_v<v const*> is expected to be true.");
+    static_assert(boost::is_readable_iterator_v<proxy_iterator>,
+                  "boost::is_readable_iterator_v<proxy_iterator> is expected to be true.");
+    static_assert(!boost::is_readable_iterator_v<proxy_iterator2>,
+                  "boost::is_readable_iterator_v<proxy_iterator2> is expected to be false.");
+#endif // !defined(BOOST_NO_CXX14_VARIABLE_TEMPLATES)
 
     return 0;
 }

@@ -19,12 +19,14 @@
 // null_mutex& operator=(const null_mutex&) = delete;
 
 #include <boost/thread/null_mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 int main()
 {
   boost::null_mutex m0;
-  boost::null_mutex m1(m0);
+  boost::null_mutex m1;
+  m1 = m0;
+  (void)m1;
 }
 
 #include "../../../remove_error_code_unused_warning.hpp"

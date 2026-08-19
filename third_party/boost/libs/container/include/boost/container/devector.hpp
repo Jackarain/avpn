@@ -12,6 +12,14 @@
 #ifndef BOOST_CONTAINER_DEVECTOR_HPP
 #define BOOST_CONTAINER_DEVECTOR_HPP
 
+#ifndef BOOST_CONFIG_HPP
+#  include <boost/config.hpp>
+#endif
+
+#if defined(BOOST_HAS_PRAGMA_ONCE)
+#  pragma once
+#endif
+
 #include <boost/container/detail/config_begin.hpp>
 #include <boost/container/detail/workaround.hpp>
 
@@ -173,6 +181,11 @@ class devector
 
    #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
    private:
+
+   //`allocator_type::value_type` must match container's `value type`. If this
+   //assertion fails, please review your allocator definition. 
+   BOOST_CONTAINER_STATIC_ASSERT((dtl::is_same<value_type, typename allocator_traits<allocator_type>::value_type>::value));
+
    BOOST_COPYABLE_AND_MOVABLE(devector)
 
    // Guard to deallocate buffer on exception
@@ -266,8 +279,9 @@ class devector
    explicit devector(size_type n, const allocator_type& allocator = allocator_type())
       : m_(reserve_uninitialized_t(), allocator, n)
    {
-      allocation_guard buffer_guard(m_.buffer, m_.capacity, get_allocator_ref());
-      boost::container::uninitialized_value_init_alloc_n(get_allocator_ref(), n, this->priv_raw_begin());
+      allocator_type &al = this->get_allocator_ref();
+      allocation_guard buffer_guard(m_.buffer, m_.capacity, al);
+      boost::container::uninitialized_value_init_alloc_n(al, n, this->priv_raw_begin());
       buffer_guard.release();
       BOOST_ASSERT(invariants_ok());
    }
@@ -286,8 +300,9 @@ class devector
    explicit devector(size_type n, default_init_t, const allocator_type& allocator = allocator_type())
       : m_(reserve_uninitialized_t(), allocator, n)
    {
-      allocation_guard buffer_guard(m_.buffer, m_.capacity, get_allocator_ref());
-      boost::container::uninitialized_default_init_alloc_n(get_allocator_ref(), n, this->priv_raw_begin());
+      allocator_type &al = this->get_allocator_ref();
+      allocation_guard buffer_guard(m_.buffer, m_.capacity, al);
+      boost::container::uninitialized_default_init_alloc_n(al, n, this->priv_raw_begin());
       buffer_guard.release();
       BOOST_ASSERT(invariants_ok());
    }
@@ -319,14 +334,14 @@ class devector
    * iterator does not meet the forward iterator requirements, `T` shall also be [MoveInsertable]
    * into `*this`.
    *
-   * **Postcondition**: `size() == boost::container::iterator_distance(first, last)
+   * **Postcondition**: `size() == boost::container::iterator_distance(first, last)`
    *
    * **Exceptions**: Strong exception guarantee.
    *
    * **Complexity**: Makes only `N` calls to the copy constructor of `T` (where `N` is the distance between `first`
    * and `last`), at most one allocation and no reallocations if iterators first and last are of forward,
    * bidirectional, or random access categories. It makes `O(N)` calls to the copy constructor of `T`
-   * and `O(log(N)) reallocations if they are just input iterators.
+   * and `O(log(N))` reallocations if they are just input iterators.
    *
    * **Remarks**: Each iterator in the range `[first,last)` shall be dereferenced exactly once,
    * unless an exception is thrown.
@@ -410,7 +425,7 @@ class devector
    *
    * **Complexity**: Linear in the size of `x`.
    */
-   devector(const devector& x, const allocator_type& allocator)
+   devector(const devector& x, const BOOST_CONTAINER_DOC1ST(allocator_type, typename dtl::type_identity<allocator_type>::type)& allocator)
       : m_(reserve_uninitialized_t(), allocator, x.size())
    {
       this->construct_from_range(x.begin(), x.end());
@@ -448,7 +463,7 @@ class devector
    *
    * **Complexity**: Linear if allocator != rhs.get_allocator(), otherwise constant.
    */
-   devector(BOOST_RV_REF(devector) rhs, const allocator_type& allocator)
+   devector(BOOST_RV_REF(devector) rhs, const BOOST_CONTAINER_DOC1ST(allocator_type, typename dtl::type_identity<allocator_type>::type)& allocator)
       : m_(review_implementation_t(), allocator, rhs.m_.buffer, rhs.m_.front_idx, rhs.m_.back_idx, rhs.m_.capacity)
    {
       // TODO should move elems-by-elems if the two allocators differ
@@ -481,8 +496,8 @@ class devector
    */
 ~devector() BOOST_NOEXCEPT
 {
-   destroy_elements(m_.buffer + m_.front_idx, m_.buffer + m_.back_idx);
-   deallocate_buffer();
+   this->destroy_elements(m_.buffer + m_.front_idx, m_.buffer + m_.back_idx);
+   this->deallocate_buffer();
 }
 
 /**
@@ -530,13 +545,11 @@ class devector
       }
 
       size_type n = x.size();
-      if (m_.capacity >= n)
-      {
-            this->overwrite_buffer(x.begin(), x.end());
+      if (m_.capacity >= n) {
+         this->overwrite_buffer(x.begin(), x.end());
       }
-      else
-      {
-            this->allocate_and_copy_range(x.begin(), x.end());
+      else {
+         this->allocate_and_copy_range(x.begin(), x.end());
       }
 
       BOOST_ASSERT(invariants_ok());
@@ -662,13 +675,11 @@ class devector
    {
       const size_type n = boost::container::iterator_udistance(first, last);
 
-      if (m_.capacity >= n)
-      {
-         overwrite_buffer(first, last);
+      if (m_.capacity >= n) {
+         this->overwrite_buffer(first, last);
       }
-      else
-      {
-         allocate_and_copy_range(first, last);
+      else {
+         this->allocate_and_copy_range(first, last);
       }
 
       BOOST_ASSERT(invariants_ok());
@@ -716,19 +727,19 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     allocator_type get_allocator() const BOOST_NOEXCEPT
    {
       return static_cast<const allocator_type&>(m_);
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const allocator_type &get_stored_allocator() const BOOST_NOEXCEPT
    {
       return static_cast<const allocator_type&>(m_);
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
          allocator_type &get_stored_allocator() BOOST_NOEXCEPT
    {
       return static_cast<allocator_type&>(m_);
@@ -742,7 +753,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
          iterator begin() BOOST_NOEXCEPT
    {
       return m_.buffer + m_.front_idx;
@@ -754,7 +765,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_iterator begin() const BOOST_NOEXCEPT
    {
       return m_.buffer + m_.front_idx;
@@ -765,7 +776,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
          iterator end() BOOST_NOEXCEPT
    {
       return m_.buffer + m_.back_idx;
@@ -776,7 +787,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_iterator end() const BOOST_NOEXCEPT
    {
       return m_.buffer + m_.back_idx;
@@ -788,7 +799,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     reverse_iterator rbegin() BOOST_NOEXCEPT
    {
       return reverse_iterator(m_.buffer + m_.back_idx);
@@ -801,7 +812,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_reverse_iterator rbegin() const BOOST_NOEXCEPT
    {
       return const_reverse_iterator(m_.buffer + m_.back_idx);
@@ -813,7 +824,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     reverse_iterator rend() BOOST_NOEXCEPT
    {
       return reverse_iterator(m_.buffer + m_.front_idx);
@@ -825,7 +836,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_reverse_iterator rend() const BOOST_NOEXCEPT
    {
       return const_reverse_iterator(m_.buffer + m_.front_idx);
@@ -837,7 +848,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_iterator cbegin() const BOOST_NOEXCEPT
    {
       return m_.buffer + m_.front_idx;
@@ -860,7 +871,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_reverse_iterator crbegin() const BOOST_NOEXCEPT
    {
       return const_reverse_iterator(m_.buffer + m_.back_idx);
@@ -872,7 +883,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     const_reverse_iterator crend() const BOOST_NOEXCEPT
    {
       return const_reverse_iterator(m_.buffer + m_.front_idx);
@@ -885,7 +896,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     bool empty() const BOOST_NOEXCEPT
    {
       return m_.front_idx == m_.back_idx;
@@ -896,7 +907,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     size_type size() const BOOST_NOEXCEPT
    {
       return size_type(m_.back_idx - m_.front_idx);
@@ -907,7 +918,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     size_type max_size() const BOOST_NOEXCEPT
    {
       size_type alloc_max = allocator_traits_type::max_size(get_allocator_ref());
@@ -924,7 +935,7 @@ class devector
    * 
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    size_type capacity() const BOOST_NOEXCEPT
    {
       size_type const cap_reserve = m_.capacity/devector_min_free_fraction;
@@ -937,7 +948,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    size_type front_free_capacity() const BOOST_NOEXCEPT
    {
       return m_.front_idx;
@@ -949,7 +960,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
     size_type back_free_capacity() const BOOST_NOEXCEPT
    {
       return size_type(m_.capacity - m_.back_idx);
@@ -1225,6 +1236,15 @@ class devector
       BOOST_ASSERT(invariants_ok());
    }
 
+   inline size_type front_capacity() const
+   {
+      return m_.back_idx;
+   }
+
+   inline size_type back_capacity() const
+   {
+      return size_type(m_.capacity - m_.front_idx);
+   }
 
    /**
     * [MoveInsertable]: http://en.cppreference.com/w/cpp/concept/MoveInsertable
@@ -1252,7 +1272,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    reference operator[](size_type n) BOOST_NOEXCEPT
    {
       BOOST_ASSERT(n < size());
@@ -1266,7 +1286,7 @@ class devector
     *
     * **Complexity**: Constant.
     */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    const_reference operator[](size_type n) const BOOST_NOEXCEPT
    {
       BOOST_ASSERT(n < size());
@@ -1284,7 +1304,7 @@ class devector
    //! <b>Complexity</b>: Constant.
    //!
    //! <b>Note</b>: Non-standard extension
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       iterator nth(size_type n) BOOST_NOEXCEPT_OR_NOTHROW
    {
       BOOST_ASSERT(n <= size());
@@ -1302,7 +1322,7 @@ class devector
    //! <b>Complexity</b>: Constant.
    //!
    //! <b>Note</b>: Non-standard extension
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator nth(size_type n) const BOOST_NOEXCEPT_OR_NOTHROW
    {
       BOOST_ASSERT(n <= size());
@@ -1319,7 +1339,7 @@ class devector
    //! <b>Complexity</b>: Constant.
    //!
    //! <b>Note</b>: Non-standard extension
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type index_of(iterator p) BOOST_NOEXCEPT_OR_NOTHROW
    {
       BOOST_ASSERT(p >= begin());
@@ -1337,7 +1357,7 @@ class devector
    //! <b>Complexity</b>: Constant.
    //!
    //! <b>Note</b>: Non-standard extension
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type index_of(const_iterator p) const BOOST_NOEXCEPT_OR_NOTHROW
    {
       BOOST_ASSERT(p >= cbegin());
@@ -1352,7 +1372,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       reference at(size_type n)
    {
       if (size() <= n)
@@ -1367,7 +1387,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reference at(size_type n) const
    {
       if (size() <= n)
@@ -1382,7 +1402,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       reference front() BOOST_NOEXCEPT
    {
       BOOST_ASSERT(!empty());
@@ -1397,7 +1417,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reference front() const BOOST_NOEXCEPT
    {
       BOOST_ASSERT(!empty());
@@ -1412,7 +1432,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       reference back() BOOST_NOEXCEPT
    {
       BOOST_ASSERT(!empty());
@@ -1427,7 +1447,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reference back() const BOOST_NOEXCEPT
    {
       BOOST_ASSERT(!empty());
@@ -1442,7 +1462,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       T* data() BOOST_NOEXCEPT
    {
       return boost::movelib::to_raw_pointer(m_.buffer) + m_.front_idx;
@@ -1455,7 +1475,7 @@ class devector
    *
    * **Complexity**: Constant.
    */
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const T* data() const BOOST_NOEXCEPT
    {
       return boost::movelib::to_raw_pointer(m_.buffer) + m_.front_idx;
@@ -1479,7 +1499,7 @@ class devector
    * [EmplaceConstructible]: http://en.cppreference.com/w/cpp/concept/EmplaceConstructible
    * [MoveInsertable]: http://en.cppreference.com/w/cpp/concept/MoveInsertable
    */
-   #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #if defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
    template <class... Args>
    reference emplace_front(Args&&... args)
    {
@@ -1498,7 +1518,7 @@ class devector
       }
    }
 
-   #else //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #else //defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
    #define BOOST_CONTAINER_DEVECTOR_EMPLACE_FRONT(N) \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -1595,7 +1615,7 @@ class devector
    * [MoveInsertable]: http://en.cppreference.com/w/cpp/concept/MoveInsertable
    * [MoveAssignable]: http://en.cppreference.com/w/cpp/concept/MoveAssignable
    */
-   #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #if defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
    template <class... Args>
    inline reference emplace_back(Args&&... args)
    {
@@ -1612,7 +1632,7 @@ class devector
       }
    }
 
-   #else //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #else //defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
    #define BOOST_CONTAINER_DEVECTOR_EMPLACE_BACK(N) \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -1633,7 +1653,7 @@ class devector
    BOOST_MOVE_ITERATE_0TO9(BOOST_CONTAINER_DEVECTOR_EMPLACE_BACK)
    #undef BOOST_CONTAINER_DEVECTOR_EMPLACE_BACK
 
-   #endif    //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #endif    //defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
 
    #if defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
@@ -1709,7 +1729,7 @@ class devector
    * [MoveInsertable]: http://en.cppreference.com/w/cpp/concept/MoveInsertable
    * [MoveAssignable]: http://en.cppreference.com/w/cpp/concept/MoveAssignable
    */
-   #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #if defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
    template <class... Args>
    iterator emplace(const_iterator position, Args&&... args)
    {
@@ -1740,11 +1760,12 @@ class devector
       else{
          iterator nonconst_pos = unconst_iterator(position);
          prefer_move_back = should_move_back(position);
+         allocator_type &al = this->get_allocator_ref();
 
          if(prefer_move_back){
             if(back_free_capacity()){
                boost::container::expand_forward_and_insert_nonempty_middle_alloc
-                  ( get_allocator_ref()
+                  ( al
                   , boost::movelib::to_raw_pointer(nonconst_pos)
                   , this->priv_raw_end()
                   , 1, proxy_t(::boost::forward<Args>(args)...));
@@ -1755,7 +1776,7 @@ class devector
          else{
             if (front_free_capacity()){
                boost::container::expand_backward_and_insert_nonempty_middle_alloc
-               (get_allocator_ref()
+               (al
                   , this->priv_raw_begin()
                   , boost::movelib::to_raw_pointer(nonconst_pos)
                   , 1, proxy_t(::boost::forward<Args>(args)...));
@@ -1767,7 +1788,7 @@ class devector
       return this->insert_range_slow_path(position, 1, proxy_t(::boost::forward<Args>(args)...));
    }
 
-   #else //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #else //defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
    #define BOOST_CONTAINER_DEVECTOR_EMPLACE(N) \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -1800,11 +1821,12 @@ class devector
       else{\
          iterator nonconst_pos = unconst_iterator(position);\
          prefer_move_back = should_move_back(position);\
+         allocator_type &al = this->get_allocator_ref();\
          \
          if(prefer_move_back){\
             if(back_free_capacity()){\
                boost::container::expand_forward_and_insert_nonempty_middle_alloc\
-                  ( get_allocator_ref()\
+                  ( al\
                   , boost::movelib::to_raw_pointer(nonconst_pos)\
                   , this->priv_raw_end()\
                   , 1, proxy_t(BOOST_MOVE_FWD##N));\
@@ -1815,7 +1837,7 @@ class devector
          else{\
             if (front_free_capacity()){\
                boost::container::expand_backward_and_insert_nonempty_middle_alloc\
-               (get_allocator_ref()\
+               (al\
                   , this->priv_raw_begin()\
                   , boost::movelib::to_raw_pointer(nonconst_pos)\
                   , 1, proxy_t(BOOST_MOVE_FWD##N));\
@@ -1830,7 +1852,7 @@ class devector
    BOOST_MOVE_ITERATE_0TO9(BOOST_CONTAINER_DEVECTOR_EMPLACE)
    #undef BOOST_CONTAINER_DEVECTOR_EMPLACE
 
-   #endif    //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #endif    //defined(BOOST_CONTAINER_DOXYGEN_INVOKED) || !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
 
    #if defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
@@ -1913,7 +1935,7 @@ class devector
    * **Complexity**: Linear in the size of `*this` and `N` (where `N` is the distance between `first` and `last`).
    * Makes only `N` calls to the constructor of `T` and no reallocations if iterators `first` and `last`
    * are of forward, bidirectional, or random access categories. It makes 2N calls to the copy constructor of `T`
-   * and `O(log(N)) reallocations if they are just input iterators.
+   * and `O(log(N))` reallocations if they are just input iterators.
    *
    * **Exceptions**: Strong exception guarantee if `T` is `NothrowConstructible`
    * and `NothrowAssignable`, Basic exception guarantee otherwise.
@@ -2058,13 +2080,11 @@ class devector
       size_type back_distance  = size_type(end() - first);
       size_type n = boost::container::iterator_udistance(first, last);
 
-      if (front_distance < back_distance)
-      {
+      if (front_distance < back_distance) {
             // move n to the right
             boost::container::move_backward(begin(), first, last);
 
-            for (iterator i = begin(); i != begin() + n; ++i)
-            {
+            for (iterator i = begin(); i != begin() + n; ++i) {
                allocator_traits_type::destroy(get_allocator_ref(), boost::movelib::to_raw_pointer(i));
             }
             //n is always less than max stored_size_type
@@ -2138,30 +2158,30 @@ class devector
    void clear() BOOST_NOEXCEPT
    {
       destroy_elements(begin(), end());
-      m_.front_idx = m_.back_idx = 0;
+      m_.back_idx = m_.front_idx;
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator==(const devector& x, const devector& y)
    {   return x.size() == y.size() && ::boost::container::algo_equal(x.begin(), x.end(), y.begin());   }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator!=(const devector& x, const devector& y)
    {   return !(x == y); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator< (const devector& x, const devector& y)
    {   return boost::container::algo_lexicographical_compare(x.begin(), x.end(), y.begin(), y.end());   }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator>(const devector& x, const devector& y)
    {   return y < x;   }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator<=(const devector& x, const devector& y)
    {   return !(y < x);   }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator>=(const devector& x, const devector& y)
    {   return !(x < y);   }
 
@@ -2169,6 +2189,26 @@ class devector
       BOOST_NOEXCEPT_IF( allocator_traits_type::propagate_on_container_swap::value
                                  || allocator_traits_type::is_always_equal::value)
    {   x.swap(y);   }
+
+   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+
+   //Functions for optimizations, not for users
+   T *unused_storage(size_type &sz)
+   {
+      T *const storage_addr = boost::movelib::to_raw_pointer(m_.buffer);
+      if(this->empty()){
+         sz = m_.capacity;
+         return storage_addr;
+      }
+      else if(this->back_free_capacity() > this->front_free_capacity()){
+         sz = this->back_free_capacity();
+         return storage_addr + m_.back_idx;
+      }
+      else{
+         sz = this->front_free_capacity();
+         return storage_addr;
+      }
+   }
 
    private:
 
@@ -2211,21 +2251,21 @@ class devector
          dtl::move_alloc(this->get_allocator_ref(), x.get_allocator_ref(), flag);
 
          if (m_.capacity >= x.size()) {
-            overwrite_buffer(xbegin, xend);
+            this->overwrite_buffer(xbegin, xend);
          }
          else {
-            allocate_and_copy_range(xbegin, xend);
+            this->allocate_and_copy_range(xbegin, xend);
          }
       }
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    size_type pos_to_index(const_iterator i) const 
    {
       return static_cast<size_type>(i - cbegin());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
    bool should_move_back(const_iterator i) const 
    {
       return static_cast<size_type>(this->pos_to_index(i)) >= this->size()/2u;
@@ -2235,18 +2275,6 @@ class devector
    {
       return boost::intrusive::pointer_traits<pointer>::const_cast_from(i);
    }
-
-   inline size_type front_capacity() const
-   {
-      return m_.back_idx;
-   }
-
-   inline size_type back_capacity() const
-   {
-      return size_type(m_.capacity - m_.front_idx);
-   }
-
-   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
 
    inline T* priv_raw_begin() BOOST_NOEXCEPT
    {   return boost::movelib::to_raw_pointer(m_.buffer) + m_.front_idx;   }
@@ -2285,27 +2313,25 @@ class devector
       return static_cast<const allocator_type&>(m_);
    }
 
-   pointer allocate(size_type capacity)
+   pointer allocate(size_type cap)
    {
-      pointer const p = impl::do_allocate(get_allocator_ref(), capacity);
+      pointer const p = impl::do_allocate(get_allocator_ref(), cap);
       #ifdef BOOST_CONTAINER_DEVECTOR_ALLOC_STATS
       ++m_.capacity_alloc_count;
       #endif // BOOST_CONTAINER_DEVECTOR_ALLOC_STATS
       return p;
    }
 
-   void destroy_elements(pointer begin, pointer end)
+   void destroy_elements(pointer b, pointer e)
    {
-      for (; begin != end; ++begin)
-      {
-         allocator_traits_type::destroy(get_allocator_ref(), boost::movelib::to_raw_pointer(begin));
+      for (; b != e; ++b) {
+         allocator_traits_type::destroy(get_allocator_ref(), boost::movelib::to_raw_pointer(b));
       }
    }
 
    void deallocate_buffer()
    {
-      if (m_.buffer)
-      {
+      if (m_.buffer) {
          allocator_traits_type::deallocate(get_allocator_ref(), m_.buffer, m_.capacity);
       }
    }
@@ -2338,7 +2364,7 @@ class devector
       }
    }
 
-   #else //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #else //   !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
 
    #define BOOST_CONTAINER_DEVECTOR_ALLOC_CONSTRUCT(N) \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -2368,7 +2394,7 @@ class devector
    BOOST_MOVE_ITERATE_0TO9(BOOST_CONTAINER_DEVECTOR_ALLOC_CONSTRUCT)
    #undef BOOST_CONTAINER_DEVECTOR_ALLOC_CONSTRUCT
 
-   #endif    //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #endif    //   !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
 
    size_type calculate_new_capacity(size_type requested_capacity)
    {
@@ -2380,31 +2406,6 @@ class devector
             boost::container::throw_length_error("devector: get_next_capacity, max size exceeded");
 
       return growth_factor_type()( size_type(m_.capacity), min_additional_cap, max);
-   }
-
-   void buffer_move_or_copy(pointer dst)
-   {
-      detail::construction_guard<allocator_type> guard(dst, get_allocator_ref());
-
-      buffer_move_or_copy(dst, guard);
-
-      guard.release();
-   }
-
-   void buffer_move_or_copy(pointer dst, detail::construction_guard<allocator_type>& guard)
-   {
-      opt_move_or_copy(begin(), end(), dst, guard);
-
-      destroy_elements(data(), data() + size());
-      deallocate_buffer();
-   }
-
-   template <typename Guard>
-   void opt_move_or_copy(pointer begin, pointer end, pointer dst, Guard& guard)
-   {
-      // if trivial copy and default allocator, memcpy
-      boost::container::uninitialized_move_alloc(get_allocator_ref(), begin, end, dst);
-      guard.extend();
    }
 
    #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
@@ -2473,18 +2474,25 @@ class devector
    template <typename... Args>
    void resize_front_slow_path(size_type sz, size_type n, Args&&... args)
    {
-      const size_type new_capacity = calculate_new_capacity(sz + back_free_capacity());
+      const size_type back_free_cap = back_free_capacity();
+      const size_type new_capacity = calculate_new_capacity(sz + back_free_cap);
       pointer new_buffer = allocate(new_capacity);
-      allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());
 
-      const size_type old_sz = this->size();
-      const size_type new_old_elem_index = new_capacity - old_sz;
+      allocator_type &al = this->get_allocator_ref();
+      allocation_guard new_buffer_guard(new_buffer, new_capacity, al);
+
+      const size_type new_old_elem_index = new_capacity - this->size() - back_free_cap;
       const size_type new_elem_index = new_old_elem_index - n;
 
-      detail::construction_guard<allocator_type> guard(new_buffer + new_elem_index, get_allocator_ref());
+      detail::construction_guard<allocator_type> guard(new_buffer + new_elem_index, al);
       guarded_construct_n(new_buffer + new_elem_index, n, guard, boost::forward<Args>(args)...);
 
-      buffer_move_or_copy(new_buffer + new_old_elem_index, guard);
+      //This might throw
+      boost::container::uninitialized_move_alloc(al, begin(), end(), new_buffer + new_old_elem_index);
+
+      //This can't throw
+      this->destroy_elements(data(), data() + size());
+      this->deallocate_buffer();
 
       guard.release();
       new_buffer_guard.release();
@@ -2492,7 +2500,7 @@ class devector
       m_.buffer = new_buffer;
       m_.set_capacity(new_capacity);
       m_.set_front_idx(new_elem_index);
-      m_.set_back_idx(new_elem_index + old_sz + n);
+      m_.set_back_idx(new_elem_index + sz);
    }
 
    template <typename... Args>
@@ -2527,12 +2535,19 @@ class devector
    {
       const size_type new_capacity = calculate_new_capacity(sz + front_free_capacity());
       pointer new_buffer = allocate(new_capacity);
-      allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());
 
-      detail::construction_guard<allocator_type> guard(new_buffer + m_.back_idx, get_allocator_ref());
+      allocator_type &al = this->get_allocator_ref();
+      allocation_guard new_buffer_guard(new_buffer, new_capacity, al);
+
+      detail::construction_guard<allocator_type> guard(new_buffer + m_.back_idx, al);
       guarded_construct_n(new_buffer + m_.back_idx, n, guard, boost::forward<Args>(args)...);
 
-      buffer_move_or_copy(new_buffer + m_.front_idx);
+      //This might throw
+      boost::container::uninitialized_move_alloc(al, begin(), end(), new_buffer + m_.front_idx);
+
+      //This can't throw
+      this->destroy_elements(data(), data() + size());
+      this->deallocate_buffer();
 
       guard.release();
       new_buffer_guard.release();
@@ -2542,7 +2557,7 @@ class devector
       m_.set_back_idx(m_.back_idx + n);
    }
 
-   #else //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #else //   !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
 
    #define BOOST_CONTAINER_DEVECTOR_SLOW_PATH(N) \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -2571,24 +2586,30 @@ class devector
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
    void resize_front_slow_path(size_type sz, size_type n BOOST_MOVE_I##N BOOST_MOVE_UREF##N)\
    {\
-      const size_type new_capacity = calculate_new_capacity(sz + back_free_capacity());\
+      const size_type back_free_cap = back_free_capacity();\
+      const size_type new_capacity = calculate_new_capacity(sz + back_free_cap);\
       pointer new_buffer = allocate(new_capacity);\
-      allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());\
-   \
-      const size_type new_old_elem_index = new_capacity - size();\
+      allocator_type &al = this->get_allocator_ref();\
+      allocation_guard new_buffer_guard(new_buffer, new_capacity, al);\
+      \
+      const size_type new_old_elem_index = new_capacity - size() - back_free_cap;\
       const size_type new_elem_index = new_old_elem_index - n;\
-   \
-      detail::construction_guard<allocator_type> guard(new_buffer + new_elem_index, get_allocator_ref());\
+      \
+      detail::construction_guard<allocator_type> guard(new_buffer + new_elem_index, al);\
       guarded_construct_n(new_buffer + new_elem_index, n, guard BOOST_MOVE_I##N BOOST_MOVE_FWD##N);\
-   \
-      buffer_move_or_copy(new_buffer + new_old_elem_index, guard);\
-   \
+      \
+      boost::container::uninitialized_move_alloc(al, begin(), end(), new_buffer + new_old_elem_index);\
+      \
       guard.release();\
       new_buffer_guard.release();\
+      \
+      this->destroy_elements(data(), data() + size());\
+      this->deallocate_buffer();\
+      \
       m_.buffer = new_buffer;\
       m_.set_capacity(new_capacity);\
-      m_.set_back_idx(new_old_elem_index + m_.back_idx - m_.front_idx);\
       m_.set_front_idx(new_elem_index);\
+      m_.set_back_idx(new_elem_index + sz);\
    }\
    \
    BOOST_MOVE_TMPL_LT##N BOOST_MOVE_CLASS##N BOOST_MOVE_GT##N \
@@ -2622,12 +2643,16 @@ class devector
    {\
       const size_type new_capacity = calculate_new_capacity(sz + front_free_capacity());\
       pointer new_buffer = allocate(new_capacity);\
-      allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());\
+      allocator_type &al = this->get_allocator_ref();\
+      allocation_guard new_buffer_guard(new_buffer, new_capacity, al);\
    \
-      detail::construction_guard<allocator_type> guard(new_buffer + m_.back_idx, get_allocator_ref());\
+      detail::construction_guard<allocator_type> guard(new_buffer + m_.back_idx, al);\
       guarded_construct_n(new_buffer + m_.back_idx, n, guard BOOST_MOVE_I##N BOOST_MOVE_FWD##N);\
    \
-      buffer_move_or_copy(new_buffer + m_.front_idx);\
+      boost::container::uninitialized_move_alloc(al, begin(), end(), new_buffer + m_.front_idx);\
+   \
+      this->destroy_elements(data(), data() + size());\
+      this->deallocate_buffer();\
    \
       guard.release();\
       new_buffer_guard.release();\
@@ -2641,18 +2666,19 @@ class devector
    BOOST_MOVE_ITERATE_0TO9(BOOST_CONTAINER_DEVECTOR_SLOW_PATH)
    #undef BOOST_CONTAINER_DEVECTOR_SLOW_PATH
 
-   #endif    //!defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
+   #endif    //   !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
 
    void reallocate_at(size_type new_capacity, size_type buffer_offset)
    {
       pointer new_buffer = allocate(new_capacity);
       {
-         allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());
-         boost::container::uninitialized_move_alloc(get_allocator_ref(), this->begin(), this->end(), new_buffer + buffer_offset);
+         allocator_type &al = this->get_allocator_ref();
+         allocation_guard new_buffer_guard(new_buffer, new_capacity, al);
+         boost::container::uninitialized_move_alloc(al, this->begin(), this->end(), new_buffer + buffer_offset);
          new_buffer_guard.release();
       }
-      destroy_elements(m_.buffer + m_.front_idx, m_.buffer + m_.back_idx);
-      deallocate_buffer();
+      this->destroy_elements(m_.buffer + m_.front_idx, m_.buffer + m_.back_idx);
+      this->deallocate_buffer();
 
       m_.buffer = new_buffer;
       //Safe cast, allocate() will handle stored_size_type overflow
@@ -2672,6 +2698,8 @@ class devector
 
       size_type const n = boost::container::iterator_udistance(first, last);
       bool prefer_move_back;
+      allocator_type &al = this->get_allocator_ref();
+
       if (BOOST_UNLIKELY(!n)) {
          return begin() + size_type(position - cbegin());
       }
@@ -2679,7 +2707,7 @@ class devector
          if(back_free_capacity() >= n) // fast path
          {
             iterator r(this->end());
-            boost::container::uninitialized_copy_alloc(get_allocator_ref(), first, last, this->priv_raw_end());
+            boost::container::uninitialized_copy_alloc(al, first, last, this->priv_raw_end());
             m_.set_back_idx(m_.back_idx + n);
             return r;
          }
@@ -2687,7 +2715,7 @@ class devector
       }
       else if (position == begin()) {
          if(front_free_capacity() >= n) {// secondary fast path
-            boost::container::uninitialized_copy_alloc(get_allocator_ref(), first, last, this->priv_raw_begin() - n);
+            boost::container::uninitialized_copy_alloc(al, first, last, this->priv_raw_begin() - n);
             m_.set_front_idx(m_.front_idx - n);
             return begin();
          }
@@ -2700,7 +2728,7 @@ class devector
          if(prefer_move_back){
             if(back_free_capacity() >= n){
                boost::container::expand_forward_and_insert_nonempty_middle_alloc
-                  ( get_allocator_ref()
+                  ( al
                   , boost::movelib::to_raw_pointer(nonconst_pos)
                   , this->priv_raw_end()
                   , n, proxy_t(first));
@@ -2711,7 +2739,7 @@ class devector
          else{
             if (front_free_capacity() >= n){
                boost::container::expand_backward_and_insert_nonempty_middle_alloc
-                  ( get_allocator_ref()
+                  ( al
                   , this->priv_raw_begin()
                   , boost::movelib::to_raw_pointer(nonconst_pos)
                   , n, proxy_t(first));
@@ -2733,12 +2761,11 @@ class devector
       size_type const index = size_type(p - cbegin());
 
       size_type const cap = m_.capacity;
+      allocator_type &al = this->get_allocator_ref();
+
       //Test if enough free memory would be left
       if (free_cap >= n && (free_cap - n) >= cap/devector_min_free_fraction) {
-         //Make sure relocation is happening because there was no enough space
          size_type const old_size = this->size();
-         BOOST_ASSERT(should_move_back(p) ? (back_free_cap < n) : (front_free_cap < n));
-
          T* const raw_pos = const_cast<T*>(boost::movelib::to_raw_pointer(p));
          size_type const new_size = old_size + n;
          size_type const new_front_idx = (cap - new_size) / 2u;
@@ -2748,7 +2775,7 @@ class devector
          m_.back_idx = 0u;
          m_.front_idx = 0u;
          boost::container::expand_backward_forward_and_insert_alloc
-            (raw_beg, old_size, new_raw_beg, raw_pos, n, proxy, get_allocator_ref());
+            (raw_beg, old_size, new_raw_beg, raw_pos, n, proxy, al);
          m_.set_front_idx(new_front_idx);
          m_.set_back_idx(new_front_idx + new_size);
       }
@@ -2758,7 +2785,7 @@ class devector
          pointer new_buffer = allocate(new_capacity);
 
          // guard allocation
-         allocation_guard new_buffer_guard(new_buffer, new_capacity, get_allocator_ref());
+         allocation_guard new_buffer_guard(new_buffer, new_capacity, al);
 
          size_type const old_size = this->size();
          const size_type new_front_index = (new_capacity - old_size - n) / 2u;
@@ -2767,7 +2794,7 @@ class devector
          T* const raw_new_start = const_cast<T*>(boost::movelib::to_raw_pointer(new_buffer)) + new_front_index;
 
          boost::container::uninitialized_move_and_insert_alloc
-            (get_allocator_ref(), this->priv_raw_begin(), raw_pos, this->priv_raw_end(), raw_new_start, n, proxy);
+            (al, this->priv_raw_begin(), raw_pos, this->priv_raw_end(), raw_new_start, n, proxy);
          new_buffer_guard.release();
 
          // cleanup
@@ -2785,10 +2812,10 @@ class devector
 
 
    template <typename Iterator>
-   void construct_from_range(Iterator begin, Iterator end)
+   void construct_from_range(Iterator b, Iterator e)
    {
       allocation_guard buffer_guard(m_.buffer, m_.capacity, get_allocator_ref());
-      boost::container::uninitialized_copy_alloc(get_allocator_ref(), begin, end, m_.buffer);
+      boost::container::uninitialized_copy_alloc(get_allocator_ref(), b, e, m_.buffer);
       buffer_guard.release();
    }
 
@@ -2798,10 +2825,11 @@ class devector
       size_type n = boost::container::iterator_udistance(first, last);
 
       pointer new_buffer = n ? allocate(n) : pointer();
-      allocation_guard new_buffer_guard(new_buffer, n, get_allocator_ref());
-      boost::container::uninitialized_copy_alloc(get_allocator_ref(), first, last, new_buffer);
-      destroy_elements(begin(), end());
-      deallocate_buffer();
+      allocator_type &al = this->get_allocator_ref();
+      allocation_guard new_buffer_guard(new_buffer, n, al);
+      boost::container::uninitialized_copy_alloc(al, first, last, new_buffer);
+      this->destroy_elements(begin(), end());
+      this->deallocate_buffer();
 
       m_.set_capacity(n);
       m_.buffer = new_buffer;
@@ -2834,7 +2862,8 @@ class devector
    InputIterator overwrite_buffer_impl(InputIterator first, InputIterator last, dtl::false_)
    {
       pointer pos = m_.buffer;
-      detail::construction_guard<allocator_type> front_guard(pos, get_allocator_ref());
+      allocator_type &al = this->get_allocator_ref();
+      detail::construction_guard<allocator_type> front_guard(pos, al);
 
       while (first != last && pos != begin()) {
          this->alloc_construct(pos++, *first++);
@@ -2845,7 +2874,7 @@ class devector
          *pos++ = *first++;
       }
 
-      detail::construction_guard<allocator_type> back_guard(pos, get_allocator_ref());
+      detail::construction_guard<allocator_type> back_guard(pos, al);
 
       iterator capacity_end = m_.buffer + m_.capacity;
       while (first != last && pos != capacity_end) {
@@ -3017,6 +3046,28 @@ class devector
    #endif // ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
 };
 
+//! <b>Effects</b>: Erases all elements that compare equal to v from the container c.
+//!
+//! <b>Complexity</b>: Linear.
+template <class T, class A, class O, class U>
+inline typename devector<T, A, O>::size_type erase(devector<T, A, O>& c, const U& v)
+{
+   typename devector<T, A, O>::size_type old_size = c.size();
+   c.erase(boost::container::remove(c.begin(), c.end(), v), c.end());
+   return old_size - c.size();
+}
+
+//! <b>Effects</b>: Erases all elements that satisfy the predicate pred from the container c.
+//!
+//! <b>Complexity</b>: Linear.
+template <class T, class A, class O, class Pred>
+inline typename devector<T, A, O>::size_type erase_if(devector<T, A, O>& c, Pred pred)
+{
+   typename devector<T, A, O>::size_type old_size = c.size();
+   c.erase(boost::container::remove_if(c.begin(), c.end(), pred), c.end());
+   return old_size - c.size();
+}
+
 }} // namespace boost::container
 
 #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
@@ -3029,7 +3080,7 @@ template <class T, class Allocator, class Options>
 struct has_trivial_destructor_after_move<boost::container::devector<T, Allocator, Options> >
 {
     typedef typename boost::container::devector<T, Allocator, Options>::allocator_type allocator_type;
-    typedef typename ::boost::container::allocator_traits<allocator_type>::pointer pointer;
+    typedef typename boost::container::allocator_traits<allocator_type>::pointer pointer;
     BOOST_STATIC_CONSTEXPR bool value =
       ::boost::has_trivial_destructor_after_move<allocator_type>::value &&
       ::boost::has_trivial_destructor_after_move<pointer>::value;

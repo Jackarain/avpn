@@ -8,12 +8,15 @@
 // file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
+// Front-end constructor arguments are not supported by backmp11.
+#define BOOST_MSM_TEST_SKIP_BACKMP11
+
 // back-end
-#include <boost/msm/back/state_machine.hpp>
+#include "BackCommon.hpp"
 //front-end
 #include <boost/msm/front/state_machine_def.hpp>
 #ifndef BOOST_MSM_NONSTANDALONE_TEST
-#define BOOST_TEST_MODULE MyTest
+#define BOOST_TEST_MODULE constructor_test
 #endif
 #include <boost/test/unit_test.hpp>
 
@@ -189,12 +192,12 @@ namespace
 
     };
     // Pick a back-end
-    typedef msm::back::state_machine<player_> player;
+    typedef get_test_machines<player_> players;
 
 //    static char const* const state_names[] = { "Stopped", "Open", "Empty", "Playing", "Paused" };
 
 
-    BOOST_AUTO_TEST_CASE( my_test )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( constructor_test, player, players )
     {     
         SomeExternalContext ctx(3);
         player p(boost::ref(ctx),5);
@@ -207,3 +210,6 @@ namespace
     }
 }
 
+#if !defined(BOOST_MSM_TEST_SKIP_BACKMP11)
+using backmp11_fsm = boost::msm::backmp11::state_machine_adapter<player_, boost::msm::backmp11::favor_compile_time>;
+#endif

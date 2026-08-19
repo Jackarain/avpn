@@ -8,6 +8,8 @@
 #include <boost/core/lightweight_test.hpp>
 #include <boost/iterator/function_output_iterator.hpp>
 
+#include <iterator>
+
 namespace {
 
 struct sum_func
@@ -42,7 +44,6 @@ int main()
         BOOST_TEST_EQ(n, 6);
     }
 
-#if !defined(BOOST_NO_CXX11_LAMBDAS) && !defined(BOOST_NO_CXX11_AUTO_DECLARATIONS)
     {
         int n = 0;
         auto it = boost::iterators::make_function_output_iterator([&n](int x) { n -= x; });
@@ -54,6 +55,12 @@ int main()
         *it = 3;
 
         BOOST_TEST_EQ(n, -6);
+    }
+
+#if defined(__cpp_lib_concepts) && ( __cpp_lib_concepts >= 202002L )
+    {
+        auto func = [](int) {};
+        static_assert(std::output_iterator< boost::iterators::function_output_iterator< decltype(func) >, int >);
     }
 #endif
 

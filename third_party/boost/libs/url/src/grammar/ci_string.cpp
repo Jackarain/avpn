@@ -11,6 +11,22 @@
 #include <boost/url/detail/config.hpp>
 #include <boost/url/grammar/ci_string.hpp>
 
+// FNV-1a (in ci_digest below) relies on modular multiplication
+// of unsigned values, which Clang's -fsanitize=integer flags as
+// overflow. Suppress the check for that function only. GCC has
+// no equivalent sanitizer (it does not flag unsigned overflow),
+// so the annotation is Clang-only — applying it on GCC produces
+// "attribute directive ignored" under -Werror=attributes.
+#if defined(__clang__) && defined(__has_attribute)
+# if __has_attribute(no_sanitize)
+#  define BOOST_URL_NO_SANITIZE_INT_OVERFLOW \
+    __attribute__((no_sanitize("unsigned-integer-overflow")))
+# endif
+#endif
+#ifndef BOOST_URL_NO_SANITIZE_INT_OVERFLOW
+# define BOOST_URL_NO_SANITIZE_INT_OVERFLOW
+#endif
+
 namespace boost {
 namespace urls {
 namespace grammar {
@@ -32,24 +48,27 @@ ci_is_equal(
     auto p2 = s1.data();
     char a, b;
     // fast loop
-    while(n--)
+    while(n != 0)
     {
+        --n;
         a = *p1++;
         b = *p2++;
         if(a != b)
             goto slow;
     }
     return true;
-slow:
-    do
+    for(;;)
     {
+        a = *p1++;
+        b = *p2++;
+    slow:
         if( to_lower(a) !=
             to_lower(b))
             return false;
-        a = *p1++;
-        b = *p2++;
+        if(n == 0)
+            break;
+        --n;
     }
-    while(n--);
     return true;
 }
 
@@ -62,15 +81,17 @@ ci_is_less(
 {
     auto p1 = s0.data();
     auto p2 = s1.data();
-    for(auto n = s0.size();n--;)
+    auto n = s0.size() < s1.size()
+        ? s0.size() : s1.size();
+    while(n != 0)
     {
+        --n;
         auto c1 = to_lower(*p1++);
         auto c2 = to_lower(*p2++);
         if(c1 != c2)
             return c1 < c2;
     }
-    // equal
-    return false;
+    return s0.size() < s1.size();
 }
 
 } // detail
@@ -101,8 +122,9 @@ ci_compare(
     }
     auto it0 = s0.data();
     auto it1 = s1.data();
-    while(n--)
+    while(n != 0)
     {
+        --n;
         auto c0 =
             to_lower(*it0++);
         auto c1 =
@@ -118,6 +140,7 @@ ci_compare(
 
 //------------------------------------------------
 
+BOOST_URL_NO_SANITIZE_INT_OVERFLOW
 std::size_t
 ci_digest(
     core::string_view s) noexcept
@@ -137,7 +160,7 @@ ci_digest(
     auto hash = hash0;
     auto p = s.data();
     auto n = s.size();
-    for(;n--;++p)
+    for(; n != 0; --n, ++p)
     {
         // VFALCO NOTE Consider using a lossy
         // to_lower which works 4 or 8 chars at a time.

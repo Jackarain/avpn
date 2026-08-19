@@ -1,153 +1,88 @@
-/* Copyright (c) 2018-2022 Marcelo Zimbres Silva (mzimbres@gmail.com)
- *
- * Distributed under the Boost Software License, Version 1.0. (See
- * accompanying file LICENSE.txt)
- */
+//
+// Copyright (c) 2025 Marcelo Zimbres Silva (mzimbres@gmail.com),
+// Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
 
 #include <boost/redis/connection.hpp>
-#include <boost/redis/logger.hpp>
-#include <boost/asio/detached.hpp>
-#include <boost/system/errc.hpp>
-#define BOOST_TEST_MODULE conn-run-cancel
-#include <boost/test/included/unit_test.hpp>
-#include <iostream>
+#include <boost/redis/ignore.hpp>
+
+#include <boost/asio/bind_cancellation_slot.hpp>
+#include <boost/asio/cancellation_signal.hpp>
+#include <boost/asio/cancellation_type.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/core/lightweight_test.hpp>
+
 #include "common.hpp"
 
-#ifdef BOOST_ASIO_HAS_CO_AWAIT
-#include <boost/asio/experimental/awaitable_operators.hpp>
-#include <boost/asio/experimental/as_tuple.hpp>
+#include <cstddef>
+#include <iostream>
+#include <string_view>
 
-namespace net = boost::asio;
-
-using boost::redis::operation;
-using boost::redis::connection;
 using boost::system::error_code;
-using net::experimental::as_tuple;
-using boost::redis::request;
-using boost::redis::response;
-using boost::redis::ignore;
-using boost::redis::logger;
-using namespace std::chrono_literals;
+namespace net = boost::asio;
+using namespace boost::redis;
 
-using namespace net::experimental::awaitable_operators;
+namespace {
 
-auto async_cancel_run_with_timer() -> net::awaitable<void>
+// Terminal and partial cancellation work for async_run
+template <class Connection>
+void test_per_operation_cancellation(std::string_view name, net::cancellation_type_t cancel_type)
 {
-   auto ex = co_await net::this_coro::executor;
-   connection conn{ex};
+   std::cerr << "Running test case: " << name << std::endl;
 
-   net::steady_timer st{ex};
-   st.expires_after(1s);
-
-   error_code ec1, ec2;
-   auto cfg = make_test_config();
-   logger l;
-   co_await (conn.async_run(cfg, l, redir(ec1)) || st.async_wait(redir(ec2)));
-
-   BOOST_CHECK_EQUAL(ec1, boost::asio::error::operation_aborted);
-   BOOST_TEST(!ec2);
-}
-
-BOOST_AUTO_TEST_CASE(cancel_run_with_timer)
-{
+   // Setup
    net::io_context ioc;
-   net::co_spawn(ioc.get_executor(), async_cancel_run_with_timer(), net::detached);
-   ioc.run();
+   Connection conn{ioc};
+   net::cancellation_signal sig;
+
+   request req;
+   req.push("PING", "something");
+
+   bool run_finished = false, exec_finished = false;
+
+   // Run the connection
+   auto run_cb = [&](error_code ec) {
+      run_finished = true;
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
+   };
+   conn.async_run(make_test_config(), net::bind_cancellation_slot(sig.slot(), run_cb));
+
+   // Launch a PING
+   conn.async_exec(req, ignore, [&](error_code ec, std::size_t) {
+      exec_finished = true;
+      BOOST_TEST_EQ(ec, error_code());
+      sig.emit(cancel_type);
+   });
+
+   ioc.run_for(test_timeout);
+
+   // Check
+   BOOST_TEST(run_finished);
+   BOOST_TEST(exec_finished);
 }
 
-auto
-async_check_cancellation_not_missed(int n, std::chrono::milliseconds ms) -> net::awaitable<void>
+}  // namespace
+
+int main()
 {
-   auto ex = co_await net::this_coro::executor;
-   connection conn{ex};
+   using basic_connection_t = basic_connection<net::io_context::executor_type>;
 
-   net::steady_timer timer{ex};
+   test_per_operation_cancellation<basic_connection_t>(
+      "basic_connection, terminal",
+      net::cancellation_type_t::terminal);
+   test_per_operation_cancellation<basic_connection_t>(
+      "basic_connection, partial",
+      net::cancellation_type_t::partial);
 
-   for (auto i = 0; i < n; ++i) {
-      timer.expires_after(ms);
-      error_code ec1, ec2;
-      auto cfg = make_test_config();
-      logger l;
-      co_await (conn.async_run(cfg, l, redir(ec1)) || timer.async_wait(redir(ec2)));
-      BOOST_CHECK_EQUAL(ec1, boost::asio::error::operation_aborted);
-      std::cout << "Counter: " << i << std::endl;
-   }
+   test_per_operation_cancellation<connection>(
+      "connection, terminal",
+      net::cancellation_type_t::terminal);
+   test_per_operation_cancellation<connection>(
+      "connection, partial",
+      net::cancellation_type_t::partial);
+
+   return boost::report_errors();
 }
-
-// See PR #29
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_0)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(10, std::chrono::milliseconds{0}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_2)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{2}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_8)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{8}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_16)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{16}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_32)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{32}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_64)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{64}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_128)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{128}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_256)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{256}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_512)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{512}), net::detached);
-   ioc.run();
-}
-
-BOOST_AUTO_TEST_CASE(check_implicit_cancel_not_missed_1024)
-{
-   net::io_context ioc;
-   net::co_spawn(ioc, async_check_cancellation_not_missed(20, std::chrono::milliseconds{1024}), net::detached);
-   ioc.run();
-}
-
-#else
-BOOST_AUTO_TEST_CASE(dummy)
-{
-   BOOST_TEST(true);
-}
-#endif

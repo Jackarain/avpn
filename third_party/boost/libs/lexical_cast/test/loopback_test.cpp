@@ -3,7 +3,7 @@
 //  See http://www.boost.org for most recent version, including documentation.
 //
 //  Copyright Alexander Nasonov, 2006.
-//  Copyright Antony Polukhin, 2023-2024.
+//  Copyright Antony Polukhin, 2023-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
@@ -12,9 +12,9 @@
 //  Test round-tripping conversion FPT -> string -> FPT,
 //  where FPT is Floating Point Type.
 
-#include <boost/lexical_cast.hpp>
-
 #include <boost/core/lightweight_test.hpp>
+
+#include <boost/lexical_cast.hpp>
 
 #if (defined(__CYGWIN__) || defined(__FreeBSD__) || defined(__NetBSD__) \
    || (defined(__hppa) && !defined(__OpenBSD__)) || (defined(__NO_LONG_DOUBLE_MATH) && (DBL_MANT_DIG != LDBL_MANT_DIG))) \

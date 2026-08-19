@@ -3,74 +3,78 @@
 add_library(boost_redis_project_options INTERFACE)
 target_link_libraries(boost_redis_project_options INTERFACE boost_redis)
 if (MSVC)
-  target_compile_options(boost_redis_project_options INTERFACE /bigobj)
-  target_compile_definitions(boost_redis_project_options INTERFACE _WIN32_WINNT=0x0601)
+  # C4459: name hides outer scope variable is issued by Asio
+  target_compile_options(boost_redis_project_options INTERFACE /bigobj /W4 /wd4459)
+  target_compile_definitions(boost_redis_project_options INTERFACE _WIN32_WINNT=0x0601 _CRT_SECURE_NO_WARNINGS=1)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(boost_redis_project_options INTERFACE -Wall -Wextra)
 endif()
 
 add_library(boost_redis_src STATIC boost_redis.cpp)
-target_compile_features(boost_redis_src PRIVATE cxx_std_17)
 target_link_libraries(boost_redis_src PRIVATE boost_redis_project_options)
 
 # Test utils
-add_library(boost_redis_tests_common STATIC common.cpp)
-target_compile_features(boost_redis_tests_common PRIVATE cxx_std_17)
-target_link_libraries(boost_redis_tests_common PRIVATE boost_redis_project_options)
+add_library(boost_redis_tests_common STATIC common.cpp sansio_utils.cpp)
+target_link_libraries(boost_redis_tests_common PUBLIC boost_redis_project_options boost_redis_src)
+target_compile_definitions(boost_redis_tests_common INTERFACE BOOST_ALLOW_DEPRECATED=1) # we need to still test deprecated fns
 
-macro(make_test TEST_NAME STANDARD)
+function(boost_redis_make_test TEST_NAME)
   set(EXE_NAME "boost_redis_${TEST_NAME}")
   add_executable(${EXE_NAME} ${TEST_NAME}.cpp)
-  target_link_libraries(${EXE_NAME} PRIVATE
-    boost_redis_src
-    boost_redis_tests_common
-    boost_redis_project_options
-    Boost::unit_test_framework
-  )
-  target_compile_features(${EXE_NAME} PRIVATE cxx_std_${STANDARD})
-  add_test(${EXE_NAME} ${EXE_NAME})
-endmacro()
+  target_link_libraries(${EXE_NAME} PRIVATE boost_redis_tests_common)
+  add_test(NAME ${EXE_NAME} COMMAND ${EXE_NAME})
+  add_dependencies(tests ${EXE_NAME})
+endfunction()
 
-make_test(test_conn_quit 17)
-# TODO: Configure a Redis server with TLS in the CI and reenable this test.
-#make_test(test_conn_tls 17)
-make_test(test_low_level 17)
-make_test(test_conn_exec_retry 17)
-make_test(test_conn_exec_error 17)
-make_test(test_request 17)
-make_test(test_run 17)
-make_test(test_low_level_sync_sans_io 17)
-make_test(test_conn_check_health 17)
+# Unit tests
+boost_redis_make_test(test_low_level)
+boost_redis_make_test(test_request)
+boost_redis_make_test(test_serialization)
+boost_redis_make_test(test_low_level_sync_sans_io)
+boost_redis_make_test(test_any_adapter)
+boost_redis_make_test(test_log_to_file)
+boost_redis_make_test(test_conn_logging)
+boost_redis_make_test(test_exec_fsm)
+boost_redis_make_test(test_exec_one_fsm)
+boost_redis_make_test(test_writer_fsm)
+boost_redis_make_test(test_reader_fsm)
+boost_redis_make_test(test_connect_fsm)
+boost_redis_make_test(test_sentinel_resolve_fsm)
+boost_redis_make_test(test_receive_fsm)
+boost_redis_make_test(test_run_fsm)
+boost_redis_make_test(test_compose_setup_request)
+boost_redis_make_test(test_setup_adapter)
+boost_redis_make_test(test_multiplexer)
+boost_redis_make_test(test_parse_sentinel_response)
+boost_redis_make_test(test_update_sentinel_list)
+boost_redis_make_test(test_flat_tree)
+boost_redis_make_test(test_generic_flat_response)
+boost_redis_make_test(test_read_buffer)
+boost_redis_make_test(test_subscription_tracker)
+boost_redis_make_test(test_push_parser)
+boost_redis_make_test(test_config)
 
-make_test(test_conn_exec 20)
-make_test(test_conn_push 20)
-make_test(test_conn_reconnect 20)
-make_test(test_conn_exec_cancel 20)
-make_test(test_conn_exec_cancel2 20)
-make_test(test_conn_echo_stress 20)
-make_test(test_conn_run_cancel 20)
-make_test(test_issue_50 20)
-make_test(test_issue_181 17)
-
-# Coverage
-set(
-  COVERAGE_TRACE_COMMAND
-  lcov --capture
-  -output-file "${PROJECT_BINARY_DIR}/coverage.info"
-  --directory "${PROJECT_BINARY_DIR}"
-  --include "${PROJECT_SOURCE_DIR}/include/*"
-)
-
-set(
-  COVERAGE_HTML_COMMAND
-  genhtml --legend -f -q
-  "${PROJECT_BINARY_DIR}/coverage.info"
-  --prefix "${PROJECT_SOURCE_DIR}"
-  --output-directory "${PROJECT_BINARY_DIR}/coverage_html"
-)
-
-add_custom_target(
-  coverage
-  COMMAND ${COVERAGE_TRACE_COMMAND}
-  COMMAND ${COVERAGE_HTML_COMMAND}
-  COMMENT "Generating coverage report"
-  VERBATIM
-)
+# Tests that require a real Redis server
+if (BOOST_REDIS_INTEGRATION_TESTS)
+  boost_redis_make_test(test_conn_quit)
+  boost_redis_make_test(test_conn_exec_retry)
+  boost_redis_make_test(test_conn_exec_error)
+  boost_redis_make_test(test_run)
+  boost_redis_make_test(test_conn_run_cancel)
+  boost_redis_make_test(test_conn_check_health)
+  boost_redis_make_test(test_conn_exec)
+  boost_redis_make_test(test_conn_push)
+  boost_redis_make_test(test_conn_push2)
+  boost_redis_make_test(test_conn_monitor)
+  boost_redis_make_test(test_conn_reconnect)
+  boost_redis_make_test(test_conn_exec_cancel)
+  boost_redis_make_test(test_conn_echo_stress)
+  boost_redis_make_test(test_conn_move)
+  boost_redis_make_test(test_conn_setup)
+  boost_redis_make_test(test_issue_50)
+  boost_redis_make_test(test_conversions)
+  boost_redis_make_test(test_conn_tls)
+  boost_redis_make_test(test_unix_sockets)
+  boost_redis_make_test(test_conn_cancel_after)
+  boost_redis_make_test(test_conn_sentinel)
+endif()

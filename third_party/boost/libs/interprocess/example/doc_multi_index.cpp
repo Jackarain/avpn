@@ -9,10 +9,11 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include <boost/interprocess/detail/workaround.hpp>
+#if BOOST_CXX_VERSION >= 201103L
 //[doc_multi_index
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
-#include <boost/interprocess/containers/string.hpp>
+#include <boost/container/string.hpp>
 
 //<-
 //Shield against external warnings
@@ -32,11 +33,13 @@ using namespace boost::interprocess;
 namespace bmi = boost::multi_index;
 
 typedef managed_shared_memory::allocator<char>::type              char_allocator;
-typedef basic_string<char, std::char_traits<char>, char_allocator>shm_string;
+typedef boost::container::basic_string<char, std::char_traits<char>, char_allocator>shm_string;
 
 //Data to insert in shared memory
 struct employee
 {
+   typedef char_allocator allocator_type; //enables uses-allocator protocol
+
    int         id;
    int         age;
    shm_string  name;
@@ -74,34 +77,17 @@ int main ()
    //Remove shared memory on construction and destruction
    struct shm_remove
    {
-   //<-
-   #if 1
       shm_remove() { shared_memory_object::remove(test::get_process_id_name()); }
       ~shm_remove(){ shared_memory_object::remove(test::get_process_id_name()); }
-   #else
-   //->
-      shm_remove() { shared_memory_object::remove("MySharedMemory"); }
-      ~shm_remove(){ shared_memory_object::remove("MySharedMemory"); }
-   //<-
-   #endif
-   //->
    } remover;
    //<-
    (void)remover;
    //->
 
    //Create shared memory
-   //<-
-   #if 1
    managed_shared_memory segment(create_only,test::get_process_id_name(), 65536);
-   #else
-   //->
-   managed_shared_memory segment(create_only,"MySharedMemory", 65536);
-   //<-
-   #endif
-   //->
 
-   //Construct the multi_index in shared memory
+   //Construct the multi_index in shared memory (classic construction)
    employee_set *es = segment.construct<employee_set>
       ("My MultiIndex Container")            //Container's name in shared memory
       ( employee_set::ctor_args_list()
@@ -112,7 +98,28 @@ int main ()
    es->insert(employee(0,31, "Joe", ca));
    es->insert(employee(1,27, "Robert", ca));
    es->insert(employee(2,40, "John", ca));
+   segment.destroy_ptr(es);
+
+   //Now re-construct it using the uses-allocator protocol
+   es = segment.construct<employee_set>
+      ("My MultiIndex Container")       //Container's name in shared memory
+      ( employee_set::ctor_args_list() );    //Allocator parameters is implicit
+
+   //Now emplace elements (more natural, the allocator is implicitly propagated)
+   es->emplace(0,31, "Joe");
+   es->emplace(1,27, "Robert");
+   es->emplace(2,40, "John");
+   segment.destroy_ptr(es);
+
    return 0;
 }
 //]
 
+#else ////#if BOOST_CXX_VERSION >= 201103L
+
+int main()
+{
+   return 0;
+}
+
+#endif   //#if BOOST_CXX_VERSION >= 201103L

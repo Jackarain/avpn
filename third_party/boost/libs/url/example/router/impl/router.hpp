@@ -21,7 +21,7 @@ void
 router<T>::
 insert(core::string_view pattern, U&& v)
 {
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         std::is_same<T, U>::value        ||
         std::is_convertible<U, T>::value ||
         std::is_base_of<T, U>::value);
@@ -53,11 +53,11 @@ insert(core::string_view pattern, U&& v)
 template <class T>
 T const*
 router<T>::
-find(segments_encoded_view path, matches_base& m) const noexcept
+find_impl(segments_encoded_view path, matches_base& m) const noexcept
 {
     core::string_view* matches_it = m.matches();
     core::string_view* ids_it = m.ids();
-    any_resource const* p = find_impl(
+    any_resource const* p = router_base::find_impl(
         path, matches_it, ids_it );
     if (p)
     {

@@ -1,9 +1,9 @@
-# Copyright 2021-2023 Andrey Semashev
+# Copyright 2021-2025 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
 # See accompanying file LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8...3.16)
 project(BoostLog VERSION "${BOOST_SUPERPROJECT_VERSION}" LANGUAGES CXX)
 
 include(CheckCXXSourceCompiles)
@@ -19,6 +19,7 @@ if (WIN32)
     set(BOOST_LOG_WITHOUT_EVENT_LOG OFF CACHE BOOL "Disable support for event log on Windows in Boost.Log")
 endif()
 set(BOOST_LOG_WITHOUT_IPC OFF CACHE BOOL "Disable support for inter-process communication in Boost.Log")
+set(BOOST_LOG_WITHOUT_ASIO OFF CACHE BOOL "Disable support for Boost.ASIO in Boost.Log")
 set(BOOST_LOG_WITHOUT_SYSLOG OFF CACHE BOOL "Disable support for syslog API in Boost.Log")
 set(BOOST_LOG_USE_NATIVE_SYSLOG OFF CACHE BOOL "Force-enable using native syslog API in Boost.Log")
 set(BOOST_LOG_USE_COMPILER_TLS OFF CACHE BOOL "Enable using compiler-specific intrinsics for thread-local storage in Boost.Log")
@@ -123,6 +124,10 @@ else()
     list(APPEND boost_log_common_public_defines BOOST_LOG_STATIC_LINK)
 endif()
 
+if (BOOST_LOG_WITHOUT_ASIO)
+    list(APPEND boost_log_common_public_defines BOOST_LOG_WITHOUT_ASIO)
+endif()
+
 set(boost_log_sources
     src/alignment_gap_between.hpp
     src/attribute_name.cpp
@@ -132,7 +137,6 @@ set(boost_log_sources
     src/bit_tools.hpp
     src/code_conversion.cpp
     src/stateless_allocator.hpp
-    src/unique_ptr.hpp
     src/core.cpp
     src/record_ostream.cpp
     src/severity_level.cpp
@@ -258,8 +262,8 @@ if (WIN32)
                 OUTPUT
                     "${CMAKE_CURRENT_BINARY_DIR}/src/windows/simple_event_log.h"
                     "${CMAKE_CURRENT_BINARY_DIR}/src/windows/simple_event_log.rc"
+                COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/src/windows"
                 COMMAND "${CMAKE_MC_COMPILER}"
-                ARGS
                     -h "${CMAKE_CURRENT_BINARY_DIR}/src/windows"
                     -r "${CMAKE_CURRENT_BINARY_DIR}/src/windows"
                     "${CMAKE_CURRENT_SOURCE_DIR}/src/windows/simple_event_log.mc"
@@ -269,8 +273,6 @@ if (WIN32)
                     "Building src/windows/simple_event_log.mc"
                 VERBATIM
             )
-            set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/windows/simple_event_log.h" PROPERTIES GENERATED TRUE)
-            set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/src/windows/simple_event_log.rc" PROPERTIES GENERATED TRUE)
 
             if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
                 # Workaround for a windres.exe issue on MinGW-w64: by default, it uses popen to pipe preprocessed
@@ -308,8 +310,6 @@ else()
 endif()
 
 if (CYGWIN)
-    # Boost.Interprocess does not compile on Cygwin: https://github.com/boostorg/interprocess/issues/76
-    set(BOOST_LOG_WITHOUT_IPC ON)
     list(APPEND boost_log_common_private_defines
         __USE_W32_SOCKETS
         _XOPEN_SOURCE=600
@@ -327,6 +327,9 @@ if (WIN32 OR CYGWIN)
         ws2_32
         mswsock
         advapi32
+    )
+    list(APPEND boost_log_setup_private_libs
+        ws2_32
     )
 endif()
 
@@ -471,10 +474,8 @@ target_include_directories(boost_log
 
 target_link_libraries(boost_log
     PUBLIC
-        Boost::array
         Boost::assert
         Boost::config
-        Boost::container
         Boost::core
         Boost::date_time
         Boost::filesystem
@@ -490,31 +491,41 @@ target_link_libraries(boost_log
         Boost::proto
         Boost::range
         Boost::smart_ptr
-        Boost::static_assert
         Boost::system
         Boost::throw_exception
         Boost::type_index
         Boost::type_traits
         Boost::utility
-        Boost::winapi
 
     PRIVATE
         Boost::align
-        Boost::asio
         Boost::bind
         Boost::exception
         Boost::interprocess
         Boost::optional
-        Boost::random
         Boost::spirit
         ${boost_log_regex_backend_private_libs}
 )
+
+if (WIN32 OR CYGWIN)
+    target_link_libraries(boost_log
+        PUBLIC
+            Boost::winapi
+    )
+endif()
 
 if (NOT BOOST_LOG_NO_THREADS)
     target_link_libraries(boost_log
         PUBLIC
             Boost::atomic
             Boost::thread
+    )
+endif()
+
+if (NOT BOOST_LOG_WITHOUT_ASIO)
+    target_link_libraries(boost_log
+        PRIVATE
+            Boost::asio_core
     )
 endif()
 
@@ -619,7 +630,6 @@ if (NOT BOOST_LOG_WITHOUT_SETTINGS_PARSERS)
             ${boost_log_setup_public_deps}
 
         PRIVATE
-            Boost::asio
             Boost::bind
             Boost::date_time
             Boost::exception
@@ -639,6 +649,13 @@ if (NOT BOOST_LOG_WITHOUT_SETTINGS_PARSERS)
         )
     endif()
 
+    if (NOT BOOST_LOG_WITHOUT_ASIO)
+        target_link_libraries(boost_log_setup
+            PRIVATE
+                Boost::asio_core
+        )
+    endif()
+
     target_compile_definitions(boost_log_setup
         PUBLIC
             ${boost_log_common_public_defines}
@@ -654,6 +671,7 @@ if (NOT BOOST_LOG_WITHOUT_SETTINGS_PARSERS)
 
     target_link_libraries(boost_log_setup
         PRIVATE
+            ${boost_log_setup_private_libs}
             ${boost_log_common_private_linkflags}
     )
 else()

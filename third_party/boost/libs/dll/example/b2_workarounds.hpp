@@ -1,5 +1,5 @@
 // Copyright 2014 Renato Tegon Forti, Antony Polukhin.
-// Copyright Antony Polukhin, 2015-2024.
+// Copyright Antony Polukhin, 2015-2026.
 //
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE_1_0.txt
@@ -8,11 +8,12 @@
 #ifndef BOOST_DLL_EXAMPLE_COMMON_B2_WORKAROUNDS_HPP
 #define BOOST_DLL_EXAMPLE_COMMON_B2_WORKAROUNDS_HPP
 
-#include <boost/dll/config.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/system/error_code.hpp>
 #include <iostream>
 #include <cctype>
+
+#include <boost/dll/config.hpp>
 
 namespace b2_workarounds {
 

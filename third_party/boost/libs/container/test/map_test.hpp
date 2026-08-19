@@ -16,6 +16,7 @@
 #include "print_container.hpp"
 #include "movable_int.hpp"
 #include <boost/container/detail/pair.hpp>
+#include <boost/container/detail/compare_functors.hpp>
 #include <boost/move/iterator.hpp>
 #include <boost/move/utility_core.hpp>
 #include <boost/move/make_unique.hpp>
@@ -109,7 +110,7 @@ int map_move_assignable_only(boost::container::dtl::true_type)
    MyBoostMap& boostmap2 = *pboostmap2;
    MyStdMap& stdmap2 = *pstdmap2;
 
-   /* fix assignable */
+   // fix assignable
    {
       IntType i0(0);
       IntType i1(1);
@@ -377,8 +378,6 @@ int map_test_step(MyBoostMap &, MyStdMap &, MyBoostMultiMap &, MyStdMultiMap &)
 
       if(!CheckEqualContainers(boostmap2, stdmap2)) return 1;
       if(!CheckEqualContainers(boostmultimap2, stdmultimap2)) return 1;
-
-
 
       //ordered range insertion
       //This is really nasty, but we have no other simple choice
@@ -649,6 +648,68 @@ int map_test_erase(MyBoostMap &boostmap, MyStdMap &stdmap, MyBoostMultiMap &boos
       if(!CheckEqualPairContainers(boostmap, stdmap)) return 1;
       if(!CheckEqualPairContainers(boostmultimap, stdmultimap)) return 1;
    }
+
+   {  //erase_if
+      boostmap.clear();
+      boostmultimap.clear();
+      stdmap.clear();
+      stdmultimap.clear();
+
+      {
+         IntPairType aux_vect[(std::size_t)MaxElem];
+         IntPairType aux_vect2[(std::size_t)MaxElem];
+         IntPairType aux_vect3[(std::size_t)MaxElem];
+
+         for(int i = 0; i < MaxElem; ++i){
+            IntType i1(i);
+            IntType i2(i);
+            new(&aux_vect[i])IntPairType(boost::move(i1), boost::move(i2));
+         }
+
+         for(int i = 0; i < MaxElem; ++i){
+            IntType i1(i);
+            IntType i2(i);
+            new(&aux_vect2[i])IntPairType(boost::move(i1), boost::move(i2));
+         }
+
+         for(int i = 0; i < MaxElem; ++i){
+            IntType i1(i);
+            IntType i2(i);
+            new(&aux_vect3[i])IntPairType(boost::move(i1), boost::move(i2));
+         }
+
+         boostmap.     insert(boost::make_move_iterator(&aux_vect[0]),  boost::make_move_iterator(&aux_vect[0]  + MaxElem));
+         boostmultimap.insert(boost::make_move_iterator(&aux_vect2[0]), boost::make_move_iterator(&aux_vect2[0] + MaxElem));
+         boostmultimap.insert(boost::make_move_iterator(&aux_vect3[0]), boost::make_move_iterator(&aux_vect3[0] + MaxElem));
+      }
+
+      for(int i = 0; i < MaxElem; ++i){
+         stdmap.insert((StdPairType(i, i)));
+         stdmultimap.insert((StdPairType(i, i)));
+         stdmultimap.insert((StdPairType(i, i)));
+      }
+
+      for(int i = 0; i < MaxElem; ++i) {
+         //erase_if
+         const int key = (i + MaxElem/2) % MaxElem;
+
+         if (1 != erase_if(boostmap, equal_to_value_first<int>(key)))
+            return 1;
+         if (0 != erase_if(boostmap, equal_to_value_first<int>(key)))
+            return 1;
+         stdmap.erase(key);
+         if(!test::CheckEqualContainers(boostmap, stdmap)) return false;
+
+         //erase_if
+         if (2 != erase_if(boostmultimap, equal_to_value_first<int>(key)))
+            return 1;
+         if (0 != erase_if(boostmultimap, equal_to_value_first<int>(key)))
+            return 1;
+         stdmultimap.erase(key);
+         if(!test::CheckEqualContainers(boostmultimap, stdmultimap)) return false;
+      }
+   }
+
    return 0;
 }
 
@@ -1477,6 +1538,219 @@ bool instantiate_constructors()
          MultimapType s1(ordered_range, &value, &value ,comp);
          MultimapType s2(ordered_range, &value, &value ,comp, a);
       }
+   }
+   return true;
+}
+
+
+template<typename IntMapType, typename IntMultimapType>
+bool test_heterogeneous_lookup()
+{
+   typedef IntMapType map_t;
+   typedef IntMultimapType mmap_t;
+   typedef typename map_t::value_type value_type;
+   
+   map_t map1;
+   const map_t &cmap1 = map1;
+
+   if(!map1.insert_or_assign(1, 'a').second)
+      return false;
+   if( map1.insert_or_assign(1, 'b').second)
+      return false;
+   if(!map1.insert_or_assign(2, 'c').second)
+      return false;
+   if( map1.insert_or_assign(2, 'd').second)
+      return false;
+   if(!map1.insert_or_assign(3, 'e').second)
+      return false;
+
+   mmap_t mmap1;
+   const mmap_t &cmmap1 = mmap1;
+
+   mmap1.insert(value_type(1, 'a'));
+   mmap1.insert(value_type(1, 'b'));
+   mmap1.insert(value_type(2, 'c'));
+   mmap1.insert(value_type(2, 'd'));
+   mmap1.insert(value_type(3, 'e'));
+
+   const test::non_copymovable_int find_me(2);
+   const test::non_copymovable_int not_present(5);
+
+   //find
+   if(map1.find(find_me)->second != 'd')
+      return false;
+   if(cmap1.find(find_me)->second != 'd')
+      return false;
+   if(mmap1.find(find_me)->second != 'c')
+      return false;
+   if(cmmap1.find(find_me)->second != 'c')
+      return false;
+   if(map1.find(not_present)   != map1.end())
+      return false;
+   if(cmap1.find(not_present)  != cmap1.end())
+      return false;
+   if(mmap1.find(not_present)  != mmap1.end())
+      return false;
+   if(cmmap1.find(not_present) != mmap1.cend())
+      return false;
+
+
+   //count
+   if(map1.count(find_me) != 1)
+      return false;
+   if(cmap1.count(find_me) != 1)
+      return false;
+   if(mmap1.count(find_me) != 2)
+      return false;
+   if(cmmap1.count(find_me) != 2)
+      return false;
+   if(map1.count(not_present) != 0)
+      return false;
+   if(cmap1.count(not_present) != 0)
+      return false;
+   if(mmap1.count(not_present) != 0)
+      return false;
+   if(cmmap1.count(not_present) != 0)
+      return false;
+
+   //contains
+   if(!map1.contains(find_me))
+      return false;
+   if(!cmap1.contains(find_me))
+      return false;
+   if(!mmap1.contains(find_me))
+      return false;
+   if(!cmmap1.contains(find_me))
+      return false;
+   if(map1.contains(not_present))
+      return false;
+   if(cmap1.contains(not_present))
+      return false;
+   if(mmap1.contains(not_present))
+      return false;
+   if(cmmap1.contains(not_present))
+      return false;
+
+   //at
+   if(map1.at(find_me)  != 'd')
+      return false;
+   if(cmap1.at(find_me) != 'd')
+      return false;
+
+   //lower_bound
+   if(map1.lower_bound(find_me)->second != 'd')
+      return false;
+   if(cmap1.lower_bound(find_me)->second != 'd')
+      return false;
+   if(mmap1.lower_bound(find_me)->second != 'c')
+      return false;
+   if(cmmap1.lower_bound(find_me)->second != 'c')
+      return false;
+
+   //upper_bound
+   if(map1.upper_bound(find_me)->second != 'e')
+      return false;
+   if(cmap1.upper_bound(find_me)->second != 'e')
+      return false;
+   if(mmap1.upper_bound(find_me)->second != 'e')
+      return false;
+   if(cmmap1.upper_bound(find_me)->second != 'e')
+      return false;
+
+   //equal_range
+   if(map1.equal_range(find_me).first->second != 'd')
+      return false;
+   if(cmap1.equal_range(find_me).second->second != 'e')
+      return false;
+   if(mmap1.equal_range(find_me).first->second != 'c')
+      return false;
+   if(cmmap1.equal_range(find_me).second->second != 'e')
+      return false;
+
+   //erase
+   if (map1.erase(find_me) != 1)
+      return false;
+   if (map1.erase(find_me) != 0)
+      return false;
+   if (mmap1.erase(find_me) != 2)
+      return false;
+   if (mmap1.erase(find_me) != 0)
+      return false;
+
+   return true;
+}
+
+template<typename MovableIntMapType>
+bool test_heterogeneous_insert()
+{
+   {
+      typedef MovableIntMapType map_t;
+
+      map_t map1;
+      const map_t &cmap1 = map1;
+
+      //insert_or_assign
+      if(!map1.insert_or_assign(1, 'e').second)
+         return false;
+      if (cmap1.find(1)->second != 'e')
+         return false;
+      if(map1.insert_or_assign(1, 'b').second)
+         return false;
+      if (cmap1.find(1)->second != 'b')
+         return false;
+
+      //insert_or_assign with hint
+      if(map1.find(2) != map1.end())
+         return false;
+      typename map_t::iterator i = map1.insert_or_assign(map1.begin(), 2, 'f');
+      if(i != map1.insert_or_assign(map1.end(), 2, 'g'))
+         return false;
+      if (cmap1.find(2)->second != 'g')
+         return false;
+
+      //try_emplace
+      map1.clear();
+      if(!map1.try_emplace(1, 'a').second)
+         return false;
+      if (cmap1.find(1)->second != 'a')
+         return false;
+      if( map1.try_emplace(1, 'b').second)
+         return false;
+      if (cmap1.find(1)->second != 'a')
+         return false;
+
+      //try_emplace with hint
+      i = map1.try_emplace(map1.end(), 2, 'c');
+      if (cmap1.find(2)->second != 'c')
+         return false;
+      if (i != map1.try_emplace(map1.begin(), 2, 'd'))
+         return false;
+      if (cmap1.find(2)->second != 'c')
+         return false;
+
+      //operator[]
+      typename map_t::mapped_type const *pm = &map1.find(2)->second;
+      typename map_t::mapped_type &m = map1[2];
+      if(m != 'c')
+         return false;
+      if(&m != pm)
+         return false;
+      
+      map1[2] = 'd';
+      if (cmap1.find(2)->second != 'd')
+         return false;
+      if(&m != &map1[2])
+         return false;
+
+      map1[3] = 'e';
+      if (cmap1.find(3)->second != 'e')
+         return false;
+      if(map1[3] != map1[3])
+         return false;
+
+      if (map1[4] != 0)
+         return false;
+
    }
    return true;
 }

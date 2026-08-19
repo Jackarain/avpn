@@ -1,0 +1,20 @@
+name: GitHub Actions CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - develop
+      - githubactions*
+      - fix/**
+      - pr/**
+
+permissions:
+  contents: read
+
+jobs:
+  boost-ci:
+    uses: boostorg/boost-ci/.github/workflows/reusable.yml@master
+    with:
+      exclude_cxxstd: '98,03,0x,11'

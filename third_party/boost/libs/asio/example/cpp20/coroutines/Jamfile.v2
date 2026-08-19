@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+# Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -37,4 +37,5 @@ exe echo_server_with_default : echo_server_with_default.cpp ;
 exe echo_server_with_deferred : echo_server_with_deferred.cpp ;
 exe echo_server_with_deferred_default : echo_server_with_deferred_default.cpp ;
 exe refactored_echo_server : refactored_echo_server.cpp ;
-exe timeout : timeout.cpp ;
+exe timeout_cancel_after : timeout_cancel_after.cpp ;
+exe timeout_watchdog : timeout_watchdog.cpp ;

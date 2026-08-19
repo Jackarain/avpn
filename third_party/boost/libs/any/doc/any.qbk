@@ -1,5 +1,5 @@
 [/
-    Copyright Antony Polukhin, 2013-2024.
+    Copyright Antony Polukhin, 2013-2026.
 
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at <a href="http://www.boost.org/LICENSE_1_0.txt">http://www.boost.org/LICENSE_1_0.txt</a>)
@@ -10,7 +10,7 @@
     [version 1.2]
     [id any]
     [copyright 2001 Kevlin Henney]
-    [copyright 2013-2024 Antony Polukhin]
+    [copyright 2013-2026 Antony Polukhin]
     [category Language Features Emulation]
     [license
         Distributed under the Boost Software License, Version 1.0.
@@ -83,7 +83,7 @@ and copying of any objects:
 #include <boost/any.hpp>
 
 using boost::any_cast;
-typedef std::list<boost::any> many;
+using many = std::list<boost::any>;
 
 void append_int(many & values, int value)
 {
@@ -169,7 +169,7 @@ struct property
     boost::any value;
 };
 
-typedef std::list<property> properties;
+using properties = std::list<property>;
 ```
 
 The following base class demonstrates one approach to
@@ -234,6 +234,40 @@ The specific requirements on value types to be used in an
 
 * A ['ValueType] is ['CopyConstructible].
 * The destructor for a ['ValueType] upholds the no-throw exception-safety guarantee.
+
+[endsect]
+
+[section C++20 module]
+
+[caution C++20 module support is on early stage, targets, flags and behavior may change in the future]
+
+If using modern CMake define CMake option `-DBOOST_USE_MODULES=1` to build a C++20 module and
+make the `Boost::any` CMake target provide it. After that an explicit usage of C++20 module `boost.any` is allowed:
+
+[import ../modules/usage_sample.cpp]
+[any_module_example]
+
+The `Boost::any` CMake target gives an ability to mix includes and imports of the library in different translation units. Moreover,
+if `BOOST_USE_MODULES` macro is defined then all the `boost/any...` includes implicitly do `import boost.any;` to give all the
+benefits of modules without changing the existing code.
+
+[note For better compile times make sure that `import std;` is available when building the `boost.any` module (in CMake logs there should be
+      a 'Using `import std;`' message). ]
+
+If not using CMake, then the module could be build manually from the `modules/boost_any.cppm` file.
+
+For manual module build the following commands could be used for clang compiler:
+
+```
+cd any/modules
+clang++ -I ../include -std=c++20 --precompile -x c++-module boost_any.cppm
+```
+
+After that, the module could be used in the following way:
+
+```
+clang++ -std=c++20 -fmodule-file=boost_any.pcm boost_any.pcm usage_sample.cpp
+```
 
 [endsect]
 

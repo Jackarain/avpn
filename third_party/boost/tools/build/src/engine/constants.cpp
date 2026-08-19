@@ -17,6 +17,8 @@
 
 #include "constants.h"
 
+#include "object.h"
+
 
 void constants_init( void )
 {
@@ -48,15 +50,8 @@ void constants_init( void )
     constant_TMPFILE                  = object_new( "TMPFILE" );
     constant_STDOUT                   = object_new( "STDOUT" );
     constant_STDERR                   = object_new( "STDERR" );
-    constant_JAMDATE                  = object_new( "JAMDATE" );
-    constant_JAM_TIMESTAMP_RESOLUTION = object_new( "JAM_TIMESTAMP_RESOLUTION" );
-    constant_JAM_VERSION              = object_new( "JAM_VERSION" );
-    constant_JAMUNAME                 = object_new( "JAMUNAME" );
     constant_ENVIRON                  = object_new( ".ENVIRON" );
-    constant_ARGV                     = object_new( "ARGV" );
     constant_all                      = object_new( "all" );
-    constant_PARALLELISM              = object_new( "PARALLELISM" );
-    constant_KEEP_GOING               = object_new( "KEEP_GOING" );
     constant_other                    = object_new( "[OTHER]" );
     constant_total                    = object_new( "[TOTAL]" );
     constant_FILE_DIRSCAN             = object_new( "FILE_DIRSCAN" );
@@ -75,6 +70,9 @@ void constants_init( void )
     constant_FILE_ARCHIVESCAN         = object_new( "FILE_ARCHIVESCAN" );
 
     constant_RESPONSE_FILE_SUB = object_new( "RESPONSE_FILE_SUB" );
+    constant_FILENAME          = object_new( "__FILENAME__" );
+    constant_MODULE            = object_new( "__MODULE__" );
+
 }
 
 void constants_done( void )
@@ -107,15 +105,8 @@ void constants_done( void )
     object_free( constant_TMPFILE );
     object_free( constant_STDOUT );
     object_free( constant_STDERR );
-    object_free( constant_JAMDATE );
-    object_free( constant_JAM_TIMESTAMP_RESOLUTION );
-    object_free( constant_JAM_VERSION );
-    object_free( constant_JAMUNAME );
     object_free( constant_ENVIRON );
-    object_free( constant_ARGV );
     object_free( constant_all );
-    object_free( constant_PARALLELISM );
-    object_free( constant_KEEP_GOING );
     object_free( constant_other );
     object_free( constant_total );
     object_free( constant_FILE_DIRSCAN );
@@ -134,6 +125,8 @@ void constants_done( void )
     object_free( constant_BUILTIN_GLOB_ARCHIVE_BACK );
 
     object_free( constant_RESPONSE_FILE_SUB );
+    object_free( constant_FILENAME );
+    object_free( constant_MODULE );
 }
 
 OBJECT * constant_empty;
@@ -164,14 +157,8 @@ OBJECT * constant_TMPNAME;
 OBJECT * constant_TMPFILE;
 OBJECT * constant_STDOUT;
 OBJECT * constant_STDERR;
-OBJECT * constant_JAMDATE;
-OBJECT * constant_JAM_VERSION;
-OBJECT * constant_JAMUNAME;
 OBJECT * constant_ENVIRON;
-OBJECT * constant_ARGV;
 OBJECT * constant_all;
-OBJECT * constant_PARALLELISM;
-OBJECT * constant_KEEP_GOING;
 OBJECT * constant_other;
 OBJECT * constant_total;
 OBJECT * constant_FILE_DIRSCAN;
@@ -184,10 +171,11 @@ OBJECT * constant_BINDMODULE;
 OBJECT * constant_IMPORT_MODULE;
 OBJECT * constant_BUILTIN_GLOB_BACK;
 OBJECT * constant_timestamp;
-OBJECT * constant_JAM_TIMESTAMP_RESOLUTION;
 OBJECT * constant_python;
 OBJECT * constant_python_interface;
 OBJECT * constant_FILE_ARCHIVESCAN;
 OBJECT * constant_BUILTIN_GLOB_ARCHIVE_BACK;
 
 OBJECT * constant_RESPONSE_FILE_SUB;
+OBJECT * constant_FILENAME;
+OBJECT * constant_MODULE;

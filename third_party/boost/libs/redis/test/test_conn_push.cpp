@@ -5,240 +5,304 @@
  */
 
 #include <boost/redis/connection.hpp>
+#include <boost/redis/ignore.hpp>
 #include <boost/redis/logger.hpp>
-#include <boost/system/errc.hpp>
-#include <boost/asio/detached.hpp>
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/experimental/as_tuple.hpp>
-#define BOOST_TEST_MODULE conn-push
-#include <boost/test/included/unit_test.hpp>
-#include <iostream>
+#include <boost/redis/request.hpp>
+#include <boost/redis/resp3/flat_tree.hpp>
+#include <boost/redis/resp3/node.hpp>
+#include <boost/redis/response.hpp>
+
+#include <boost/asio/error.hpp>
+#include <boost/asio/experimental/channel_error.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/core/lightweight_test.hpp>
+
 #include "common.hpp"
 
+#include <cstddef>
+#include <functional>
+
 namespace net = boost::asio;
-namespace redis = boost::redis;
-
-using boost::redis::operation;
-using connection = boost::redis::connection;
-using error_code = boost::system::error_code;
-using net::experimental::as_tuple;
-using boost::redis::request;
-using boost::redis::response;
-using boost::redis::ignore;
-using boost::redis::ignore_t;
-using boost::system::error_code;
-using boost::redis::logger;
+using namespace boost::redis;
 using namespace std::chrono_literals;
+using boost::system::error_code;
 
-BOOST_AUTO_TEST_CASE(receives_push_waiting_resps)
+// Focuses on the deprecated async_receive and receive
+// functions. test_conn_push2 covers the newer receive functionality.
+
+namespace {
+
+// async_receive is outstanding when a push is received
+void test_async_receive_waiting_for_push()
 {
+   resp3::flat_tree resp;
+   net::io_context ioc;
+   connection conn{ioc};
+   conn.set_receive_response(resp);
+
    request req1;
-   req1.push("HELLO", 3);
    req1.push("PING", "Message1");
+   req1.push("SUBSCRIBE", "test_async_receive_waiting_for_push");
 
    request req2;
-   req2.push("SUBSCRIBE", "channel");
+   req2.push("PING", "Message2");
 
-   request req3;
-   req3.push("PING", "Message2");
-   req3.push("QUIT");
+   bool run_finished = false, push_received = false, exec1_finished = false, exec2_finished = false;
 
-   net::io_context ioc;
-
-   auto conn = std::make_shared<connection>(ioc);
-
-   auto c3 =[](auto ec, auto...)
-   {
-      std::cout << "c3: " << ec.message() << std::endl;
+   auto on_exec2 = [&](error_code ec2, std::size_t) {
+      BOOST_TEST_EQ(ec2, error_code());
+      exec2_finished = true;
+      conn.cancel();
    };
 
-   auto c2 =[&, conn](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req3, ignore, c3);
-   };
-
-   auto c1 =[&, conn](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore, c2);
-   };
-
-   conn->async_exec(req1, ignore, c1);
-
-   run(conn, make_test_config(), {});
-
-   bool push_received = false;
-   conn->async_receive([&, conn](auto ec, auto){
-      std::cout << "async_receive" << std::endl;
-      BOOST_TEST(!ec);
-      push_received = true;
-      conn->cancel();
+   conn.async_exec(req1, ignore, [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      exec1_finished = true;
    });
 
-   ioc.run();
+   conn.async_receive([&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      BOOST_TEST_EQ(resp.get_total_msgs(), 1u);
+      push_received = true;
+      conn.async_exec(req2, ignore, on_exec2);
+   });
+
+   conn.async_run(make_test_config(), [&](error_code ec) {
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
+      run_finished = true;
+   });
+
+   ioc.run_for(test_timeout);
 
    BOOST_TEST(push_received);
+   BOOST_TEST(exec1_finished);
+   BOOST_TEST(exec2_finished);
+   BOOST_TEST(run_finished);
 }
 
-BOOST_AUTO_TEST_CASE(push_received1)
+// A push is already available when async_receive is called
+void test_async_receive_push_available()
 {
    net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
+   connection conn{ioc};
+   resp3::flat_tree resp;
+   conn.set_receive_response(resp);
 
-   // Trick: Uses SUBSCRIBE because this command has no response or
-   // better said, its response is a server push, which is what we
-   // want to test. We send two because we want to test both
-   // async_receive and receive.
+   // SUBSCRIBE doesn't have a response, but causes a push to be delivered.
+   // Add a PING so the overall request has a response.
+   // This ensures that when async_exec completes, the push has been delivered
    request req;
-   req.push("SUBSCRIBE", "channel1");
-   req.push("SUBSCRIBE", "channel2");
+   req.push("SUBSCRIBE", "test_async_receive_push_available");
+   req.push("PING", "message");
 
-   conn->async_exec(req, ignore, [conn](auto ec, auto){
-      std::cout << "async_exec" << std::endl;
-      BOOST_TEST(!ec);
+   bool push_received = false, exec_finished = false, run_finished = false;
+
+   auto on_receive = [&](error_code ec, std::size_t) {
+      push_received = true;
+      BOOST_TEST_EQ(ec, error_code());
+      BOOST_TEST_EQ(resp.get_total_msgs(), 1u);
+      conn.cancel();
+   };
+
+   conn.async_exec(req, ignore, [&](error_code ec, std::size_t) {
+      exec_finished = true;
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_receive(on_receive);
    });
 
-   bool push_async_received = false;
-   conn->async_receive([&, conn](auto ec, auto){
-      std::cout << "(1) async_receive" << std::endl;
-
-      BOOST_TEST(!ec);
-      push_async_received = true;
-
-      // Receives the second push synchronously.
-      error_code ec2;
-      std::size_t res = 0;
-      res = conn->receive(ec2);
-      BOOST_TEST(!ec2);
-      BOOST_TEST(res != std::size_t(0));
-
-      // Tries to receive a third push synchronously.
-      ec2 = {};
-      res = conn->receive(ec2);
-      BOOST_CHECK_EQUAL(ec2, boost::redis::make_error_code(boost::redis::error::sync_receive_push_failed));
-
-      conn->cancel();
+   conn.async_run(make_test_config(), [&](error_code ec) {
+      run_finished = true;
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
    });
 
-   run(conn);
-   ioc.run();
+   ioc.run_for(test_timeout);
 
-   BOOST_TEST(push_async_received);
+   BOOST_TEST(exec_finished);
+   BOOST_TEST(push_received);
+   BOOST_TEST(run_finished);
 }
 
-BOOST_AUTO_TEST_CASE(push_filtered_out)
+// Synchronous receive can be used to try to read a message
+void test_sync_receive()
 {
    net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
+   connection conn{ioc};
+   resp3::flat_tree resp;
+   conn.set_receive_response(resp);
 
+   // Subscribing to 2 channels causes 2 pushes to be delivered.
+   // Adding a PING guarantees that after exec finishes, the push has been read
    request req;
-   req.push("HELLO", 3);
-   req.push("PING");
-   req.push("SUBSCRIBE", "channel");
-   req.push("QUIT");
+   req.push("SUBSCRIBE", "test_sync_receive_channel1");
+   req.push("SUBSCRIBE", "test_sync_receive_channel2");
+   req.push("PING", "message");
 
-   response<ignore_t, std::string, std::string> resp;
-   conn->async_exec(req, resp, [conn](auto ec, auto){
-      BOOST_TEST(!ec);
+   bool exec_finished = false, run_finished = false;
+
+   conn.async_exec(req, ignore, [&](error_code ec, std::size_t) {
+      exec_finished = true;
+      BOOST_TEST_EQ(ec, error_code());
+
+      // At this point, the receive response contains all the pushes
+      BOOST_TEST_EQ(resp.get_total_msgs(), 2u);
+
+      // Receive the 1st push synchronously
+      std::size_t push_bytes = conn.receive(ec);
+      BOOST_TEST_EQ(ec, error_code());
+      BOOST_TEST_GT(push_bytes, 0u);
+
+      // Receive the 2nd push synchronously
+      push_bytes = conn.receive(ec);
+      BOOST_TEST_EQ(ec, error_code());
+      BOOST_TEST_GT(push_bytes, 0u);
+
+      // There are no more pushes. Trying to receive one more fails
+      push_bytes = conn.receive(ec);
+      BOOST_TEST_EQ(ec, error::sync_receive_push_failed);
+      BOOST_TEST_EQ(push_bytes, 0u);
+
+      conn.cancel();
    });
 
-   conn->async_receive([&, conn](auto ec, auto){
-      BOOST_TEST(!ec);
-      conn->cancel(operation::reconnection);
+   conn.async_run(make_test_config(), [&](error_code ec) {
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
+      run_finished = true;
    });
 
-   run(conn);
+   // Trying to receive a push before one is received fails
+   error_code ec;
+   std::size_t push_bytes = conn.receive(ec);
+   BOOST_TEST_EQ(ec, error::sync_receive_push_failed);
+   BOOST_TEST_EQ(push_bytes, 0u);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
 
-   BOOST_CHECK_EQUAL(std::get<1>(resp).value(), "PONG");
-   BOOST_CHECK_EQUAL(std::get<2>(resp).value(), "OK");
+   BOOST_TEST(exec_finished);
+   BOOST_TEST(run_finished);
 }
 
-#ifdef BOOST_ASIO_HAS_CO_AWAIT
-net::awaitable<void>
-push_consumer1(std::shared_ptr<connection> conn, bool& push_received)
-{
+// async_receive is cancelled every time a reconnection happens,
+// so we can re-establish subscriptions
+struct test_async_receive_cancelled_on_reconnection_impl {
+   net::io_context ioc;
+   connection conn{ioc};
+   resp3::flat_tree resp{};
+   request req_subscribe{}, req_quit{};
+   bool receive_finished = false, quit_finished = false;
+
+   // Subscribe to a channel. This will cause a push to be received
+   void start_subscribe1()
    {
-      auto [ec, ev] = co_await conn->async_receive(as_tuple(net::use_awaitable));
-      BOOST_TEST(!ec);
+      conn.async_exec(req_subscribe, ignore, [this](error_code ec, std::size_t) {
+         BOOST_TEST_EQ(ec, error_code());
+         start_receive1();
+      });
    }
 
+   // Receive the push triggered by the subscribe
+   void start_receive1()
    {
-      auto [ec, ev] = co_await conn->async_receive(as_tuple(net::use_awaitable));
-      BOOST_CHECK_EQUAL(ec, boost::system::errc::errc_t::operation_canceled);
+      conn.async_receive([this](error_code ec, std::size_t) {
+         BOOST_TEST_EQ(ec, error_code());
+         BOOST_TEST_EQ(resp.get_total_msgs(), 1u);
+         resp.clear();
+
+         // In parallel, trigger a reconnection and start a receive operation
+         start_receive_reconnection();
+         start_quit();
+      });
    }
 
-   push_received = true;
-}
-
-struct response_error_tag{};
-response_error_tag error_tag_obj;
-
-struct response_error_adapter {
-   void
-   operator()(
-      std::size_t, boost::redis::resp3::basic_node<std::string_view> const&, boost::system::error_code& ec)
+   // The next receive operation will be cancelled by the reconnection
+   void start_receive_reconnection()
    {
-      ec = boost::redis::error::incompatible_size;
+      conn.async_receive([this](error_code ec, std::size_t) {
+         BOOST_TEST_EQ(ec, net::experimental::channel_errc::channel_cancelled);
+         BOOST_TEST_EQ(resp.get_total_msgs(), 0u);
+         start_subscribe2();
+      });
    }
 
-   [[nodiscard]]
-   auto get_supported_response_size() const noexcept
-      { return static_cast<std::size_t>(-1);}
+   // Trigger a reconnection. This is a "leaf" operation
+   void start_quit()
+   {
+      conn.async_exec(req_quit, ignore, [this](error_code, std::size_t) {
+         quit_finished = true;
+      });
+   }
+
+   // Resubscribe after the reconnection
+   void start_subscribe2()
+   {
+      conn.async_exec(req_subscribe, ignore, [this](error_code ec, std::size_t) {
+         BOOST_TEST_EQ(ec, error_code());
+         start_receive2();
+      });
+   }
+
+   // Receive the push triggered by the 2nd subscribe
+   void start_receive2()
+   {
+      conn.async_receive([this](error_code ec, std::size_t) {
+         BOOST_TEST_EQ(ec, error_code());
+         BOOST_TEST_EQ(resp.get_total_msgs(), 1u);
+         receive_finished = true;
+         conn.cancel();
+      });
+   }
+
+   void run()
+   {
+      req_subscribe.push("SUBSCRIBE", "test_async_receive_cancelled_on_reconnection");
+      req_subscribe.push("PING");
+
+      req_quit.push("QUIT");
+
+      conn.set_receive_response(resp);
+
+      bool run_finished = false;
+
+      start_subscribe1();
+
+      conn.async_run(make_test_config(), [&](error_code ec) {
+         run_finished = true;
+         BOOST_TEST_EQ(ec, net::error::operation_aborted);
+      });
+
+      ioc.run_for(test_timeout);
+
+      BOOST_TEST(run_finished);
+      BOOST_TEST(receive_finished);
+      BOOST_TEST(quit_finished);
+   }
 };
 
-auto boost_redis_adapt(response_error_tag&)
+void test_async_receive_cancelled_on_reconnection()
 {
-   return response_error_adapter{};
+   test_async_receive_cancelled_on_reconnection_impl{}.run();
 }
 
-BOOST_AUTO_TEST_CASE(test_push_adapter)
+// After an async_receive operation finishes, another one can be issued
+void test_consecutive_receives()
 {
    net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
+   connection conn{ioc};
+   resp3::flat_tree resp;
+   bool push_consumer_finished{false};
 
-   request req;
-   req.push("HELLO", 3);
-   req.push("PING");
-   req.push("SUBSCRIBE", "channel");
-   req.push("PING");
+   std::function<void()> launch_push_consumer = [&]() {
+      conn.async_receive([&](error_code ec, std::size_t) {
+         if (ec) {
+            BOOST_TEST_EQ(ec, net::experimental::error::channel_cancelled);
+            push_consumer_finished = true;
+            resp.clear();
+            return;
+         }
+         launch_push_consumer();
+      });
+   };
 
-   conn->set_receive_response(error_tag_obj);
-
-   conn->async_receive([&, conn](auto ec, auto) {
-      BOOST_CHECK_EQUAL(ec, boost::asio::experimental::error::channel_cancelled);
-      conn->cancel(operation::reconnection);
-   });
-
-   conn->async_exec(req, ignore, [](auto ec, auto){
-      BOOST_CHECK_EQUAL(ec, boost::system::errc::errc_t::operation_canceled);
-   });
-
-   auto cfg = make_test_config();
-   conn->async_run(cfg, {}, [](auto ec){
-      BOOST_CHECK_EQUAL(ec, boost::redis::error::incompatible_size);
-   });
-
-   ioc.run();
-
-   // TODO: Reset the ioc reconnect and send a quit to ensure
-   // reconnection is possible after an error.
-}
-
-net::awaitable<void> push_consumer3(std::shared_ptr<connection> conn)
-{
-   for (;;) {
-      co_await conn->async_receive(net::use_awaitable);
-   }
-}
-
-BOOST_AUTO_TEST_CASE(many_subscribers)
-{
-   request req0;
-   req0.get_config().cancel_on_connection_lost = false;
-   req0.push("HELLO", 3);
+   conn.set_receive_response(resp);
 
    request req1;
    req1.get_config().cancel_on_connection_lost = false;
@@ -248,79 +312,74 @@ BOOST_AUTO_TEST_CASE(many_subscribers)
    req2.get_config().cancel_on_connection_lost = false;
    req2.push("SUBSCRIBE", "channel");
 
-   request req3;
-   req3.get_config().cancel_on_connection_lost = false;
-   req3.push("QUIT");
+   bool exec_finished = false, run_finished = false;
 
-   net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
-
-   auto c11 =[&](auto ec, auto...)
-   {
-      std::cout << "quit sent: " << ec.message() << std::endl;
-      conn->cancel(operation::reconnection);
+   auto c10 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      exec_finished = true;
+      conn.cancel();
    };
-   auto c10 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req3, ignore, c11);
+   auto c9 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c10);
    };
-   auto c9 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore, c10);
+   auto c8 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req1, ignore, c9);
    };
-   auto c8 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req1, ignore,  c9);
+   auto c7 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c8);
    };
-   auto c7 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore,  c8);
+   auto c6 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c7);
    };
-   auto c6 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore,  c7);
+   auto c5 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req1, ignore, c6);
    };
-   auto c5 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req1, ignore,  c6);
+   auto c4 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c5);
    };
-   auto c4 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore,  c5);
+   auto c3 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req1, ignore, c4);
    };
-   auto c3 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req1, ignore,  c4);
+   auto c2 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c3);
    };
-   auto c2 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore,  c3);
-   };
-   auto c1 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req2, ignore,  c2);
-   };
-   auto c0 =[&](auto ec, auto...)
-   {
-      BOOST_TEST(!ec);
-      conn->async_exec(req1, ignore,  c1);
+   auto c1 = [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      conn.async_exec(req2, ignore, c2);
    };
 
-   conn->async_exec(req0, ignore,  c0);
+   conn.async_exec(req1, ignore, c1);
+   launch_push_consumer();
 
-   run(conn, make_test_config(), {});
+   conn.async_run(make_test_config(), [&](error_code ec) {
+      run_finished = true;
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
+   });
 
-   net::co_spawn(ioc.get_executor(), push_consumer3(conn), net::detached);
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(exec_finished);
+   BOOST_TEST(run_finished);
+   BOOST_TEST(push_consumer_finished);
+};
+
+}  // namespace
+
+int main()
+{
+   test_async_receive_waiting_for_push();
+   test_async_receive_push_available();
+   test_sync_receive();
+   test_async_receive_cancelled_on_reconnection();
+   test_consecutive_receives();
+
+   return boost::report_errors();
 }
-#endif

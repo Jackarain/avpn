@@ -27,10 +27,12 @@
 #include "builtins.h"
 #include "class.h"
 #include "constants.h"
+#include "function.h"
+#include "frames.h"
 #include "hash.h"
-#include "hdrmacro.h"
 #include "make.h"
 #include "modules.h"
+#include "outerr.h"
 #include "parse.h"
 #include "rules.h"
 #include "search.h"
@@ -49,12 +51,6 @@
 
 static void debug_compile( int which, char const * s, FRAME * );
 
-/* Internal functions from builtins.c */
-void backtrace( FRAME * );
-void backtrace_line( FRAME * );
-void print_source_line( FRAME * );
-void unknown_rule( FRAME *, char const * key, module_t *, OBJECT * rule_name );
-
 
 /*
  * evaluate_rule() - execute a rule invocation
@@ -66,7 +62,7 @@ LIST * evaluate_rule( RULE * rule, OBJECT * rulename, FRAME * frame )
     profile_frame   prof[ 1 ];
     module_t      * prev_module = frame->module;
 
-    if ( DEBUG_COMPILE )
+    if ( is_debug_compile() )
     {
         /* Try hard to indicate in which module the rule is going to execute. */
         char buf[ 256 ] = "";
@@ -98,13 +94,13 @@ LIST * evaluate_rule( RULE * rule, OBJECT * rulename, FRAME * frame )
     {
         frame->rulename = object_str( rulename );
         /* And enter record profile info. */
-        if ( DEBUG_PROFILE )
+        if ( is_debug_profile() )
             profile_enter( function_rulename( rule->procedure ), prof );
     }
 
     /* Check traditional targets $(<) and sources $(>). */
     if ( !rule->actions && !rule->procedure )
-        unknown_rule( frame, NULL, frame->module, rulename );
+        unknown_rule_error( frame, frame->module, rulename );
 
     /* If this rule will be executed for updating the targets then construct the
      * action for make().
@@ -153,10 +149,10 @@ LIST * evaluate_rule( RULE * rule, OBJECT * rulename, FRAME * frame )
         result.reset( function_run( function.get(), frame ) );
     }
 
-    if ( DEBUG_PROFILE && rule->procedure )
+    if ( is_debug_profile() && rule->procedure )
         profile_exit( prof );
 
-    if ( DEBUG_COMPILE )
+    if ( is_debug_compile() )
         debug_compile( -1, 0, frame );
 
     return result.release();
@@ -217,15 +213,16 @@ LIST * call_rule( OBJECT * rulename, FRAME * caller_frame, LIST * arg, ... )
 
 
 LIST * call_member_rule(
-	OBJECT * rulename, FRAME * caller_frame, b2::list_ref && self_, b2::lists && args_)
+    OBJECT * rulename, FRAME * caller_frame, b2::list_ref && self_, b2::lists && args_)
 {
     b2::list_ref self(std::move(self_));
     b2::lists args(std::move(args_));
     if (self.empty())
     {
-        backtrace_line(caller_frame);
-        out_printf("warning: object is empty\n");
-        backtrace(caller_frame);
+        b2::list_ref msgs;
+        msgs.push_back( b2::rule_and_args_to_string( caller_frame ) );
+        msgs.push_back( "object is empty." );
+        b2::out_warning( *msgs, caller_frame );
         return L0;
     }
 

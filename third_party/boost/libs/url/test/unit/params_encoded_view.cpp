@@ -14,7 +14,7 @@
 #include <boost/url/parse_query.hpp>
 #include <boost/url/url_view.hpp>
 #include <boost/core/ignore_unused.hpp>
-#include <boost/static_assert.hpp>
+#include <boost/core/detail/static_assert.hpp>
 #include <type_traits>
 
 #include "test_suite.hpp"
@@ -27,19 +27,19 @@ namespace urls {
 #endif
 #define assert BOOST_TEST
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     std::is_default_constructible<
         params_encoded_view>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     std::is_copy_constructible<
         params_encoded_view>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     std::is_copy_assignable<
         params_encoded_view>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     std::is_default_constructible<
         params_encoded_view::iterator>::value);
 
@@ -215,11 +215,31 @@ struct params_encoded_view_test
     }
 
     void
+    testBorrowedRange()
+    {
+#ifdef BOOST_URL_HAS_CONCEPTS
+        // params_encoded_view is a borrowed range
+        BOOST_CORE_STATIC_ASSERT(
+            std::ranges::borrowed_range<params_encoded_view>);
+
+        // iterators remain valid after the view is destroyed
+        params_encoded_view::iterator it;
+        {
+            params_encoded_view qp("first=John&last=Doe");
+            it = qp.begin();
+        }
+        // iterator is still valid (points to external buffer)
+        BOOST_TEST_EQ((*it).key, "first");
+#endif
+    }
+
+    void
     run()
     {
         testMembers();
         testRange();
         testJavadocs();
+        testBorrowedRange();
     }
 };
 

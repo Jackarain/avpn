@@ -15,9 +15,11 @@
 #include <boost/container/devector.hpp>
 #include <boost/container/deque.hpp>
 
+#ifndef BOOST_CONTAINER_STD_PAIR_IS_MOVABLE
 #include <boost/container/detail/container_or_allocator_rebind.hpp>
+#endif
 
-#include "map_test.hpp"
+#include "flat_map_test.hpp"
 #include <map>
 
 using namespace boost::container;
@@ -32,13 +34,21 @@ struct GetMapContainer
       typedef flat_map< ValueType
                  , ValueType
                  , std::less<ValueType>
+                  #ifdef BOOST_CONTAINER_STD_PAIR_IS_MOVABLE
+                 , VoidAllocatorOrContainer
+                  #else
                  , typename boost::container::dtl::container_or_allocator_rebind<VoidAllocatorOrContainer, type_t>::type
+                  #endif
                  > map_type;
 
       typedef flat_multimap< ValueType
                  , ValueType
                  , std::less<ValueType>
+                  #ifdef BOOST_CONTAINER_STD_PAIR_IS_MOVABLE
+                 , VoidAllocatorOrContainer
+                  #else
                  , typename boost::container::dtl::container_or_allocator_rebind<VoidAllocatorOrContainer, type_t>::type
+                  #endif
                  > multimap_type;
    };
 };
@@ -54,58 +64,57 @@ int main()
       typedef std::map<int, int>                                     MyStdMap;
       typedef std::multimap<int, int>                                MyStdMultiMap;
 
-      if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<vector<std::pair<int, int> > >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<vector<std::pair<int, int> > >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<vector<std::pair<int, int> > >" << std::endl;
+         std::cout << "Error in flat_map_test<vector<std::pair<int, int> > >" << std::endl;
          return 1;
       }
 
-      if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<small_vector<std::pair<int, int>, 7> >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<small_vector<std::pair<int, int>, 7> >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<small_vector<std::pair<int, int>, 7> >" << std::endl;
+         std::cout << "Error in flat_map_test<small_vector<std::pair<int, int>, 7> >" << std::endl;
          return 1;
       }
 
-       if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<static_vector<std::pair<int, int>, MaxElem * 10> >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<static_vector<std::pair<int, int>, MaxElem * 10> >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<static_vector<std::pair<int, int>, MaxElem * 10> >" << std::endl;
+         std::cout << "Error in flat_map_test<static_vector<std::pair<int, int>, MaxElem * 10> >" << std::endl;
          return 1;
       }
 
-      if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<stable_vector<std::pair<int, int> > >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<stable_vector<std::pair<int, int> > >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<stable_vector<std::pair<int, int> > >" << std::endl;
+         std::cout << "Error in flat_map_test<stable_vector<std::pair<int, int> > >" << std::endl;
          return 1;
       }
 
-
-      if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<deque<std::pair<int, int> > >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<deque<std::pair<int, int> > >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<deque<std::pair<int, int> > >" << std::endl;
+         std::cout << "Error in flat_map_test<deque<std::pair<int, int> > >" << std::endl;
          return 1;
       }
 
-      if (0 != test::map_test
+      if (0 != test::flat_map_test
          < GetMapContainer<devector<std::pair<int, int> > >::apply<int>::map_type
          , MyStdMap
          , GetMapContainer<devector<std::pair<int, int> > >::apply<int>::multimap_type
          , MyStdMultiMap>()) {
-         std::cout << "Error in map_test<vector<std::pair<int, int> > >" << std::endl;
+         std::cout << "Error in flat_map_test<vector<std::pair<int, int> > >" << std::endl;
          return 1;
       }
    }

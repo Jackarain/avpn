@@ -7,14 +7,12 @@
 // https://www.boost.org/LICENSE_1_0.txt
 
 #include <boost/uuid/uuid.hpp>
-#include <boost/throw_exception.hpp>
+#include <boost/uuid/detail/from_chars.hpp>
+#include <boost/uuid/detail/throw_invalid_uuid.hpp>
+#include <boost/uuid/detail/cstring.hpp>
 #include <boost/config.hpp>
 #include <string>
-#include <iterator>
-#include <algorithm> // for find
-#include <stdexcept>
-#include <cstring> // for strlen, wcslen
-#include <cstdio>
+#include <cstddef>
 
 namespace boost {
 namespace uuids {
@@ -30,209 +28,179 @@ namespace uuids {
 
 struct string_generator
 {
+public:
+
     using result_type = uuid;
 
-    template<class Ch, class Traits, class Alloc>
-    uuid operator()( std::basic_string<Ch, Traits, Alloc> const& s ) const
-    {
-        return operator()(s.begin(), s.end());
-    }
-
-    uuid operator()( char const* s ) const
-    {
-        return operator()( s, s + std::strlen( s ) );
-    }
-
-    uuid operator()( wchar_t const* s ) const
-    {
-        return operator()( s, s + std::wcslen( s ) );
-    }
-
     template<class CharIterator>
-    uuid operator()( CharIterator begin, CharIterator end ) const
+    BOOST_CXX14_CONSTEXPR uuid operator()( CharIterator first, CharIterator last, std::ptrdiff_t& pos, from_chars_error& err ) const noexcept
     {
-        using char_type = typename std::iterator_traits<CharIterator>::value_type;
+        uuid u;
 
-        int ipos = 0;
+        pos = 0;
+
+        if( first == last )
+        {
+            err = from_chars_error::unexpected_end_of_input;
+            return u;
+        }
 
         // check open brace
-        char_type c = get_next_char( begin, end, ipos );
 
-        bool has_open_brace = is_open_brace( c );
-
-        char_type open_brace_char = c;
+        bool has_open_brace = detail::from_chars_is_opening_brace( *first );
 
         if( has_open_brace )
         {
-            c = get_next_char( begin, end, ipos );
+            ++first, ++pos;
         }
 
         bool has_dashes = false;
 
-        uuid u;
-
-        int i = 0;
-
-        for( uuid::iterator it_byte = u.begin(); it_byte != u.end(); ++it_byte, ++i )
+        for( int i = 0; i < 16; ++i )
         {
-            if( it_byte != u.begin() )
+            if( first == last )
             {
-                c = get_next_char( begin, end, ipos );
+                err = from_chars_error::unexpected_end_of_input;
+                return u;
             }
 
-            if( i == 4 )
+            unsigned char v1 = detail::from_chars_digit_value( *first );
+
+            if( v1 == 255 )
             {
-                has_dashes = is_dash( c );
+                err = from_chars_error::hex_digit_expected;
+                return u;
+            }
+
+            ++first, ++pos;
+
+            if( first == last )
+            {
+                err = from_chars_error::unexpected_end_of_input;
+                return u;
+            }
+
+            unsigned char v2 = detail::from_chars_digit_value( *first );
+
+            if( v2 == 255 )
+            {
+                err = from_chars_error::hex_digit_expected;
+                return u;
+            }
+
+            ++first, ++pos;
+
+            u.data()[ i ] = static_cast<unsigned char>( ( v1 << 4 ) + v2 );
+
+            if( i == 3 )
+            {
+                if( first == last )
+                {
+                    err = from_chars_error::unexpected_end_of_input;
+                    return u;
+                }
+
+                has_dashes = detail::from_chars_is_dash( *first );
 
                 if( has_dashes )
                 {
-                    c = get_next_char( begin, end, ipos );
+                    ++first, ++pos;
                 }
             }
-            else if( i == 6 || i == 8 || i == 10 )
+            else if( i == 5 || i == 7 || i == 9 )
             {
                 // if there are dashes, they must be in every slot
+
                 if( has_dashes )
                 {
-                    if( is_dash( c ) )
+                    if( first == last )
                     {
-                        c = get_next_char( begin, end, ipos );
+                        err = from_chars_error::unexpected_end_of_input;
+                        return u;
+                    }
+
+                    if( detail::from_chars_is_dash( *first ) )
+                    {
+                        ++first, ++pos;
                     }
                     else
                     {
-                        throw_invalid( ipos - 1, "dash expected" );
+                        err = from_chars_error::dash_expected;
+                        return u;
                     }
                 }
             }
-
-            *it_byte = get_value( c, ipos - 1 );
-
-            c = get_next_char( begin, end, ipos );
-
-            *it_byte <<= 4;
-            *it_byte |= get_value( c, ipos - 1 );
         }
 
         // check close brace
+
         if( has_open_brace )
         {
-            c = get_next_char( begin, end, ipos );
-            check_close_brace( c, open_brace_char, ipos - 1 );
+            if( first == last )
+            {
+                err = from_chars_error::unexpected_end_of_input;
+                return u;
+            }
+
+            if( detail::from_chars_is_closing_brace( *first ) )
+            {
+                ++first, ++pos;
+            }
+            else
+            {
+                err = from_chars_error::closing_brace_expected;
+                return u;
+            }
         }
 
         // check end of string - any additional data is an invalid uuid
-        if( begin != end )
+
+        if( first != last )
         {
-            throw_invalid( ipos, "unexpected extra input" );
+            err = from_chars_error::unexpected_extra_input;
+        }
+        else
+        {
+            err = from_chars_error::none;
         }
 
         return u;
     }
 
-private:
-
-    BOOST_NORETURN void throw_invalid( int ipos, char const* error ) const
+    template<class CharIterator>
+    BOOST_CXX14_CONSTEXPR uuid operator()( CharIterator first, CharIterator last ) const
     {
-        char buffer[ 16 ];
-        std::snprintf( buffer, sizeof( buffer ), "%d", ipos );
+        std::ptrdiff_t pos = 0;
+        from_chars_error err = {};
 
-        BOOST_THROW_EXCEPTION( std::runtime_error( std::string( "Invalid UUID string at position " ) + buffer + ": " + error ) );
-    }
+        uuid r = operator()( first, last, pos, err );
 
-    template <typename CharIterator>
-    typename std::iterator_traits<CharIterator>::value_type
-    get_next_char( CharIterator& begin, CharIterator end, int& ipos ) const
-    {
-        if( begin == end )
+        if( err != from_chars_error::none )
         {
-            throw_invalid( ipos, "unexpected end of input" );
+            detail::throw_invalid_uuid( pos, err );
         }
 
-        ++ipos;
-        return *begin++;
+        return r;
     }
 
-    unsigned char get_value( char c, int ipos ) const
+    template<class Str, class Ch = typename Str::value_type, class Tr = typename Str::traits_type>
+    BOOST_CXX14_CONSTEXPR
+    uuid operator()( Str const& str ) const
     {
-        static char const digits_begin[] = "0123456789abcdefABCDEF";
-        static size_t digits_len = (sizeof(digits_begin) / sizeof(char)) - 1;
-        static char const* const digits_end = digits_begin + digits_len;
+        Ch const* first = str.data();
+        Ch const* last = str.data() + str.size();
 
-        static unsigned char const values[] =
-            { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10,11,12,13,14,15 };
-
-        size_t pos = std::find( digits_begin, digits_end, c ) - digits_begin;
-
-        if( pos >= digits_len )
-        {
-            throw_invalid( ipos, "hex digit expected" );
-        }
-
-        return values[ pos ];
+        return operator()( first, last );
     }
 
-    unsigned char get_value( wchar_t c, int ipos ) const
+    template<class Ch>
+    BOOST_CXX14_CONSTEXPR
+    uuid operator()( Ch const* str ) const
     {
-        static wchar_t const digits_begin[] = L"0123456789abcdefABCDEF";
-        static size_t digits_len = (sizeof(digits_begin) / sizeof(wchar_t)) - 1;
-        static wchar_t const* const digits_end = digits_begin + digits_len;
+        Ch const* first = str;
+        Ch const* last = str + detail::strlen_cx( str );
 
-        static unsigned char const values[] =
-            { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10,11,12,13,14,15 };
-
-        size_t pos = std::find( digits_begin, digits_end, c ) - digits_begin;
-
-        if( pos >= digits_len )
-        {
-            throw_invalid( ipos, "hex digit expected" );
-        }
-
-        return values[ pos ];
-    }
-
-    bool is_dash( char c ) const
-    {
-        return c == '-';
-    }
-
-    bool is_dash( wchar_t c ) const
-    {
-        return c == L'-';
-    }
-
-    // return closing brace
-    bool is_open_brace( char c ) const
-    {
-        return c == '{';
-    }
-
-    bool is_open_brace( wchar_t c ) const
-    {
-        return c == L'{';
-    }
-
-    void check_close_brace( char c, char open_brace, int ipos ) const
-    {
-        if( open_brace == '{' && c == '}' )
-        {
-            //great
-        }
-        else
-        {
-            throw_invalid( ipos, "closing brace expected" );
-        }
-    }
-
-    void check_close_brace( wchar_t c, wchar_t open_brace, int ipos ) const
-    {
-        if( open_brace == L'{' && c == L'}' )
-        {
-            // great
-        }
-        else
-        {
-            throw_invalid( ipos, "closing brace expected" );
-        }
+        return operator()( first, last );
     }
 };
 

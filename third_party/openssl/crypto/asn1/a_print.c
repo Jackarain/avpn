@@ -1,7 +1,7 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
- * Licensed under the OpenSSL license (the "License").  You may not use
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
@@ -11,6 +11,8 @@
 #include "crypto/ctype.h"
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
+
+#include <crypto/asn1.h>
 
 int ASN1_PRINTABLE_type(const unsigned char *s, int len)
 {
@@ -22,7 +24,7 @@ int ASN1_PRINTABLE_type(const unsigned char *s, int len)
         return V_ASN1_PRINTABLESTRING;
 
     if (len < 0)
-        len = strlen((const char *)s);
+        len = (int)strlen((const char *)s);
 
     while (len-- > 0) {
         c = *(s++);
@@ -77,8 +79,7 @@ int ASN1_STRING_print(BIO *bp, const ASN1_STRING *v)
     n = 0;
     p = (const char *)v->data;
     for (i = 0; i < v->length; i++) {
-        if ((p[i] > '~') || ((p[i] < ' ') &&
-                             (p[i] != '\n') && (p[i] != '\r')))
+        if ((p[i] > '~') || ((p[i] < ' ') && (p[i] != '\n') && (p[i] != '\r')))
             buf[n] = '.';
         else
             buf[n] = p[i];

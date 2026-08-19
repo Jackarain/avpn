@@ -14,16 +14,26 @@
 
 import os ;
 import testing ;
+import-search /boost/config/checks ;
+import config : requires ;
 
 project boost-geometry-test
     :
     requirements
+        <library>/boost/geometry//boost_geometry
+        <cxxstd>14
+        [ requires
+            cxx14_constexpr
+            cxx14_return_type_deduction
+        ]
         <include>.
         <toolset>msvc:<asynch-exceptions>on
         <toolset>msvc:<cxxflags>/bigobj
         <toolset>clang:<cxxflags>-Wno-unneeded-internal-declaration # supress warning by Boost.None
 		<toolset>intel:<define>BOOST_GEOMETRY_TEST_ONLY_ONE_TYPE
         <host-os>windows,<toolset>intel:<cxxflags>/bigobj
+        <library>/boost/test//included
+        <library>/boost/assign//boost_assign
     ;
 
 # Run minimal testset
@@ -37,7 +47,7 @@ if ! [ os.environ TRAVIS ]
 {
 
 build-project core ;
-build-project concepts ; 
+build-project concepts ;
 build-project geometries ;
 build-project arithmetic ;
 build-project algorithms ;
@@ -52,4 +62,3 @@ build-project util ;
 build-project views ;
 
 }
-

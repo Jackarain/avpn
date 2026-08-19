@@ -5,11 +5,14 @@
  */
 
 #include <boost/redis/connection.hpp>
-#include <boost/system/errc.hpp>
-#define BOOST_TEST_MODULE conn-quit
-#include <boost/test/included/unit_test.hpp>
-#include <iostream>
+
+#include <boost/core/lightweight_test.hpp>
+#include <boost/system/error_code.hpp>
+
 #include "common.hpp"
+
+#include <cstddef>
+#include <iostream>
 
 namespace net = boost::asio;
 using boost::redis::connection;
@@ -20,26 +23,8 @@ using boost::redis::response;
 using boost::redis::ignore;
 using namespace std::chrono_literals;
 
-BOOST_AUTO_TEST_CASE(test_eof_no_error)
-{
-   request req;
-   req.get_config().cancel_on_connection_lost = false;
-   req.push("QUIT");
-
-   net::io_context ioc;
-   auto conn = std::make_shared<connection>(ioc);
-
-   conn->async_exec(req, ignore, [&](auto ec, auto) {
-      BOOST_TEST(!ec);
-      conn->cancel(operation::reconnection);
-   });
-
-   run(conn);
-   ioc.run();
-}
-
 // Test if quit causes async_run to exit.
-BOOST_AUTO_TEST_CASE(test_async_run_exits)
+void test_async_run_exits()
 {
    net::io_context ioc;
 
@@ -56,25 +41,28 @@ BOOST_AUTO_TEST_CASE(test_async_run_exits)
    // Should fail since this request will be sent after quit.
    request req3;
    req3.get_config().cancel_if_not_connected = true;
+   req3.get_config().cancel_on_connection_lost = true;
    req3.push("PING");
 
-   auto c3 = [](auto ec, auto)
-   {
+   bool c1_called = false, c2_called = false, c3_called = false;
+
+   auto c3 = [&](error_code ec, std::size_t) {
+      c3_called = true;
       std::clog << "c3: " << ec.message() << std::endl;
-      BOOST_CHECK_EQUAL(ec, boost::asio::error::operation_aborted);
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
    };
 
-   auto c2 = [&](auto ec, auto)
-   {
+   auto c2 = [&](error_code ec, std::size_t) {
+      c2_called = true;
       std::clog << "c2: " << ec.message() << std::endl;
-      BOOST_TEST(!ec);
+      BOOST_TEST_EQ(ec, error_code());
       conn->async_exec(req3, ignore, c3);
    };
 
-   auto c1 = [&](auto ec, auto)
-   {
+   auto c1 = [&](error_code ec, std::size_t) {
+      c1_called = true;
       std::cout << "c1: " << ec.message() << std::endl;
-      BOOST_TEST(!ec);
+      BOOST_TEST_EQ(ec, error_code());
       conn->async_exec(req2, ignore, c2);
    };
 
@@ -87,6 +75,16 @@ BOOST_AUTO_TEST_CASE(test_async_run_exits)
    cfg.reconnect_wait_interval = 0s;
    run(conn, cfg);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(c1_called);
+   BOOST_TEST(c2_called);
+   BOOST_TEST(c3_called);
 }
 
+int main()
+{
+   test_async_run_exits();
+
+   return boost::report_errors();
+}

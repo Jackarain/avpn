@@ -15,7 +15,7 @@
 #include <boost/url/parse_path.hpp>
 #include <boost/url/url_view.hpp>
 #include <boost/core/ignore_unused.hpp>
-#include <boost/static_assert.hpp>
+#include <boost/core/detail/static_assert.hpp>
 
 #include "test_suite.hpp"
 
@@ -27,19 +27,19 @@
 namespace boost {
 namespace urls {
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     ! std::is_default_constructible<
         segments_base>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     ! std::is_copy_constructible<
         segments_base>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     ! std::is_copy_assignable<
         segments_base>::value);
 
-BOOST_STATIC_ASSERT(
+BOOST_CORE_STATIC_ASSERT(
     std::is_default_constructible<
         segments_base::iterator>::value);
 
@@ -274,10 +274,29 @@ struct segments_base_test
     }
 
     void
+    testFrontBackNonEmpty()
+    {
+        // front()/back() on single-element segments
+        // (noexcept removal regression)
+        {
+            auto rv = parse_uri_reference("/only");
+            BOOST_TEST(rv.has_value());
+            if(rv.has_value())
+            {
+                segments_base const& ps(
+                    segments_view(rv->encoded_segments()));
+                BOOST_TEST_EQ(ps.front(), "only");
+                BOOST_TEST_EQ(ps.back(), "only");
+            }
+        }
+    }
+
+    void
     run()
     {
         testObservers();
         testRange();
+        testFrontBackNonEmpty();
         testJavadoc();
     }
 };

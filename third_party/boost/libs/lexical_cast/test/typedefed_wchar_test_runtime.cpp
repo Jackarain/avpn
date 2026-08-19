@@ -2,7 +2,7 @@
 //
 //  See http://www.boost.org for most recent version, including documentation.
 //
-//  Copyright Antony Polukhin, 2011-2024.
+//  Copyright Antony Polukhin, 2011-2026.
 //
 //  Distributed under the Boost
 //  Software License, Version 1.0. (See accompanying file
@@ -32,9 +32,22 @@ void test_typedefed_wchar_t_runtime()
     test_typedefed_wchar_t(L'0');
 }
 
+void test_unsigned_short_to_wstring()
+{
+    // Test case from https://github.com/boostorg/lexical_cast/issues/89
+    unsigned short number = 4550;
+
+    auto res1 = boost::lexical_cast<std::wstring>(number);
+    BOOST_TEST(res1 == L"4550");
+
+    auto res2 = boost::lexical_cast<std::string>(number);
+    BOOST_TEST_EQ(res2, "4550");
+}
+
 int main()
 {
     test_typedefed_wchar_t_runtime();
+    test_unsigned_short_to_wstring();
 
     return boost::report_errors();
 }

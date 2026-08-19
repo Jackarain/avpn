@@ -1,4 +1,4 @@
-// Copyright 2013-2024 Antony Polukhin
+// Copyright 2013-2026 Antony Polukhin
 
 // Distributed under the Boost Software License, Version 1.0.
 // (See the accompanying file LICENSE_1_0.txt
@@ -10,7 +10,6 @@
     Example works with and without RTTI.
 */
 
-#include <boost/type_index.hpp>
 #include <boost/unordered/unordered_set.hpp>
 //<-
 // Making `#include <cassert>` visible in docs, while actually using `BOOST_TEST`
@@ -29,6 +28,8 @@
 //<-
     !Closing comment block! */
 //->
+
+#include <boost/type_index.hpp>
 
 int main() {
     boost::unordered_set<boost::typeindex::type_index> types;

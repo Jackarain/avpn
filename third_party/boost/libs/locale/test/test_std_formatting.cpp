@@ -14,6 +14,7 @@
 
 #include "boostLocale/test/tools.hpp"
 #include "boostLocale/test/unit_test.hpp"
+#include "formatting_common.hpp"
 
 template<typename CharType, typename RefCharType>
 void test_by_char(const std::locale& l, const std::locale& lreal)
@@ -30,8 +31,8 @@ void test_by_char(const std::locale& l, const std::locale& lreal)
 
         TEST(ss << 1045.45);
         double n;
-        TEST(ss >> n);
-        TEST_EQ(n, 1045.45);
+        if TEST(ss >> n)
+            TEST_EQ(n, 1045.45);
         TEST_EQ(ss.str(), ascii_to<CharType>("1045.45"));
         ss_ref_type ss_ref;
         ss_ref.imbue(std::locale::classic());
@@ -50,8 +51,8 @@ void test_by_char(const std::locale& l, const std::locale& lreal)
         TEST(ss << as::number);
         TEST(ss << 1045.45);
         double n;
-        TEST(ss >> n);
-        TEST_EQ(n, 1045.45);
+        if TEST(ss >> n)
+            TEST_EQ(n, 1045.45);
 
         ss_ref_type ss_ref;
         ss_ref.imbue(lreal);
@@ -61,56 +62,58 @@ void test_by_char(const std::locale& l, const std::locale& lreal)
         TEST_EQ(to_utf8(ss.str()), to_utf8(ss_ref.str()));
     }
 
-    {
-        std::cout << "- Testing as::currency national " << std::endl;
+    // workaround MSVC library issues
+    const bool bad_parsing = [&]() {
+        ss_ref_type ss_ref;
+        ss_ref.imbue(lreal);
+        ss_ref << std::showbase << std::put_money(104334.L, false);
+        std::ios_base::iostate err = std::ios_base::iostate();
+        typename std::money_get<RefCharType>::iter_type end;
+        long double tmp;
+        std::use_facet<std::money_get<RefCharType>>(lreal).get(ss_ref, end, false, ss_ref, err, tmp);
+        if(err & std::ios_base::failbit) {
+            std::cout << "-- Looks like standard library does not support parsing well" << std::endl;
+            return true;
+        } else
+            return false;
+    }();
 
-        bool bad_parsing = false;
+    {
         ss_ref_type ss_ref;
         ss_ref.imbue(lreal);
         ss_ref << std::showbase;
-        std::use_facet<std::money_put<RefCharType>>(lreal).put(ss_ref, false, ss_ref, RefCharType(' '), 104334);
-        { // workaround MSVC library issues
-            std::ios_base::iostate err = std::ios_base::iostate();
-            typename std::money_get<RefCharType>::iter_type end;
-            long double tmp;
-            std::use_facet<std::money_get<RefCharType>>(lreal).get(ss_ref, end, false, ss_ref, err, tmp);
-            if(err & std::ios_base::failbit) {
-                std::cout << "-- Looks like standard library does not support parsing well" << std::endl;
-                bad_parsing = true;
+        {
+            std::cout << "- Testing as::currency national " << std::endl;
+            ss_type ss;
+            ss.imbue(l);
+
+            TEST(ss << as::currency);
+            TEST(ss << 1043.34);
+            if(!bad_parsing) {
+                double v1;
+                if TEST(ss >> v1)
+                    TEST_EQ(v1, 1043.34);
             }
+
+            empty_stream(ss_ref) << std::put_money(104334.L, false);
+            TEST_EQ(to_utf8(ss.str()), to_utf8(ss_ref.str()));
         }
+        {
+            std::cout << "- Testing as::currency iso" << std::endl;
+            ss_type ss;
+            ss.imbue(l);
 
-        ss_type ss;
-        ss.imbue(l);
+            ss << as::currency << as::currency_iso;
+            TEST(ss << 1043.34);
+            if(!bad_parsing) {
+                double v1;
+                if TEST(ss >> v1)
+                    TEST_EQ(v1, 1043.34);
+            }
 
-        TEST(ss << as::currency);
-        TEST(ss << 1043.34);
-        if(!bad_parsing) {
-            double v1;
-            TEST(ss >> v1);
-            TEST_EQ(v1, 1043.34);
+            empty_stream(ss_ref) << std::put_money(104334.L, true);
+            TEST_EQ(to_utf8(ss.str()), to_utf8(ss_ref.str()));
         }
-
-        TEST_EQ(to_utf8(ss.str()), to_utf8(ss_ref.str()));
-    }
-
-    {
-        std::cout << "- Testing as::currency iso" << std::endl;
-        ss_type ss;
-        ss.imbue(l);
-
-        ss << as::currency << as::currency_iso;
-        TEST(ss << 1043.34);
-        double v1;
-        TEST(ss >> v1);
-        TEST_EQ(v1, 1043.34);
-
-        ss_ref_type ss_ref;
-        ss_ref.imbue(lreal);
-        ss_ref << std::showbase;
-        std::use_facet<std::money_put<RefCharType>>(lreal).put(ss_ref, true, ss_ref, RefCharType(' '), 104334);
-
-        TEST_EQ(to_utf8(ss.str()), to_utf8(ss_ref.str()));
     }
 
     {
@@ -229,6 +232,12 @@ void test_main(int /*argc*/, char** /*argv*/)
                 TEST(ss.str() == "12 345,45" || ss.str() == "12345,45");
             }
         }
+    }
+    // Std backend silently falls back to the C locale when the locale is not supported
+    // which breaks the test assumptions
+    if(has_std_locale("en_US.UTF-8")) {
+        test_format_large_number();
+        test_parse_multi_number();
     }
 }
 

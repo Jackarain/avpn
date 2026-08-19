@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,17 +13,33 @@
 
 #include <boost/url/detail/config.hpp>
 #include <boost/url/error_types.hpp>
-#include <boost/url/url_view.hpp>
 
 namespace boost {
 namespace urls {
+
+class url_view;
+
+namespace implementation_defined {
+struct uri_reference_rule_t
+{
+    using value_type = url_view;
+
+    BOOST_URL_CXX20_CONSTEXPR
+    auto
+    parse(
+        char const*& it,
+        char const* end
+            ) const noexcept ->
+    system::result<value_type>;
+};
+} // implementation_defined
 
 /** Rule for URI-reference
 
     @par Value Type
     @code
     using value_type = url_view;
-    @endcode;
+    @endcode
 
     @par Example
     Rules are used with the function @ref grammar::parse.
@@ -47,26 +64,11 @@ namespace urls {
         @ref parse_uri_reference,
         @ref url_view.
 */
-#ifdef BOOST_URL_DOCS
-constexpr __implementation_defined__ uri_reference_rule{};
-#else
-struct uri_reference_rule_t
-{
-    using value_type = url_view;
-
-    BOOST_URL_DECL
-    auto
-    parse(
-        char const*& it,
-        char const* end
-            ) const noexcept ->
-    system::result<value_type>;
-};
-
-constexpr uri_reference_rule_t uri_reference_rule{};
-#endif
+constexpr implementation_defined::uri_reference_rule_t uri_reference_rule{};
 
 } // urls
 } // boost
+
+#include <boost/url/rfc/impl/uri_reference_rule.hpp>
 
 #endif

@@ -43,17 +43,20 @@ jobs:
             address-model: 32,64
           - toolset: gcc-7
             cxxstd: "11,14,17"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-7-multilib
             address-model: 32,64
           - toolset: gcc-8
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-8-multilib
             address-model: 32,64
           - toolset: gcc-9
             cxxstd: "11,14,17,2a"
-            os: ubuntu-20.04
+            container: ubuntu:20.04
+            os: ubuntu-latest
             install: g++-9-multilib
             address-model: 32,64
           - toolset: gcc-10
@@ -73,7 +76,7 @@ jobs:
             address-model: 32,64
           - toolset: gcc-13
             cxxstd: "11,14,17,20,2b"
-            container: ubuntu:23.04
+            container: ubuntu:24.04
             os: ubuntu-latest
             install: g++-13-multilib
             address-model: 32,64
@@ -83,12 +86,42 @@ jobs:
             os: ubuntu-latest
             install: g++-14-multilib
             address-model: 32,64
+          - toolset: gcc-15
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:25.04
+            os: ubuntu-latest
+            install: g++-15-multilib
+            address-model: 32,64
+          - toolset: gcc-13
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: core2
+            cpu-requirements: [ ssse3 ]
+            os: ubuntu-latest
+            container: ubuntu:24.04
+            install: g++-13-multilib
+            address-model: 32,64
           - toolset: gcc-13
             cxxstd: "11,14,17,20,2b"
             instruction-set: nehalem
             cpu-requirements: [ sse4_1, sse4_2 ]
             os: ubuntu-latest
-            container: ubuntu:23.04
+            container: ubuntu:24.04
+            install: g++-13-multilib
+            address-model: 32,64
+          - toolset: gcc-13
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: sandy-bridge
+            cpu-requirements: [ avx ]
+            os: ubuntu-latest
+            container: ubuntu:24.04
+            install: g++-13-multilib
+            address-model: 32,64
+          - toolset: gcc-13
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: haswell
+            cpu-requirements: [ avx2, bmi1, bmi2 ]
+            os: ubuntu-latest
+            container: ubuntu:24.04
             install: g++-13-multilib
             address-model: 32,64
           - toolset: gcc-13
@@ -96,7 +129,25 @@ jobs:
             instruction-set: skylake-avx512
             cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, bmi1, bmi2 ]
             os: ubuntu-latest
-            container: ubuntu:23.04
+            container: ubuntu:24.04
+            install: g++-13-multilib
+            address-model: 32,64
+          - toolset: gcc-13
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: rocketlake
+            cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, avx512vbmi, avx512_vbmi2, avx512_bitalg, bmi1, bmi2 ]
+            os: ubuntu-latest
+            container: ubuntu:24.04
+            install: g++-13-multilib
+            address-model: 32,64
+            # Experimental features
+          - toolset: gcc-13
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: rocketlake
+            cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, avx512vbmi, avx512_vbmi2, avx512_bitalg, bmi1, bmi2 ]
+            defines: [ BOOST_UUID_TO_FROM_CHARS_X86_USE_ZMM, BOOST_UUID_FROM_CHARS_X86_USE_VPERMI2B ]
+            os: ubuntu-latest
+            container: ubuntu:24.04
             install: g++-13-multilib
             address-model: 32,64
           - toolset: clang
@@ -180,13 +231,13 @@ jobs:
           - toolset: clang
             compiler: clang++-16
             cxxstd: "11,14,17,20,2b"
-            container: ubuntu:23.04
+            container: ubuntu:24.04
             os: ubuntu-latest
             install: clang-16
           - toolset: clang
             compiler: clang++-17
             cxxstd: "11,14,17,20,2b"
-            container: ubuntu:23.10
+            container: ubuntu:24.04
             os: ubuntu-latest
             install: clang-17
           - toolset: clang
@@ -196,11 +247,53 @@ jobs:
             os: ubuntu-latest
             install: clang-18
           - toolset: clang
+            compiler: clang++-19
+            cxxstd: "11,14,17,20,2b"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-19
+          - toolset: clang
+            compiler: clang++-20
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-20
+          - toolset: clang
+            compiler: clang++-21
+            cxxstd: "11,14,17,20,23,2c"
+            container: ubuntu:25.10
+            os: ubuntu-latest
+            install: clang-21
+          - toolset: clang
+            compiler: clang++-17
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: core2
+            cpu-requirements: [ ssse3 ]
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
+          - toolset: clang
             compiler: clang++-17
             cxxstd: "11,14,17,20,2b"
             instruction-set: nehalem
             cpu-requirements: [ sse4_1, sse4_2 ]
-            container: ubuntu:23.10
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
+          - toolset: clang
+            compiler: clang++-17
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: sandy-bridge
+            cpu-requirements: [ avx ]
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
+          - toolset: clang
+            compiler: clang++-17
+            cxxstd: "11,14,17,20,2b"
+            instruction-set: haswell
+            cpu-requirements: [ avx2, bmi1, bmi2 ]
+            container: ubuntu:24.04
             os: ubuntu-latest
             install: clang-17
           - toolset: clang
@@ -208,38 +301,64 @@ jobs:
             cxxstd: "11,14,17,20,2b"
             instruction-set: skylake-avx512
             cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, bmi1, bmi2 ]
-            container: ubuntu:23.10
+            container: ubuntu:24.04
             os: ubuntu-latest
             install: clang-17
           - toolset: clang
+            compiler: clang++-17
             cxxstd: "11,14,17,20,2b"
-            os: macos-12
+            instruction-set: rocketlake
+            cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, avx512vbmi, avx512_vbmi2, avx512_bitalg, bmi1, bmi2 ]
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
+            # Experimental features
           - toolset: clang
+            compiler: clang++-17
             cxxstd: "11,14,17,20,2b"
-            os: macos-13
+            instruction-set: rocketlake
+            cpu-requirements: [ avx512f, avx512cd, avx512vl, avx512dq, avx512bw, avx512vbmi, avx512_vbmi2, avx512_bitalg, bmi1, bmi2 ]
+            defines: [ BOOST_UUID_TO_FROM_CHARS_X86_USE_ZMM, BOOST_UUID_FROM_CHARS_X86_USE_VPERMI2B ]
+            container: ubuntu:24.04
+            os: ubuntu-latest
+            install: clang-17
           - toolset: clang
-            cxxstd: "11,14,17,20,2b"
             os: macos-14
+            cxxstd: "11,14,17,20,2b"
+          - toolset: clang
+            os: macos-15
+            cxxstd: "11,14,17,20,23,2c"
+          - toolset: clang
+            os: macos-26
+            cxxstd: "11,14,17,20,23,2c"
 
     runs-on: ${{matrix.os}}
-    container: ${{matrix.container}}
+
+    container:
+      image: ${{matrix.container}}
+      volumes:
+        - /node20217:/node20217:rw,rshared
+        - ${{ startsWith(matrix.container, 'ubuntu:1') && '/node20217:/__e/node20:ro,rshared' || ' ' }}
 
     defaults:
       run:
         shell: bash
 
     steps:
-      - name: Enable Node 16
-        run: |
-          echo "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v3
-
       - name: Setup container environment
         if: matrix.container
         run: |
           apt-get update
-          apt-get -y install sudo python3 git g++
+          apt-get -y install sudo python3 git g++ curl xz-utils
+
+      - name: Install nodejs20glibc2.17
+        if: ${{ startsWith( matrix.container, 'ubuntu:1' ) }}
+        run: |
+          curl -LO https://archives.boost.io/misc/node/node-v20.9.0-linux-x64-glibc-217.tar.xz
+          tar -xf node-v20.9.0-linux-x64-glibc-217.tar.xz --strip-components 1 -C /node20217
+          ldd /__e/node20/bin/node
+
+      - uses: actions/checkout@v4
 
       - name: Install packages
         if: matrix.install
@@ -279,6 +398,7 @@ jobs:
           cd ../boost-root
           ADDRMD=${{matrix.address-model}}
           INSTRUCTION_SET=${{matrix.instruction-set}}
+          b2_args=(-j2 libs/$LIBRARY/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} ${ADDRMD:+address-model=$ADDRMD} ${INSTRUCTION_SET:+instruction-set=$INSTRUCTION_SET} variant=debug,release)
           if [ -n "${{matrix.cpu-requirements}}" ]
           then
             cpu_flags="$(lscpu | grep -F "Flags:" | sed "s/^Flags:\\s*//")";
@@ -288,38 +408,70 @@ jobs:
               if ! [[ "$cpu_flags" =~ $re ]]
               then
                 echo "CPU lacks required feature: $requirement"
-                echo "Skipping testing"
-                exit 0
+                echo "Skipping running tests"
+                export BOOST_UUID_SKIP_RUNNING_TESTS=1
               fi
             done
           fi
-          ./b2 -j2 libs/$LIBRARY/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} ${ADDRMD:+address-model=$ADDRMD} ${INSTRUCTION_SET:+instruction-set=$INSTRUCTION_SET} variant=debug,release
+          if [ -n "${{matrix.defines}}" ]
+          then
+            for define in ${{join(matrix.defines, ' ')}}
+            do
+              b2_args+=("define=$define")
+            done
+          fi
+          ./b2 "${b2_args[@]}"
 
   windows:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc-14.0
-            cxxstd: 14,latest
-            addrmd: 32,64
-            os: windows-2019
-          - toolset: msvc-14.2
-            cxxstd: "14,17,20,latest"
-            addrmd: 32,64
-            os: windows-2019
           - toolset: msvc-14.3
             cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
-          - toolset: clang-win
-            cxxstd: "14,17,latest"
+          - toolset: msvc-14.3
+            arch: "SSE4.2"
+            cxxstd: "14,17,20,latest"
+            addrmd: 64
+            os: windows-2022
+          - toolset: msvc-14.3
+            arch: "SSE4.2"
+            define: BOOST_UUID_USE_SSE41
+            cxxstd: "14,17,20,latest"
+            addrmd: 64
+            os: windows-2022
+          - toolset: msvc-14.3
+            arch: "AVX"
+            cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
+          - toolset: msvc-14.3
+            arch: "AVX2"
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2022
+
+          - toolset: clang-win
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2022
+          - toolset: clang-win
+            arch: "AVX"
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2022
+          - toolset: clang-win
+            arch: "AVX2"
+            cxxstd: "14,17,20,latest"
+            addrmd: 32,64
+            os: windows-2022
+
           - toolset: gcc
             cxxstd: "11,14,17,2a"
             addrmd: 64
-            os: windows-2019
+            os: windows-2022
 
     runs-on: ${{matrix.os}}
 
@@ -352,18 +504,23 @@ jobs:
         shell: cmd
         run: |
           cd ../boost-root
-          b2 -j2 libs/%LIBRARY%/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} address-model=${{matrix.addrmd}} variant=debug,release embed-manifest-via=linker
+          b2 -j2 libs/%LIBRARY%/test toolset=${{matrix.toolset}} cxxstd=${{matrix.cxxstd}} address-model=${{matrix.addrmd}} variant=debug,release embed-manifest-via=linker ${{ matrix.arch && format('cxxflags=/arch:{0}', matrix.arch) }} ${{ matrix.define && format('define={0}', matrix.define) }}
 
   posix-cmake-subdir:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: ubuntu-latest
+            opts: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           - os: macos-14
+          - os: macos-15
+          - os: macos-26
+          - os: macos-latest
+            brew: llvm
+            opts: -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 
     runs-on: ${{matrix.os}}
 
@@ -373,6 +530,10 @@ jobs:
       - name: Install packages
         if: matrix.install
         run: sudo apt-get -y install ${{matrix.install}}
+
+      - name: Install packages via Homebrew
+        if: matrix.brew
+        run: brew install ${{matrix.brew}}
 
       - name: Setup Boost
         run: |
@@ -398,7 +559,7 @@ jobs:
         run: |
           cd ../boost-root/libs/$LIBRARY/test/cmake_subdir_test
           mkdir __build__ && cd __build__
-          cmake ..
+          cmake ${{matrix.opts}} ..
           cmake --build .
           ctest --output-on-failure --no-tests=error
 
@@ -407,11 +568,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: ubuntu-latest
+            opts: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           - os: macos-14
+          - os: macos-15
+          - os: macos-26
+          - os: macos-latest
+            brew: llvm
+            opts: -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 
     runs-on: ${{matrix.os}}
 
@@ -421,6 +587,10 @@ jobs:
       - name: Install packages
         if: matrix.install
         run: sudo apt-get -y install ${{matrix.install}}
+
+      - name: Install packages via Homebrew
+        if: matrix.brew
+        run: brew install ${{matrix.brew}}
 
       - name: Setup Boost
         run: |
@@ -446,7 +616,7 @@ jobs:
         run: |
           cd ../boost-root
           mkdir __build__ && cd __build__
-          cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DCMAKE_INSTALL_PREFIX=~/.local ..
+          cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DCMAKE_INSTALL_PREFIX=~/.local ${{matrix.opts}} ..
 
       - name: Install
         run: |
@@ -456,7 +626,7 @@ jobs:
       - name: Use the installed library
         run: |
           cd ../boost-root/libs/$LIBRARY/test/cmake_install_test && mkdir __build__ && cd __build__
-          cmake -DCMAKE_INSTALL_PREFIX=~/.local ..
+          cmake -DCMAKE_INSTALL_PREFIX=~/.local ${{matrix.opts}} ..
           cmake --build .
           ctest --output-on-failure --no-tests=error
 
@@ -465,11 +635,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
           - os: ubuntu-22.04
-          - os: macos-12
-          - os: macos-13
+          - os: ubuntu-24.04
+          - os: ubuntu-latest
+            opts: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           - os: macos-14
+          - os: macos-15
+          - os: macos-26
+          - os: macos-latest
+            brew: llvm
+            opts: -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 
     runs-on: ${{matrix.os}}
 
@@ -479,6 +654,10 @@ jobs:
       - name: Install packages
         if: matrix.install
         run: sudo apt-get -y install ${{matrix.install}}
+
+      - name: Install packages via Homebrew
+        if: matrix.brew
+        run: brew install ${{matrix.brew}}
 
       - name: Setup Boost
         run: |
@@ -504,7 +683,7 @@ jobs:
         run: |
           cd ../boost-root
           mkdir __build__ && cd __build__
-          cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DBUILD_TESTING=ON ..
+          cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DBUILD_TESTING=ON ${{matrix.opts}} ..
 
       - name: Build tests
         run: |
@@ -521,8 +700,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
+          - os: windows-latest
+            opts: "-G \"MinGW Makefiles\""
+          - os: windows-latest
+            opts: "-T clangcl"
 
     runs-on: ${{matrix.os}}
 
@@ -554,7 +736,7 @@ jobs:
         run: |
           cd ../boost-root/libs/%LIBRARY%/test/cmake_subdir_test
           mkdir __build__ && cd __build__
-          cmake ..
+          cmake ${{matrix.opts}} ..
           cmake --build . --config Debug
           ctest --output-on-failure --no-tests=error -C Debug
 
@@ -570,8 +752,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
+          - os: windows-latest
+            opts: "-G \"MinGW Makefiles\""
+          - os: windows-latest
+            opts: "-T clangcl"
 
     runs-on: ${{matrix.os}}
 
@@ -603,7 +788,7 @@ jobs:
         run: |
           cd ../boost-root
           mkdir __build__ && cd __build__
-          cmake -DBOOST_INCLUDE_LIBRARIES=%LIBRARY% -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix ..
+          cmake -DBOOST_INCLUDE_LIBRARIES=%LIBRARY% -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix ${{matrix.opts}} ..
 
       - name: Install (Debug)
         shell: cmd
@@ -621,7 +806,7 @@ jobs:
         shell: cmd
         run: |
           cd ../boost-root/libs/%LIBRARY%/test/cmake_install_test && mkdir __build__ && cd __build__
-          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix ..
+          cmake -DCMAKE_INSTALL_PREFIX=C:/cmake-prefix ${{matrix.opts}} ..
           cmake --build . --config Debug
           ctest --output-on-failure --no-tests=error -C Debug
 
@@ -637,8 +822,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
-          - os: windows-2022
+          - os: windows-latest
+          - os: windows-latest
+            opts: "-G \"MinGW Makefiles\""
+          - os: windows-latest
+            opts: "-T clangcl"
 
     runs-on: ${{matrix.os}}
 
@@ -670,7 +858,7 @@ jobs:
         run: |
           cd ../boost-root
           mkdir __build__ && cd __build__
-          cmake -DBOOST_INCLUDE_LIBRARIES=%LIBRARY% -DBUILD_TESTING=ON ..
+          cmake -DBOOST_INCLUDE_LIBRARIES=%LIBRARY% -DBUILD_TESTING=ON ${{matrix.opts}} ..
 
       - name: Build tests (Debug)
         shell: cmd

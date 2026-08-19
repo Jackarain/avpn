@@ -1,17 +1,17 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
-# Licensed under the OpenSSL license (the "License").  You may not use
+# Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
 # in the file LICENSE in the source distribution or at
 # https://www.openssl.org/source/license.html
 
 #
 # ====================================================================
-# Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+# Written by Andy Polyakov, @dot-asm, initially for use in the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
-# details see http://www.openssl.org/~appro/cryptogams/.
+# details see https://github.com/dot-asm/cryptogams/.
 # ====================================================================
 #
 # November 2014
@@ -58,9 +58,10 @@
 # (vi)	even though Skylake-X can execute AVX512F code and deliver 0.57
 #	cpb in single thread, the corresponding capability is suppressed;
 
-$flavour = shift;
-$output  = shift;
-if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+# $output is the last argument if it looks like a file (it has an extension)
+# $flavour is the first argument if it doesn't look like a file
+$output = $#ARGV >= 0 && $ARGV[$#ARGV] =~ m|\.\w+$| ? pop : undef;
+$flavour = $#ARGV >= 0 && $ARGV[0] !~ m|\.| ? shift : undef;
 
 $win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
@@ -70,14 +71,15 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22) + ($1>=2.25);
+		=~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+	my $ver = $1 + $2/100.0; # 3.1->3.01, 3.10->3.10
+	$avx = ($ver >= 2.19) + ($ver >= 2.22) + ($ver >= 2.25);
 }
 
 if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-	   `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?/) {
-	$avx = ($1>=2.09) + ($1>=2.10) + ($1>=2.12);
-	$avx += 1 if ($1==2.11 && $2>=8);
+	   `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)(?:\.([0-9]+))?/) {
+	my $ver = $1 + $2/100.0 + $3/10000.0; # 3.1.0->3.01, 3.10.1->3.1001
+	$avx = ($ver >= 2.09) + ($ver >= 2.10) + ($ver >= 2.1108);
 }
 
 if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
@@ -89,7 +91,8 @@ if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:clang|LLVM) version|.*based on LLVM) ([0
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
-open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""
+    or die "can't call $xlate: $!";
 *STDOUT=*OUT;
 
 # input parameter block
@@ -100,6 +103,7 @@ $code.=<<___;
 
 .extern OPENSSL_ia32cap_P
 
+.section .rodata align=64
 .align	64
 .Lzero:
 .long	0,0,0,0
@@ -130,7 +134,8 @@ $code.=<<___;
 .long	16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16
 .Lsigma:
 .asciz	"expand 32-byte k"
-.asciz	"ChaCha20 for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.asciz	"ChaCha20 for x86_64, CRYPTOGAMS by <https://github.com/dot-asm>"
+.previous
 ___
 
 sub AUTOLOAD()          # thunk [simplified] 32-bit style perlasm

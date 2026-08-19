@@ -6,7 +6,7 @@
 <title>Boost.MultiIndex Documentation - Performance</title>
 <link rel="stylesheet" href="style.css" type="text/css">
 <link rel="start" href="index.html">
-<link rel="prev" href="compiler_specifics.html">
+<link rel="prev" href="reference/key_extraction.html">
 <link rel="up" href="index.html">
 <link rel="next" href="examples.html">
 </head>
@@ -15,8 +15,8 @@
 <h1><img src="../../../boost.png" alt="boost.png (6897 bytes)" align=
 "middle" width="277" height="86">Boost.MultiIndex Performance</h1>
 
-<div class="prev_link"><a href="compiler_specifics.html"><img src="prev.gif" alt="compiler specifics" border="0"><br>
-Compiler specifics
+<div class="prev_link"><a href="reference/key_extraction.html"><img src="prev.gif" alt="key extraction" border="0"><br>
+Key extraction
 </a></div>
 <div class="up_link"><a href="index.html"><img src="up.gif" alt="index" border="0"><br>
 Index
@@ -220,7 +220,7 @@ manual simulations.
 The gain in space consumption of <code>multi_index_container</code> with
 respect to its manual simulations is amenable to a very simple
 theoretical analysis. For simplicity, we will ignore alignment
-issues (which in general play in favor of <code>multi_index_container</code>.)
+issues (which in general play in favor of <code>multi_index_container</code>).
 </p>
 
 <p>
@@ -285,7 +285,7 @@ Taking this fact into account, the former formula can be adjusted to:
 
 <p>
 where <i>O</i> is the number of ordered indices of the container, and <i>w</i>
-is the system word size (typically 4 bytes on 32-bit architectures.)
+is the system word size (typically 4 bytes on 32-bit architectures).
 </p>
 
 <p>
@@ -473,7 +473,7 @@ sequenced index.</b>
 
 <p>
 The figures confirm that in this case <code>multi_index_container</code> nodes are the
-same size than those of its <code>std::list</code> counterpart.
+same size as those of its <code>std::list</code> counterpart.
 </p>
 
 <h4><a name="time_1s">Execution time</a></h4>
@@ -725,7 +725,7 @@ factor, which ranges from 45% to 55%.
 We have shown that <code>multi_index_container</code> outperforms, both in space and
 time efficiency, equivalent data structures obtained from the manual
 combination of STL containers. This improvement gets larger when the number
-of indices increase.
+of indices increases.
 </p>
 
 <p>
@@ -737,8 +737,8 @@ some improvements both in space consumption and execution time.
 
 <hr>
 
-<div class="prev_link"><a href="compiler_specifics.html"><img src="prev.gif" alt="compiler specifics" border="0"><br>
-Compiler specifics
+<div class="prev_link"><a href="reference/key_extraction.html"><img src="prev.gif" alt="key extraction" border="0"><br>
+Key extraction
 </a></div>
 <div class="up_link"><a href="index.html"><img src="up.gif" alt="index" border="0"><br>
 Index
@@ -749,9 +749,9 @@ Examples
 
 <br>
 
-<p>Revised April 18th 2020</p>
+<p>Revised November 7th 2025</p>
 
-<p>&copy; Copyright 2003-2020 Joaqu&iacute;n M L&oacute;pez Mu&ntilde;oz.
+<p>&copy; Copyright 2003-2025 Joaqu&iacute;n M L&oacute;pez Mu&ntilde;oz.
 Distributed under the Boost Software 
 License, Version 1.0. (See accompanying file <a href="../../../LICENSE_1_0.txt">
 LICENSE_1_0.txt</a> or copy at <a href="http://www.boost.org/LICENSE_1_0.txt">

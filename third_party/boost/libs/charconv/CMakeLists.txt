@@ -19,21 +19,9 @@ target_include_directories(boost_charconv PUBLIC include)
 
 # find_library for quadmath does not always work so attempt
 # to compile the trivial test case we use with B2
-include(CheckCXXSourceRuns)
-set(BOOST_CHARCONV_QUADMATH_TEST_SOURCE
-"
-#include <quadmath.h>
-int main()
-{
-    __float128 f = -2.0Q;
-    f = fabsq(f);
-
-    return 0;
-}
-")
-
+include(CheckCXXSourceCompiles)
 set(CMAKE_REQUIRED_LIBRARIES "quadmath")
-check_cxx_source_runs("${BOOST_CHARCONV_QUADMATH_TEST_SOURCE}" BOOST_CHARCONV_QUADMATH_FOUND)
+check_cxx_source_compiles("#include <${CMAKE_CURRENT_SOURCE_DIR}/config/has_float128.cpp>" BOOST_CHARCONV_QUADMATH_FOUND)
 set(CMAKE_REQUIRED_LIBRARIES "")
 
 target_link_libraries(boost_charconv
@@ -43,9 +31,9 @@ target_link_libraries(boost_charconv
     Boost::core
 )
 
-if(NOT BOOST_CHARCONV_QUADMATH_FOUND)
+# Check to see if the user specified BOOST_CHARCONV_NO_QUADMATH even with quadmath support being available
+if(NOT BOOST_CHARCONV_QUADMATH_FOUND OR BOOST_CHARCONV_NO_QUADMATH)
   message(STATUS "Boost.Charconv: quadmath support OFF")
-  target_compile_definitions(boost_charconv PUBLIC BOOST_CHARCONV_NO_QUADMATH)
 else()
   message(STATUS "Boost.Charconv: quadmath support ON")
   target_compile_definitions(boost_charconv PUBLIC BOOST_CHARCONV_HAS_QUADMATH)

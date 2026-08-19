@@ -12,7 +12,7 @@
 
 `#include <boost/multiprecision/cpp_dec_float.hpp>`
 
-   namespace boost{ namespace multiprecision{
+   namespace boost { namespace multiprecision {
 
    template <unsigned Digits10, class ExponentType = std::int32_t, class Allocator = void>
    class cpp_dec_float;
@@ -20,7 +20,7 @@
    typedef number<cpp_dec_float<50> > cpp_dec_float_50;
    typedef number<cpp_dec_float<100> > cpp_dec_float_100;
 
-   }} // namespaces
+   } } // namespaces
 
 The `cpp_dec_float` back-end is used in conjunction with `number`: It acts as an entirely C++ (header only and dependency free)
 floating-point number type that is a drop-in replacement for the native C++ floating-point types, but with
@@ -52,7 +52,7 @@ Normally these should not be visible to the user.
 * The type supports both infinities and NaNs.  An infinity is generated whenever the result would overflow,
 and a NaN is generated for any mathematically undefined operation.
 * There is a `std::numeric_limits` specialisation for this type.
-* Any `number` instantiated on this type, is convertible to any other `number` instantiated on this type -
+* Any `number` instantiated on this type is convertible to any other `number` instantiated on this type -
 for example you can convert from `number<cpp_dec_float<50> >` to `number<cpp_dec_float<SomeOtherValue> >`.
 Narrowing conversions are truncating and `explicit`.
 * Conversion from a string results in a `std::runtime_error` being thrown if the string can not be interpreted

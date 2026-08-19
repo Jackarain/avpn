@@ -12,7 +12,7 @@
 #define BOOST_JAM_CONSTANTS_H
 
 #include "config.h"
-#include "object.h"
+#include "jam_fwd.h"
 
 void constants_init( void );
 void constants_done( void );
@@ -45,15 +45,8 @@ extern OBJECT * constant_TMPNAME;                   /* "TMPNAME" */
 extern OBJECT * constant_TMPFILE;                   /* "TMPFILE" */
 extern OBJECT * constant_STDOUT;                    /* "STDOUT" */
 extern OBJECT * constant_STDERR;                    /* "STDERR" */
-extern OBJECT * constant_JAMDATE;                   /* "JAMDATE" */
-extern OBJECT * constant_JAM_TIMESTAMP_RESOLUTION;  /* "JAM_TIMESTAMP_RESOLUTION" */
-extern OBJECT * constant_JAM_VERSION;               /* "JAM_VERSION" */
-extern OBJECT * constant_JAMUNAME;                  /* "JAMUNAME" */
 extern OBJECT * constant_ENVIRON;                   /* ".ENVIRON" */
-extern OBJECT * constant_ARGV;                      /* "ARGV" */
 extern OBJECT * constant_all;                       /* "all" */
-extern OBJECT * constant_PARALLELISM;               /* "PARALLELISM" */
-extern OBJECT * constant_KEEP_GOING;                /* "KEEP_GOING" */
 extern OBJECT * constant_other;                     /* "[OTHER]" */
 extern OBJECT * constant_total;                     /* "[TOTAL]" */
 extern OBJECT * constant_FILE_DIRSCAN;              /* "FILE_DIRSCAN" */
@@ -72,5 +65,7 @@ extern OBJECT * constant_FILE_ARCHIVESCAN;          /* "FILE_ARCHIVESCAN" */
 extern OBJECT * constant_BUILTIN_GLOB_ARCHIVE_BACK; /* "BUILTIN_GLOB_ARCHIVE_BACK" */
 
 extern OBJECT * constant_RESPONSE_FILE_SUB; // "RESPONSE_FILE_SUB"
+extern OBJECT * constant_FILENAME;          // "__FILENAME__"
+extern OBJECT * constant_MODULE;            // "__MODULE__"
 
 #endif

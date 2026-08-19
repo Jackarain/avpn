@@ -13,16 +13,18 @@
 
 #include <boost/thread/synchronized_value.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 int main()
 {
 
   {
       boost::synchronized_value<int, boost::mutex > f;
+      (void)f;
   }
   {
       boost::synchronized_value<int, boost::timed_mutex> f;
+      (void)f;
   }
 
   return boost::report_errors();

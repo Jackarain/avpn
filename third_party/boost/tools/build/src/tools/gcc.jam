@@ -1,6 +1,6 @@
 # Copyright 2021 Nikita Kniazev
 # Copyright 2001 David Abrahams
-# Copyright 2002-2017 Rene Rivera
+# Copyright 2002-2025 René Ferdinand Rivera Morell
 # Copyright 2002-2003 Vladimir Prus
 # Copyright 2005 Reece H. Dunn
 # Copyright 2006 Ilya Sokolov
@@ -13,8 +13,8 @@
 
 #| tag::doc[]
 
-[[bbv2.reference.tools.compiler.gcc]]
-= GNU C++
+[[b2.reference.tools.compiler.gcc]]
+= GCC - GNU Compiler Collection
 
 The `gcc` module supports the http://gcc.gnu.org[GNU C++ compiler] on
 Linux, a number of Unix-like system including SunOS and on Windows
@@ -117,15 +117,13 @@ import type ;
 import unix ;
 import virtual-target ;
 import errors ;
+import args ;
 
 
 # Used in actions for multi argument options
 _ = " " ;
 
-if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
-{
-    .debug-configuration = true ;
-}
+.debug-configuration = [ args.get-arg debug-configuration ] ;
 
 
 feature.extend toolset : gcc ;
@@ -449,7 +447,8 @@ local rule compile-link-flags ( * )
     local rule init-cxxstd-flags ( condition * : version )
     {
         local std ;
-        if [ version-ge $(version) : 11 ] { std = 23 ; }
+        if [ version-ge $(version) : 14 ] { std = 26 ; }
+        else if [ version-ge $(version) : 11 ] { std = 23 ; }
         else if [ version-ge $(version) : 10 ] { std = 20 ; }
         else if [ version-ge $(version) : 8 ] { std = 2a ; }
         else if [ version-ge $(version) : 6 ] { std = 17 ; }
@@ -480,8 +479,8 @@ generators.register [ new fortran-compiling-generator
 
 rule set_command_db ( targets + )
 {
-    local config_command = [ regex.escape
-        [ on $(targets[1]) return $(CONFIG_COMMAND:E="") ]
+    local config_command = [ on $(targets[1]) return $(CONFIG_COMMAND:E="") ] ;
+    local config_command = [ regex.escape "$(config_command:J= )"
         : "()[]\\+.*^$\"" : "\\" ] ;
     COMMAND_DATABASE on $(targets) = "(\"$(config_command)\"[^\n]*)" ;
 }
@@ -717,6 +716,13 @@ toolset.flags gcc.link OPTIONS <lto>on/<lto-mode>fat : -flto ;
 toolset.flags gcc.compile.c++ DEFINES <stdlib>gnu : _GLIBCXX_USE_CXX11_ABI=0 ;
 toolset.flags gcc.compile.c++ DEFINES <stdlib>gnu11 : _GLIBCXX_USE_CXX11_ABI=1 ;
 
+# Contracts
+toolset.flags gcc.compile.c++ OPTIONS <contracts>on : -fcontracts ;
+toolset.flags gcc.compile.c++ OPTIONS <contracts>on/<contracts-semantic>ignore : -fcontract-evaluation-semantic=ignore ;
+toolset.flags gcc.compile.c++ OPTIONS <contracts>on/<contracts-semantic>observe : -fcontract-evaluation-semantic=observe ;
+toolset.flags gcc.compile.c++ OPTIONS <contracts>on/<contracts-semantic>enforce : -fcontract-evaluation-semantic=enforce ;
+toolset.flags gcc.compile.c++ OPTIONS <contracts>on/<contracts-semantic>quick_enforce : -fcontract-evaluation-semantic=quick_enforce ;
+
 ###
 ### User free feature options.
 ###
@@ -905,7 +911,7 @@ toolset.flags gcc.link OPTIONS <coverage>on : --coverage ;
     # This does not support -R.
     toolset.flags gcc.link RPATH_OPTION <target-os>darwin : -rpath ;
     # -rpath-link is not supported at all.
-    toolset.flags gcc.link SHARED_OPTION <target-os>darwin : -dynamiclib -single_module ;
+    toolset.flags gcc.link SHARED_OPTION <target-os>darwin : -dynamiclib ;
     toolset.flags gcc.link HAVE_SONAME <target-os>darwin : "" ;
     toolset.flags gcc.link SONAME_OPTION <target-os>darwin : -install_name ;
     toolset.flags gcc.link SONAME_PREFIX <target-os>darwin : @rpath/ ;
@@ -1071,7 +1077,7 @@ actions link bind LIBRARIES
 
 actions link.dll bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" @($(<[1]:T).rsp:O=FC:<=@":>=":E=-L"$(LINKPATH)" -Wl,$(RPATH_OPTION)$(SPACE)-Wl,$(RPATH) -Wl,$(IMPLIB_OPTION:E=--out-implib),"$(<[2]:T)" -o "$(<[1]:T)" $(HAVE_SONAME)-Wl,$(SONAME_OPTION)$(SPACE)-Wl,"$(SONAME_PREFIX:E=)$(<[1]:D=)" $(SHARED_OPTION:E=-shared) $(START-GROUP) "$(>:T)" "$(LIBRARIES)" $(FINDLIBS-ST-PFX) -l$(FINDLIBS-ST) $(FINDLIBS-SA-PFX) -l$(FINDLIBS-SA) $(END-GROUP) $(OPTIONS) $(USER_OPTIONS))
+    "$(CONFIG_COMMAND)" @($(<[1]:T).rsp:O=FC:<=@":>=":E=-L"$(LINKPATH)" -Wl,$(RPATH_OPTION)$(SPACE)-Wl,$(RPATH) -Wl,-rpath-link$(SPACE)-Wl,"$(RPATH_LINK)" -Wl,-rpath-link$(SPACE)-Wl,"$(RPATH_LINK)" -Wl,$(IMPLIB_OPTION:E=--out-implib),"$(<[2]:T)" -o "$(<[1]:T)" $(HAVE_SONAME)-Wl,$(SONAME_OPTION)$(SPACE)-Wl,"$(SONAME_PREFIX:E=)$(<[1]:D=)" $(SHARED_OPTION:E=-shared) $(START-GROUP) "$(>:T)" "$(LIBRARIES)" $(FINDLIBS-ST-PFX) -l$(FINDLIBS-ST) $(FINDLIBS-SA-PFX) -l$(FINDLIBS-SA) $(END-GROUP) $(OPTIONS) $(USER_OPTIONS))
 }
 
 ###
@@ -1286,10 +1292,10 @@ cpu-flags gcc OPTIONS : s390x : z13 : -march=z13 ;
 cpu-flags gcc OPTIONS : s390x : z14 : -march=z14 ;
 cpu-flags gcc OPTIONS : s390x : z15 : -march=z15 ;
 # ARM
-cpu-flags gcc OPTIONS : arm : cortex-a9+vfpv3 : -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard ;
+cpu-flags gcc OPTIONS : arm : cortex-a9+vfpv3 : -mcpu=cortex-a9 -mfpu=vfpv3 ;
 cpu-flags gcc OPTIONS : arm : cortex-a53 : -mcpu=cortex-a53 ;
 cpu-flags gcc OPTIONS : arm : cortex-r5 : -mcpu=cortex-r5 ;
-cpu-flags gcc OPTIONS : arm : cortex-r5+vfpv3-d16 : -mcpu=cortex-r5 -mfpu=vfpv3-d16 -mfloat-abi=hard ;
+cpu-flags gcc OPTIONS : arm : cortex-r5+vfpv3-d16 : -mcpu=cortex-r5 -mfpu=vfpv3-d16 ;
 # AIX variant of RS/6000 & PowerPC
 toolset.flags gcc AROPTIONS <address-model>64/<target-os>aix : "-X64" ;
 

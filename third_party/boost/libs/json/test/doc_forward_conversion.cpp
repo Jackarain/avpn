@@ -7,7 +7,7 @@
 // Official repository: https://github.com/boostorg/json
 //
 
-//[doc_forward_conversion_1
+// tag::doc_forward_conversion_1[]
 namespace boost {
 namespace json {
 
@@ -30,9 +30,9 @@ try_value_to( const value& jv );
 
 }
 }
-//]
+// end::doc_forward_conversion_1[]
 
-//[doc_forward_conversion_3
+// tag::doc_forward_conversion_3[]
 namespace boost {
 namespace json {
 
@@ -55,13 +55,13 @@ try_value_to( const value& jv, const Context& ctx );
 
 }
 }
-//]
+// end::doc_forward_conversion_3[]
 
 #include "doc_types.hpp"
 
 #include <system_error>
 
-//[doc_forward_conversion_2
+// tag::doc_forward_conversion_2[]
 namespace user_ns
 {
 
@@ -108,9 +108,10 @@ tag_invoke(
 }
 
 }
-//]
+// end::doc_forward_conversion_2[]
 
-//[doc_forward_conversion_4
+// tag::doc_forward_conversion_3[]
+
 namespace user_ns
 {
 
@@ -127,8 +128,8 @@ tag_invoke(
     auto& js = jv.emplace_string();
     js.resize( 4 * 3 + 3 + 1 ); // XXX.XXX.XXX.XXX\0
     auto it = addr.begin();
-    auto n = std::sprintf(
-        js.data(), "%hhu.%hhu.%hhu.%hhu", it[0], it[1], it[2], it[3] );
+    auto n = std::snprintf(
+        js.data(), js.size(), "%hhu.%hhu.%hhu.%hhu", it[0], it[1], it[2], it[3] );
     js.resize(n);
 }
 
@@ -153,7 +154,7 @@ tag_invoke(
 }
 
 }
-//]
+// end::doc_forward_conversion_3[]
 
 #include <boost/json/value_from.hpp>
 #include <boost/json/value_to.hpp>

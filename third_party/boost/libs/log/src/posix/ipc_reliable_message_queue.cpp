@@ -40,11 +40,11 @@
 #include <boost/atomic/atomic.hpp>
 #include <boost/atomic/ipc_atomic.hpp>
 #include <boost/atomic/capabilities.hpp>
+#include <boost/atomic/thread_pause.hpp>
 #include <boost/throw_exception.hpp>
 #include <boost/log/exceptions.hpp>
 #include <boost/log/utility/ipc/reliable_message_queue.hpp>
 #include <boost/log/support/exception.hpp>
-#include <boost/log/detail/pause.hpp>
 #include <boost/exception/info.hpp>
 #include <boost/exception/enable_error_info.hpp>
 #include <boost/interprocess/creation_tags.hpp>
@@ -325,7 +325,7 @@ public:
             }
 
             std::time_t now = std::time(NULL);
-            if (BOOST_UNLIKELY((now - start_time) >= region_open_or_create_timeout))
+            if (BOOST_UNLIKELY((now - start_time) >= static_cast< std::time_t >(region_open_or_create_timeout)))
                 BOOST_LOG_THROW_DESCR(setup_error, "Boost.Log interprocess message queue cannot be created or opened: shared memory segment failed to be created or opened until timeout (possible livelock)");
 
             if (i < region_open_or_create_short_yield_loops)
@@ -604,7 +604,7 @@ private:
             }
 
             if (i < region_init_wait_loops_pause)
-                boost::log::aux::pause();
+                boost::atomics::thread_pause();
             else if (i < region_init_wait_loops_short_yield)
                 short_yield();
             else

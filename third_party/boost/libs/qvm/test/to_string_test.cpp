@@ -1,5 +1,4 @@
-// Copyright 2008-2022 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2008-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -25,7 +24,7 @@ namespace
         using namespace boost::qvm::sfinae;
         test_qvm::matrix<M1,Rows,Cols,int> const x(42,1);
         std::string s=to_string(x);
-        BOOST_TEST(s==gold);
+        BOOST_TEST_EQ(s, gold);
         }
 
     template <int Dim>
@@ -35,7 +34,7 @@ namespace
         using namespace boost::qvm::sfinae;
         test_qvm::vector<V1,Dim,int> const x(42,1);
         std::string s=to_string(x);
-        BOOST_TEST(s==gold);
+        BOOST_TEST_EQ(s, gold);
         }
 
     void
@@ -44,7 +43,7 @@ namespace
         using namespace boost::qvm::sfinae;
         test_qvm::quaternion<Q1,int> const x(42,1);
         std::string s=to_string(x);
-        BOOST_TEST(s==gold);
+        BOOST_TEST_EQ(s, gold);
         }
     }
 

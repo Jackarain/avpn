@@ -32,7 +32,7 @@ namespace boost { namespace geometry { namespace index { namespace detail {
 //    typedef typename select_most_precise<
 //        typename select_most_precise<
 //        typename coordinate_type<Indexable>::type,
-//        typename coordinate_type<Point>::type
+//        coordinate_type_t<Point>
 //        >::type,
 //        float // TODO - use bigger type, calculated from the size of coordinate types
 //    >::type type;
@@ -47,11 +47,11 @@ namespace dispatch {
 template <typename Box, typename Point, size_t I>
 struct box_segment_intersection_dim
 {
-    BOOST_STATIC_ASSERT(0 <= dimension<Box>::value);
-    BOOST_STATIC_ASSERT(0 <= dimension<Point>::value);
-    BOOST_STATIC_ASSERT(I < size_t(dimension<Box>::value));
-    BOOST_STATIC_ASSERT(I < size_t(dimension<Point>::value));
-    BOOST_STATIC_ASSERT(dimension<Point>::value == dimension<Box>::value);
+    static_assert(0 <= dimension<Box>::value, "Box dimension must be non-negative.");
+    static_assert(0 <= dimension<Point>::value, "Point dimension must be non-negative.");
+    static_assert(I < size_t(dimension<Box>::value), "Index out of bounds for Box.");
+    static_assert(I < size_t(dimension<Point>::value), "Index out of bounds for Point.");
+    static_assert(dimension<Point>::value == dimension<Box>::value, "Point and Box dimension must be equal.");
 
     // WARNING! - RelativeDistance must be IEEE float for this to work
 
@@ -77,7 +77,7 @@ struct box_segment_intersection_dim
 template <typename Box, typename Point, size_t CurrentDimension>
 struct box_segment_intersection
 {
-    BOOST_STATIC_ASSERT(0 < CurrentDimension);
+    static_assert(0 < CurrentDimension, "Specialization for positive index.");
 
     typedef box_segment_intersection_dim<Box, Point, CurrentDimension - 1> for_dim;
 
@@ -154,9 +154,10 @@ bool segment_intersection(Indexable const& b,
 {
     // TODO check Indexable and Point concepts
 
-    return dispatch::segment_intersection<
+    return dispatch::segment_intersection
+        <
             Indexable, Point,
-            typename tag<Indexable>::type
+            tag_t<Indexable>
         >::apply(b, p0, p1, relative_distance);
 }
 

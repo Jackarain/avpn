@@ -9,12 +9,21 @@
 # http://www.boost.org/LICENSE_1_0.txt)
 
 
+import-search /boost/config/checks ;
+import config : requires ;
+
 project boost-geometry-doc-src-example
-    : # requirements
+    : requirements
+        <library>/boost/geometry//boost_geometry
+        <cxxstd>14
+        [ requires
+            cxx14_constexpr
+            cxx14_return_type_deduction
+        ]
     ;
 
 exe quick_start : quick_start.cpp ;
-    
+
 build-project algorithms ;
 build-project core ;
 build-project geometries ;

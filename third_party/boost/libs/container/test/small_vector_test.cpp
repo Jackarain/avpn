@@ -1,3 +1,4 @@
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // (C) Copyright Ion Gaztanaga 2004-2013. Distributed under the Boost
@@ -297,10 +298,10 @@ bool test_swap()
          v.push_back(int(i));
       }
       vec w;
-      const std::size_t v_size = v.size();
-      const std::size_t w_size = w.size();
+      vec v_copy = v;
+      vec w_copy = w;
       v.swap(w);
-      if(v.size() != w_size || w.size() != v_size)
+      if (w != v_copy || v != w_copy)
          return false;
    }
    {  //v smaller than static capacity, w empty
@@ -309,10 +310,10 @@ bool test_swap()
          v.push_back(int(i));
       }
       vec w;
-      const std::size_t v_size = v.size();
-      const std::size_t w_size = w.size();
+      vec v_copy = v;
+      vec w_copy = w;
       v.swap(w);
-      if(v.size() != w_size || w.size() != v_size)
+      if (w != v_copy || v != w_copy)
          return false;
    }
    {  //v bigger than static capacity, w enough capacity for static
@@ -324,10 +325,10 @@ bool test_swap()
       for (std::size_t i = 0, max = w.capacity() / 2; i != max; ++i) {
          w.push_back(int(i));
       }
-      const std::size_t v_size = v.size();
-      const std::size_t w_size = w.size();
+      vec v_copy = v;
+      vec w_copy = w;
       v.swap(w);
-      if (v.size() != w_size || w.size() != v_size)
+      if (w != v_copy || v != w_copy)
          return false;
    }
    {  //v & w smaller than static capacity
@@ -339,10 +340,10 @@ bool test_swap()
       for(std::size_t i = 0, max = w.capacity()/2; i != max; ++i){
          w.push_back(int(i));
       }
-      const std::size_t v_size = v.size();
-      const std::size_t w_size = w.size();
+      vec v_copy = v;
+      vec w_copy = w;
       v.swap(w);
-      if(v.size() != w_size || w.size() != v_size)
+      if (w != v_copy || v != w_copy)
          return false;
    }
    {  //v & w bigger than static capacity
@@ -354,10 +355,10 @@ bool test_swap()
       for(std::size_t i = 0, max = w.capacity()*2; i != max; ++i){
          w.push_back(int(i));
       }
-      const std::size_t v_size = v.size();
-      const std::size_t w_size = w.size();
+      vec v_copy = v;
+      vec w_copy = w;
       v.swap(w);
-      if(v.size() != w_size || w.size() != v_size)
+      if (w != v_copy || v != w_copy)
          return false;
    }
 
@@ -467,10 +468,13 @@ int test_cont_variants()
    return 0;
 }
 
+using namespace boost::container;
+
+//Test the expected sizeof()
+BOOST_CONTAINER_STATIC_ASSERT_MSG(7*sizeof(void*) == sizeof(small_vector<void*, 4>), "sizeof has an unexpected value");
+
 int main()
 {
-   using namespace boost::container;
-
    if(!test_swap())
       return 1;
 
@@ -494,7 +498,7 @@ int main()
    ////////////////////////////////////
    //    Emplace testing
    ////////////////////////////////////
-   const test::EmplaceOptions Options = (test::EmplaceOptions)(test::EMPLACE_BACK | test::EMPLACE_BEFORE);
+   const test::EmplaceOptions Options = (test::EmplaceOptions)(test::EMPLACE_BACK | test::EMPLACE_BEFORE | test::UNCHECKED_EMPLACE_BACK);
    if(!boost::container::test::test_emplace< small_vector<test::EmplaceInt, 5>, Options>()){
       return 1;
    }
@@ -543,18 +547,12 @@ int main()
    // default allocator
    {
       typedef boost::container::small_vector<int, 0> cont;
-      if (boost::has_trivial_destructor_after_move<cont>::value) {
-         std::cerr << "has_trivial_destructor_after_move(default allocator) test failed" << std::endl;
-         return 1;
-      }
+      BOOST_CONTAINER_STATIC_ASSERT(!boost::has_trivial_destructor_after_move<cont>::value);
    }
    // std::allocator
    {
       typedef boost::container::small_vector<int, 0, std::allocator<int> > cont;
-      if (boost::has_trivial_destructor_after_move<cont>::value) {
-         std::cerr << "has_trivial_destructor_after_move(std::allocator) test failed" << std::endl;
-         return 1;
-      }
+      BOOST_CONTAINER_STATIC_ASSERT(!boost::has_trivial_destructor_after_move<cont>::value);
    }
 
    return 0;

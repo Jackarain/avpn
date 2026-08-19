@@ -81,7 +81,7 @@ int vector_test()
    std::string process_name;
    test::get_process_id_name(process_name);
 
-   const int Memsize = 128u*1024u;
+   const int Memsize = 256u*1024u;
    const char *const shMemName = process_name.c_str();
    const int max = 100;
 
@@ -89,7 +89,7 @@ int vector_test()
       //Compare several shared memory vector operations with std::vector
       //Create shared memory
       shared_memory_object::remove(shMemName);
-      BOOST_TRY{
+      BOOST_INTERPROCESS_TRY{
          ManagedSharedMemory segment(create_only, shMemName, Memsize);
 
          segment.reserve_named_objects(10);
@@ -233,11 +233,11 @@ int vector_test()
          if(!segment.all_memory_deallocated())
             return 1;
       }
-      BOOST_CATCH(std::exception &ex){
+      BOOST_INTERPROCESS_CATCH(std::exception &ex){
          shared_memory_object::remove(shMemName);
          std::cout << ex.what() << std::endl;
          return 1;
-      } BOOST_CATCH_END
+      } BOOST_INTERPROCESS_CATCH_END
    }
    shared_memory_object::remove(shMemName);
    std::cout << std::endl << "Test OK!" << std::endl;

@@ -10,13 +10,15 @@
 // Test that header file is self-contained.
 #include <boost/beast/http/string_body.hpp>
 
+#include <boost/beast/http/type_traits.hpp>
+
 namespace boost {
 namespace beast {
 namespace http {
 
-BOOST_STATIC_ASSERT(is_body<string_body>::value);
-BOOST_STATIC_ASSERT(is_body_writer<string_body>::value);
-BOOST_STATIC_ASSERT(is_body_reader<string_body>::value);
+BOOST_CORE_STATIC_ASSERT(is_body<string_body>::value);
+BOOST_CORE_STATIC_ASSERT(is_body_writer<string_body>::value);
+BOOST_CORE_STATIC_ASSERT(is_body_reader<string_body>::value);
 
 } // http
 } // beast

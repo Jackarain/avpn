@@ -11,7 +11,7 @@
 #define BOOST_URL_DETAIL_ANY_SEGMENTS_ITER_HPP
 
 #include <boost/url/pct_string_view.hpp>
-#include <boost/static_assert.hpp>
+#include <boost/core/detail/static_assert.hpp>
 #include <cstddef>
 #include <iterator>
 #include <type_traits>
@@ -105,10 +105,10 @@ private:
 struct segments_iter_base
 {
 protected:
-    BOOST_URL_DECL static void
+    static void
     measure_impl(std::size_t&,
         core::string_view, bool) noexcept;
-    BOOST_URL_DECL static void
+    static void
     copy_impl(char*&, char const*,
         core::string_view, bool) noexcept;
 };
@@ -120,7 +120,7 @@ struct segments_iter
     : any_segments_iter
     , segments_iter_base
 {
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         std::is_convertible<
             typename std::iterator_traits<
                 FwdIt>::reference,
@@ -219,10 +219,10 @@ private:
 struct segments_encoded_iter_base
 {
 protected:
-    BOOST_URL_DECL static void
+    static void
     measure_impl(std::size_t&,
         core::string_view, bool) noexcept;
-    BOOST_URL_DECL static void
+    static void
     copy_impl(char*&, char const*,
         core::string_view, bool) noexcept;
 };
@@ -234,7 +234,7 @@ struct segments_encoded_iter
     : public any_segments_iter
     , public segments_encoded_iter_base
 {
-    BOOST_STATIC_ASSERT(
+    BOOST_CORE_STATIC_ASSERT(
         std::is_convertible<
             typename std::iterator_traits<
                 FwdIt>::reference,
@@ -323,5 +323,7 @@ make_segments_encoded_iter(
 } // detail
 } // urls
 } // boost
+
+#include <boost/url/detail/impl/any_segments_iter.hpp>
 
 #endif

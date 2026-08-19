@@ -11,6 +11,7 @@
 #define BOOST_GEOMETRY_SRS_TRANSFORMATION_HPP
 
 
+#include <memory>
 #include <string>
 #include <type_traits>
 
@@ -50,7 +51,7 @@ inline bool same_object(T1 const& , T2 const& )
 template <typename T>
 inline bool same_object(T const& o1, T const& o2)
 {
-    return boost::addressof(o1) == boost::addressof(o2);
+    return std::addressof(o1) == std::addressof(o2);
 }
 
 template
@@ -93,18 +94,18 @@ struct transform_geometry_point_coordinates<PtIn, PtOut, false>
 template <typename Geometry, typename CT>
 struct transform_geometry_point
 {
-    typedef typename geometry::point_type<Geometry>::type point_type;
+    using point_type = geometry::point_type_t<Geometry>;
 
-    typedef geometry::model::point
+    using type = geometry::model::point
         <
             typename select_most_precise
                 <
-                    typename geometry::coordinate_type<point_type>::type,
+                    geometry::coordinate_type_t<point_type>,
                     CT
                 >::type,
             geometry::dimension<point_type>::type::value,
-            typename geometry::coordinate_system<point_type>::type
-        > type;
+            geometry::coordinate_system_t<point_type>
+        >;
 
     template <typename PtIn, typename PtOut>
     static inline void apply(PtIn const& in, PtOut & out, bool enable_angles)
@@ -140,12 +141,8 @@ struct transform_geometry_range_base
         // Out - either Geometry or std::vector
         // So the order and closure of In and Geometry shoudl be compared
         // std::vector's order is assumed to be the same as of Geometry
-        geometry::detail::conversion::range_to_range
-            <
-                In,
-                Out,
-                geometry::point_order<In>::value != geometry::point_order<Out>::value
-            >::apply(in, out, convert_strategy(enable_angles));
+        geometry::detail::conversion::range_to_range::apply(in, out,
+            convert_strategy(enable_angles));
     }
 };
 
@@ -153,7 +150,7 @@ template
 <
     typename Geometry,
     typename CT,
-    typename Tag = typename geometry::tag<Geometry>::type
+    typename Tag = geometry::tag_t<Geometry>
 >
 struct transform_geometry
 {};
@@ -229,10 +226,10 @@ template
                                 <
                                     typename select_most_precise
                                         <
-                                            typename geometry::coordinate_type<OutGeometry>::type,
+                                            geometry::coordinate_type_t<OutGeometry>,
                                             CT
                                         >::type,
-                                    typename geometry::coordinate_type<OutGeometry>::type
+                                    geometry::coordinate_type_t<OutGeometry>
                                 >::value
 >
 struct transform_geometry_wrapper
@@ -379,7 +376,7 @@ template
 <
     typename Geometry,
     typename CT,
-    typename Tag = typename geometry::tag<Geometry>::type
+    typename Tag = geometry::tag_t<Geometry>
 >
 struct transform
     : not_implemented<Tag>
@@ -406,7 +403,7 @@ struct transform<Point, CT, point_tag>
         transform_geometry_wrapper<PointOut, CT> wrapper(in, out, input_angles);
 
         typedef typename transform_geometry_wrapper<PointOut, CT>::type point_type;
-        point_type * ptr = boost::addressof(wrapper.get());
+        point_type * ptr = std::addressof(wrapper.get());
 
         std::pair<point_type *, point_type *> range = std::make_pair(ptr, ptr + 1);
 

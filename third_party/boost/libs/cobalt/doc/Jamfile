@@ -6,13 +6,17 @@ import asciidoctor ;
 
 html index.html : index.adoc  ;
 
-install html_ : index.html : <location>html ;
+install images : $(images) : <location>html/images ;
+install html_ : index.html : <location>html : <dependency>images ;
 
 pdf cobalt.pdf : index.adoc ;
 explicit cobalt.pdf ;
 
 install pdf_ : cobalt.pdf : <location>pdf ;
 explicit pdf_ ;
+
+
+
 
 alias boostdoc ;
 explicit boostdoc ;

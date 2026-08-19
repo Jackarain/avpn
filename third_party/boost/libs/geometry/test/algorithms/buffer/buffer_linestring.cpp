@@ -218,10 +218,8 @@ void test_all()
     // Having flat end
     test_one<linestring, polygon>("for_collinear", for_collinear, join_round, end_flat, 68.561, 2.0);
     test_one<linestring, polygon>("for_collinear", for_collinear, join_miter, end_flat, 72, 2.0);
-#if defined(BOOST_GEOMETRY_TEST_FAILURES)
     test_one<linestring, polygon>("for_collinear2", for_collinear2, join_round, end_flat, 74.387, 2.0);
     test_one<linestring, polygon>("for_collinear2", for_collinear2, join_miter, end_flat, 78.0, 2.0);
-#endif
 
     test_one<linestring, polygon>("curve", curve, join_round, end_flat, 58.1944, 5.0, settings, 3.0);
     test_one<linestring, polygon>("curve", curve, join_miter, end_flat, 58.7371, 5.0, settings, 3.0);
@@ -330,7 +328,6 @@ void test_all()
         test_one<linestring, polygon>("issue_803", issue_803, join_round(36), end_round(36), 1664.0528, 10.0);
     }
 
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING)
     {
         using bg::strategy::buffer::join_round;
         using bg::strategy::buffer::end_round;
@@ -338,7 +335,6 @@ void test_all()
         test_one<linestring, polygon>("issue_988_b", issue_988, join_round(32), end_round(32), 0.0029614, 0.0101);
         test_one<linestring, polygon>("issue_988_c", issue_988, join_round(32), end_round(32), 0.0031514, 0.011);
     }
-#endif
 
     {
         using bg::strategy::buffer::join_round;
@@ -366,24 +362,17 @@ void test_all()
 
     test_one<linestring, polygon>("mysql_23023665_1", mysql_23023665, join_round32, end_flat, 459.1051, 10);
     test_one<linestring, polygon>("mysql_23023665_2", mysql_23023665, join_round32, end_flat, 6877.7097, 50);
-
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
     test_one<linestring, polygon>("mysql_25662426", mysql_25662426, join_round32, end_round32, 1, 0, 1660.6673, 10);
-#endif
+
 
     // Test behaviour with different buffer sizes, generating internally turns on different locations
     test_one<linestring, polygon>("mysql_25662426a_05", mysql_25662426a, join_round32, end_round32, 27.6156, 0.5);
     test_one<linestring, polygon>("mysql_25662426a_1", mysql_25662426a, join_round32, end_round32, 54.9018, 1.0);
     test_one<linestring, polygon>("mysql_25662426a_2", mysql_25662426a, join_round32, end_round32, 103.6072, 2.0);
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
     test_one<linestring, polygon>("mysql_25662426a_3", mysql_25662426a, join_round32, end_round32, 152.1163, 3.0);
-#endif
     test_one<linestring, polygon>("mysql_25662426a_4", mysql_25662426a, join_round32, end_round32, 206.4831, 4.0);
     test_one<linestring, polygon>("mysql_25662426a_5", mysql_25662426a, join_round32, end_round32, 266.8505, 5.0);
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
     test_one<linestring, polygon>("mysql_25662426a_10", mysql_25662426a, join_round32, end_round32, 660.7355, 10.0);
-#endif
-
     test_one<linestring, polygon>("mysql_25662426a_05", mysql_25662426a, join_round32, end_flat, 26.8352, 0.5);
     test_one<linestring, polygon>("mysql_25662426a_1", mysql_25662426a, join_round32, end_flat, 53.3411, 1.0);
     test_one<linestring, polygon>("mysql_25662426a_2", mysql_25662426a, join_round32, end_flat, 97.3644, 2.0);
@@ -477,10 +466,6 @@ int test_main(int, char* [])
 
 #if ! defined(BOOST_GEOMETRY_TEST_ONLY_ONE_TYPE)
     test_invalid<true, bg::model::point<long double, 2, bg::cs::cartesian> >();
-#endif
-
-#if defined(BOOST_GEOMETRY_TEST_FAILURES)
-    BoostGeometryWriteExpectedFailures(2, 4, 11, 3);
 #endif
 
     return 0;

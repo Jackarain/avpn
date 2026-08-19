@@ -7,7 +7,9 @@
 // See http://www.boost.org/libs/interprocess for documentation.
 //
 //////////////////////////////////////////////////////////////////////////////
-
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 //[doc_managed_construction_info
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <cassert>
@@ -28,31 +30,14 @@ int main()
    //Remove shared memory on construction and destruction
    struct shm_remove
    {
-   //<-
-   #if 1
       shm_remove() { shared_memory_object::remove(test::get_process_id_name()); }
       ~shm_remove(){ shared_memory_object::remove(test::get_process_id_name()); }
-   #else
-   //->
-      shm_remove() { shared_memory_object::remove("MySharedMemory"); }
-      ~shm_remove(){ shared_memory_object::remove("MySharedMemory"); }
-   //<-
-   #endif
-   //->
    } remover;
    //<-
    (void)remover;
    //->
 
-   //<-
-   #if 1
    managed_shared_memory managed_shm(create_only, test::get_process_id_name(), 10000*sizeof(std::size_t));
-   #else
-   //->
-   managed_shared_memory managed_shm(create_only, "MySharedMemory", 10000*sizeof(std::size_t));
-   //<-
-   #endif
-   //->
 
    //Construct objects
    my_class *named_object  = managed_shm.construct<my_class>("Object name")[1]();

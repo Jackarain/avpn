@@ -69,6 +69,7 @@ public:
     template<class F>
     void execute(F&&) const {}
     simple_executor prefer(net::execution::outstanding_work_t::tracked_t) const { return *this; }
+    simple_executor require(net::execution::blocking_t::never_t) const { return *this; };
 #else
     void* context() { return nullptr; }
     void on_work_started() {}
@@ -96,7 +97,7 @@ public:
 };
 
 #if defined(BOOST_ASIO_NO_TS_EXECUTORS)
-BOOST_STATIC_ASSERT(net::execution::is_executor<simple_executor>::value);
+BOOST_CORE_STATIC_ASSERT(net::execution::is_executor<simple_executor>::value);
 #endif
 
 // A move-only handler

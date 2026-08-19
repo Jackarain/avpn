@@ -12,7 +12,6 @@
 #define BOOST_JSON_IMPL_CONVERSION_HPP
 
 #include <boost/json/fwd.hpp>
-#include <boost/json/value.hpp>
 #include <boost/json/string_view.hpp>
 #include <boost/describe/enumerators.hpp>
 #include <boost/describe/members.hpp>
@@ -30,6 +29,9 @@
 
 namespace boost {
 namespace json {
+
+class value_ref;
+
 namespace detail {
 
 #ifdef __cpp_lib_nonmember_container_access
@@ -196,6 +198,7 @@ struct object_conversion_tag : native_conversion_tag { };
 struct array_conversion_tag : native_conversion_tag { };
 struct string_conversion_tag : native_conversion_tag { };
 struct bool_conversion_tag : native_conversion_tag { };
+struct value_ref_tag : native_conversion_tag { };
 struct number_conversion_tag : native_conversion_tag { };
 struct integral_conversion_tag : number_conversion_tag { };
 struct floating_point_conversion_tag : number_conversion_tag { };
@@ -268,10 +271,10 @@ using has_user_conversion3 = mp11::mp_if<
 
 template< class T >
 using described_non_public_members = describe::describe_members<
-    T, describe::mod_private | describe::mod_protected>;
-template< class T >
-using described_bases = describe::describe_bases<
-    T, describe::mod_any_access>;
+    T,
+    describe::mod_private
+        | describe::mod_protected
+        | boost::describe::mod_inherited>;
 
 #if defined(BOOST_MSVC) && BOOST_MSVC < 1920
 
@@ -301,6 +304,45 @@ template< class T >
 using described_members = describe::describe_members<
     T, describe::mod_any_access | describe::mod_inherited>;
 
+#ifdef BOOST_DESCRIBE_CXX14
+
+constexpr
+bool
+compare_strings(char const* l, char const* r)
+{
+#if defined(_MSC_VER) && (_MSC_VER <= 1900) && !defined(__clang__)
+    return *l == *r && ( (*l == 0) | compare_strings(l + 1, r + 1) );
+#else
+    do
+    {
+        if( *l != *r )
+            return false;
+        if( *l == 0 )
+            return true;
+        ++l;
+        ++r;
+    } while(true);
+#endif
+}
+
+template< class L, class R >
+struct equal_member_names
+    : mp11::mp_bool< compare_strings(L::name, R::name) >
+{};
+
+template< class T >
+using uniquely_named_members = mp11::mp_same<
+    mp11::mp_unique_if< described_members<T>, equal_member_names >,
+    described_members<T> >;
+
+#else
+
+// we only check this in C++14, but the template should exist nevertheless
+template< class T >
+using uniquely_named_members = std::true_type;
+
+#endif // BOOST_DESCRIBE_CXX14
+
 // user conversion (via tag_invoke)
 template< class Ctx, class T, class Dir >
 using user_conversion_category = mp11::mp_cond<
@@ -319,18 +361,21 @@ using native_conversion_category = mp11::mp_cond<
 // generic conversions
 template< class T >
 using generic_conversion_category = mp11::mp_cond<
+    // std::is_same<T,std::initializer_list<value_ref>>, init_list_tag,
+    std::is_same<T, value_ref>, value_ref_tag,
+
     std::is_same<T, bool>,     bool_conversion_tag,
     std::is_integral<T>,       integral_conversion_tag,
     std::is_floating_point<T>, floating_point_conversion_tag,
     is_null_like<T>,           null_like_conversion_tag,
     is_string_like<T>,         string_like_conversion_tag,
+    is_variant_like<T>,        variant_conversion_tag,
+    is_optional_like<T>,       optional_conversion_tag,
     is_map_like<T>,            map_like_conversion_tag,
     is_sequence_like<T>,       sequence_conversion_tag,
     is_tuple_like<T>,          tuple_conversion_tag,
     is_described_class<T>,     described_class_conversion_tag,
     is_described_enum<T>,      described_enum_conversion_tag,
-    is_variant_like<T>,        variant_conversion_tag,
-    is_optional_like<T>,       optional_conversion_tag,
     is_path_like<T>,           path_conversion_tag,
     // failed to find a suitable implementation
     mp11::mp_true,             no_conversion_tag>;
@@ -385,9 +430,6 @@ struct conversion_category_impl< std::tuple<Ctxs...>, T, Dir >
 };
 
 struct no_context
-{};
-
-struct allow_exceptions
 {};
 
 template <class T, class Dir>
@@ -544,9 +586,7 @@ struct is_described_class
         mp11::mp_not< std::is_union<T> >,
         mp11::mp_empty<
             mp11::mp_eval_or<
-                mp11::mp_list<>, detail::described_non_public_members, T>>,
-        mp11::mp_empty<
-            mp11::mp_eval_or<mp11::mp_list<>, detail::described_bases, T>>>
+                mp11::mp_list<>, detail::described_non_public_members, T>>>
 { };
 
 template<class T>

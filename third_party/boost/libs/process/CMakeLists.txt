@@ -3,9 +3,11 @@
 # Distributed under the Boost Software License, Version 1.0.
 # https://www.boost.org/LICENSE_1_0.txt
 
-cmake_minimum_required(VERSION 3.5...3.16)
+cmake_minimum_required(VERSION 3.8...3.31)
 
 project(boost_process VERSION "${BOOST_SUPERPROJECT_VERSION}" LANGUAGES CXX)
+
+option(BOOST_PROCESS_USE_STD_FS "Use std::filesystem instead of Boost.Filesystem" OFF)
 
 add_library(boost_process
         src/detail/environment_posix.cpp
@@ -35,7 +37,6 @@ target_link_libraries(boost_process
     Boost::asio
     Boost::config
     Boost::core
-    Boost::filesystem
     Boost::fusion
     Boost::iterator
     Boost::move
@@ -50,14 +51,15 @@ target_compile_definitions(boost_process
         PRIVATE BOOST_PROCESS_SOURCE=1
 )
 
-if (BOOST_PROCESS_USE_STD_FS)
-  target_compile_definitions(boost_process PUBLIC BOOST_PROCESS_USE_STD_FS=1 )
+if(BOOST_PROCESS_USE_STD_FS)
+  target_compile_definitions(boost_process PUBLIC BOOST_PROCESS_USE_STD_FS)
+  target_compile_features(boost_process PUBLIC cxx_std_17)
 else()
   target_link_libraries(boost_process PUBLIC Boost::filesystem)
 endif()
 
-if (WIN32)
-  target_link_libraries(boost_process PUBLIC ntdll shell32 advapi32 user32)
+if(WIN32)
+  target_link_libraries(boost_process PUBLIC ntdll shell32 advapi32 user32 ws2_32)
 endif()
 
 if(BUILD_SHARED_LIBS)

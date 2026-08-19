@@ -2,7 +2,7 @@
 // bind_cancellation_slot.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,6 +27,7 @@
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
 namespace detail {
 
 // Helper to automatically define nested typedef result_type.
@@ -150,6 +151,10 @@ struct cancellation_slot_binder_argument_type<R(&)(A1, A2)>
 
 /// A call wrapper type to bind a cancellation slot of type @c CancellationSlot
 /// to an object of type @c T.
+/**
+ * @sa @ref overview_associators "Associators",
+ * @ref overview_token_adapters "Completion token adapters"
+ */
 template <typename T, typename CancellationSlot>
 class cancellation_slot_binder
 #if !defined(GENERATING_DOCUMENTATION)
@@ -352,14 +357,21 @@ public:
 
   /// Forwarding function call operator.
   template <typename... Args>
-  result_of_t<T(Args...)> operator()(Args&&... args)
+  result_of_t<T(Args...)> operator()(Args&&... args) &
   {
     return target_(static_cast<Args&&>(args)...);
   }
 
   /// Forwarding function call operator.
   template <typename... Args>
-  result_of_t<T(Args...)> operator()(Args&&... args) const
+  result_of_t<T(Args...)> operator()(Args&&... args) &&
+  {
+    return static_cast<T&&>(target_)(static_cast<Args&&>(args)...);
+  }
+
+  /// Forwarding function call operator.
+  template <typename... Args>
+  result_of_t<T(Args...)> operator()(Args&&... args) const&
   {
     return target_(static_cast<Args&&>(args)...);
   }
@@ -607,6 +619,7 @@ struct associated_cancellation_slot<
 
 #endif // !defined(GENERATING_DOCUMENTATION)
 
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 

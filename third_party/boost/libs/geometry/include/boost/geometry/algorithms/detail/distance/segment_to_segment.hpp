@@ -14,8 +14,7 @@
 
 #include <algorithm>
 #include <iterator>
-
-#include <boost/core/addressof.hpp>
+#include <memory>
 
 #include <boost/geometry/algorithms/assign.hpp>
 #include <boost/geometry/algorithms/detail/distance/is_comparable.hpp>
@@ -59,11 +58,11 @@ public:
             return 0;
         }
 
-        typename point_type<Segment1>::type p[2];
+        point_type_t<Segment1> p[2];
         detail::assign_point_from_index<0>(segment1, p[0]);
         detail::assign_point_from_index<1>(segment1, p[1]);
 
-        typename point_type<Segment2>::type q[2];
+        point_type_t<Segment2> q[2];
         detail::assign_point_from_index<0>(segment2, q[0]);
         detail::assign_point_from_index<1>(segment2, q[1]);
 
@@ -80,7 +79,7 @@ public:
         d[2] = cstrategy.apply(p[0], q[0], q[1]);
         d[3] = cstrategy.apply(p[1], q[0], q[1]);
 
-        std::size_t imin = std::distance(boost::addressof(d[0]),
+        std::size_t imin = std::distance(std::addressof(d[0]),
                                          std::min_element(d, d + 4));
 
         if BOOST_GEOMETRY_CONSTEXPR (is_comparable<strategy_type>::value)

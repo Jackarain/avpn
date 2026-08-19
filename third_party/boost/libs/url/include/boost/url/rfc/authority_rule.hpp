@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,6 +17,20 @@
 
 namespace boost {
 namespace urls {
+namespace implementation_defined {
+struct authority_rule_t
+{
+    using value_type = authority_view;
+
+    BOOST_URL_CXX20_CONSTEXPR
+    auto
+    parse(
+        char const*& it,
+        char const* end
+            ) const noexcept ->
+        system::result<value_type>;
+};
+} // implementation_defined
 
 /** Rule for authority
 
@@ -44,26 +59,16 @@ namespace urls {
         @ref grammar::parse,
         @ref parse_authority.
 */
-#ifdef BOOST_URL_DOCS
-constexpr __implementation_defined__ authority_rule;
-#else
-struct authority_rule_t
-{
-    using value_type = authority_view;
-
-    BOOST_URL_DECL
-    auto
-    parse(
-        char const*& it,
-        char const* end
-            ) const noexcept ->
-        system::result<value_type>;
-};
-
-constexpr authority_rule_t authority_rule{};
-#endif
+constexpr implementation_defined::authority_rule_t authority_rule{};
 
 } // urls
 } // boost
+
+// authority_view.hpp defers its impl include when
+// this header is being processed. Include it now
+// that authority_rule is declared.
+#include <boost/url/impl/authority_view.hpp>
+
+#include <boost/url/rfc/impl/authority_rule.hpp>
 
 #endif

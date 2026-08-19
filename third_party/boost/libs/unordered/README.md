@@ -1,7 +1,7 @@
 # Boost.Unordered
 
-[![Branch](https://img.shields.io/badge/branch-master-brightgreen.svg)](https://github.com/boostorg/unordered/tree/master) [![CI](https://github.com/boostorg/unordered/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/unordered/actions/workflows/ci.yml) [![Drone status](https://img.shields.io/drone/build/boostorg/unordered/master?server=https%3A%2F%2Fdrone.cpp.al&logo=drone&logoColor=%23CCCCCC&label=CI)](https://drone.cpp.al/boostorg/unordered) [![Build status](https://img.shields.io/appveyor/build/cppalliance/unordered/master?logo=appveyor&label=CI)](https://ci.appveyor.com/project/cppalliance/unordered/branch/master)  [![codecov](https://codecov.io/gh/boostorg/unordered/branch/master/graph/badge.svg)](https://codecov.io/gh/boostorg/unordered/branch/master)  [![Deps](https://img.shields.io/badge/deps-master-brightgreen.svg)](https://pdimov.github.io/boostdep-report/master/unordered.html)  [![Documentation](https://img.shields.io/badge/docs-master-brightgreen.svg)](https://www.boost.org/doc/libs/master/libs/unordered/doc/html/unordered.html)  [![Enter the Matrix](https://img.shields.io/badge/matrix-master-brightgreen.svg)](http://www.boost.org/development/tests/master/developer/unordered.html)<br/>
-[![Branch](https://img.shields.io/badge/branch-develop-brightgreen.svg)](https://github.com/boostorg/unordered/tree/develop) [![CI](https://github.com/boostorg/unordered/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/unordered/actions/workflows/ci.yml) [![Drone status](https://img.shields.io/drone/build/boostorg/unordered/develop?server=https%3A%2F%2Fdrone.cpp.al&logo=drone&logoColor=%23CCCCCC&label=CI)](https://drone.cpp.al/boostorg/unordered) [![Build status](https://img.shields.io/appveyor/build/cppalliance/unordered/master?logo=appveyor&label=CI)](https://ci.appveyor.com/project/cppalliance/unordered/branch/develop) [![codecov](https://codecov.io/gh/boostorg/unordered/branch/develop/graph/badge.svg)](https://codecov.io/gh/boostorg/unordered/branch/develop) [![Deps](https://img.shields.io/badge/deps-develop-brightgreen.svg)](https://pdimov.github.io/boostdep-report/develop/unordered.html) [![Documentation](https://img.shields.io/badge/docs-develop-brightgreen.svg)](https://www.boost.org/doc/libs/develop/libs/unordered/doc/html/unordered.html) [![Enter the Matrix](https://img.shields.io/badge/matrix-develop-brightgreen.svg)](http://www.boost.org/development/tests/develop/developer/unordered.html)<br/>
+[![Branch](https://img.shields.io/badge/branch-master-brightgreen.svg)](https://github.com/boostorg/unordered/tree/master) [![CI](https://github.com/boostorg/unordered/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/boostorg/unordered/actions/workflows/ci.yml) [![Drone status](https://img.shields.io/drone/build/boostorg/unordered/master?server=https%3A%2F%2Fdrone.cpp.al&logo=drone&logoColor=%23CCCCCC&label=CI)](https://drone.cpp.al/boostorg/unordered) [![Build status](https://img.shields.io/appveyor/build/cppalliance/unordered/master?logo=appveyor&label=CI)](https://ci.appveyor.com/project/cppalliance/unordered/branch/master)  [![codecov](https://codecov.io/gh/boostorg/unordered/branch/master/graph/badge.svg)](https://codecov.io/gh/boostorg/unordered/branch/master)  [![Deps](https://img.shields.io/badge/deps-master-brightgreen.svg)](https://pdimov.github.io/boostdep-report/master/unordered.html)  [![Documentation](https://img.shields.io/badge/docs-master-brightgreen.svg)](https://www.boost.org/doc/libs/master/libs/unordered/index.html)  [![Enter the Matrix](https://img.shields.io/badge/matrix-master-brightgreen.svg)](https://regression.boost.org/master/developer/unordered.html)<br/>
+[![Branch](https://img.shields.io/badge/branch-develop-brightgreen.svg)](https://github.com/boostorg/unordered/tree/develop) [![CI](https://github.com/boostorg/unordered/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/boostorg/unordered/actions/workflows/ci.yml) [![Drone status](https://img.shields.io/drone/build/boostorg/unordered/develop?server=https%3A%2F%2Fdrone.cpp.al&logo=drone&logoColor=%23CCCCCC&label=CI)](https://drone.cpp.al/boostorg/unordered) [![Build status](https://img.shields.io/appveyor/build/cppalliance/unordered/develop?logo=appveyor&label=CI)](https://ci.appveyor.com/project/cppalliance/unordered/branch/develop) [![codecov](https://codecov.io/gh/boostorg/unordered/branch/develop/graph/badge.svg)](https://codecov.io/gh/boostorg/unordered/branch/develop) [![Deps](https://img.shields.io/badge/deps-develop-brightgreen.svg)](https://pdimov.github.io/boostdep-report/develop/unordered.html) [![Documentation](https://img.shields.io/badge/docs-develop-brightgreen.svg)](https://www.boost.org/doc/libs/develop/libs/unordered/index.html) [![Enter the Matrix](https://img.shields.io/badge/matrix-develop-brightgreen.svg)](https://regression.boost.org/develop/developer/unordered.html)<br/>
 [![BSL 1.0](https://img.shields.io/badge/license-BSL_1.0-blue.svg)](https://www.boost.org/users/license.html) <img alt="C++11 required" src="https://img.shields.io/badge/standard-C%2b%2b11-blue.svg"> <img alt="Header-only library" src="https://img.shields.io/badge/build-header--only-blue.svg">
 
 Boost.Unordered offers a catalog of hash containers with different standards compliance levels, performances and intented usage scenarios:
@@ -25,6 +25,10 @@ deviate from the standard in exchange for top performance.</ul>
 
 <ul>High performance for multithreaded scenarios. Introducing a new non-standard, iterator-free API.</ul>
 
+**`boost::concurrent_node_set` `boost::concurrent_node_map`**
+
+<ul>Variations of <code>boost::concurrent_flat_(set|map)</code> providing pointer stability.</ul>
+
 ## Learn about Boost.Unordered
 
 * [Online documentation](https://boost.org/libs/unordered)
@@ -34,16 +38,18 @@ deviate from the standard in exchange for top performance.</ul>
   * [Inside `boost::unordered_flat_map`](https://bannalia.blogspot.com/2022/11/inside-boostunorderedflatmap.html)
   * [Inside `boost::concurrent_flat_map`](https://bannalia.blogspot.com/2023/07/inside-boostconcurrentflatmap.html)
   * [Bulk visitation in `boost::concurrent_flat_map`](https://bannalia.blogspot.com/2023/10/bulk-visitation-in-boostconcurrentflatm.html)
-
-## Get the library
+* Debugging visualizers for Boost.Unordered:
+  * [Natvis for boost::unordered_map, and how to use &lt;Intrinsic&gt; elements](https://blog.ganets.ky/NatvisForUnordered/)
+  * [Natvis for boost::concurrent_flat_map, and why fancy pointers are hard](https://blog.ganets.ky/NatvisForUnordered2/)
+  * [Visualizing boost::unordered_map in GDB, with pretty-printer customization points](https://blog.ganets.ky/PrettyPrinter/)
 
 Boost.Unordered can be installed in a number of ways:
 
 * [Download Boost](https://www.boost.org/users/download/) and you're ready to go (this is a header-only library requiring no building).
-* Using Conan 2: In case you don't have it yet, add an entry for Boost in your `conanfile.txt` (the example requires at least Boost 1.83):
+* Using Conan 2: In case you don't have it yet, add an entry for Boost in your `conanfile.txt` (the example requires at least Boost 1.86):
 ```
 [requires]
-boost/[>=1.83.0]
+boost/[>=1.86.0]
 ```
 <ul>If you're not using any compiled Boost library, the following will skip building altogether:</ul>
 

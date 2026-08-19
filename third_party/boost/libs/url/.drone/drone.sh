@@ -205,21 +205,6 @@ elif [ "$DRONE_JOB_BUILDTYPE" == "codecov" ]; then
   cd "$BOOST_ROOT/libs/$SELF"
   ci/travis/codecov.sh
 
-  # coveralls
-  # uses multiple lcov steps from boost-ci codecov.sh script
-  if [ -n "${COVERALLS_REPO_TOKEN}" ]; then
-    echo "processing coveralls"
-    pip3 install --user cpp-coveralls
-    cd "$BOOST_CI_SRC_FOLDER"
-
-    export PATH=/tmp/lcov/bin:$PATH
-    command -v lcov
-    lcov --version
-
-    lcov --remove coverage.info -o coverage_filtered.info '*/test/*' '*/extra/*'
-    cpp-coveralls --verbose -l coverage_filtered.info
-  fi
-
 elif [ "$DRONE_JOB_BUILDTYPE" == "valgrind" ]; then
 
   echo '==================================> INSTALL'
@@ -230,28 +215,6 @@ elif [ "$DRONE_JOB_BUILDTYPE" == "valgrind" ]; then
 
   cd "$BOOST_ROOT/libs/$SELF"
   ci/travis/valgrind.sh
-
-elif [ "$DRONE_JOB_BUILDTYPE" == "standalone" ]; then
-
-  echo '==================================> INSTALL'
-
-  # Installing cmake with apt-get, so not required here:
-  # pip install --user cmake
-
-  echo '==================================> SCRIPT'
-
-  export CXXFLAGS="-Wall -Wextra -Werror -std=c++17"
-  mkdir __build_17
-  cd __build_17
-  cmake -DBOOST_JSON_STANDALONE=1 ..
-  cmake --build .
-  ctest -V .
-  export CXXFLAGS="-Wall -Wextra -Werror -std=c++2a"
-  mkdir ../__build_2a
-  cd ../__build_2a
-  cmake -DBOOST_JSON_STANDALONE=1 ..
-  cmake --build .
-  ctest -V .
 
 elif [ "$DRONE_JOB_BUILDTYPE" == "coverity" ]; then
 
@@ -284,7 +247,7 @@ elif [ "$DRONE_JOB_BUILDTYPE" == "cmake-superproject" ]; then
   cd __build_static
   cmake -DBOOST_ENABLE_CMAKE=1 -DBUILD_TESTING=ON -DBoost_VERBOSE=1 \
     -DBOOST_INCLUDE_LIBRARIES="$SELF" ..
-  cmake --build .
+  cmake --build . --target tests
   ctest --output-on-failure -R "boost_$SELF"
 
   cd ..
@@ -293,7 +256,7 @@ elif [ "$DRONE_JOB_BUILDTYPE" == "cmake-superproject" ]; then
   cd __build_shared
   cmake -DBOOST_ENABLE_CMAKE=1 -DBUILD_TESTING=ON -DBoost_VERBOSE=1 \
     -DBOOST_INCLUDE_LIBRARIES="$SELF" -DBUILD_SHARED_LIBS=ON ..
-  cmake --build .
+  cmake --build . --target tests
   ctest --output-on-failure -R "boost_$SELF"
 
 elif [ "$DRONE_JOB_BUILDTYPE" == "cmake-install" ]; then
@@ -329,7 +292,7 @@ elif [ "$DRONE_JOB_BUILDTYPE" == "cmake-install" ]; then
   cd "libs/$SELF"
   mkdir __build__ && cd __build__
   cmake -DCMAKE_INSTALL_PREFIX=~/.local ..
-  cmake --build . --target install
+  cmake --build . --target tests
   ctest --output-on-failure
 
   # CMake subdir tests

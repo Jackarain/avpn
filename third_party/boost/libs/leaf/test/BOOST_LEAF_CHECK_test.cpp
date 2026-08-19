@@ -1,5 +1,4 @@
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -16,6 +15,7 @@
 #   define BOOST_WORKAROUND(a,b) 0
 #endif
 
+#include "_test_res.hpp"
 #include "lightweight_test.hpp"
 
 namespace leaf = boost::leaf;
@@ -64,12 +64,39 @@ leaf::result<void> f3( bool success )
     return { };
 }
 
+#ifndef BOOST_LEAF_NO_CXX11_REF_QUALIFIERS
+
+test_res<int, test_error> f_te( bool succeed )
+{
+    if( succeed )
+        return 42;
+    else
+        return test_error(42);
+}
+
+test_res<int, test_error> g_check_te()
+{
+    BOOST_LEAF_CHECK(f_te(false));
+    return 21;
+}
+
+#endif
+
 int main()
 {
     BOOST_TEST_EQ(f2(true).value().x, 42);
     BOOST_TEST(!f2(false));
     BOOST_TEST(f3(true));
     BOOST_TEST(!f3(false));
+
+#ifndef BOOST_LEAF_NO_CXX11_REF_QUALIFIERS
+    {
+        auto r = g_check_te();
+        BOOST_TEST(!r);
+        BOOST_TEST(r.error().moved);
+        BOOST_TEST_EQ(r.error().value, 42);
+    }
+#endif
 
     return boost::report_errors();
 }

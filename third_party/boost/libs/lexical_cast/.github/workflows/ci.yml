@@ -17,6 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - toolset: gcc-14  # Do not remove! It is the only toolset that tests CMake tests down below
+            cxxstd: "03,11,14,17,20"
+            os: ubuntu-24.04
+            compiler: g++-14
           - toolset: gcc-12
             cxxstd: "03,11,14,17,2a"
             os: ubuntu-22.04
@@ -24,27 +28,26 @@ jobs:
             linkflags: "linkflags=--coverage -lasan -lubsan"
             gcov_tool: "gcov-12"
             launcher: "testing.launcher=LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libasan.so.8"
-          - toolset: gcc-9
+          - toolset: gcc-11
             cxxstd: "03,11,14,17,2a"
             os: ubuntu-22.04
-          - toolset: clang
-            compiler: clang++-10
-            cxxstd: "03,11,14,17,2a"
-            os: ubuntu-20.04
-            cxxflags: "cxxflags=-fsanitize=address,undefined,integer -fno-sanitize-recover=undefined,integer"
-            linkflags: "linkflags=-fsanitize=address,undefined,integer"
           - toolset: clang
             compiler: clang++-14
             cxxstd: "03,11,14,17,2a"
             os: ubuntu-22.04
           - toolset: clang
             cxxstd: "11,14,17,20"
-            os: macos-13
+            os: macos-latest
+          - toolset: clang-19
+            cxxstd: "20,23"
+            os: ubuntu-24.04
+            compiler: clang++-19
+            install: clang-19 llvm-19 libclang-rt-19-dev libc++-19-dev libc++abi-19-dev clang-tools-19
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
 
       - name: Install packages
         if: matrix.install
@@ -72,8 +75,52 @@ jobs:
           cp -r $GITHUB_WORKSPACE/* libs/$LIBRARY
           python tools/boostdep/depinst/depinst.py --include benchmark --include example --include examples --include tools --git_args "--depth 10 --jobs 3" $LIBRARY
           ./bootstrap.sh
-          ./b2 -d0 headers
-          ./b2 -j4 variant=debug tools/inspect/build
+          ./b2 -j4 variant=debug tools/inspect
+
+      - name: Run modules tests without 'import std;'
+        if: ${{matrix.toolset == 'clang-19'}}
+        run: |
+          cd ../boost-root/libs/lexical_cast
+          cmake -S test/cmake_subdir_test -B build_module \
+            -GNinja \
+            -DBUILD_TESTING=1 \
+            -DBOOST_USE_MODULES=1 \
+            -DCMAKE_CXX_COMPILER=clang++-19 \
+            -DCMAKE_C_COMPILER=clang-19
+          cmake --build build_module
+          ctest --test-dir build_module -V --no-tests=error
+          rm -rf build_module
+
+      - name: Run modules tests
+        if: ${{matrix.toolset == 'clang-19'}}
+        run: |
+          cd ../boost-root/libs/lexical_cast
+          cmake -S test/cmake_subdir_test -B build_module \
+            -GNinja \
+            -DBUILD_TESTING=1 \
+            -DBOOST_USE_MODULES=1 \
+            -DCMAKE_CXX_COMPILER=clang++-19 \
+            -DCMAKE_C_COMPILER=clang-19 \
+            -DCMAKE_CXX_FLAGS=-stdlib=libc++ \
+            -DCMAKE_CXX_STANDARD=23 \
+            -DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=0e5b6991-d74f-4b3d-a41c-cf096e0b2508 \
+            -DCMAKE_CXX_MODULE_STD=ON
+          cmake --build build_module
+          ctest --test-dir build_module -V --no-tests=error
+          rm -rf build_module
+
+      - name: Run CMake tests
+        if: ${{matrix.toolset == 'gcc-14' || matrix.toolset == 'clang-19'}}
+        run: |
+          cd ../boost-root/
+          cmake -S . -B __build \
+            -DBUILD_TESTING=1 \
+            -DBOOST_INCLUDE_LIBRARIES=lexical_cast \
+            -DCMAKE_CXX_COMPILER=${{matrix.compiler}} \
+            -DCMAKE_C_COMPILER=${{matrix.toolset}}
+          cmake --build __build --target tests
+          ctest --test-dir __build --output-on-failure --no-tests=error
+          rm -rf __build
 
       - name: Run tests
         run: |
@@ -114,23 +161,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolset: msvc
-            cxxstd: "14,17,latest"
+          - toolset: msvc-14.3
+            cxxstd: "14,17,20,latest"
             addrmd: 32,64
             os: windows-2022
-          - toolset: msvc-14.2
+          - toolset: msvc
             cxxstd: "14,17,latest"
-            addrmd: 32,64
-            os: windows-2019
+            addrmd: 64
+            os: windows-2025
           - toolset: gcc
             cxxstd: "03,11,14,17,2a"
             addrmd: 64
-            os: windows-2019
+            os: windows-2022
 
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
 
       - name: Setup Boost
         shell: cmd
@@ -149,10 +196,51 @@ jobs:
           git clone -b %BOOST_BRANCH% --depth 10 https://github.com/boostorg/boost.git boost-root
           cd boost-root
           xcopy /s /e /q %GITHUB_WORKSPACE% libs\%LIBRARY%\
-          git submodule update --init tools/boostdep
+          git submodule update --init tools/boostdep libs/test
           python tools/boostdep/depinst/depinst.py --include benchmark --include example --include examples --include tools --git_args "--jobs 3" %LIBRARY%
           cmd /c bootstrap
-          b2 -d0 headers
+
+      - name: Run CMake tests
+        if: ${{matrix.toolset == 'msvc-14.3'}}
+        shell: cmd
+        run: |
+          choco install --no-progress ninja
+          call "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvarsall.bat" x64
+          cd ../boost-root/
+          mkdir __build
+          cd __build
+          cmake -DBUILD_TESTING=1 -DBOOST_INCLUDE_LIBRARIES=lexical_cast -G Ninja ..
+          cmake --build . --target tests --config Debug
+          ctest --output-on-failure --no-tests=error -C Debug
+
+      - name: Run modules tests
+        if: false
+        #if: ${{matrix.toolset == 'msvc-14.3'}}
+        shell: cmd
+        run: |
+          choco install --no-progress ninja
+          call "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvarsall.bat" x64
+          cd ../boost-root/libs/lexical_cast
+          rm -rf build_module
+          mkdir build_module
+          cd build_module
+          cmake -DBOOST_USE_MODULES=1 -DCMAKE_CXX_STANDARD=23 -DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=0e5b6991-d74f-4b3d-a41c-cf096e0b2508 -G Ninja ../test/cmake_subdir_test/
+          cmake --build .
+          ctest --no-tests=error -V
+
+      - name: Run modules tests without 'import std;'
+        if: ${{matrix.toolset == 'msvc-14.3'}}
+        shell: cmd
+        run: |
+          choco install --no-progress ninja
+          call "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvarsall.bat" x64
+          cd ../boost-root/libs/lexical_cast
+          rm -rf build_module
+          mkdir build_module
+          cd build_module
+          cmake -DBOOST_USE_MODULES=1 -DCMAKE_CXX_STANDARD=20 -G Ninja ../test/cmake_subdir_test/
+          cmake --build .
+          ctest --no-tests=error -V
 
       - name: Run tests
         shell: cmd

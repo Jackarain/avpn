@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -10,6 +10,8 @@
 
 #include <boost/mysql/client_errc.hpp>
 #include <boost/mysql/error_code.hpp>
+
+#include <boost/mysql/impl/internal/next_power_of_two.hpp>
 
 #include <boost/assert.hpp>
 #include <boost/config.hpp>
@@ -138,14 +140,20 @@ public:
     }
 
     // Makes sure the free size is at least n bytes long; resizes the buffer if required
+    // Buffer grows to power of two, unless limited by max_size
     BOOST_ATTRIBUTE_NODISCARD
     error_code grow_to_fit(std::size_t n)
     {
         if (free_size() < n)
         {
-            std::size_t new_size = buffer_.size() + n - free_size();
+            std::size_t required_size = buffer_.size() + n - free_size();
+            std::size_t new_size = next_power_of_two(required_size);
             if (new_size > max_size_)
-                return client_errc::max_buffer_size_exceeded;
+            {
+                new_size = required_size;
+                if (new_size > max_size_)
+                    return client_errc::max_buffer_size_exceeded;
+            }
             buffer_.resize(new_size);
         }
         return error_code();

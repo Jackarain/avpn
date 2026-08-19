@@ -56,6 +56,7 @@
 #include <boost/config.hpp>
 #include <boost/next_prior.hpp>
 #include <boost/utility/string_view.hpp>
+#include <boost/container/string.hpp>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -72,7 +73,7 @@ using boost::filesystem::path;
 using boost::next;
 using boost::prior;
 
-#ifdef BOOST_WINDOWS_API
+#ifdef BOOST_FILESYSTEM_WINDOWS_API
 #define BOOST_DIR_SEP "\\"
 #else
 #define BOOST_DIR_SEP "/"
@@ -136,11 +137,48 @@ public:
     operator fs::path() const { return m_path; }
 };
 
-template< typename Char >
+//! Test type to verify that the conversion to path is preferred (https://github.com/boostorg/filesystem/issues/326)
+class convertible_to_path_and_strings
+{
+private:
+    fs::path m_path;
+
+public:
+    convertible_to_path_and_strings() {}
+    convertible_to_path_and_strings(convertible_to_path_and_strings const& that) : m_path(that.m_path) {}
+    template< typename T >
+    convertible_to_path_and_strings(T const& that) : m_path(that) {}
+
+    convertible_to_path_and_strings& operator= (convertible_to_path_and_strings const& that)
+    {
+        m_path = that.m_path;
+        return *this;
+    }
+    template< typename T >
+    convertible_to_path_and_strings& operator= (T const& that)
+    {
+        m_path = that;
+        return *this;
+    }
+
+    operator fs::path() const { return m_path; }
+    operator const fs::path::value_type*() const
+    {
+#if defined(BOOST_FILESYSTEM_WINDOWS_API)
+        return L"[invalid path]";
+#else
+        return "[invalid path]";
+#endif
+    }
+    operator fs::path::string_type() const { return fs::path::string_type(static_cast< const fs::path::value_type* >(*this)); }
+};
+
+
+template< typename String >
 class basic_custom_string
 {
 public:
-    typedef std::basic_string< Char > string_type;
+    typedef String string_type;
     typedef typename string_type::size_type size_type;
     typedef typename string_type::difference_type difference_type;
     typedef typename string_type::value_type value_type;
@@ -183,9 +221,10 @@ public:
     operator string_type() const { return m_str; }
 };
 
-typedef basic_custom_string< char > custom_string;
-typedef basic_custom_string< wchar_t > wcustom_string;
-typedef basic_custom_string< fs::path::value_type > pcustom_string;
+typedef basic_custom_string< std::string > custom_string;
+typedef basic_custom_string< std::wstring > wcustom_string;
+typedef basic_custom_string< fs::path::string_type > pcustom_string;
+typedef basic_custom_string< boost::container::basic_string< fs::path::value_type > > pcontainer_custom_string;
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -2188,6 +2227,8 @@ void construction_tests()
 
     PATH_TEST_EQ(derived_from_path("foo"), "foo");
     PATH_TEST_EQ(convertible_to_path("foo"), "foo");
+    PATH_TEST_EQ(convertible_to_path_and_strings("foo"), "foo");
+    PATH_TEST_EQ(boost::container::string("foo"), "foo");
     PATH_TEST_EQ(fs::path(pcustom_string("foo")), "foo");
     PATH_TEST_EQ(boost::string_view("foo"), "foo");
 #if !defined(BOOST_NO_CXX17_HDR_STRING_VIEW)
@@ -2202,11 +2243,16 @@ void construction_tests()
 
 //  append_tests  --------------------------------------------------------------------//
 
+#define APPEND_TEST_CASE(name, appnd, expected)\
+    {\
+        path BOOST_JOIN(name, _result)(p);\
+        BOOST_JOIN(name, _result) /= appnd;\
+        PATH_TEST_EQ(BOOST_JOIN(name, _result), expected);\
+    }
+
 #if !defined(BOOST_NO_CXX17_HDR_STRING_VIEW)
 #define APPEND_TEST_STD_STRING_VIEW(appnd, expected)\
-        path p6(p);\
-        p6 /= std::string_view(appnd);\
-        PATH_TEST_EQ(p6, expected);
+    APPEND_TEST_CASE(std_string_view, std::string_view(appnd), expected)
 #else
 #define APPEND_TEST_STD_STRING_VIEW(appnd, expected)
 #endif
@@ -2219,25 +2265,20 @@ void construction_tests()
         PATH_TEST_EQ((p / path(s)).string(), expected);\
         PATH_TEST_EQ((p / s.c_str()).string(), expected);\
         PATH_TEST_EQ((p / s).string(), expected);\
-        path p1(p);\
-        p1 /= appnd;\
-        PATH_TEST_EQ(p1, expected);\
-        path p2(p);\
-        p2 /= derived_from_path(appnd);\
-        PATH_TEST_EQ(p2, expected);\
-        path p3(p);\
-        p3 /= convertible_to_path(appnd);\
-        PATH_TEST_EQ(p3, expected);\
-        path p4(p);\
-        p4 /= pcustom_string(appnd);\
-        PATH_TEST_EQ(p4, expected);\
-        path p5(p);\
-        p5 /= boost::string_view(appnd);\
-        PATH_TEST_EQ(p5, expected);\
+        APPEND_TEST_CASE(c_string_literal, appnd, expected)\
+        APPEND_TEST_CASE(derived_from_path, derived_from_path(appnd), expected)\
+        APPEND_TEST_CASE(convertible_to_path, convertible_to_path(appnd), expected)\
+        APPEND_TEST_CASE(convertible_to_path_and_strings, convertible_to_path_and_strings(appnd), expected)\
+        APPEND_TEST_CASE(boost_container_string, boost::container::string(appnd), expected)\
+        APPEND_TEST_CASE(pcustom_string, pcustom_string(appnd), expected)\
+        APPEND_TEST_CASE(pcontainer_custom_string, pcontainer_custom_string(appnd), expected)\
+        APPEND_TEST_CASE(boost_string_view, boost::string_view(appnd), expected)\
         APPEND_TEST_STD_STRING_VIEW(appnd, expected)\
-        path p7(p);\
-        p7.append(s.begin(), s.end());\
-        PATH_TEST_EQ(p7.string(), expected);\
+        {\
+            path append_result(p);\
+            append_result.append(s.begin(), s.end());\
+            PATH_TEST_EQ(append_result.string(), expected);\
+        }\
     }
 
 void append_tests()
@@ -2348,11 +2389,16 @@ void append_tests()
 
 //  concat_tests  --------------------------------------------------------------------//
 
+#define CONCAT_TEST_CASE(name, appnd, expected)\
+    {\
+        path BOOST_JOIN(name, _result)(p);\
+        BOOST_JOIN(name, _result) += appnd;\
+        PATH_TEST_EQ(BOOST_JOIN(name, _result).string(), expected);\
+    }
+
 #if !defined(BOOST_NO_CXX17_HDR_STRING_VIEW)
 #define CONCAT_TEST_STD_STRING_VIEW(appnd, expected)\
-        path p9(p);\
-        p9 += std::string_view(appnd);\
-        PATH_TEST_EQ(p9, expected);
+    CONCAT_TEST_CASE(std_string_view, std::string_view(appnd), expected)
 #else
 #define CONCAT_TEST_STD_STRING_VIEW(appnd, expected)
 #endif
@@ -2361,34 +2407,23 @@ void append_tests()
     {\
         const path p(pth);\
         const std::string s(appnd);\
-        path p1(p);\
-        p1 += appnd;\
-        PATH_TEST_EQ(p1.string(), expected);\
-        path p2(p);\
-        p2 += path(appnd);\
-        PATH_TEST_EQ(p2.string(), expected);\
-        path p3(p);\
-        p3 += s;\
-        PATH_TEST_EQ(p3.string(), expected);\
-        path p4(p);\
-        p4 += s.c_str();\
-        PATH_TEST_EQ(p4.string(), expected);\
-        path p5(p);\
-        p5 += derived_from_path(appnd);\
-        PATH_TEST_EQ(p5, expected);\
-        path p6(p);\
-        p6 += convertible_to_path(appnd);\
-        PATH_TEST_EQ(p6, expected);\
-        path p7(p);\
-        p7 += pcustom_string(appnd);\
-        PATH_TEST_EQ(p7, expected);\
-        path p8(p);\
-        p8 += boost::string_view(appnd);\
-        PATH_TEST_EQ(p8, expected);\
+        CONCAT_TEST_CASE(c_string_literal, appnd, expected)\
+        CONCAT_TEST_CASE(path, path(appnd), expected)\
+        CONCAT_TEST_CASE(std_string, s, expected)\
+        CONCAT_TEST_CASE(c_string, s.c_str(), expected)\
+        CONCAT_TEST_CASE(derived_from_path, derived_from_path(appnd), expected)\
+        CONCAT_TEST_CASE(convertible_to_path, convertible_to_path(appnd), expected)\
+        CONCAT_TEST_CASE(convertible_to_path_and_strings, convertible_to_path_and_strings(appnd), expected)\
+        CONCAT_TEST_CASE(boost_container_string, boost::container::string(appnd), expected)\
+        CONCAT_TEST_CASE(pcustom_string, pcustom_string(appnd), expected)\
+        CONCAT_TEST_CASE(pcontainer_custom_string, pcontainer_custom_string(appnd), expected)\
+        CONCAT_TEST_CASE(boost_string_view, boost::string_view(appnd), expected)\
         CONCAT_TEST_STD_STRING_VIEW(appnd, expected)\
-        path p10(p);\
-        p10.concat(s.begin(), s.end());\
-        PATH_TEST_EQ(p10.string(), expected);\
+        {\
+            path concat_result(p);\
+            concat_result.concat(s.begin(), s.end());\
+            PATH_TEST_EQ(concat_result.string(), expected);\
+        }\
     }
 
 void concat_tests()
@@ -2843,6 +2878,7 @@ void compare_tests()
     COMPARE_TEST("foo", "zoo")
     COMPARE_TEST(std::string("foo"), std::string("zoo"))
     COMPARE_TEST(derived_from_path("foo"), derived_from_path("zoo"))
+    COMPARE_TEST(boost::container::string("foo"), boost::container::string("zoo"))
     COMPARE_TEST(pcustom_string("foo"), pcustom_string("zoo"))
     COMPARE_TEST(boost::string_view("foo"), boost::string_view("zoo"))
 #if !defined(BOOST_NO_CXX17_HDR_STRING_VIEW)
@@ -2892,7 +2928,7 @@ int cpp_main(int, char*[])
     // The choice of platform is make at runtime rather than compile-time
     // so that compile errors for all platforms will be detected even though
     // only the current platform is runtime tested.
-    platform = (platform == "Win32" || platform == "Win64" || platform == "Cygwin") ? "Windows" : "POSIX";
+    platform = (platform == "Win32" || platform == "Win64") ? "Windows" : "POSIX";
     std::cout << "Platform is " << platform << '\n';
 
     BOOST_TEST(p1.string() != p3.string());

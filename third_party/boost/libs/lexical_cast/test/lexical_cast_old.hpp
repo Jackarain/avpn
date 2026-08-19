@@ -1,6 +1,6 @@
 // Copyright Kevlin Henney, 2000-2005.
 // Copyright Alexander Nasonov, 2006-2010.
-// Copyright Antony Polukhin, 2011-2024.
+// Copyright Antony Polukhin, 2011-2026.
 //
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
@@ -32,10 +32,9 @@
 #include <string>
 #include <cstring>
 #include <cstdio>
+#include <type_traits>
 #include <boost/limits.hpp>
-#include <boost/type_traits/is_pointer.hpp>
-#include <boost/detail/lcast_precision.hpp>
-#include <boost/detail/workaround.hpp>
+#include <boost/config/workaround.hpp>
 
 #ifdef BOOST_NO_STRINGSTREAM
 #include <strstream>
@@ -43,6 +42,10 @@
 #include <sstream>
 #endif
 
+#if defined(BOOST_USE_MODULES)
+#undef BOOST_USE_MODULES
+#endif
+#include <boost/lexical_cast/detail/lcast_precision.hpp>
 #include <boost/lexical_cast/bad_lexical_cast.hpp>
 #include <boost/lexical_cast/detail/widest_char.hpp>
 
@@ -115,7 +118,7 @@ namespace boost {
             template<typename InputStreamable>
             bool operator>>(InputStreamable &output)
             {
-                return !is_pointer<InputStreamable>::value &&
+                return !std::is_pointer<InputStreamable>::value &&
                        stream >> output &&
                        stream.get() == traits_type::eof();
             }

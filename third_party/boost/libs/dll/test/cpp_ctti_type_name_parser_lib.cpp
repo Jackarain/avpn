@@ -8,10 +8,9 @@
 
 #include <boost/config.hpp>
 
-#if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
+#include <string>
 
 #include <boost/dll/config.hpp>
-#include <string>
 
 namespace space {
 template<typename... T>
@@ -138,4 +137,3 @@ cpp_plugin_type_pasrser::type_test(
 {}
 } // namespace space
 
-#endif

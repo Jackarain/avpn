@@ -21,7 +21,6 @@ type_traits
 
 # Secondary dependencies
 
-static_assert
 )
 
 foreach(dep IN LISTS deps)
@@ -36,4 +35,4 @@ target_link_libraries(main Boost::uuid)
 enable_testing()
 add_test(main main)
 
-add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>)
+add_custom_target(check VERBATIM COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>)

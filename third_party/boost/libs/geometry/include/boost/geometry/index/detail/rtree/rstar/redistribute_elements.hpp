@@ -17,8 +17,6 @@
 
 #include <boost/core/ignore_unused.hpp>
 
-#include <boost/geometry/core/static_assert.hpp>
-
 #include <boost/geometry/index/detail/algorithms/intersection_content.hpp>
 #include <boost/geometry/index/detail/algorithms/margin.hpp>
 #include <boost/geometry/index/detail/algorithms/nth_element.hpp>
@@ -114,16 +112,16 @@ struct choose_split_axis_and_index_for_corner
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements const& elements,
-                             size_t & choosen_index,
+                             size_t & chosen_index,
                              margin_type & sum_of_margins,
                              content_type & smallest_overlap,
                              content_type & smallest_content,
                              Parameters const& parameters,
                              Translator const& translator)
     {
-        typedef typename Elements::value_type element_type;
-        typedef typename rtree::element_indexable_type<element_type, Translator>::type indexable_type;
-        typedef typename tag<indexable_type>::type indexable_tag;
+        using element_type = typename Elements::value_type;
+        using indexable_type = typename rtree::element_indexable_type<element_type, Translator>::type;
+        using indexable_tag = tag_t<indexable_type>;
 
         BOOST_GEOMETRY_INDEX_ASSERT(elements.size() == parameters.get_max_elements() + 1, "wrong number of elements");
 
@@ -152,7 +150,7 @@ struct choose_split_axis_and_index_for_corner
 //        }
 
         // init outputs
-        choosen_index = index_first;
+        chosen_index = index_first;
         sum_of_margins = 0;
         smallest_overlap = (std::numeric_limits<content_type>::max)();
         smallest_content = (std::numeric_limits<content_type>::max)();
@@ -176,7 +174,7 @@ struct choose_split_axis_and_index_for_corner
             // TODO - shouldn't here be < instead of <= ?
             if ( ovl < smallest_overlap || (ovl == smallest_overlap && con <= smallest_content) )
             {
-                choosen_index = i;
+                chosen_index = i;
                 smallest_overlap = ovl;
                 smallest_content = con;
             }
@@ -200,8 +198,8 @@ struct choose_split_axis_and_index_for_axis
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements const& elements,
-                             size_t & choosen_corner,
-                             size_t & choosen_index,
+                             size_t & chosen_corner,
+                             size_t & chosen_index,
                              margin_type & sum_of_margins,
                              content_type & smallest_overlap,
                              content_type & smallest_content,
@@ -232,15 +230,15 @@ struct choose_split_axis_and_index_for_axis
 
         if ( ovl1 < ovl2 || (ovl1 == ovl2 && con1 <= con2) )
         {
-            choosen_corner = min_corner;
-            choosen_index = index1;
+            chosen_corner = min_corner;
+            chosen_index = index1;
             smallest_overlap = ovl1;
             smallest_content = con1;
         }
         else
         {
-            choosen_corner = max_corner;
-            choosen_index = index2;
+            chosen_corner = max_corner;
+            chosen_index = index2;
             smallest_overlap = ovl2;
             smallest_content = con2;
         }
@@ -255,8 +253,8 @@ struct choose_split_axis_and_index_for_axis<Box, AxisIndex, point_tag>
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements const& elements,
-                             size_t & choosen_corner,
-                             size_t & choosen_index,
+                             size_t & chosen_corner,
+                             size_t & chosen_index,
                              margin_type & sum_of_margins,
                              content_type & smallest_overlap,
                              content_type & smallest_content,
@@ -264,27 +262,27 @@ struct choose_split_axis_and_index_for_axis<Box, AxisIndex, point_tag>
                              Translator const& translator)
     {
         choose_split_axis_and_index_for_corner<Box, min_corner, AxisIndex>
-            ::apply(elements, choosen_index,
+            ::apply(elements, chosen_index,
                     sum_of_margins, smallest_overlap, smallest_content,
                     parameters, translator);                                                                // MAY THROW, STRONG
 
-        choosen_corner = min_corner;
+        chosen_corner = min_corner;
     }
 };
 
 template <typename Box, size_t Dimension>
 struct choose_split_axis_and_index
 {
-    BOOST_STATIC_ASSERT(0 < Dimension);
+    static_assert(0 < Dimension, "Dimension must be positive.");
 
     typedef typename index::detail::default_margin_result<Box>::type margin_type;
     typedef typename index::detail::default_content_result<Box>::type content_type;
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements const& elements,
-                             size_t & choosen_axis,
-                             size_t & choosen_corner,
-                             size_t & choosen_index,
+                             size_t & chosen_axis,
+                             size_t & chosen_corner,
+                             size_t & chosen_index,
                              margin_type & smallest_sum_of_margins,
                              content_type & smallest_overlap,
                              content_type & smallest_content,
@@ -294,7 +292,7 @@ struct choose_split_axis_and_index
         typedef typename rtree::element_indexable_type<typename Elements::value_type, Translator>::type element_indexable_type;
 
         choose_split_axis_and_index<Box, Dimension - 1>
-            ::apply(elements, choosen_axis, choosen_corner, choosen_index,
+            ::apply(elements, chosen_axis, chosen_corner, chosen_index,
                     smallest_sum_of_margins, smallest_overlap, smallest_content,
                     parameters, translator);                                                                // MAY THROW, STRONG
 
@@ -306,17 +304,19 @@ struct choose_split_axis_and_index
         content_type overlap_val = (std::numeric_limits<content_type>::max)();
         content_type content_val = (std::numeric_limits<content_type>::max)();
 
-        choose_split_axis_and_index_for_axis<
-            Box,
-            Dimension - 1,
-            typename tag<element_indexable_type>::type
-        >::apply(elements, corner, index, sum_of_margins, overlap_val, content_val, parameters, translator); // MAY THROW, STRONG
+        choose_split_axis_and_index_for_axis
+            <
+                Box,
+                Dimension - 1,
+                tag_t<element_indexable_type>
+            >::apply(elements, corner, index, sum_of_margins, overlap_val, content_val, 
+                     parameters, translator); // MAY THROW, STRONG
 
-        if ( sum_of_margins < smallest_sum_of_margins )
+        if (sum_of_margins < smallest_sum_of_margins)
         {
-            choosen_axis = Dimension - 1;
-            choosen_corner = corner;
-            choosen_index = index;
+            chosen_axis = Dimension - 1;
+            chosen_corner = corner;
+            chosen_index = index;
             smallest_sum_of_margins = sum_of_margins;
             smallest_overlap = overlap_val;
             smallest_content = content_val;
@@ -332,32 +332,34 @@ struct choose_split_axis_and_index<Box, 1>
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements const& elements,
-                             size_t & choosen_axis,
-                             size_t & choosen_corner,
-                             size_t & choosen_index,
+                             size_t & chosen_axis,
+                             size_t & chosen_corner,
+                             size_t & chosen_index,
                              margin_type & smallest_sum_of_margins,
                              content_type & smallest_overlap,
                              content_type & smallest_content,
                              Parameters const& parameters,
                              Translator const& translator)
     {
-        typedef typename rtree::element_indexable_type<typename Elements::value_type, Translator>::type element_indexable_type;
+        using element_indexable_type = typename rtree::element_indexable_type<typename Elements::value_type, Translator>::type;
 
-        choosen_axis = 0;
+        chosen_axis = 0;
 
-        choose_split_axis_and_index_for_axis<
-            Box,
-            0,
-            typename tag<element_indexable_type>::type
-        >::apply(elements, choosen_corner, choosen_index, smallest_sum_of_margins, smallest_overlap, smallest_content, parameters, translator); // MAY THROW
+        choose_split_axis_and_index_for_axis
+            <
+                Box,
+                0,
+                tag_t<element_indexable_type>
+            >::apply(elements, chosen_corner, chosen_index, smallest_sum_of_margins,
+                     smallest_overlap, smallest_content, parameters, translator); // MAY THROW
     }
 };
 
 template <size_t Corner, size_t Dimension, size_t I = 0>
 struct nth_element
 {
-    BOOST_STATIC_ASSERT(0 < Dimension);
-    BOOST_STATIC_ASSERT(I < Dimension);
+    static_assert(0 < Dimension, "Dimension must be positive.");
+    static_assert(I < Dimension, "Index out of bounds.");
 
     template <typename Elements, typename Parameters, typename Translator>
     static inline void apply(Elements & elements, Parameters const& parameters,
@@ -371,9 +373,9 @@ struct nth_element
         }
         else
         {
-            typedef typename Elements::value_type element_type;
-            typedef typename rtree::element_indexable_type<element_type, Translator>::type indexable_type;
-            typedef typename tag<indexable_type>::type indexable_tag;
+            using element_type = typename Elements::value_type;
+            using indexable_type = typename rtree::element_indexable_type<element_type, Translator>::type;
+            using indexable_tag = tag_t<indexable_type>;
 
             typename index::detail::strategy_type<Parameters>::type
                 strategy = index::detail::get_strategy(parameters);

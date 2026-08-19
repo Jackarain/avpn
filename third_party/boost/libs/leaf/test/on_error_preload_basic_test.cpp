@@ -1,5 +1,4 @@
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -8,6 +7,7 @@
 #else
 #   include <boost/leaf/on_error.hpp>
 #   include <boost/leaf/handle_errors.hpp>
+#   include <boost/leaf/diagnostics.hpp>
 #   include <boost/leaf/result.hpp>
 #endif
 
@@ -70,5 +70,7 @@ int main()
             auto load = leaf::on_error( inf1, info<-42>{-42} );
             return leaf::new_error();
         });
+
+
     return boost::report_errors();
 }

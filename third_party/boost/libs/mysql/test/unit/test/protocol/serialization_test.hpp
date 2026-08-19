@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,6 +20,7 @@
 #include <initializer_list>
 
 #include "test_common/assert_buffer_equals.hpp"
+#include "test_unit/serialize_to_vector.hpp"
 
 namespace boost {
 namespace mysql {
@@ -63,21 +64,13 @@ public:
 };
 
 template <class T>
-void do_serialize_test(
-    T value,
-    span<const std::uint8_t> expected,
-    std::size_t frame_size = detail::disable_framing
-)
+void do_serialize_test(T value, span<const std::uint8_t> expected)
 {
-    // Setup
-    std::vector<std::uint8_t> buffer;
-    detail::serialization_context ctx(buffer, frame_size);
-
     // Serialize
-    value.serialize(ctx);
+    auto actual = serialize_to_vector([&](detail::serialization_context& ctx) { value.serialize(ctx); });
 
     // Check
-    BOOST_MYSQL_ASSERT_BUFFER_EQUALS(expected, buffer);
+    BOOST_MYSQL_ASSERT_BUFFER_EQUALS(expected, actual);
 }
 
 template <class T>

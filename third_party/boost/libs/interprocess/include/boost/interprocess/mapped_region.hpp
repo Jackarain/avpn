@@ -102,6 +102,13 @@ class mapped_region
    //!offset "offset", and the mapping's size will be "size". The mapping
    //!can be opened for read only, read-write or copy-on-write.
    //!
+   //!The "mapping" object must be an non-empty mappable type (file, shared memory...)
+   //!or the function might fail. Check `shared_memory_object/file_mapping::get_size() != 0`
+   //!before trying to map the empty object and obtain an error.
+   //!
+   //!The "size" parameter must be bigger than zero or the function will fail
+   //!
+   //! 
    //!If an address is specified, both the offset and the address must be
    //!multiples of the page size.
    //!
@@ -477,7 +484,7 @@ inline mapped_region::mapped_region
                                  (native_mapping_handle,
                                  map_access,
                                  ::boost::ulong_long_type(offset - page_offset),
-                                 static_cast<std::size_t>(page_offset + size),
+                                 static_cast<std::size_t>(page_offset) + size,
                                  const_cast<void*>(address));
       //Check error
       if(!base){
@@ -807,10 +814,19 @@ inline bool mapped_region::advise(advice_types advice)
       default:
       return false;
    }
+   int ret = -1;
    switch(mode){
       #if defined(POSIX_MADV_NORMAL)
          case mode_padv:
-         return 0 == posix_madvise(this->priv_map_address(), this->priv_map_size(), unix_advice);
+         {
+         ret = posix_madvise(this->priv_map_address(), this->priv_map_size(), unix_advice);
+         #ifdef __CYGWIN__
+         //Cygwin returns EINVAL in some valid use cases due to DiscardVirtualMemory limitations
+         if (ret == EINVAL)
+            ret = 0;
+         #endif
+         return 0 == ret;
+         }
       #endif
       #if defined(MADV_NORMAL)
          case mode_madv:
@@ -822,7 +838,6 @@ inline bool mapped_region::advise(advice_types advice)
       #endif
       default:
       return false;
-
    }
 }
 

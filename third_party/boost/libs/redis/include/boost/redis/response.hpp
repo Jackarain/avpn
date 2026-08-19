@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2023 Marcelo Zimbres Silva (mzimbres@gmail.com)
+/* Copyright (c) 2018-2025 Marcelo Zimbres Silva (mzimbres@gmail.com)
  *
  * Distributed under the Boost Software License, Version 1.0. (See
  * accompanying file LICENSE.txt)
@@ -7,34 +7,34 @@
 #ifndef BOOST_REDIS_RESPONSE_HPP
 #define BOOST_REDIS_RESPONSE_HPP
 
-#include <boost/redis/resp3/node.hpp>
 #include <boost/redis/adapter/result.hpp>
-#include <boost/system.hpp>
+#include <boost/redis/resp3/flat_tree.hpp>
+#include <boost/redis/resp3/node.hpp>
+#include <boost/redis/resp3/tree.hpp>
 
-#include <vector>
-#include <string>
+#include <boost/system/error_code.hpp>
+
 #include <tuple>
 
-namespace boost::redis
-{
+namespace boost::redis {
 
-/** @brief Response with compile-time size.
- *  @ingroup high-level-api
- */
+/// Response with compile-time size.
 template <class... Ts>
 using response = std::tuple<adapter::result<Ts>...>;
 
 /** @brief A generic response to a request
- *  @ingroup high-level-api
  *
  *  This response type can store any type of RESP3 data structure.  It
  *  contains the
  *  [pre-order](https://en.wikipedia.org/wiki/Tree_traversal#Pre-order,_NLR)
  *  view of the response tree.
  */
-using generic_response = adapter::result<std::vector<resp3::node>>;
+using generic_response = adapter::result<resp3::tree>;
 
-/** @brief Consume on response from a generic response
+/// Similar to @ref boost::redis::generic_response but stores data contiguously.
+using generic_flat_response = adapter::result<resp3::flat_tree>;
+
+/** @brief (Deprecated) Consume on response from a generic response
  *
  *  This function rotates the elements so that the start of the next
  *  response becomes the new front element. For example the output of
@@ -47,7 +47,7 @@ using generic_response = adapter::result<std::vector<resp3::node>>;
  * req.push("PING", "three");
  *
  * generic_response resp;
- * co_await conn->async_exec(req, resp, asio::deferred);
+ * co_await conn.async_exec(req, resp);
  *
  * std::cout << "PING: " << resp.value().front().value << std::endl;
  * consume_one(resp);
@@ -56,7 +56,7 @@ using generic_response = adapter::result<std::vector<resp3::node>>;
  * std::cout << "PING: " << resp.value().front().value << std::endl;
  * @endcode
  *
- * is
+ * Is:
  *
  * @code
  * PING: one
@@ -68,13 +68,22 @@ using generic_response = adapter::result<std::vector<resp3::node>>;
  * efficient for responses with a large number of elements. It was
  * introduced mainly to deal with buffers server pushes as shown in
  * the cpp20_subscriber.cpp example. In the future queue-like
- * responses might be introduced to consume in O(1) operations. 
+ * responses might be introduced to consume in O(1) operations.
+ *
+ * @param r The response to modify.
+ * @param ec Will be populated in case of error.
  */
+BOOST_DEPRECATED("This function is not needed anymore to consume server pushes.")
 void consume_one(generic_response& r, system::error_code& ec);
 
-/// Throwing overload of `consume_one`.
+/**
+ * @brief (Deprecated) Throwing overload of `consume_one`.
+ *
+ * @param r The response to modify.
+ */
+BOOST_DEPRECATED("This function is not needed anymore to consume server pushes.")
 void consume_one(generic_response& r);
 
-} // boost::redis
+}  // namespace boost::redis
 
-#endif // BOOST_REDIS_RESPONSE_HPP
+#endif  // BOOST_REDIS_RESPONSE_HPP

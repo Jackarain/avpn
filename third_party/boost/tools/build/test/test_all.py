@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# Copyright 2025-2026 René Ferdinand Rivera Morell
 # Copyright 2002-2005 Dave Abrahams.
 # Copyright 2002-2006 Vladimir Prus.
 # Distributed under the Boost Software License, Version 1.0.
@@ -16,15 +17,27 @@ import os.path
 import time
 import signal
 import sys
+import threading
+import inspect
 
 xml = "--xml" in sys.argv
+slow = "--slow" in sys.argv
 toolset = BoostBuild.get_toolset()
 
 
 # Clear environment for testing.
 #
-for s in ("BOOST_ROOT", "BOOST_BUILD_PATH", "JAM_TOOLSET", "BCCROOT",
-    "MSVCDir", "MSVC", "MSVCNT", "MINGW", "watcom"):
+for s in (
+    "BOOST_ROOT",
+    "BOOST_BUILD_PATH",
+    "JAM_TOOLSET",
+    "BCCROOT",
+    "MSVCDir",
+    "MSVC",
+    "MSVCNT",
+    "MINGW",
+    "watcom",
+):
     try:
         del os.environ[s]
     except:
@@ -36,24 +49,47 @@ BoostBuild.set_defer_annotations(1)
 def iterfutures(futures):
     while futures:
         done, futures = concurrent.futures.wait(
-            futures,return_when=concurrent.futures.FIRST_COMPLETED)
+            futures, return_when=concurrent.futures.FIRST_COMPLETED
+        )
         for future in done:
             yield future, futures
 
 
 def run_test(test):
+    def early_exit():
+        # Signal timeout by SIGILL in interpreter thread.
+        signal.raise_signal(signal.SIGILL)
+
+    def sig_handle(sig, frame):
+        # Translate the SIGILL to an exception to stop with an apropos error.
+        raise TimeoutError()
+
+    # Timer for the 5 minute limit for each test. Unless we indicate it's a
+    # slow running context (like inside a VM).
+    timeout_seconds = 15 * 60 if slow else 5 * 60
+    timeout = threading.Timer(timeout_seconds, early_exit)
+    timeout.start()
+    signal.signal(signal.SIGILL, sig_handle)
     ts = time.perf_counter()
     exc = None
     try:
         __import__(test)
     except BaseException as e:
         exc = e
+    timeout.cancel()
     annotations = BoostBuild.annotations.copy()
     BoostBuild.annotations.clear()
     return test, time.perf_counter() - ts, exc, annotations
 
 
-def run_tests(critical_tests, other_tests):
+cancelled = False
+pass_count = 0
+failures_count = 0
+total_count = 0
+start_ts = None
+invocation_dir = None
+
+def run_tests(critical_tests, other_tests, exclusive_tests):
     """
       Runs first the critical_tests and then the other_tests.
 
@@ -62,18 +98,35 @@ def run_tests(critical_tests, other_tests):
     one that failed first on the last test run.
 
     """
+    global cancelled
+    global pass_count
+    global failures_count
+    global total_count
+    global start_ts
+    global invocation_dir
+
     last_failed = last_failed_test()
     other_tests = reorder_tests(other_tests, last_failed)
     all_tests = critical_tests + other_tests
+    total_count = len(all_tests) + len(exclusive_tests)
 
     invocation_dir = os.getcwd()
     max_test_name_len = 10
-    for x in all_tests:
+    for x in all_tests + exclusive_tests:
         if len(x) > max_test_name_len:
             max_test_name_len = len(x)
 
     cancelled = False
-    executor = concurrent.futures.ProcessPoolExecutor()
+    max_workers = 1 if "--not-parallel" in sys.argv else None
+
+    exc_args = {}
+    if (
+        "max_tasks_per_child"
+        in inspect.signature(concurrent.futures.ProcessPoolExecutor).parameters.keys()
+    ):
+        # Limit to 1-to-1 processing to allow for timeout canceling at the
+        # process level.
+        exc_args["max_tasks_per_child"] = 1
 
     def handler(sig, frame):
         cancelled = True
@@ -87,28 +140,67 @@ def run_tests(critical_tests, other_tests):
     pass_count = 0
     failures_count = 0
     start_ts = time.perf_counter()
+
+    try:
+        if not cancelled:
+            executor = concurrent.futures.ProcessPoolExecutor(
+                max_workers=max_workers, **exc_args)
+            execute_tests(executor, all_tests, max_test_name_len)
+        if not cancelled:
+            executor = concurrent.futures.ProcessPoolExecutor(
+                max_workers=1, **exc_args)
+            execute_tests(executor, exclusive_tests, max_test_name_len)
+    except concurrent.futures.process.BrokenProcessPool:
+        # It could be us who broke the pool by terminating its threads
+        if not cancelled:
+            raise
+
+    # Erase the file on success.
+    if failures_count == 0:
+        open("test_results.txt", "w").close()
+
+    if not xml:
+        print(
+            """
+        === Test summary ===
+        PASS: {}
+        FAIL: {}
+        TIME: {:.0f}s
+        """.format(
+                pass_count, failures_count, time.perf_counter() - start_ts
+            )
+        )
+
+    # exit with failure with failures
+    if cancelled or failures_count > 0:
+        sys.exit(1)
+
+def execute_tests(executor, tests, max_test_name_len):
+    global cancelled
+    global pass_count
+    global failures_count
+    global total_count
+    global start_ts
+    global invocation_dir
+
     isatty = sys.stdout.isatty() or "--interactive" in sys.argv
-    futures = {executor.submit(run_test, test): test for test in all_tests}
+    futures = {executor.submit(run_test, test): test for test in tests}
     for future, pending in iterfutures(futures):
         test = futures[future]
         if not xml:
             s = "%%-%ds :" % max_test_name_len % test
             if isatty:
                 s = "\r{}".format(s)
-            print(s, end='')
+            print(s, end="")
 
         passed = 0
-        ts = float('nan')
+        ts = float("nan")
         try:
             test, ts, exc, annotations = future.result()
             BoostBuild.annotations += annotations
             if exc is not None:
                 raise exc from None
             passed = 1
-        except concurrent.futures.process.BrokenProcessPool:
-            # It could be us who broke the pool by terminating its threads
-            if not cancelled:
-                raise
         except KeyboardInterrupt:
             """This allows us to abort the testing manually using Ctrl-C."""
             print("\n\nTesting was cancelled by external signal.")
@@ -122,8 +214,10 @@ def run_tests(critical_tests, other_tests):
         except:
             exc_type, exc_value, exc_tb = sys.exc_info()
             try:
-                BoostBuild.annotation("failure - unhandled exception", "%s - "
-                    "%s" % (exc_type.__name__, exc_value))
+                BoostBuild.annotation(
+                    "failure - unhandled exception",
+                    "%s - " "%s" % (exc_type.__name__, exc_value),
+                )
                 BoostBuild.annotate_stack_trace(exc_tb)
             finally:
                 #   Explicitly clear a hard-to-garbage-collect traceback
@@ -136,11 +230,8 @@ def run_tests(critical_tests, other_tests):
         else:
             failures_count += 1
             if failures_count == 1:
-                f = open(os.path.join(invocation_dir, "test_results.txt"), "w")
-                try:
+                with open(os.path.join(invocation_dir, "test_results.txt"), "w") as f:
                     f.write(test)
-                finally:
-                    f.close()
 
         #   Restore the current directory, which might have been changed by the
         # test.
@@ -148,60 +239,56 @@ def run_tests(critical_tests, other_tests):
 
         if not xml:
             if passed:
-                print("PASSED {:>5.0f}ms".format(ts*1000))
+                print("PASSED {:>5.0f}ms".format(ts * 1000))
             else:
-                print("FAILED {:>5.0f}ms".format(ts*1000))
+                print("FAILED {:>5.0f}ms".format(ts * 1000))
                 BoostBuild.flush_annotations()
 
             if isatty:
-                msg = ", ".join(futures[future] for future in pending if future.running())
+                msg = ", ".join(
+                    futures[future] for future in pending if future.running()
+                )
                 if msg:
-                    msg = "[{}/{}] {}".format(len(futures) - len(pending),len(futures),msg)
+                    msg = "[{}/{}] {}".format(
+                        total_count - len(pending), total_count, msg
+                    )
                     max_len = max_test_name_len + len(" :PASSED 12345ms")
                     if len(msg) > max_len:
-                        msg = msg[:max_len - 3] + "..."
-                    print(msg, end='')
+                        msg = msg[: max_len - 3] + "..."
+                    print(msg, end="")
         else:
             rs = "succeed"
             if not passed:
                 rs = "fail"
-            print('''
+            print(
+                """
 <test-log library="build" test-name="%s" test-type="run" toolset="%s" test-program="%s" target-directory="%s">
-<run result="%s">''' % (test, toolset, "tools/build/v2/test/" + test + ".py",
-                "boost/bin.v2/boost.build.tests/" + toolset + "/" + test, rs))
+<run result="%s">"""
+                % (
+                    test,
+                    toolset,
+                    "tools/build/v2/test/" + test + ".py",
+                    "boost/bin.v2/boost.build.tests/" + toolset + "/" + test,
+                    rs,
+                )
+            )
             if not passed:
                 BoostBuild.flush_annotations(1)
-            print('''
+            print(
+                """
 </run>
 </test-log>
-''')
+"""
+            )
         sys.stdout.flush()  # Makes testing under emacs more entertaining.
         BoostBuild.clear_annotations()
 
-    # Erase the file on success.
-    if failures_count == 0:
-        open("test_results.txt", "w").close()
-
-    if not xml:
-        print('''
-        === Test summary ===
-        PASS: {}
-        FAIL: {}
-        TIME: {:.0f}s
-        '''.format(pass_count,failures_count,time.perf_counter() - start_ts))
-
-    # exit with failure with failures
-    if cancelled or failures_count > 0:
-        sys.exit(1)
 
 def last_failed_test():
     "Returns the name of the last failed test or None."
     try:
-        f = open("test_results.txt")
-        try:
+        with open("test_results.txt") as f:
             return f.read().strip()
-        finally:
-            f.close()
     except Exception:
         return None
 
@@ -209,14 +296,23 @@ def last_failed_test():
 def reorder_tests(tests, first_test):
     try:
         n = tests.index(first_test)
-        return [first_test] + tests[:n] + tests[n + 1:]
+        return [first_test] + tests[:n] + tests[n + 1 :]
     except ValueError:
         return tests
 
 
-critical_tests = ["docs", "unit_tests", "module_actions", "core_d12",
-    "core_typecheck", "core_delete_module", "core_language", "core_arguments",
-    "core_varnames", "core_import_module"]
+critical_tests = [
+    "docs",
+    "unit_tests",
+    "module_actions",
+    "core_d12",
+    "core_typecheck",
+    "core_delete_module",
+    "core_language",
+    "core_arguments",
+    "core_varnames",
+    "core_import_module",
+]
 
 # We want to collect debug information about the test site before running any
 # of the tests, but only when not running the tests interactively. Then the
@@ -226,170 +322,182 @@ critical_tests = ["docs", "unit_tests", "module_actions", "core_d12",
 if xml:
     critical_tests.insert(0, "collect_debug_info")
 
-tests = ["abs_workdir",
-         "absolute_sources",
-         "alias",
-         "alternatives",
-         "always",
-         "assert",
-         "bad_dirname",
-         "build_dir",
-         "build_file",
-         "build_hooks",
-         "build_no",
-         "builtin_echo",
-         "builtin_exit",
-         "builtin_glob",
-         "builtin_readlink",
-         "builtin_split_by_characters",
-         "bzip2",
-         "c_file",
-         "chain",
-         "clean",
-         "cli_property_expansion",
-         "command_line_properties",
-         "composite",
-         "conditionals",
-         "conditionals2",
-         "conditionals3",
-         "conditionals4",
-         "conditionals_multiple",
-         "configuration",
-         "configure",
-         "copy_time",
-         "core_action_output",
-         "core_action_status",
-         "core_actions_quietly",
-         "core_at_file",
-         "core_bindrule",
-         "core_dependencies",
-         "core_syntax_error_exit_status",
-         "core_fail_expected",
-         "core_jamshell",
-         "core_modifiers",
-         "core_multifile_actions",
-         "core_nt_cmd_line",
-         "core_option_d2",
-         "core_option_l",
-         "core_option_n",
-         "core_parallel_actions",
-         "core_parallel_multifile_actions_1",
-         "core_parallel_multifile_actions_2",
-         "core_scanner",
-         "core_source_line_tracking",
-         "core_update_now",
-         "core_variables_in_actions",
-         "custom_generator",
-         "debugger",
-# Newly broken?
-#         "debugger-mi",
-         "default_build",
-         "default_features",
-         "default_toolset",
-         "dependency_property",
-         "dependency_test",
-         "disambiguation",
-         "dll_path",
-         "double_loading",
-         "duplicate",
-         "example_libraries",
-         "example_make",
-         "exit_status",
-         "expansion",
-         "explicit",
-         "feature_cxxflags",
-         "feature_implicit_dependency",
-         "feature_relevant",
-         "feature_suppress_import_lib",
-         "file_types",
-         "flags",
-         "generator_selection",
-         "generators_test",
-         "grep",
-         "implicit_dependency",
-         "indirect_conditional",
-         "inherit_toolset",
-         "inherited_dependency",
-         "inline",
-         "install_build_no",
-         "lang_asm",
-         "libjpeg",
-         "liblzma",
-         "libpng",
-         "libtiff",
-         "libzstd",
-         "lib_source_property",
-         "lib_zlib",
-         "library_chain",
-         "library_property",
-         "link",
-         "load_order",
-         "loop",
-         "make_rule",
-         "message",
-         "ndebug",
-         "no_type",
-         "notfile",
-         "ordered_include",
-# FIXME: Disabled due to bug in B2
-#         "ordered_properties",
-         "out_of_tree",
-         "package",
-         "param",
-         "path_features",
-         "path_specials",
-         "prebuilt",
-         "preprocessor",
-         "print",
-         "project_dependencies",
-         "project_glob",
-         "project_id",
-         "project_root_constants",
-         "project_root_rule",
-         "project_test3",
-         "project_test4",
-         "property_expansion",
-# FIXME: Disabled due lack of qt5 detection
-#         "qt5",
-         "rebuilds",
-         "relative_sources",
-         "remove_requirement",
-         "rescan_header",
-         "resolution",
-         "rootless",
-         "scanner_causing_rebuilds",
-         "searched_lib",
-         "skipping",
-         "sort_rule",
-         "source_locations",
-         "source_order",
-         "stage",
-         "standalone",
-         "static_and_shared_library",
-         "suffix",
-         "tag",
-         "test_rc",
-         "test1",
-         "test2",
-         "testing",
-         "timedata",
-         "toolset_clang_darwin",
-         "toolset_clang_linux",
-         "toolset_clang_vxworks",
-         "toolset_darwin",
-         "toolset_defaults",
-         "toolset_gcc",
-         "toolset_intel_darwin",
-         "toolset_msvc",
-         "toolset_requirements",
-         "transitive_skip",
-         "unit_test",
-         "unused",
-         "use_requirements",
-         "using",
-         "wrapper",
-         "wrong_project",
-         ]
+tests = [
+    "abs_workdir",
+    "absolute_sources",
+    "alias",
+    "alternatives",
+    "always",
+    "assert",
+    "bad_dirname",
+    "build_dir",
+    "build_file",
+    "build_hooks",
+    "build_no",
+    "builtin_echo",
+    "builtin_exit",
+    "builtin_glob",
+    "builtin_glob_archive",
+    "builtin_readlink",
+    "builtin_split_by_characters",
+    "bzip2",
+    "c_file",
+    "chain",
+    "clean",
+    "cli_property_expansion",
+    "command_line_properties",
+    "composite",
+    "conditionals_multiple",
+    "conditionals",
+    "conditionals2",
+    "conditionals3",
+    "conditionals4",
+    "configuration",
+    "configure",
+    "copy_time",
+    "core_action_output",
+    "core_action_status",
+    "core_actions_quietly",
+    "core_at_file",
+    "core_bindrule",
+    "core_cmd_line",
+    "core_dependencies",
+    "core_fail_expected",
+    "core_jamshell",
+    "core_modifiers",
+    "core_multifile_actions",
+    "core_nt_cmd_line",
+    "core_option_d2",
+    "core_option_durations",
+    "core_option_l",
+    "core_option_n",
+    "core_option_out-xml",
+    "core_parallel_actions",
+    "core_parallel_multifile_actions_1",
+    "core_parallel_multifile_actions_2",
+    "core_scanner",
+    "core_source_line_tracking",
+    "core_syntax_error_exit_status",
+    "core_update_now",
+    "core_variables_in_actions",
+    "custom_generator",
+    "debugger",
+    "debugger-mi",
+    "default_build",
+    "default_features",
+    "default_toolset",
+    "dependency_property",
+    "dependency_test",
+    "disambiguation",
+    "dll_path",
+    "double_loading",
+    "duplicate",
+    "escaping_dollar_before_round_bracket",
+    "example_libraries",
+    "example_make",
+    "exit_status",
+    "expansion",
+    "explicit",
+    "feature_cxxflags",
+    "feature_implicit_dependency",
+    "feature_relevant",
+    "feature_suppress_import_lib",
+    "file_types",
+    "flags",
+    "generator_selection",
+    "generators_test",
+    "implicit_dependency",
+    "indirect_conditional",
+    "inherit_toolset",
+    "inherited_dependency",
+    "inline",
+    "install_build_no",
+    "lang_asm",
+    "libbrotli",
+    "lib_source_property",
+    "lib_zlib",
+    "libjpeg",
+    "liblzma",
+    "libpng",
+    "library_chain",
+    "library_property",
+    "libtiff",
+    "libzstd",
+    "link",
+    "load_order",
+    "loop",
+    "make_rule",
+    "match_list",
+    "message",
+    "ndebug",
+    "no_type",
+    "notfile",
+    "ordered_include",
+    # FIXME: Disabled due to bug in B2
+    #         "ordered_properties",
+    "out_of_tree",
+    "package",
+    "param",
+    "path_features",
+    "path_specials",
+    "prebuilt",
+    "preprocessor",
+    "print",
+    "project_dependencies",
+    "project_glob",
+    "project_id",
+    "project_root_constants",
+    "project_root_rule",
+    "project_sub_resolution",
+    "project_test3",
+    "project_test4",
+    "property_expansion",
+    # FIXME: Disabled due lack of qt5 detection
+    #         "qt5",
+    "rebuilds",
+    "relative_sources",
+    "remove_requirement",
+    "rescan_header",
+    "resolution",
+    "rootless",
+    "scanner_causing_rebuilds",
+    "searched_lib",
+    "skipping",
+    "sort_rule",
+    "source_locations",
+    "source_order",
+    "stage",
+    "standalone",
+    "static_and_shared_library",
+    "subst_list",
+    "suffix",
+    "tag",
+    "test_rc",
+    "test1",
+    "test2",
+    "testing",
+    "timedata",
+    "toolset_clang_darwin",
+    "toolset_clang_linux",
+    "toolset_clang_vxworks",
+    "toolset_darwin",
+    "toolset_defaults",
+    "toolset_gcc",
+    "toolset_intel_darwin",
+    "toolset_msvc",
+    "toolset_requirements",
+    "transitive_skip",
+    "unit_test",
+    "unused",
+    "use_requirements",
+    "using",
+    "wrapper",
+    "wrong_project",
+]
+
+exclusive_tests = [
+    "semaphore",
+]
 
 if os.name == "posix":
     tests.append("symlink")
@@ -407,7 +515,11 @@ if toolset.startswith("gcc") and os.name != "nt":
     # assumes otherwise. Hence enable it only when not on Windows.
     tests.append("gcc_runtime")
 
-if toolset.startswith("clang") or toolset.startswith("gcc") or toolset.startswith("msvc"):
+if (
+    toolset.startswith("clang")
+    or toolset.startswith("gcc")
+    or toolset.startswith("msvc")
+):
     if not sys.platform.startswith("freebsd"):
         tests.append("pch")
     tests.append("feature_force_include")
@@ -416,9 +528,11 @@ if toolset.startswith("clang") or toolset.startswith("gcc") or toolset.startswit
 if toolset.startswith("clang") and "-win" not in toolset or "darwin" in toolset:
     tests.append("lang_objc")
 
-# Disable on OSX as it doesn't seem to work for unknown reasons.
-if sys.platform != 'darwin':
-    tests.append("builtin_glob_archive")
+# Run in exclusive mode to avoid interpreter hang on macOS (Xcode) and FreeBSD
+if sys.platform == "darwin" or sys.platform.startswith("freebsd"):
+    exclusive_tests.append("grep")
+else:
+    tests.append("grep")
 
 if "--extras" in sys.argv:
     tests.append("boostbook")
@@ -433,4 +547,4 @@ elif not xml and __name__ == "__main__":
     print("Note: skipping extra tests")
 
 if __name__ == "__main__":
-    run_tests(critical_tests, tests)
+    run_tests(critical_tests, tests, exclusive_tests)

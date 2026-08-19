@@ -5,29 +5,31 @@
  */
 
 #include <boost/redis/connection.hpp>
-#include <boost/redis/logger.hpp>
-#include <boost/system/errc.hpp>
-#define BOOST_TEST_MODULE conn-exec-error
-#include <boost/test/included/unit_test.hpp>
+
+#include <boost/core/lightweight_test.hpp>
+
 #include "common.hpp"
+
+#include <cstddef>
 #include <iostream>
 
 namespace net = boost::asio;
 namespace redis = boost::redis;
 namespace resp3 = redis::resp3;
 using error_code = boost::system::error_code;
-using connection = boost::redis::connection;
+using boost::redis::connection;
 using boost::redis::request;
 using boost::redis::response;
 using boost::redis::generic_response;
 using boost::redis::ignore;
 using boost::redis::ignore_t;
 using boost::redis::error;
-using boost::redis::logger;
 using boost::redis::operation;
 using namespace std::chrono_literals;
 
-BOOST_AUTO_TEST_CASE(no_ignore_error)
+namespace {
+
+void test_no_ignore_error()
 {
    request req;
 
@@ -38,18 +40,23 @@ BOOST_AUTO_TEST_CASE(no_ignore_error)
 
    auto conn = std::make_shared<connection>(ioc);
 
-   conn->async_exec(req, ignore, [&](auto ec, auto){
-      BOOST_CHECK_EQUAL(ec, error::resp3_simple_error);
+   bool exec_finished = false;
+
+   conn->async_exec(req, ignore, [&](error_code ec, std::size_t) {
+      exec_finished = true;
+      BOOST_TEST_EQ(ec, error::resp3_simple_error);
       conn->cancel(operation::run);
       conn->cancel(operation::reconnection);
    });
 
    run(conn);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(exec_finished);
 }
 
-BOOST_AUTO_TEST_CASE(has_diagnostic)
+void test_has_diagnostic()
 {
    request req;
 
@@ -65,19 +72,22 @@ BOOST_AUTO_TEST_CASE(has_diagnostic)
    auto conn = std::make_shared<connection>(ioc);
 
    response<std::string, std::string> resp;
-   conn->async_exec(req, resp, [&](auto ec, auto){
-      BOOST_TEST(!ec);
+   bool exec_finished = false;
+   conn->async_exec(req, resp, [&](error_code ec, std::size_t) {
+      exec_finished = true;
+
+      BOOST_TEST_EQ(ec, error_code());
 
       // HELLO
       BOOST_TEST(std::get<0>(resp).has_error());
-      BOOST_CHECK_EQUAL(std::get<0>(resp).error().data_type, resp3::type::simple_error);
+      BOOST_TEST_EQ(std::get<0>(resp).error().data_type, resp3::type::simple_error);
       auto const diag = std::get<0>(resp).error().diagnostic;
       BOOST_TEST(!std::empty(diag));
       std::cout << "has_diagnostic: " << diag << std::endl;
 
       // PING
       BOOST_TEST(std::get<1>(resp).has_value());
-      BOOST_CHECK_EQUAL(std::get<1>(resp).value(), "Barra do Una");
+      BOOST_TEST_EQ(std::get<1>(resp).value(), "Barra do Una");
 
       conn->cancel(operation::run);
       conn->cancel(operation::reconnection);
@@ -85,16 +95,18 @@ BOOST_AUTO_TEST_CASE(has_diagnostic)
 
    run(conn);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(exec_finished);
 }
 
-BOOST_AUTO_TEST_CASE(resp3_error_in_cmd_pipeline)
+void test_resp3_error_in_cmd_pipeline()
 {
    request req1;
    req1.push("HELLO", "3");
    req1.push("PING", "req1-msg1");
-   req1.push("PING", "req1-msg2", "extra arg"); // Error.
-   req1.push("PING", "req1-msg3"); // Should run ok.
+   req1.push("PING", "req1-msg2", "extra arg");  // Error.
+   req1.push("PING", "req1-msg3");               // Should run ok.
 
    response<ignore_t, std::string, std::string, std::string> resp1;
 
@@ -106,26 +118,28 @@ BOOST_AUTO_TEST_CASE(resp3_error_in_cmd_pipeline)
    net::io_context ioc;
    auto conn = std::make_shared<connection>(ioc);
 
-   auto c2 = [&](auto ec, auto)
-   {
-      BOOST_TEST(!ec);
+   bool c2_called = false, c1_called = false;
+
+   auto c2 = [&](error_code ec, std::size_t) {
+      c2_called = true;
+      BOOST_TEST_EQ(ec, error_code());
       BOOST_TEST(std::get<0>(resp2).has_value());
-      BOOST_CHECK_EQUAL(std::get<0>(resp2).value(), "req2-msg1");
+      BOOST_TEST_EQ(std::get<0>(resp2).value(), "req2-msg1");
       conn->cancel(operation::run);
       conn->cancel(operation::reconnection);
    };
 
-   auto c1 = [&](auto ec, auto)
-   {
-      BOOST_TEST(!ec);
+   auto c1 = [&](error_code ec, std::size_t) {
+      c1_called = true;
+      BOOST_TEST_EQ(ec, error_code());
       BOOST_TEST(std::get<2>(resp1).has_error());
-      BOOST_CHECK_EQUAL(std::get<2>(resp1).error().data_type, resp3::type::simple_error);
+      BOOST_TEST_EQ(std::get<2>(resp1).error().data_type, resp3::type::simple_error);
       auto const diag = std::get<2>(resp1).error().diagnostic;
       BOOST_TEST(!std::empty(diag));
       std::cout << "resp3_error_in_cmd_pipeline: " << diag << std::endl;
 
       BOOST_TEST(std::get<3>(resp1).has_value());
-      BOOST_CHECK_EQUAL(std::get<3>(resp1).value(), "req1-msg3");
+      BOOST_TEST_EQ(std::get<3>(resp1).value(), "req1-msg3");
 
       conn->async_exec(req2, resp2, c2);
    };
@@ -133,38 +147,44 @@ BOOST_AUTO_TEST_CASE(resp3_error_in_cmd_pipeline)
    conn->async_exec(req1, resp1, c1);
    run(conn);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(c1_called);
+   BOOST_TEST(c2_called);
 }
 
-BOOST_AUTO_TEST_CASE(error_in_transaction)
+void test_error_in_transaction()
 {
    request req;
    req.push("HELLO", 3);
    req.push("MULTI");
    req.push("PING");
-   req.push("PING", "msg2", "error"); // Error.
+   req.push("PING", "msg2", "error");  // Error.
    req.push("PING");
    req.push("EXEC");
    req.push("PING");
 
    response<
-      ignore_t, // hello
-      ignore_t, // multi
-      ignore_t, // ping
-      ignore_t, // ping
-      ignore_t, // ping
-      response<std::string, std::string, std::string>, // exec
-      std::string // ping
-   > resp;
-
+      ignore_t,                                         // hello
+      ignore_t,                                         // multi
+      ignore_t,                                         // ping
+      ignore_t,                                         // ping
+      ignore_t,                                         // ping
+      response<std::string, std::string, std::string>,  // exec
+      std::string                                       // ping
+      >
+      resp;
 
    net::io_context ioc;
 
    auto conn = std::make_shared<connection>(ioc);
 
-   conn->async_exec(req, resp, [&](auto ec, auto){
-      BOOST_TEST(!ec);
-      
+   bool finished = false;
+
+   conn->async_exec(req, resp, [&](error_code ec, std::size_t) {
+      finished = true;
+      BOOST_TEST_EQ(ec, error_code());
+
       BOOST_TEST(std::get<0>(resp).has_value());
       BOOST_TEST(std::get<1>(resp).has_value());
       BOOST_TEST(std::get<2>(resp).has_value());
@@ -174,21 +194,23 @@ BOOST_AUTO_TEST_CASE(error_in_transaction)
 
       // Test errors in the pipeline commands.
       BOOST_TEST(std::get<0>(std::get<5>(resp).value()).has_value());
-      BOOST_CHECK_EQUAL(std::get<0>(std::get<5>(resp).value()).value(), "PONG");
+      BOOST_TEST_EQ(std::get<0>(std::get<5>(resp).value()).value(), "PONG");
 
       // The ping in the transaction that should be an error.
       BOOST_TEST(std::get<1>(std::get<5>(resp).value()).has_error());
-      BOOST_CHECK_EQUAL(std::get<1>(std::get<5>(resp).value()).error().data_type, resp3::type::simple_error);
+      BOOST_TEST_EQ(
+         std::get<1>(std::get<5>(resp).value()).error().data_type,
+         resp3::type::simple_error);
       auto const diag = std::get<1>(std::get<5>(resp).value()).error().diagnostic;
       BOOST_TEST(!std::empty(diag));
 
       // The ping thereafter in the transaction should not be an error.
       BOOST_TEST(std::get<2>(std::get<5>(resp).value()).has_value());
-      //BOOST_CHECK_EQUAL(std::get<2>(std::get<4>(resp).value()).value(), "PONG");
+      BOOST_TEST_EQ(std::get<2>(std::get<5>(resp).value()).value(), "PONG");
 
       // The command right after the pipeline should be successful.
       BOOST_TEST(std::get<6>(resp).has_value());
-      BOOST_CHECK_EQUAL(std::get<6>(resp).value(), "PONG");
+      BOOST_TEST_EQ(std::get<6>(resp).value(), "PONG");
 
       conn->cancel(operation::run);
       conn->cancel(operation::reconnection);
@@ -196,7 +218,9 @@ BOOST_AUTO_TEST_CASE(error_in_transaction)
 
    run(conn);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(finished);
 }
 
 // This test is important because a SUBSCRIBE command has no response
@@ -209,32 +233,34 @@ BOOST_AUTO_TEST_CASE(error_in_transaction)
 // even more complex. For example, without a ping, we might get the
 // sequence HELLO + SUBSCRIBE + PING where the hello and ping are
 // automatically sent by the implementation. In this case, if the
-// subscribe synthax is wrong, redis will send a response, which does
-// not exist on success. That response will be interprested as the
+// subscribe syntax is wrong, redis will send a response, which does
+// not exist on success. That response will be interpreted as the
 // response to the PING command that comes thereafter and won't be
 // forwarded to the receive_op, resulting in a difficult to handle
 // error.
-BOOST_AUTO_TEST_CASE(subscriber_wrong_syntax)
+void test_subscriber_wrong_syntax()
 {
    request req1;
    req1.push("PING");
 
    request req2;
-   req2.push("SUBSCRIBE"); // Wrong command synthax.
+   req2.push("SUBSCRIBE");  // Wrong command syntax.
 
    net::io_context ioc;
    auto conn = std::make_shared<connection>(ioc);
 
-   auto c2 = [&](auto ec, auto)
-   {
+   bool c1_called = false, c2_called = false, c3_called = false;
+
+   auto c2 = [&](error_code ec, std::size_t) {
+      c2_called = true;
       std::cout << "async_exec: subscribe" << std::endl;
-      BOOST_TEST(!ec);
+      BOOST_TEST_EQ(ec, error_code());
    };
 
-   auto c1 = [&](auto ec, auto)
-   {
+   auto c1 = [&](error_code ec, std::size_t) {
+      c1_called = true;
       std::cout << "async_exec: hello" << std::endl;
-      BOOST_TEST(!ec);
+      BOOST_TEST_EQ(ec, error_code());
       conn->async_exec(req2, ignore, c2);
    };
 
@@ -243,22 +269,73 @@ BOOST_AUTO_TEST_CASE(subscriber_wrong_syntax)
    generic_response gresp;
    conn->set_receive_response(gresp);
 
-   auto c3 = [&](auto ec, auto)
-   {
-      std::cout << "async_receive" << std::endl;
+   auto c3 = [&](error_code ec) {
+      c3_called = true;
+      std::cout << "async_receive2" << std::endl;
       BOOST_TEST(!ec);
       BOOST_TEST(gresp.has_error());
-      BOOST_CHECK_EQUAL(gresp.error().data_type, resp3::type::simple_error);
+      BOOST_TEST_EQ(gresp.error().data_type, resp3::type::simple_error);
       BOOST_TEST(!std::empty(gresp.error().diagnostic));
       std::cout << gresp.error().diagnostic << std::endl;
       conn->cancel(operation::run);
       conn->cancel(operation::reconnection);
    };
 
-   conn->async_receive(c3);
+   conn->async_receive2(c3);
 
    run(conn);
 
-   ioc.run();
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(c1_called);
+   BOOST_TEST(c2_called);
+   BOOST_TEST(c3_called);
 }
 
+void test_issue_287_generic_response_error_then_success()
+{
+   // Setup
+   auto cfg = make_test_config();
+   request req;
+   req.push("PING", "hello");
+   req.push("set", "mykey");  // This command has a missing argument and will cause an error
+   req.push("get", "mykey");  // This one is okay
+   generic_response resp;
+
+   // I/O objects
+   net::io_context ioc;
+   connection conn{ioc};
+   bool run_finished = false, exec_finished = false;
+
+   conn.async_run(cfg, [&](error_code ec) {
+      BOOST_TEST_EQ(ec, net::error::operation_aborted);
+      run_finished = true;
+   });
+
+   conn.async_exec(req, resp, [&](error_code ec, std::size_t) {
+      BOOST_TEST_EQ(ec, error_code());
+      exec_finished = true;
+      conn.cancel();
+   });
+
+   ioc.run_for(test_timeout);
+
+   BOOST_TEST(run_finished);
+   BOOST_TEST(exec_finished);
+   BOOST_TEST(resp.has_error());
+   BOOST_TEST_EQ(resp.error().diagnostic, "ERR wrong number of arguments for 'set' command");
+}
+
+}  // namespace
+
+int main()
+{
+   test_no_ignore_error();
+   test_has_diagnostic();
+   test_resp3_error_in_cmd_pipeline();
+   test_error_in_transaction();
+   test_subscriber_wrong_syntax();
+   test_issue_287_generic_response_error_then_success();
+
+   return boost::report_errors();
+}

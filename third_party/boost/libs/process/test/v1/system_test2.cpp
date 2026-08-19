@@ -19,7 +19,7 @@
 #include <boost/chrono.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/asio/steady_timer.hpp>
-#include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <boost/process/v1/error.hpp>
 #include <boost/process/v1/io.hpp>
@@ -38,7 +38,7 @@
 #include <cstdlib>
 
 namespace fs = boost::process::v1::filesystem;
-namespace bp = boost::process;
+namespace bp = boost::process::v1;
 
 BOOST_AUTO_TEST_CASE(explicit_async_io, *boost::unit_test::timeout(2))
 {

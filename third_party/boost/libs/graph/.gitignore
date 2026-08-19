@@ -10,3 +10,7 @@ test/*.dot
 example/routing-table.dat
 example/figs/ospf-sptree.dot
 CMakeFiles/
+
+# macOS
+.DS_Store
+**/.DS_Store

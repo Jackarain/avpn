@@ -2,7 +2,7 @@
 // system_executor.cpp
 // ~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -76,6 +76,11 @@ void system_executor_query_test()
       boost::asio::query(system_executor(),
         boost::asio::execution::mapping)
       == boost::asio::execution::mapping.thread);
+
+  BOOST_ASIO_CHECK(
+      boost::asio::query(system_executor(),
+        boost::asio::execution::inline_exception_handling)
+      == boost::asio::execution::inline_exception_handling.terminate);
 
   BOOST_ASIO_CHECK(
       boost::asio::query(system_executor(),

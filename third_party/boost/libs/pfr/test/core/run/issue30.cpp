@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 Antony Polukhin
+// Copyright (c) 2018-2026 Antony Polukhin
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -8,6 +8,15 @@
 #include <memory>
 #include <boost/pfr.hpp>
 #include <boost/core/lightweight_test.hpp>
+
+// Some _MSC_VER are broken:
+// boost/pfr/detail/fields_count.hpp(469): error C2338: static_assert failed:
+// '====================> Boost.PFR: If there's no other failed static
+// asserts then something went wrong. Please report this issue to the github
+// along with the structure you're reflecting.'
+//
+// No known workaround
+#if !defined(_MSC_VER) || _MSC_VER != 1944 || !(BOOST_PFR_USE_CPP17 || BOOST_PFR_USE_LOOPHOLE)
 
 struct Message {
   std::unique_ptr<int> data;
@@ -35,3 +44,9 @@ int main() {
 
   return boost::report_errors();
 }
+
+#else
+int main() {
+  return boost::report_errors();
+}
+#endif

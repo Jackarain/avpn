@@ -18,7 +18,7 @@
 #include <boost/thread/future.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/core/ref.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 #if defined BOOST_THREAD_USES_CHRONO
 
@@ -51,13 +51,13 @@ void func2(boost::promise<int> p)
     p.set_exception(::make_exception_ptr(3));
 }
 
-int j = 0;
+int g_j = 0;
 
 void func3(boost::promise<int&> p)
 {
     boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
-    j = 5;
-    p.set_value(j);
+    g_j = 5;
+    p.set_value(g_j);
 }
 
 void func4(boost::promise<int&> p)

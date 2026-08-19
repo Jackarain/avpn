@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,6 +13,7 @@
 
 #include <boost/url/grammar/error.hpp>
 #include <boost/url/grammar/parse.hpp>
+#include <boost/core/detail/static_assert.hpp>
 #include <cstdint>
 #include <type_traits>
 
@@ -26,6 +28,7 @@ template<
     class R0,
     class... Rn,
     std::size_t I>
+BOOST_URL_CXX20_CONSTEXPR
 auto
 parse_variant(
     char const*&,
@@ -35,12 +38,12 @@ parse_variant(
     std::integral_constant<
         std::size_t, I> const&,
     std::false_type const&) ->
-        system::result<variant<
+        system::result<variant2::variant<
             typename R0::value_type,
             typename Rn::value_type...>>
 {
     // no match
-    BOOST_URL_RETURN_EC(
+    BOOST_URL_CONSTEXPR_RETURN_EC(
         error::mismatch);
 }
 
@@ -48,6 +51,7 @@ template<
     class R0,
     class... Rn,
     std::size_t I>
+BOOST_URL_CXX20_CONSTEXPR
 auto
 parse_variant(
     char const*& it,
@@ -57,7 +61,7 @@ parse_variant(
     std::integral_constant<
         std::size_t, I> const&,
     std::true_type const&) ->
-        system::result<variant<
+        system::result<variant2::variant<
             typename R0::value_type,
             typename Rn::value_type...>>
 {
@@ -65,7 +69,7 @@ parse_variant(
     auto rv = parse(
         it, end, get<I>(rn));
     if( rv )
-        return variant<
+        return variant2::variant<
             typename R0::value_type,
             typename Rn::value_type...>{
                 variant2::in_place_index_t<I>{}, *rv};
@@ -82,8 +86,9 @@ parse_variant(
 } // detail
 
 template<class R0, class... Rn>
+BOOST_URL_CXX20_CONSTEXPR
 auto
-variant_rule_t<R0, Rn...>::
+implementation_defined::variant_rule_t<R0, Rn...>::
 parse(
     char const*& it,
     char const* end) const ->
@@ -98,14 +103,18 @@ parse(
 
 //------------------------------------------------
 
-template<class R0, class... Rn>
+template<BOOST_URL_CONSTRAINT(Rule) R0, BOOST_URL_CONSTRAINT(Rule)... Rn>
 auto
 constexpr
 variant_rule(
     R0 const& r0,
     Rn const&... rn) noexcept ->
-        variant_rule_t<R0, Rn...>
+        implementation_defined::variant_rule_t<R0, Rn...>
 {
+    BOOST_CORE_STATIC_ASSERT(
+        mp11::mp_all<
+            is_rule<R0>,
+            is_rule<Rn>...>::value);
     return { r0, rn... };
 }
 

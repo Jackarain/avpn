@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -73,10 +73,8 @@ private:
     std::vector<flag_getter> ignore_flags_;
 };
 
-void validate_meta(
-    const metadata_collection_view& actual,
-    const std::vector<meta_validator>& expected
-);
+void validate_meta(const metadata_collection_view& actual, const std::vector<meta_validator>& expected);
+void validate_2fields_meta(metadata_collection_view fields, string_view table);
 
 }  // namespace test
 }  // namespace mysql

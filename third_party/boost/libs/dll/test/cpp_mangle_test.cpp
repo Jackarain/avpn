@@ -8,17 +8,15 @@
 
 #include <boost/config.hpp>
 
-#if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
-
 #include "../example/b2_workarounds.hpp"
 
-#include <boost/dll/smart_library.hpp>
 #include <boost/core/lightweight_test.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/variant.hpp>
 
 #include <iostream>
 
+#include <boost/dll/smart_library.hpp>
 
 struct override_class {};
 
@@ -26,7 +24,7 @@ struct override_class {};
 int main(int argc, char* argv[])
 {
     using namespace boost::dll;
-    using mangled_storage = detail::mangled_storage_impl;
+    using mangled_storage = boost::dll::experimental::smart_library::mangled_storage;
 
     boost::dll::fs::path pt = b2_workarounds::first_lib_from_argv(argc, argv);
 
@@ -128,6 +126,3 @@ int main(int argc, char* argv[])
     return boost::report_errors();
 }
 
-#else
-int main() {return 0;}
-#endif

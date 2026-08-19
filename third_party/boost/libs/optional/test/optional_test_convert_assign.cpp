@@ -13,6 +13,7 @@
 
 #include "boost/core/lightweight_test.hpp"
 #include "boost/none.hpp"
+#include "boost/type_traits/is_assignable.hpp"
 
 //#ifndef BOOST_OPTIONAL_NO_CONVERTING_COPY_CTOR
 
@@ -25,8 +26,7 @@ struct implicit_bool_conv
 
 struct explicit_bool_conv
 {
-  bool operator!() const BOOST_NOEXCEPT { return false; }
-  BOOST_EXPLICIT_OPERATOR_BOOL_NOEXCEPT()
+  explicit operator bool() const BOOST_NOEXCEPT { return true; }
 };
 
 template <typename To, typename From>
@@ -41,9 +41,9 @@ void test_no_bad_assignment()
 {
 #if !defined(BOOST_NO_CXX11_DECLTYPE) && !BOOST_WORKAROUND(BOOST_MSVC, < 1800)
   // this means that type trait `boost::is_assignable` works.
-  BOOST_STATIC_ASSERT((boost::is_assignable<optional<bool>&, bool>::value));
-  BOOST_STATIC_ASSERT((boost::is_assignable<optional<bool>&, implicit_bool_conv>::value));
-  BOOST_STATIC_ASSERT((! boost::is_assignable<optional<bool>&, explicit_bool_conv>::value));
+  static_assert((boost::is_assignable<optional<bool>&, bool>::value), "ERROR");
+  static_assert((boost::is_assignable<optional<bool>&, implicit_bool_conv>::value), "ERROR");
+  static_assert((! boost::is_assignable<optional<bool>&, explicit_bool_conv>::value), "ERROR");
 #endif
 }
 

@@ -110,7 +110,7 @@ class basic_parser
     static unsigned constexpr flagContentLength         = 1<< 10;
     static unsigned constexpr flagChunked               = 1<< 11;
     static unsigned constexpr flagUpgrade               = 1<< 12;
-    static unsigned constexpr flagFinalChunk            = 1<< 13;
+    static unsigned constexpr flagTransferEncoding      = 1<< 13;
 
     static constexpr
     std::uint64_t
@@ -518,6 +518,30 @@ protected:
         string_view value,
         error_code& ec) = 0;
 
+    /** Called once for each complete field in the HTTP trailer header.
+
+        This virtual function is invoked for each field that is received
+        while parsing the trailer part of a chunked HTTP message.
+
+        @param name The known field enum value. If the name of the field
+        is not recognized, this value will be @ref field::unknown.
+
+        @param name_string The exact name of the field as received from
+        the input, represented as a string.
+
+        @param value A string holding the value of the field.
+
+        @param ec An output parameter which the function may set to indicate
+        an error. The error will be clear before this function is invoked.
+    */
+    virtual
+    void
+    on_trailer_field_impl(
+        field name,
+        string_view name_string,
+        string_view value,
+        error_code& ec) = 0;
+
     /** Called once after the complete HTTP header is received.
 
         This virtual function is invoked once, after the complete HTTP
@@ -642,23 +666,28 @@ private:
         error_code& ec);
 
     void
-    maybe_need_more(
-        char const* p, std::size_t n,
-            error_code& ec);
-
-    void
-    parse_start_line(
+    inner_parse_start_line(
         char const*& p, char const* last,
             error_code& ec, std::true_type);
 
     void
-    parse_start_line(
+    inner_parse_start_line(
         char const*& p, char const* last,
             error_code& ec, std::false_type);
 
     void
-    parse_fields(
+    parse_start_line(
+        char const*& p, std::size_t n,
+            error_code& ec);
+
+    void
+    inner_parse_fields(
         char const*& p, char const* last,
+            error_code& ec);
+
+    void
+    parse_fields(
+        char const*& p, std::size_t n,
             error_code& ec);
 
     void

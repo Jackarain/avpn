@@ -19,11 +19,12 @@
 // shared_mutex();
 
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 int main()
 {
   boost::shared_mutex m0;
+  (void)m0;
   return boost::report_errors();
 }
 

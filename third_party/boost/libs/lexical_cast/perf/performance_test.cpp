@@ -1,4 +1,4 @@
-//  (C) Copyright Antony Polukhin, 2012-2024.
+//  (C) Copyright Antony Polukhin, 2012-2026.
 //  Use, modification and distribution are subject to the
 //  Boost Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,6 +17,7 @@
 #include <fstream>
 #include <cstring>
 #include <string_view>
+#include <type_traits>
 
 #include <boost/array.hpp>
 #include <boost/chrono.hpp>
@@ -242,7 +243,7 @@ static inline void perf_test_impl(const FromT& in_val, const char* const conv) {
                 lexical_cast_time.count(),
                 ss_constr_time.count(),
                 ss_noconstr_time.count(),
-                boost::is_same<SprintfT, structure_fake>::value ? fake_test_value : printf_time.count()
+                std::is_same<SprintfT, structure_fake>::value ? fake_test_value : printf_time.count()
     );
 }
 

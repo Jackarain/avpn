@@ -9,11 +9,17 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 
 // back-end
-#include <boost/msm/back/state_machine.hpp>
+// Deferred and enqueued events are in a single event pool
+// and processed in FIFO order in backmp11.
+#define BOOST_MSM_TEST_SKIP_BACKMP11
+#include "BackCommon.hpp"
 //front-end
 #include <boost/msm/front/state_machine_def.hpp>
 #include <boost/msm/front/functor_row.hpp>
 
+#ifndef BOOST_MSM_NONSTANDALONE_TEST
+#define BOOST_TEST_MODULE test_defer_and_message_queue_3
+#endif
 #include <boost/test/unit_test.hpp>
 
 namespace msm = boost::msm;
@@ -73,7 +79,7 @@ namespace
             template <class EVT,class FSM,class SourceState,class TargetState>
             void operator()(EVT const& ,FSM& fsm,SourceState& ,TargetState& )
             {
-                fsm.template process_event(event2());
+                fsm.process_event(event2());
             }
         };
         struct expected_action
@@ -129,9 +135,9 @@ namespace
         int expected_action2_counter;
     };
     // Pick a back-end
-    typedef msm::back::state_machine<player_> player;
+    typedef get_test_machines<player_> players;
 
-    BOOST_AUTO_TEST_CASE( TestDeferAndMessageQueue2 )
+    BOOST_AUTO_TEST_CASE_TEMPLATE( test_defer_and_message_queue_3, player, players )
     {
         player p;
         // needed to start the highest-level SM. This will call on_entry and mark the start of the SM
@@ -139,19 +145,17 @@ namespace
 
         p.process_event(eventd());
         BOOST_CHECK_MESSAGE(p.current_state()[0] == 0,"State11 should be active");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State11&>().entry_counter == 1,"State11 entry not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State11&>().entry_counter == 1,"State11 entry not called correctly");
 
         p.process_event(event1());
         BOOST_CHECK_MESSAGE(p.current_state()[0] == 0,"State11 should be active");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State11&>().exit_counter == 1,"State11 exit not called correctly");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State12&>().entry_counter == 1,"State12 entry not called correctly");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State12&>().exit_counter == 1,"State12 exit not called correctly");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State11&>().entry_counter == 2,"State11 entry not called correctly");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State13&>().exit_counter == 1,"State13 exit not called correctly");
-        BOOST_CHECK_MESSAGE(p.get_state<player_::State13&>().entry_counter == 1,"State13 entry not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State11&>().exit_counter == 1,"State11 exit not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State12&>().entry_counter == 1,"State12 entry not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State12&>().exit_counter == 1,"State12 exit not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State11&>().entry_counter == 2,"State11 entry not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State13&>().exit_counter == 1,"State13 exit not called correctly");
+        BOOST_CHECK_MESSAGE(p.template get_state<player_::State13&>().entry_counter == 1,"State13 entry not called correctly");
         BOOST_CHECK_MESSAGE(p.expected_action_counter == 0,"expected_action should have been called");
         BOOST_CHECK_MESSAGE(p.expected_action2_counter == 1,"expected_action2 should not have been called");
     }
 }
-
-

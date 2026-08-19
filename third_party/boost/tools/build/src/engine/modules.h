@@ -9,12 +9,7 @@
 #define MODULES_DWA10182001_H
 
 #include "config.h"
-#include "bind.h"
-#include "lists.h"
-#include "object.h"
-
-#include <string>
-#include <vector>
+#include "jam_fwd.h"
 
 typedef struct module_t module_t ;
 
@@ -22,18 +17,19 @@ typedef module_t * module_ptr;
 
 struct module_t
 {
-    OBJECT * name;
-    struct hash * rules;
-    struct hash * variables;
-    struct hash * variable_indices;
-    int num_fixed_variables;
-    LIST * * fixed_variables;
-    struct hash * imported_modules;
-    module_t * class_module;
-    struct hash * native_rules;
-    int user_module;
+    OBJECT * name = nullptr;
+    struct hash * rules = nullptr;
+    struct hash * variables = nullptr;
+    struct hash * variable_indices = nullptr;
+    int num_fixed_variables = 0;
+    LIST * * fixed_variables = nullptr;
+    struct hash * imported_modules = nullptr;
+    module_t * class_module = nullptr;
+    struct hash * native_rules = nullptr;
+    int user_module = 0;
 };
 
+module_t * find_module( OBJECT * name );
 module_t * bindmodule( OBJECT * name );
 module_t * root_module();
 void delete_module( module_t * );

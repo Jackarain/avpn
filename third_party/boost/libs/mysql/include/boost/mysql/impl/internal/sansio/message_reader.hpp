@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -88,12 +88,22 @@ public:
     // Returns buffer space suitable to read bytes to
     span<std::uint8_t> buffer() { return buffer_.free_area(); }
 
-    // Removes old messages stored in the buffer, and resizes it, if required, to accomodate
+    // Removes old messages stored in the buffer, and resizes it, if required, to accommodate
     // the message currently being parsed.
     BOOST_ATTRIBUTE_NODISCARD
     error_code prepare_buffer()
     {
-        buffer_.remove_reserved();
+        constexpr std::size_t small_move_threshold = 1024;
+        const std::size_t occupied_space = buffer_.pending_size() + buffer_.current_message_size();
+        // Compact the buffer (remove reserved area) if one of the following holds:
+        // 1. The cost of memmove is low: active data (current_message + pending)
+        // is small enough to make the copy cheap.
+        // 2. Compaction could prevent a reallocation.
+        if (occupied_space <= small_move_threshold ||
+            (state_.required_size > buffer_.free_size()))
+        {
+            buffer_.remove_reserved();
+        }
         auto ec = buffer_.grow_to_fit(state_.required_size);
         if (ec)
             return ec;

@@ -22,17 +22,17 @@
 namespace boost {
 namespace urls {
 
-/** A view representing query parameters in a URL
+namespace implementation_defined {
+    struct query_rule_t;
+}
 
-    Objects of this type are used to interpret
-    the query parameters as a bidirectional view
-    of key/value pairs.
+/** Non-owning encoded query parameter view
 
-    The view does not retain ownership of the
-    elements and instead references the original
-    character buffer. The caller is responsible
-    for ensuring that the lifetime of the buffer
-    extends until it is no longer referenced.
+    This read-only range exposes the raw
+    percent-encoded key/value pairs stored in a
+    query string. It does not copy the underlying
+    buffer; callers must ensure the referenced
+    character storage outlives the view.
 
     @par Example
     @code
@@ -41,23 +41,21 @@ namespace urls {
     params_encoded_view p = u.encoded_params();
     @endcode
 
-    Strings produced when elements are returned
-    have type @ref param_pct_view and represent
-    encoded strings. Strings passed to member
-    functions may contain percent escapes, and
-    throw exceptions on invalid inputs.
+    Iteration yields @ref param_pct_view values,
+    so encoded strings and escape validation are
+    preserved for callers that want exact bytes.
 
     @par Iterator Invalidation
     Changes to the underlying character buffer
     can invalidate iterators which reference it.
 */
-class BOOST_URL_DECL params_encoded_view
+class BOOST_SYMBOL_VISIBLE params_encoded_view
     : public params_encoded_base
 {
     friend class url_view_base;
     friend class params_view;
     friend class params_encoded_ref;
-    friend struct query_rule_t;
+    friend struct implementation_defined::query_rule_t;
 
     params_encoded_view(
         detail::query_ref const& ref) noexcept;
@@ -106,6 +104,8 @@ public:
 
         @par Exception Safety
         Throws nothing
+
+        @param other The object to copy
     */
     params_encoded_view(
         params_encoded_view const& other) = default;
@@ -186,10 +186,13 @@ public:
 
         @par Exception Safety
         Throws nothing
+
+        @param other The object to assign
+        @return `*this`
     */
     params_encoded_view&
     operator=(
-        params_encoded_view const&) = default;
+        params_encoded_view const& other) = default;
 
     /** Conversion
 
@@ -219,19 +222,47 @@ public:
 
         @par Exception Safety
         Throws nothing
+
+        @return A new view with percent escapes decoded.
     */
     operator
     params_view() const noexcept;
 
     //--------------------------------------------
 
-    friend
     BOOST_URL_DECL
+    friend
     system::result<params_encoded_view>
     parse_query(core::string_view s) noexcept;
 };
 
+// Forward-declare for inline constructors below.
+// Full declaration in parse_query.hpp; definition in
+// src/parse_query.cpp.
+BOOST_URL_DECL
+system::result<params_encoded_view>
+parse_query(core::string_view s) noexcept;
+
 } // urls
 } // boost
+
+#include <boost/url/impl/params_view.hpp>
+#include <boost/url/impl/params_encoded_view.hpp>
+
+//------------------------------------------------
+//
+// std::ranges::enable_borrowed_range
+//
+//------------------------------------------------
+
+#ifdef BOOST_URL_HAS_CONCEPTS
+#include <ranges>
+namespace std::ranges {
+    template<>
+    inline constexpr bool
+        enable_borrowed_range<
+            boost::urls::params_encoded_view> = true;
+} // std::ranges
+#endif
 
 #endif

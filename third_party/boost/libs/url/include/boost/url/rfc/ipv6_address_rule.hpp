@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2022 Vinnie Falco (vinnie.falco@gmail.com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,6 +17,21 @@
 
 namespace boost {
 namespace urls {
+namespace implementation_defined {
+struct ipv6_address_rule_t
+{
+    using value_type =
+        ipv6_address;
+
+    BOOST_URL_CXX20_CONSTEXPR
+    auto
+    parse(
+        char const*& it,
+        char const* end
+            ) const noexcept ->
+        system::result<ipv6_address>;
+};
+} // implementation_defined
 
 /** Rule for An IP version 6 style address
 
@@ -60,27 +76,11 @@ namespace urls {
         @ref parse_ipv6_address,
         @ref grammar::parse.
 */
-#ifdef BOOST_URL_DOCS
-constexpr __implementation_defined__ ipv6_address_rule;
-#else
-struct ipv6_address_rule_t
-{
-    using value_type =
-        ipv6_address;
-
-    BOOST_URL_DECL
-    auto
-    parse(
-        char const*& it,
-        char const* end
-            ) const noexcept ->
-        system::result<ipv6_address>;
-};
-
-constexpr ipv6_address_rule_t ipv6_address_rule{};
-#endif
+constexpr implementation_defined::ipv6_address_rule_t ipv6_address_rule{};
 
 } // urls
 } // boost
+
+#include <boost/url/rfc/impl/ipv6_address_rule.hpp>
 
 #endif

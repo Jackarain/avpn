@@ -21,7 +21,7 @@
 
 #include <boost/thread/lock_types.hpp>
 //#include <boost/thread/shared_mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 bool try_lock_called = false;
 
@@ -37,11 +37,11 @@ struct shared_mutex
   }
 };
 
-shared_mutex m;
+shared_mutex g_mutex;
 
 int main()
 {
-  boost::shared_lock<shared_mutex> lk(m, boost::defer_lock);
+  boost::shared_lock<shared_mutex> lk(g_mutex, boost::defer_lock);
   BOOST_TEST(lk.try_lock() == true);
   BOOST_TEST(try_lock_called == true);
   BOOST_TEST(lk.owns_lock() == true);

@@ -18,7 +18,7 @@
 #include <boost/filesystem/config.hpp>
 #include <boost/filesystem/exception.hpp>
 
-#if defined(BOOST_WINDOWS_API)
+#if defined(BOOST_FILESYSTEM_WINDOWS_API)
 #include <boost/winapi/basic_types.hpp>
 #include <boost/winapi/get_last_error.hpp>
 #include <boost/winapi/error_codes.hpp>
@@ -29,7 +29,7 @@
 namespace boost {
 namespace filesystem {
 
-#if defined(BOOST_POSIX_API)
+#if defined(BOOST_FILESYSTEM_POSIX_API)
 
 typedef int err_t;
 
@@ -50,6 +50,10 @@ typedef boost::winapi::DWORD_ err_t;
 #define BOOST_ERROR_FILE_NOT_FOUND boost::winapi::ERROR_FILE_NOT_FOUND_
 #define BOOST_ERROR_ALREADY_EXISTS boost::winapi::ERROR_ALREADY_EXISTS_
 #define BOOST_ERROR_NOT_SUPPORTED boost::winapi::ERROR_NOT_SUPPORTED_
+
+// STATUS_* constants defined in ntstatus.h in some SDKs are defined as DWORDs, and NTSTATUS is LONG.
+// This results in signed/unsigned mismatch warnings emitted by gcc and clang. Consider that a platform bug.
+#define BOOST_NTSTATUS_EQ(x, y) static_cast< boost::winapi::ULONG_ >(x) == static_cast< boost::winapi::ULONG_ >(y)
 
 // Note: Legacy MinGW doesn't have ntstatus.h and doesn't define NTSTATUS error codes other than STATUS_SUCCESS.
 #if !defined(NT_SUCCESS)
@@ -171,8 +175,9 @@ inline boost::winapi::DWORD_ translate_ntstatus(boost::winapi::NTSTATUS_ status)
 //! Tests if the NTSTATUS indicates that the file is not found
 inline bool not_found_ntstatus(boost::winapi::NTSTATUS_ status) noexcept
 {
-    return status == STATUS_NO_SUCH_FILE || status == STATUS_OBJECT_NAME_NOT_FOUND || status == STATUS_OBJECT_PATH_NOT_FOUND ||
-        status == STATUS_BAD_NETWORK_PATH || status == STATUS_BAD_NETWORK_NAME;
+    return BOOST_NTSTATUS_EQ(status, STATUS_NO_SUCH_FILE) || BOOST_NTSTATUS_EQ(status, STATUS_OBJECT_NAME_NOT_FOUND) ||
+        BOOST_NTSTATUS_EQ(status, STATUS_OBJECT_PATH_NOT_FOUND) || BOOST_NTSTATUS_EQ(status, STATUS_BAD_NETWORK_PATH) ||
+        BOOST_NTSTATUS_EQ(status, STATUS_BAD_NETWORK_NAME);
 }
 
 #endif

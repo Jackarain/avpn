@@ -13,7 +13,7 @@
 
 #include <boost/thread/sync_queue.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 class non_copyable
 {
@@ -82,7 +82,7 @@ int main()
   {
     // empty queue push lvalue succeeds
       boost::sync_queue<int> q;
-      int i;
+      int i = 42;
       q.push(i);
       BOOST_TEST(! q.empty());
       BOOST_TEST(! q.full());
@@ -175,7 +175,7 @@ int main()
     // 1-element queue pull succeed
       boost::sync_queue<int> q;
       q.push(1);
-      int i;
+      int i = -1;
       q.pull(i);
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -223,7 +223,7 @@ int main()
     // 1-element queue try_pull succeed
       boost::sync_queue<int> q;
       q.push(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.try_pull(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -248,7 +248,7 @@ int main()
     // 1-element queue nonblocking_pull succeed
       boost::sync_queue<int> q;
       q.push(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.nonblocking_pull(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -286,7 +286,7 @@ int main()
     // 1-element queue wait_pull succeed
       boost::sync_queue<int> q;
       q.push(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.wait_pull(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -336,7 +336,7 @@ int main()
       boost::sync_queue<int> q;
       q.push(1);
       q.close();
-      int i;
+      int i = -1;
       q.pull(i);
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -349,7 +349,7 @@ int main()
       boost::sync_queue<int> q;
       q.push(1);
       q.close();
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.wait_pull(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -363,7 +363,7 @@ int main()
       q.close();
       BOOST_TEST(q.empty());
       BOOST_TEST(q.closed());
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::closed == q.wait_pull(i));
       BOOST_TEST(q.empty());
       BOOST_TEST(q.closed());

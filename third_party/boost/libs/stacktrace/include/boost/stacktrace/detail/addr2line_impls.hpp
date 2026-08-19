@@ -1,4 +1,4 @@
-// Copyright Antony Polukhin, 2016-2024.
+// Copyright Antony Polukhin, 2016-2026.
 //
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
@@ -12,18 +12,21 @@
 #   pragma once
 #endif
 
-#include <boost/stacktrace/detail/addr_base.hpp>
-#include <boost/stacktrace/detail/to_hex_array.hpp>
-#include <boost/stacktrace/detail/to_dec_array.hpp>
-#include <boost/stacktrace/detail/try_dec_convert.hpp>
+#if !defined(BOOST_STACKTRACE_INTERFACE_UNIT)
 #include <boost/core/demangle.hpp>
+
 #include <cstdio>
 #include <cstring>
 
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#endif // !defined(BOOST_STACKTRACE_INTERFACE_UNIT)
 
+#include <boost/stacktrace/detail/addr_base.hpp>
+#include <boost/stacktrace/detail/to_hex_array.hpp>
+#include <boost/stacktrace/detail/to_dec_array.hpp>
+#include <boost/stacktrace/detail/try_dec_convert.hpp>
 
 namespace boost { namespace stacktrace { namespace detail {
 
@@ -123,8 +126,8 @@ inline std::string addr2line(const char* flag, const void* addr) {
         res = loc.name();
     } else {
         res.resize(16);
-        int rlin_size = ::readlink("/proc/self/exe", &res[0], res.size() - 1);
-        while (rlin_size == static_cast<int>(res.size() - 1)) {
+        ssize_t rlin_size = ::readlink("/proc/self/exe", &res[0], res.size() - 1);
+        while (rlin_size == static_cast<ssize_t>(res.size() - 1)) {
             res.resize(res.size() * 4);
             rlin_size = ::readlink("/proc/self/exe", &res[0], res.size() - 1);
         }
@@ -132,7 +135,7 @@ inline std::string addr2line(const char* flag, const void* addr) {
             res.clear();
             return res;
         }
-        res.resize(rlin_size);
+        res.resize(static_cast<std::size_t>(rlin_size));
     }
 
     addr2line_pipe p(flag, res.c_str(), to_hex_array(addr).data());

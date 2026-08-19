@@ -30,11 +30,13 @@ local linux_pipeline(name, image, environment, packages = "", sources = [], arch
             name: "everything",
             image: image,
             environment: environment,
+            privileged: true,
             commands:
             [
                 'set -e',
+                'echo $DRONE_STAGE_MACHINE',
                 'uname -a',
-                'wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -',
+                'curl -sSL --retry 5 https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/llvm-snapshot.gpg',
             ] +
             (if sources != [] then [ ('apt-add-repository "' + source + '"') for source in sources ] else []) +
             (if packages != "" then [ 'apt-get update', 'apt-get -y install ' + packages ] else []) +
@@ -65,6 +67,8 @@ local macos_pipeline(name, environment, xcode_version = "12.2", osx_version = "c
             environment: environment + { "DEVELOPER_DIR": "/Applications/Xcode-" + xcode_version + ".app/Contents/Developer" },
             commands:
             [
+                'echo $DRONE_STAGE_MACHINE',
+                'sw_vers',
                 'uname -a',
                 'export LIBRARY=' + library,
                 './.drone/drone.sh',
@@ -278,14 +282,14 @@ local windows_pipeline(name, image, environment, arch = "amd64") =
 
     linux_pipeline(
         "Linux 23.04 GCC 13 32/64 (11,14)",
-        "cppalliance/droneubuntu2304:1",
+        "cppalliance/droneubuntu2404:1",
         { TOOLSET: 'gcc', COMPILER: 'g++-13', CXXSTD: '11,14', ADDRMD: '32,64' },
         "g++-13 g++-13-multilib",
     ),
 
     linux_pipeline(
         "Linux 23.04 GCC 13 32/64 (17,20,2b)",
-        "cppalliance/droneubuntu2304:1",
+        "cppalliance/droneubuntu2404:1",
         { TOOLSET: 'gcc', COMPILER: 'g++-13', CXXSTD: '17,20,2b', ADDRMD: '32,64' },
         "g++-13 g++-13-multilib",
     ),
@@ -474,7 +478,7 @@ local windows_pipeline(name, image, environment, arch = "amd64") =
     windows_pipeline(
         "Windows VS2017 msvc-14.1",
         "cppalliance/dronevs2017",
-        { TOOLSET: 'msvc-14.1', CXXSTD: '14,17,latest' },
+        { TOOLSET: 'msvc-14.1', CXXSTD: '14,17,latest', ADDRMD: '32,64' },
     ),
 
     windows_pipeline(

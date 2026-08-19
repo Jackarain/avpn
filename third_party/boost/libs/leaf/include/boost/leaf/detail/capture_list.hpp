@@ -1,8 +1,7 @@
-#ifndef BOOST_LEAF_DETAIL_CAPTURE_HPP_INCLUDED
-#define BOOST_LEAF_DETAIL_CAPTURE_HPP_INCLUDED
+#ifndef BOOST_LEAF_DETAIL_CAPTURE_LIST_HPP_INCLUDED
+#define BOOST_LEAF_DETAIL_CAPTURE_LIST_HPP_INCLUDED
 
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2025 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -10,13 +9,13 @@
 
 #if BOOST_LEAF_CFG_CAPTURE
 
-#include <iosfwd>
-
 namespace boost { namespace leaf {
 
-namespace leaf_detail
+class error_id;
+
+namespace detail
 {
-    struct BOOST_LEAF_SYMBOL_VISIBLE tls_tag_id_factory_current_id;
+    class encoder;
 
     class capture_list
     {
@@ -30,9 +29,7 @@ namespace leaf_detail
             friend class capture_list;
 
             virtual void unload( int err_id ) = 0;
-#if BOOST_LEAF_CFG_DIAGNOSTICS
-            virtual void print( std::ostream &, int err_id_to_print ) const = 0;
-#endif
+            virtual void serialize_to_(encoder &, error_id const &) const = 0;
 
         protected:
 
@@ -85,7 +82,7 @@ namespace leaf_detail
         {
             capture_list moved(first_);
             first_ = nullptr;
-            tls::write_uint<leaf_detail::tls_tag_id_factory_current_id>(unsigned(err_id));
+            tls::write_current_error_id(unsigned(err_id));
             moved.for_each(
                 [err_id]( node & n )
                 {
@@ -93,32 +90,23 @@ namespace leaf_detail
                 } );
         }
 
-        template <class CharT, class Traits>
-        void print( std::basic_ostream<CharT, Traits> & os, char const * title, int const err_id_to_print ) const
+        void serialize_to(encoder & e, error_id const & id) const
         {
-            BOOST_LEAF_ASSERT(title != nullptr);
-#if BOOST_LEAF_CFG_DIAGNOSTICS
             if( first_ )
             {
-                os << title;
                 for_each(
-                    [&os, err_id_to_print]( node const & n )
+                    [&e, &id]( node const & n )
                     {
-                        n.print(os, err_id_to_print);
+                        n.serialize_to_(e, id);
                     } );
             }
-#else
-            (void) os;
-            (void) title;
-            (void) err_id_to_print;
-#endif
         }
-    };
+    }; // class capture_list
 
-}
+} // namespace detail
 
-} }
+} } // namespace boost::leaf
 
-#endif
+#endif // #if BOOST_LEAF_CFG_CAPTURE
 
-#endif
+#endif // #ifndef BOOST_LEAF_DETAIL_CAPTURE_LIST_HPP_INCLUDED

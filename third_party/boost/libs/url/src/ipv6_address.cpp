@@ -21,14 +21,6 @@ namespace urls {
 
 ipv6_address::
 ipv6_address(
-    bytes_type const& bytes) noexcept
-{
-    std::memcpy(&addr_,
-        bytes.data(), 16);
-}
-
-ipv6_address::
-ipv6_address(
     ipv4_address const& addr) noexcept
 {
     auto const v = addr.to_bytes();
@@ -94,6 +86,16 @@ loopback() noexcept
     ipv6_address a;
     a.addr_[15] = 1;
     return a;
+}
+
+void
+ipv6_address::
+write_ostream(
+    std::ostream& os) const
+{
+    char buf[ipv6_address::max_str_len];
+    auto const s = to_buffer(buf, sizeof(buf));
+    os << s;
 }
 
 std::size_t

@@ -7,7 +7,7 @@
 # NOTE: CMake support for Boost.Filesystem is currently experimental at best
 #       and the interface is likely to change in the future
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8...3.16)
 project(BoostFilesystem VERSION "${BOOST_SUPERPROJECT_VERSION}" LANGUAGES CXX)
 
 include(CheckCXXSourceCompiles)
@@ -142,6 +142,7 @@ endif()
 if(WIN32 OR CYGWIN)
     target_compile_definitions(boost_filesystem PRIVATE
         BOOST_USE_WINDOWS_H
+        _WIN32_WINNT=0x0A00
         WIN32_LEAN_AND_MEAN
         NOMINMAX
     )

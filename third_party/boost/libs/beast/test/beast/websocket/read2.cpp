@@ -18,18 +18,11 @@
 #include <boost/asio/use_awaitable.hpp>
 #endif
 
-#include <boost/config/workaround.hpp>
-#if BOOST_WORKAROUND(BOOST_GCC, < 80200)
-#define BOOST_BEAST_SYMBOL_HIDDEN __attribute__ ((visibility("hidden")))
-#else
-#define BOOST_BEAST_SYMBOL_HIDDEN
-#endif
-
 namespace boost {
 namespace beast {
 namespace websocket {
 
-class BOOST_BEAST_SYMBOL_HIDDEN read2_test
+class read2_test
     : public websocket_test_suite
 {
 public:
@@ -330,13 +323,13 @@ public:
             doFailTest(w, ws, error::bad_close_code);
         });
 
-        // message size above 2^64
+        // message size 2^63-1
         doTest<deflateSupported>(pmd,
         [&](ws_type_t<deflateSupported>& ws)
         {
             w.write_some(ws, false, sbuf("*"));
             w.write_raw(ws, cbuf(
-                {0x80, 0xff, 0xff, 0xff, 0xff, 0xff,
+                {0x80, 0xff, 0x7f, 0xff, 0xff, 0xff,
                 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}));
             doReadTest(w, ws, close_code::too_big);
         });

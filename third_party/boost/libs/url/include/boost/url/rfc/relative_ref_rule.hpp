@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -12,10 +13,26 @@
 
 #include <boost/url/detail/config.hpp>
 #include <boost/url/error_types.hpp>
-#include <boost/url/url_view.hpp>
 
 namespace boost {
 namespace urls {
+
+class url_view;
+
+namespace implementation_defined {
+struct relative_ref_rule_t
+{
+    using value_type = url_view;
+
+    BOOST_URL_CXX20_CONSTEXPR
+    auto
+    parse(
+        char const*& it,
+        char const* end
+            ) const noexcept ->
+        system::result<value_type>;
+};
+} // implementation_defined
 
 /** Rule for relative-ref
 
@@ -44,26 +61,11 @@ namespace urls {
         @ref parse_relative_ref,
         @ref url_view.
 */
-#ifdef BOOST_URL_DOCS
-constexpr __implementation_defined__ relative_ref_rule;
-#else
-struct relative_ref_rule_t
-{
-    using value_type = url_view;
-
-    BOOST_URL_DECL
-    auto
-    parse(
-        char const*& it,
-        char const* end
-            ) const noexcept ->
-        system::result<value_type>;
-};
-
-constexpr relative_ref_rule_t relative_ref_rule{};
-#endif
+constexpr implementation_defined::relative_ref_rule_t relative_ref_rule{};
 
 } // urls
 } // boost
+
+#include <boost/url/rfc/impl/relative_ref_rule.hpp>
 
 #endif

@@ -14,6 +14,6 @@ subprojects/*/
 .vscode/ipch/*
 .vscode/settings.json
 .vscode/c_cpp_properties.json
-benchmark/tl/*
 test/leaf.hpp
+test/nlohmann/*
 doc/leaf.html

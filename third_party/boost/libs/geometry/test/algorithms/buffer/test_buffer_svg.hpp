@@ -164,7 +164,7 @@ private :
 
             bool is_good = true;
             std::string fill = "fill:rgb(0,255,0);";
-            if (! it->is_turn_traversable)
+            if (! it->is_traversable)
             {
                 fill = "fill:rgb(255,0,0);";
                 is_good = false;
@@ -205,7 +205,7 @@ private :
                     << ":" << bg::operation_char(it->operations[0].operation)
                     << "/" << bg::operation_char(it->operations[1].operation);
                 out << " "
-                    << (it->is_turn_traversable ? "" : "w")
+                    << (it->is_traversable ? "" : "w")
                     ;
 
                 offsets[it->point] += 10;
@@ -382,13 +382,13 @@ public :
         }
     }
 
-    template <typename Mapper, typename Geometry, typename Strategy, typename RescalePolicy>
-    void map_self_ips(Mapper& mapper, Geometry const& geometry, Strategy const& strategy, RescalePolicy const& rescale_policy)
+    template <typename Mapper, typename Geometry, typename Strategy>
+    void map_self_ips(Mapper& mapper, Geometry const& geometry, Strategy const& strategy)
     {
         using turn_info = bg::detail::overlay::turn_info
         <
             Point,
-            typename bg::detail::segment_ratio_type<Point, RescalePolicy>::type
+            typename bg::segment_ratio_type<Point>::type
         >;
 
         std::vector<turn_info> turns;
@@ -397,7 +397,7 @@ public :
         bg::self_turns
             <
                 bg::detail::overlay::assign_null_policy
-            >(geometry, strategy, rescale_policy, turns, policy);
+            >(geometry, strategy, turns, policy);
 
         for (turn_info const& turn : turns)
         {

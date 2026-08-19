@@ -18,27 +18,52 @@
 // template <class F, class ...Args> thread(F f, Args... args);
 
 #include <new>
+#include <cstddef>
 #include <cstdlib>
 #include <cassert>
 #include <boost/thread/thread_only.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
+#include <boost/config.hpp>
 
-unsigned throw_one = 0xFFFF;
+thread_local unsigned throw_one = 0xFFFF;
+thread_local unsigned operator_new_recursion_level = 0u;
+
+struct operator_new_recursion_counter
+{
+  operator_new_recursion_counter() BOOST_NOEXCEPT_OR_NOTHROW
+  {
+    ++operator_new_recursion_level;
+  }
+  ~operator_new_recursion_counter() BOOST_NOEXCEPT_OR_NOTHROW
+  {
+    --operator_new_recursion_level;
+  }
+};
 
 #if defined _GLIBCXX_THROW
 void* operator new(std::size_t s) _GLIBCXX_THROW (std::bad_alloc)
-#elif defined BOOST_MSVC
-void* operator new(std::size_t s)
-#elif __cplusplus > 201402L
-void* operator new(std::size_t s)
 #else
-void* operator new(std::size_t s) throw (std::bad_alloc)
+void* operator new(std::size_t s)
 #endif
 {
   //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-  if (throw_one == 0) throw std::bad_alloc();
-  --throw_one;
-  return std::malloc(s);
+  // Throwing an exception may recursively call operator new. If we're throwing std::bad_alloc,
+  // this may cause infinite recursion and a crash. So only throw if we're at the top recursion level.
+  operator_new_recursion_counter auto_counter;
+  if (operator_new_recursion_level == 1u)
+  {
+    if (throw_one == 0) throw std::bad_alloc();
+    --throw_one;
+  }
+  void* p = std::malloc(s);
+  if (!p)
+  {
+    if (operator_new_recursion_level == 1u)
+      throw std::bad_alloc();
+    else
+      std::abort();
+  }
+  return p;
 }
 
 #if defined BOOST_MSVC
@@ -50,6 +75,22 @@ void operator delete(void* p) BOOST_NOEXCEPT_OR_NOTHROW
   //std::cout << __FILE__ << ":" << __LINE__ << std::endl;
   std::free(p);
 }
+
+#if (defined(__cpp_sized_deallocation) && (__cpp_sized_deallocation >= 201309l)) || \
+    (BOOST_CXX_VERSION > 201103l && \
+        (defined(__GNUC__) && (__GNUC__ >= 5)) || \
+        (defined(__clang__) && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 4))) || \
+        (defined(BOOST_MSVC) && (_MSC_VER >= 1900)) \
+    )
+#if defined BOOST_MSVC
+void operator delete(void* p, std::size_t)
+#else
+void operator delete(void* p, std::size_t) BOOST_NOEXCEPT_OR_NOTHROW
+#endif
+{
+  operator delete(p);
+}
+#endif
 
 bool f_run = false;
 
@@ -102,7 +143,8 @@ int main()
     BOOST_TEST(f_run == true);
   }
   f_run = false;
-#if !defined(BOOST_MSVC) && !defined(__MINGW32__)
+// On OpenBSD, the test crashes for unknown reason when operator new throws an exception.
+#if !defined(BOOST_MSVC) && !defined(__MINGW32__) && !defined(__OpenBSD__)
   {
     try
     {
@@ -125,7 +167,7 @@ int main()
     BOOST_TEST(G::n_alive == 0);
     BOOST_TEST(G::op_run);
   }
-#if !defined(BOOST_MSVC) && !defined(__MINGW32__)
+#if !defined(BOOST_MSVC) && !defined(__MINGW32__) && !defined(__OpenBSD__)
   G::op_run = false;
   {
     try

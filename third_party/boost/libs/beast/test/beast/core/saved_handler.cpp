@@ -7,11 +7,12 @@
 // Official repository: https://github.com/boostorg/beast
 //
 
+#include <boost/config.hpp>
+
 // Test that header file is self-contained.
 #include <boost/beast/core/saved_handler.hpp>
 #include <boost/asio/bind_cancellation_slot.hpp>
 #include <boost/beast/_experimental/unit_test/suite.hpp>
-#include <stdexcept>
 
 namespace boost {
 namespace beast {
@@ -82,16 +83,67 @@ public:
 
     struct throwing_handler
     {
+        volatile bool always = true;
+
         throwing_handler() = default;
 
         throwing_handler(throwing_handler&&)
         {
-            BOOST_THROW_EXCEPTION(std::exception{});
+            if(always)
+                BOOST_THROW_EXCEPTION(std::exception{});
         }
 
         void
         operator()(system::error_code = {})
         {
+        }
+    };
+
+    class throwing_cancellation_slot
+    {
+    public:
+        throwing_cancellation_slot()
+        {
+        }
+
+        template <typename CancellationHandler, typename... Args>
+        CancellationHandler& emplace(Args&&...)
+        {
+            BOOST_THROW_EXCEPTION(std::exception{});
+        }
+
+        template <typename CancellationHandler>
+        CancellationHandler& assign(CancellationHandler&&)
+        {
+            BOOST_THROW_EXCEPTION(std::exception{});
+        }
+
+        void clear()
+        {
+        }
+
+        bool is_connected() const noexcept
+        {
+            return true;
+        }
+
+        bool has_handler() const noexcept
+        {
+            return false;
+        }
+
+        friend constexpr bool operator==(
+            const throwing_cancellation_slot&,
+            const throwing_cancellation_slot&) noexcept
+        {
+            return false;
+        }
+
+        friend constexpr bool operator!=(
+            const throwing_cancellation_slot&,
+            const throwing_cancellation_slot&) noexcept
+        {
+            return false;
         }
     };
 
@@ -192,7 +244,7 @@ public:
             net::cancellation_signal sig;          
 
             try
-            { 
+            {
                 sh.emplace(
                     net::bind_cancellation_slot(
                         sig.slot(), 
@@ -204,6 +256,23 @@ public:
                 pass();
             }
             BEAST_EXPECT(!sig.slot().has_handler());
+            BEAST_EXPECT(! sh.has_value());
+        }
+        {
+            saved_handler sh;
+
+            try
+            {
+                sh.emplace(
+                    net::bind_cancellation_slot(
+                        throwing_cancellation_slot(), 
+                        unhandler{}));
+                fail();
+            }
+            catch(std::exception const&)
+            {
+                pass();
+            }
             BEAST_EXPECT(! sh.has_value());
         }
     }

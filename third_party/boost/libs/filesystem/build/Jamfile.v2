@@ -1,7 +1,7 @@
 # Boost Filesystem Library Build Jamfile
 
 # (C) Copyright Beman Dawes 2002-2006
-# (C) Copyright Andrey Semashev 2020-2024
+# (C) Copyright Andrey Semashev 2020-2025
 # Distributed under the Boost Software License, Version 1.0.
 # See www.boost.org/LICENSE_1_0.txt
 
@@ -9,6 +9,8 @@
 
 import project ;
 import configure ;
+import regex ;
+import-search /boost/config/checks ;
 import config : requires ;
 
 lib bcrypt ;
@@ -16,17 +18,21 @@ lib advapi32 ;
 lib coredll ;
 explicit bcrypt advapi32 coredll ;
 
-# The rule checks if a config macro is defined in the command line or build properties
-rule has-config-flag ( flag : properties * )
+# The rule checks if there is one of the defines listed in `flags` in `properties`. The value of the define is not considered.
+rule has-config-flag ( flags + : properties * )
 {
-    if ( "<define>$(flag)" in $(properties) || "<define>$(flag)=1" in $(properties) )
+    for local property in $(properties)
     {
-        return 1 ;
+        for local flag in $(flags)
+        {
+            if [ MATCH "^(<define>$(flag))(=.*)?$" : $(property) ]
+            {
+                return 1 ;
+            }
+        }
     }
-    else
-    {
-        return ;
-    }
+
+    return ;
 }
 
 # The rule checks we're building for Windows and selects crypto API to be used
@@ -34,7 +40,7 @@ rule select-windows-crypto-api ( properties * )
 {
     local result ;
 
-    if <target-os>windows in $(properties) || <target-os>cygwin in $(properties)
+    if <target-os>windows in $(properties)
     {
         if ! [ has-config-flag BOOST_FILESYSTEM_DISABLE_BCRYPT : $(properties) ] &&
             [ configure.builds ../config//has_bcrypt : $(properties) : "has BCrypt API" ]
@@ -109,11 +115,36 @@ rule check-linkflag-no-undefined ( properties * )
 
     if <link>shared in $(properties)
     {
-        if [ configure.builds ../config//has_linkflag_no_undefined : $(properties) : "has -Wl,--no-undefined" ]
+        local props ;
+
+        # Strip sanitizer flags. Clang has a bug (https://github.com/llvm/llvm-project/issues/60578) where
+        # it doesn't add sanitizer runtime libraries to linker flags, which results in linking errors when
+        # -Wl,--no-undefined or equivalent is used. We want to know if -Wl,--no-undefined is supported, so
+        # to avoid false negatives remove any sanitizer flags for this check. Users will have to explicitly
+        # specify sanitizer libraries in their linker flags to work around the clang bug.
+        for local property in $(properties)
+        {
+            #ECHO "Input property: $(property)" ;
+
+            if [ MATCH "^(<(compile|c|cxx|link)flags>.*-fsanitize=.+)$" : $(property) ]
+            {
+                property = [ regex.replace $(property) "-fsanitize=[^\s]+\s*" "" ] ;
+                if [ MATCH "^(<(compile|c|cxx|link)flags>)\s*$" : $(property) ]
+                {
+                    continue ;
+                }
+            }
+
+            #ECHO "Output property: $(property)" ;
+
+            props += $(property) ;
+        }
+
+        if [ configure.builds ../config//has_linkflag_no_undefined : $(props) : "has -Wl,--no-undefined" ]
         {
             result = <linkflags>"-Wl,--no-undefined" ;
         }
-        else if [ configure.builds ../config//has_linkflag_undefined_error : $(properties) : "has -Wl,-undefined,error" ]
+        else if [ configure.builds ../config//has_linkflag_undefined_error : $(props) : "has -Wl,-undefined,error" ]
         {
             result = <linkflags>"-Wl,-undefined,error" ;
         }
@@ -132,12 +163,18 @@ local cxx_requirements = [ requires
     cxx11_defaulted_moves
     cxx11_deleted_functions
     cxx11_function_template_default_args
+    cxx11_unified_initialization_syntax
     cxx11_final
     cxx11_override
 ] ;
 
-project boost/filesystem
+project
+    : common-requirements <library>$(boost_dependencies)
     : requirements
+      <library>/boost/core//boost_core
+      <library>/boost/predef//boost_predef
+      <library>/boost/scope//boost_scope
+      <target-os>windows:<library>/boost/winapi//boost_winapi
       <host-os>hpux,<toolset>gcc:<define>_INCLUDE_STDC__SOURCE_199901
       [ check-target-builds ../config//has_attribute_init_priority "has init_priority attribute" : <define>BOOST_FILESYSTEM_HAS_INIT_PRIORITY ]
       [ check-target-builds ../config//has_stat_st_mtim "has stat::st_blksize" : <define>BOOST_FILESYSTEM_HAS_STAT_ST_BLKSIZE ]
@@ -161,11 +198,9 @@ project boost/filesystem
       <target-os>windows:<define>_CRT_SECURE_NO_WARNINGS
       <target-os>windows:<define>_CRT_SECURE_NO_DEPRECATE
       <target-os>windows:<define>BOOST_USE_WINDOWS_H
+      <target-os>windows:<define>_WIN32_WINNT=0x0A00
       <target-os>windows:<define>WIN32_LEAN_AND_MEAN
       <target-os>windows:<define>NOMINMAX
-      <target-os>cygwin:<define>BOOST_USE_WINDOWS_H
-      <target-os>cygwin:<define>WIN32_LEAN_AND_MEAN
-      <target-os>cygwin:<define>NOMINMAX
 
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105329
       # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105651
@@ -175,6 +210,7 @@ project boost/filesystem
     : usage-requirements # pass these requirement to dependents (i.e. users)
       <link>shared:<define>BOOST_FILESYSTEM_DYN_LINK=1
       <link>static:<define>BOOST_FILESYSTEM_STATIC_LINK=1
+      <define>BOOST_FILESYSTEM_NO_LIB=1
     ;
 
 SOURCES =
@@ -193,7 +229,7 @@ rule select-platform-specific-sources ( properties * )
 {
     local result ;
 
-    if <target-os>windows in $(properties) || <target-os>cygwin in $(properties)
+    if <target-os>windows in $(properties)
     {
         result += <source>windows_file_codecvt.cpp ;
     }
@@ -214,5 +250,3 @@ lib boost_filesystem
     : usage-requirements
       $(cxx_requirements)
     ;
-
-boost-install boost_filesystem ;

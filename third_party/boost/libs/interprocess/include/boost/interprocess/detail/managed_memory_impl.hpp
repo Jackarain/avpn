@@ -32,7 +32,6 @@
 #include <boost/interprocess/detail/nothrow.hpp>
 #include <boost/interprocess/detail/simple_swap.hpp>
 //
-#include <boost/core/no_exceptions_support.hpp>
 //
 #include <boost/intrusive/detail/minimal_pair_header.hpp>
 #include <boost/assert.hpp>
@@ -115,7 +114,7 @@ class basic_managed_memory_impl
    {
       typedef typename ManagedMemory::device_type device_type;
       //Increase file size
-      BOOST_TRY{
+      BOOST_INTERPROCESS_TRY{
          offset_t old_size;
          {
             device_type f(open_or_create, filename, read_write);
@@ -127,9 +126,9 @@ class basic_managed_memory_impl
          //Grow always works
          managed_memory.self_t::grow(extra_bytes);
       }
-      BOOST_CATCH(...){
+      BOOST_INTERPROCESS_CATCH(...){
          return false;
-      } BOOST_CATCH_END
+      } BOOST_INTERPROCESS_CATCH_END
       return true;
    }
 
@@ -138,15 +137,15 @@ class basic_managed_memory_impl
    {
       typedef typename ManagedMemory::device_type device_type;
       size_type new_size;
-      BOOST_TRY{
+      BOOST_INTERPROCESS_TRY{
          ManagedMemory managed_memory(open_only, filename);
          managed_memory.get_size();
          managed_memory.self_t::shrink_to_fit();
          new_size = managed_memory.get_size();
       }
-      BOOST_CATCH(...){
+      BOOST_INTERPROCESS_CATCH(...){
          return false;
-      } BOOST_CATCH_END
+      } BOOST_INTERPROCESS_CATCH_END
 
       //Decrease file size
       {
@@ -175,14 +174,14 @@ class basic_managed_memory_impl
 
       //This function should not throw. The index construction can
       //throw if constructor allocates memory. So we must catch it.
-      BOOST_TRY{
+      BOOST_INTERPROCESS_TRY{
          //Let's construct the allocator in memory
          BOOST_ASSERT((0 == (std::size_t)addr % boost::move_detail::alignment_of<segment_manager>::value));
          mp_header       = ::new(addr, boost_container_new_t()) segment_manager(size);
       }
-      BOOST_CATCH(...){
+      BOOST_INTERPROCESS_CATCH(...){
          return false;
-      } BOOST_CATCH_END
+      } BOOST_INTERPROCESS_CATCH_END
       return true;
    }
 
@@ -227,31 +226,31 @@ class basic_managed_memory_impl
 
    //!Returns the base address of the memory in this process. Never throws.
    void *   get_address   () const
-   {   return reinterpret_cast<char*>(mp_header) - Offset; }
+   {   return mp_header ? reinterpret_cast<char*>(mp_header) - Offset : 0; }
 
    //!Returns the size of memory segment. Never throws.
    size_type   get_size   () const
-   {   return mp_header->get_size() + Offset;  }
+   {   return mp_header ? mp_header->get_size() + Offset : 0u;  }
 
    //!Returns the number of free bytes of the memory
    //!segment
    size_type get_free_memory() const
-   {  return mp_header->get_free_memory();  }
+   {  return mp_header ? mp_header->get_free_memory() : 0;  }
 
    //!Returns the result of "all_memory_deallocated()" function
    //!of the used memory algorithm
    bool all_memory_deallocated()
-   {   return mp_header->all_memory_deallocated(); }
+   {   return mp_header ? mp_header->all_memory_deallocated() : true; }
 
    //!Returns the result of "check_sanity()" function
    //!of the used memory algorithm
    bool check_sanity()
-   {   return mp_header->check_sanity(); }
+   {   return mp_header ? mp_header->check_sanity() : true; }
 
    //!Writes to zero free memory (memory not yet allocated) of
    //!the memory algorithm
    void zero_free_memory()
-   {   mp_header->zero_free_memory(); }
+   {   if (mp_header) mp_header->zero_free_memory(); }
 
    //!Transforms an absolute address into an offset from base address.
    //!The address must belong to the memory segment. Never throws.
@@ -308,24 +307,24 @@ class basic_managed_memory_impl
 
    //!Allocates n_elements of elem_bytes bytes.
    //!Throws bad_alloc on failure. chain.size() is not increased on failure.
-   void allocate_many(size_type elem_bytes, size_type n_elements, multiallocation_chain &chain)
-   {  mp_header->allocate_many(elem_bytes, n_elements, chain); }
+   void allocate_many(size_type elem_bytes, size_type n_elements, size_type alignment, multiallocation_chain &chain)
+   {  mp_header->allocate_many(elem_bytes, n_elements, alignment, chain); }
 
    //!Allocates n_elements, each one of element_lengths[i]*sizeof_element bytes.
    //!Throws bad_alloc on failure. chain.size() is not increased on failure.
-   void allocate_many(const size_type *element_lengths, size_type n_elements, size_type sizeof_element, multiallocation_chain &chain)
-   {  mp_header->allocate_many(element_lengths, n_elements, sizeof_element, chain); }
+   void allocate_many(const size_type *element_lengths, size_type n_elements, size_type sizeof_element, size_type alignment, multiallocation_chain &chain)
+   {  mp_header->allocate_many(element_lengths, n_elements, sizeof_element, alignment, chain); }
 
    //!Allocates n_elements of elem_bytes bytes.
    //!Non-throwing version. chain.size() is not increased on failure.
-   void allocate_many(const std::nothrow_t &tag, size_type elem_bytes, size_type n_elements, multiallocation_chain &chain)
-   {  mp_header->allocate_many(tag, elem_bytes, n_elements, chain); }
+   void allocate_many(const std::nothrow_t &tag, size_type elem_bytes, size_type n_elements, size_type alignment, multiallocation_chain &chain)
+   {  mp_header->allocate_many(tag, elem_bytes, n_elements, alignment, chain); }
 
    //!Allocates n_elements, each one of
    //!element_lengths[i]*sizeof_element bytes.
    //!Non-throwing version. chain.size() is not increased on failure.
-   void allocate_many(const std::nothrow_t &tag, const size_type *elem_sizes, size_type n_elements, size_type sizeof_element, multiallocation_chain &chain)
-   {  mp_header->allocate_many(tag, elem_sizes, n_elements, sizeof_element, chain); }
+   void allocate_many(const std::nothrow_t &tag, const size_type *elem_sizes, size_type n_elements, size_type sizeof_element, size_type alignment, multiallocation_chain &chain)
+   {  mp_header->allocate_many(tag, elem_sizes, n_elements, sizeof_element, alignment, chain); }
 
    //!Deallocates all elements contained in chain.
    //!Never throws.
@@ -362,6 +361,7 @@ class basic_managed_memory_impl
    //!array was being constructed, destructors of created objects are called
    //!before freeing the memory.
    template <class T>
+   BOOST_INTERPROCESS_NODISCARD
    typename segment_manager::template construct_proxy<T>::type
       construct(char_ptr_holder_t name)
    {   return mp_header->template construct<T>(name);  }
@@ -446,6 +446,7 @@ class basic_managed_memory_impl
    //!Memory is freed automatically if T's constructor throws and
    //!destructors of created objects are called before freeing the memory.
    template <class T>
+   BOOST_INTERPROCESS_NODISCARD
    typename segment_manager::template construct_iter_proxy<T>::type
       construct_it(char_ptr_holder_t name)
    {   return mp_header->template construct_it<T>(name);  }

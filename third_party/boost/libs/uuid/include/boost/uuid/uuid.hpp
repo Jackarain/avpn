@@ -9,6 +9,7 @@
 #include <boost/uuid/uuid_clock.hpp>
 #include <boost/uuid/detail/endian.hpp>
 #include <boost/uuid/detail/hash_mix.hpp>
+#include <boost/uuid/detail/cstring.hpp>
 #include <boost/uuid/detail/config.hpp>
 #include <boost/type_traits/integral_constant.hpp> // for Serialization support
 #include <boost/config.hpp>
@@ -18,7 +19,6 @@
 #include <typeindex> // cheapest std::hash
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 #if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L && defined(__has_include)
 # if __has_include(<compare>)
@@ -47,7 +47,7 @@ private:
 
         union
         {
-#if BOOST_WORKAROUND(BOOST_MSVC, < 1910)
+#if BOOST_WORKAROUND(BOOST_MSVC, < 1960)
 
             std::uint8_t repr_[ 16 ] = {};
 
@@ -66,19 +66,19 @@ private:
 
     public:
 
-        operator repr_type& () noexcept { return repr_; }
-        operator repr_type const& () const noexcept { return repr_; }
+        BOOST_CXX14_CONSTEXPR operator repr_type& () noexcept { return repr_; }
+        constexpr operator repr_type const& () const noexcept { return repr_; }
 
-        std::uint8_t* operator()() noexcept { return repr_; }
-        std::uint8_t const* operator()() const noexcept { return repr_; }
+        BOOST_CXX14_CONSTEXPR std::uint8_t* operator()() noexcept { return repr_; }
+        constexpr std::uint8_t const* operator()() const noexcept { return repr_; }
 
 #if BOOST_WORKAROUND(BOOST_MSVC, < 1930)
 
-        std::uint8_t* operator+( std::ptrdiff_t i ) noexcept { return repr_ + i; }
-        std::uint8_t const* operator+( std::ptrdiff_t i ) const noexcept { return repr_ + i; }
+        BOOST_CXX14_CONSTEXPR std::uint8_t* operator+( std::ptrdiff_t i ) noexcept { return repr_ + i; }
+        constexpr std::uint8_t const* operator+( std::ptrdiff_t i ) const noexcept { return repr_ + i; }
 
-        std::uint8_t& operator[]( std::ptrdiff_t i ) noexcept { return repr_[ i ]; }
-        std::uint8_t const& operator[]( std::ptrdiff_t i ) const noexcept { return repr_[ i ]; }
+        BOOST_CXX14_CONSTEXPR std::uint8_t& operator[]( std::ptrdiff_t i ) noexcept { return repr_[ i ]; }
+        constexpr std::uint8_t const& operator[]( std::ptrdiff_t i ) const noexcept { return repr_[ i ]; }
 
 #endif
     };
@@ -87,7 +87,7 @@ public:
 
     // data
 
-#if BOOST_WORKAROUND(BOOST_MSVC, < 1910)
+#if BOOST_WORKAROUND(BOOST_MSVC, < 1960)
 
     data_type data;
 
@@ -103,9 +103,9 @@ public:
 
     uuid() = default;
 
-    uuid( repr_type const& r )
+    BOOST_CXX14_CONSTEXPR uuid( repr_type const& r ) noexcept
     {
-        std::memcpy( data, r, 16 );
+        detail::memcpy_cx( data, r, 16 );
     }
 
     // iteration
@@ -118,11 +118,11 @@ public:
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
 
-    iterator begin() noexcept { return data; }
-    const_iterator begin() const noexcept { return data; }
+    BOOST_CXX14_CONSTEXPR iterator begin() noexcept { return data; }
+    constexpr const_iterator begin() const noexcept { return data; }
 
-    iterator end() noexcept { return data + size(); }
-    const_iterator end() const noexcept { return data + size(); }
+    BOOST_CXX14_CONSTEXPR iterator end() noexcept { return data() + size(); }
+    constexpr const_iterator end() const noexcept { return data() + size(); }
 
     // size
 
@@ -136,7 +136,7 @@ public:
 
     // is_nil
 
-    bool is_nil() const noexcept;
+    BOOST_UUID_CXX14_CONSTEXPR_RT bool is_nil() const noexcept;
 
     // variant
 
@@ -148,7 +148,7 @@ public:
         variant_future // future definition
     };
 
-    variant_type variant() const noexcept
+    BOOST_CXX14_CONSTEXPR variant_type variant() const noexcept
     {
         // variant is stored in octet 7
         // which is index 8, since indexes count backwards
@@ -180,7 +180,7 @@ public:
         version_custom_v8 = 8
     };
 
-    version_type version() const noexcept
+    BOOST_CXX14_CONSTEXPR version_type version() const noexcept
     {
         // version is stored in octet 9
         // which is index 6, since indexes count backwards
@@ -210,7 +210,7 @@ public:
 
     using timestamp_type = std::uint64_t;
 
-    timestamp_type timestamp_v1() const noexcept
+    BOOST_CXX14_CONSTEXPR timestamp_type timestamp_v1() const noexcept
     {
         std::uint32_t time_low = detail::load_big_u32( this->data + 0 );
         std::uint16_t time_mid = detail::load_big_u16( this->data + 4 );
@@ -219,7 +219,7 @@ public:
         return time_low | static_cast<std::uint64_t>( time_mid ) << 32 | static_cast<std::uint64_t>( time_hi ) << 48;
     }
 
-    timestamp_type timestamp_v6() const noexcept
+    BOOST_CXX14_CONSTEXPR timestamp_type timestamp_v6() const noexcept
     {
         std::uint32_t time_high = detail::load_big_u32( this->data + 0 );
         std::uint16_t time_mid = detail::load_big_u16( this->data + 4 );
@@ -228,7 +228,7 @@ public:
         return time_low | static_cast<std::uint64_t>( time_mid ) << 12 | static_cast<std::uint64_t>( time_high ) << 28;
     }
 
-    timestamp_type timestamp_v7() const noexcept
+    BOOST_CXX14_CONSTEXPR timestamp_type timestamp_v7() const noexcept
     {
         std::uint64_t time_and_version = detail::load_big_u64( this->data + 0 );
         return time_and_version >> 16;
@@ -255,7 +255,7 @@ public:
 
     using clock_seq_type = std::uint16_t;
 
-    clock_seq_type clock_seq() const noexcept
+    BOOST_CXX14_CONSTEXPR clock_seq_type clock_seq() const noexcept
     {
         return detail::load_big_u16( this->data + 8 ) & 0x3FFF;
     }
@@ -264,59 +264,70 @@ public:
 
     using node_type = std::array<std::uint8_t, 6>;
 
-    node_type node_identifier() const noexcept
+    BOOST_CXX14_CONSTEXPR node_type node_identifier() const noexcept
     {
-        node_type node = {};
-
-        std::memcpy( node.data(), this->data + 10, 6 );
+        node_type node = {{ data()[10], data()[11], data()[12], data()[13], data()[14], data()[15] }};
         return node;
     }
 
     // swap
 
-    void swap( uuid& rhs ) noexcept;
+    BOOST_CXX14_CONSTEXPR void swap( uuid& rhs ) noexcept
+    {
+        uuid tmp( *this );
+        *this = rhs;
+        rhs = tmp;
+    }
 };
 
 // operators
 
-inline bool operator==( uuid const& lhs, uuid const& rhs ) noexcept;
-inline bool operator< ( uuid const& lhs, uuid const& rhs ) noexcept;
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator==( uuid const& lhs, uuid const& rhs ) noexcept;
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator< ( uuid const& lhs, uuid const& rhs ) noexcept;
 
-inline bool operator!=( uuid const& lhs, uuid const& rhs ) noexcept
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator!=( uuid const& lhs, uuid const& rhs ) noexcept
 {
     return !(lhs == rhs);
 }
 
-inline bool operator>( uuid const& lhs, uuid const& rhs ) noexcept
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator>( uuid const& lhs, uuid const& rhs ) noexcept
 {
     return rhs < lhs;
 }
-inline bool operator<=( uuid const& lhs, uuid const& rhs ) noexcept
+
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator<=( uuid const& lhs, uuid const& rhs ) noexcept
 {
     return !(rhs < lhs);
 }
 
-inline bool operator>=( uuid const& lhs, uuid const& rhs ) noexcept
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool operator>=( uuid const& lhs, uuid const& rhs ) noexcept
 {
     return !(lhs < rhs);
 }
 
 #if defined(BOOST_UUID_HAS_THREE_WAY_COMPARISON)
 
-inline std::strong_ordering operator<=>( uuid const& lhs, uuid const& rhs ) noexcept;
+BOOST_UUID_CXX14_CONSTEXPR_RT inline std::strong_ordering operator<=>( uuid const& lhs, uuid const& rhs ) noexcept;
 
 #endif
 
+// is_nil
+
+BOOST_UUID_CXX14_CONSTEXPR_RT inline bool uuid::is_nil() const noexcept
+{
+    return *this == uuid{};
+}
+
 // swap
 
-inline void swap( uuid& lhs, uuid& rhs ) noexcept
+BOOST_CXX14_CONSTEXPR inline void swap( uuid& lhs, uuid& rhs ) noexcept
 {
     lhs.swap( rhs );
 }
 
 // hash_value
 
-inline std::size_t hash_value( uuid const& u ) noexcept
+BOOST_CXX14_CONSTEXPR inline std::size_t hash_value( uuid const& u ) noexcept
 {
     std::uint64_t r = 0;
 
@@ -352,7 +363,7 @@ namespace std
 
 template<> struct hash<boost::uuids::uuid>
 {
-    std::size_t operator()( boost::uuids::uuid const& value ) const noexcept
+    BOOST_CXX14_CONSTEXPR std::size_t operator()( boost::uuids::uuid const& value ) const noexcept
     {
         return boost::uuids::hash_value( value );
     }

@@ -4,7 +4,103 @@ weight = 80
 +++
 
 ---
-## v2.2.10 ? (Boost 1.86) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.10)
+## v2.2.15 ? (Boost 1.91) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.15)
+
+### Enhancements:
+
+- Added the beginnings of a complete reimplementation of Experimental Outcome
+from scratch, but written 100% in C. This reimplementation will be usable from
+any ISO C right back to 1989, and it is 100% ABI compatible with this C++
+implementation i.e. you can cast pointers to the types from one
+implementation to the other if you wish, and virtual functions do correctly
+call into 100% C implementations and vice versa.
+
+- The C reimplementation required that the C++ `status_code_domain`'s virtual
+and thunk functions had to be refactored so calling them with `__thiscall`
+would also work when called with `__cdecl` on all major architectures and
+calling conventions. I also made them able to return failure without throwing
+a C++ exception. If you have created your own `status_code_domain`'s
+you will need to update your code (the refactoring is very minor), otherwise
+you shouldn't notice any change.
+
+- The C reimplementation simplified the implementation of `atomic_refcounted_string_ref`,
+and the C++ implementation was updated to match. The biggest change is that the
+input string is now ALWAYS COPIED and is no longer a `malloc` pointer whose
+ownership is taken. If you have used `atomic_refcounted_string_ref` in your own
+code, you'll need to refactor it to no longer allocate the input buffer using
+`malloc` and instead pass in the original `char` buffer.
+
+- The complete C reimplementation is currently **NOT YET FIT FOR PRODUCTION USE** and
+you should use instead the current, mature, C API to the C++ implementation.
+The documentation currently makes no reference to the complete C reimplementation,
+though if/when it becomes production ready, it will be updated.
+
+- Finally, the C reimplementation is what is being proposed for standardisation
+into the C standard library, so expect the usual renaming and other mild changes
+that standards committees like to do. As I no longer serve on WG21 C++ standards,
+I don't expect any further changes from that standards commitee.
+
+### Bug fixes:
+
+- In Experimental.Outcome, the `make_status_code()` ADL customisation point in
+`status_code` kinda supported transforming between kinds of status code, but it
+also kinda didn't. Now it definitely does. This fix may cause corner case breakage.
+
+
+---
+## v2.2.14 10th December 2025 (Boost 1.90) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.14)
+
+### Enhancements:
+
+[#314](https://github.com/ned14/outcome/issues/314)
+- Bump Boost min cmake required to 3.10 to match standalone Outcome. Also bump minium cmake to 3.10
+everywhere else in Outcome, as CI is now failing due to us requested too old a cmake.
+
+
+---
+## v2.2.13 6th August 2025 (Boost 1.89) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.13)
+
+### Enhancements:
+
+[#312](https://github.com/ned14/outcome/issues/312)
+- `iostream_support.hpp` has been split into `iostream_support_result.hpp` and `iostream_support.hpp`.
+
+[#313](https://github.com/ned14/outcome/issues/313)
+- Bump min cmake required to 3.10 amongst other cmake modernisation fixes to please cmake 4.0.
+
+---
+## v2.2.12 10th April 2025 (Boost 1.88) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.12)
+
+### Bug fixes:
+
+- The Android build had become broken, fixed.
+
+---
+## v2.2.11 12th December 2024 (Boost 1.87) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.11)
+
+### Enhancements:
+
+- Outcome.Experimental has had C representation support since the beginning, however it had
+been mainly intended that C++ would originate Results, they would pass through C, and back
+into C++. It hadn't really been expected that C would want to do much with Results other than
+inspect them for happy or sad path.
+
+ It turns out there is more demand than expected for a more functional Result from within C,
+so this release adds the power to create Results in success and two types of failure, semantic
+comparison of Results, and printing of Result messages. You can also wrap a C enum into a
+quick status code from enum, allowing easy custom C error coding from 100% within C.
+
+ [The documentation for the C support]({{% relref "../experimental/c-api" %}}) has been updated
+to reflect the new facilities.
+
+### Bug fixes:
+
+- This was fixed in Standalone Outcome in the last release, but the fix came too late for Boost.Outcome
+which ended up shipping with inline GDB pretty printers with the wrong escaping which caused
+failure to load.
+
+---
+## v2.2.10 14th August 2024 (Boost 1.86) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.10)
 
 ### Enhancements:
 
@@ -17,6 +113,9 @@ working with that type, as it will print the error message in GDB.
 with display of `strerror()` if the code domain is POSIX or generic.
 
 ### Bug fixes:
+
+- The `status` enumeration used to track state internally did not list all possible enum
+values. This caused static analysers to complain.
 
 ---
 ## v2.2.9 15th April 2024 (Boost 1.85) [[release]](https://github.com/ned14/outcome/releases/tag/v2.2.9)

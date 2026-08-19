@@ -1,5 +1,5 @@
 [/
- / Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+ / Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
  /
  / Distributed under the Boost Software License, Version 1.0. (See accompanying
  / file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -532,7 +532,8 @@ Coroutines.
 * [@boost_asio/example/cpp20/coroutines/echo_server_with_deferred_default.cpp]
 * [@boost_asio/example/cpp20/coroutines/refactored_echo_server.cpp]
 * [@boost_asio/example/cpp20/coroutines/chat_server.cpp]
-* [@boost_asio/example/cpp20/coroutines/timeout.cpp]
+* [@boost_asio/example/cpp20/coroutines/timeout_cancel_after.cpp]
+* [@boost_asio/example/cpp20/coroutines/timeout_watchdog.cpp]
 
 
 [heading Invocation]

@@ -10,6 +10,7 @@
 // Test that header file is self-contained.
 #include <boost/json/value_to.hpp>
 
+#include <boost/core/detail/static_assert.hpp>
 #include <boost/json/value_from.hpp>
 #include <boost/core/ignore_unused.hpp>
 #include <boost/describe/class.hpp>
@@ -23,7 +24,6 @@
 #include <map>
 #include <unordered_map>
 #include <vector>
-#include <iostream>
 
 #ifndef BOOST_NO_CXX17_HDR_VARIANT
 # include <variant>
@@ -197,6 +197,23 @@ tag_invoke(
     return T11( jv.to_number<int>() );
 }
 
+struct T12
+{
+    T12(int) {}
+};
+
+T12
+tag_invoke(boost::json::value_to_tag<T12>, boost::json::value const&)
+{
+    return T12(0);
+}
+
+void
+tag_invoke(boost::json::value_from_tag, boost::json::value& jv , T12&)
+{
+    jv.emplace_null();
+}
+
 } // namespace value_to_test_ns
 
 namespace std
@@ -220,6 +237,12 @@ struct tuple_size<value_to_test_ns::T4>
 namespace boost {
 namespace json {
 
+template<std::size_t N>
+struct is_sequence_like< std::array<value_to_test_ns::T12, N> >
+    : std::false_type
+{};
+
+
 template<>
 struct is_null_like<::value_to_test_ns::T1> : std::true_type { };
 
@@ -240,7 +263,7 @@ struct can_apply_value_to<T, detail::void_t<decltype(
 {
 };
 
-BOOST_STATIC_ASSERT(!can_apply_value_to<int>::value);
+BOOST_CORE_STATIC_ASSERT( !can_apply_value_to<int>::value );
 
 class value_to_test
 {
@@ -378,6 +401,8 @@ public:
             (value_to<std::tuple<int, int, int, int>>(
                 value{1, 2, 3}, ctx... )));
 
+        // just check that this compiles
+        value_to< std::array<value_to_test_ns::T12, 3> >( value{1, 2, 3} );
     }
 
     void
@@ -388,10 +413,11 @@ public:
             detail::try_reserve(
                 v, 10, detail::reserve_implementation<decltype(v)>());
             BOOST_TEST(v.capacity() >= 10);
-            BOOST_STATIC_ASSERT(std::is_same<
-                decltype(detail::inserter(
-                    v, detail::inserter_implementation<decltype(v)>())),
-                decltype(std::back_inserter(v)) >::value);
+            BOOST_CORE_STATIC_ASSERT((
+                std::is_same<
+                    decltype(detail::inserter(
+                        v, detail::inserter_implementation<decltype(v)>())),
+                    decltype(std::back_inserter(v)) >::value));
         }
         {
             std::array<int, 2> arr;
@@ -432,8 +458,9 @@ public:
             BOOST_TEST( res->d == 0.125 );
 
             jv.as_object()["x"] = 0;
-            BOOST_TEST_THROWS_WITH_LOCATION(
-                value_to<::value_to_test_ns::T6>( jv ));
+            res = try_value_to<::value_to_test_ns::T6>(
+                jv, ctx... );
+            BOOST_TEST( res );
         }
         {
             value jv = {{"n", 1}, {"d", 2}, {"s", "xyz"}, {"b", true}};
@@ -480,15 +507,15 @@ public:
             BOOST_TEST( std::nullopt == res->opt_s );
 
             jv.as_object()["x"] = 0;
-            BOOST_TEST_THROWS_WITH_LOCATION(
-                value_to<::value_to_test_ns::T8>( jv, ctx... ));
+            res = try_value_to<::value_to_test_ns::T8>(
+                jv, ctx... );
+            BOOST_TEST( res );
 #endif // BOOST_NO_CXX17_HDR_OPTIONAL
         }
 
-        BOOST_TEST_THROWS(
+        BOOST_TEST_THROWS_WITH_LOCATION(
             value_to<::value_to_test_ns::T10>(
-                value{{"n", 0}, {"t3", "t10"}}, ctx... ),
-            std::invalid_argument);
+                value{{"n", 0}, {"t3", "t10"}}, ctx... ));
 #endif // BOOST_DESCRIBE_CXX14
     }
 
@@ -564,6 +591,8 @@ public:
         BOOST_TEST(
             paths == (Paths{
                 "from/here", "to/there", "", "c:/" , "..", "../"}) );
+        BOOST_TEST_THROWS_WITH_LOCATION(
+            value_to<std::filesystem::path>( value(1), ctx... ));
 #endif // BOOST_NO_CXX17_HDR_FILESYSTEM
     }
 
@@ -577,13 +606,12 @@ public:
             // clang 3.8 seems to have some bug when dealing with a lot of
             // template instantiations; this assert magically makes the problem
             // go away, I assume, by instantiating the needed types beforehand
-            BOOST_STATIC_ASSERT(
+            BOOST_CORE_STATIC_ASSERT((
                 detail::conversion_round_trips<
-                    mp11::mp_first<
-                        mp11::mp_list<
-                            Context..., int> >,
+                    mp11::mp_first< mp11::mp_list<Context..., int> >,
                     ::value_to_test_ns::T2,
-                    detail::value_to_conversion>::value );
+                    detail::value_to_conversion
+                >::value));
 
             auto res = try_value_to<::value_to_test_ns::T2>(
                 value(), ctx... );

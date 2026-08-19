@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2016-2019 Vinnie Falco (vinnie dot falco at gmail dot com)
+// Copyright (c) 2022 Alan de Freitas (alandefreitas@gmail.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -11,10 +12,27 @@
 #define BOOST_URL_RFC_ORIGIN_FORM_RULE_HPP
 
 #include <boost/url/detail/config.hpp>
-#include <boost/url/url_view.hpp>
+#include <boost/url/error_types.hpp>
 
 namespace boost {
 namespace urls {
+
+class url_view;
+
+namespace implementation_defined {
+struct origin_form_rule_t
+{
+    using value_type =
+        url_view;
+
+    BOOST_URL_CXX20_CONSTEXPR
+    system::result<value_type>
+    parse(
+        char const*& it,
+        char const* end
+            ) const noexcept;
+};
+}
 
 /** Rule for origin-form
 
@@ -47,26 +65,11 @@ namespace urls {
         @ref parse_origin_form,
         @ref url_view.
 */
-#ifdef BOOST_URL_DOCS
-constexpr __implementation_defined__ origin_form_rule;
-#else
-struct origin_form_rule_t
-{
-    using value_type =
-        url_view;
-
-    BOOST_URL_DECL
-    system::result<value_type>
-    parse(
-        char const*& it,
-        char const* end
-            ) const noexcept;
-};
-
-constexpr origin_form_rule_t origin_form_rule{};
-#endif
+BOOST_INLINE_CONSTEXPR implementation_defined::origin_form_rule_t origin_form_rule{};
 
 } // urls
 } // boost
+
+#include <boost/url/rfc/impl/origin_form_rule.hpp>
 
 #endif

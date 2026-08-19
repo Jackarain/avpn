@@ -26,7 +26,6 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/config.hpp>
-#include <boost/noncopyable.hpp>
 
 #include <boost/geometry/core/static_assert.hpp>
 #include <boost/geometry/core/tags.hpp>
@@ -153,7 +152,7 @@ struct svg_map<multi_tag, Multi, SvgPoint>
 {
     typedef typename single_tag_of
       <
-          typename geometry::tag<Multi>::type
+          geometry::tag_t<Multi>
       >::type stag;
 
     template <typename TransformStrategy>
@@ -186,11 +185,7 @@ struct devarianted_svg_map
     {
         svg_map
             <
-                typename tag_cast
-                    <
-                        typename tag<Geometry>::type,
-                        multi_tag
-                    >::type,
+                tag_cast_t<tag_t<Geometry>, multi_tag>,
                 typename std::remove_const<Geometry>::type,
                 SvgPoint
             >::apply(stream, style, size, geometry, strategy);
@@ -268,13 +263,13 @@ template
     bool SameScale = true,
     typename SvgCoordinateType = double
 >
-class svg_mapper : boost::noncopyable
+class svg_mapper
 {
     typedef model::point<SvgCoordinateType, 2, cs::cartesian> svg_point_type;
 
     typedef typename geometry::select_most_precise
         <
-            typename coordinate_type<Point>::type,
+            coordinate_type_t<Point>,
             double
         >::type calculation_type;
 
@@ -388,6 +383,8 @@ public :
         assign_inverse(m_bounding_box);
         write_header(width_height);
     }
+
+    svg_mapper(svg_mapper const&) = delete;  // Not copyable.
 
     /*!
     \brief Destructor, called automatically. Closes the SVG by streaming <\/svg>

@@ -12,6 +12,7 @@
 #ifndef BOOST_JSON_DETAIL_VALUE_FROM_HPP
 #define BOOST_JSON_DETAIL_VALUE_FROM_HPP
 
+#include <boost/json/value.hpp>
 #include <boost/json/conversion.hpp>
 #include <boost/describe/enum_to_string.hpp>
 #include <boost/mp11/algorithm.hpp>
@@ -155,6 +156,10 @@ value_from_impl( no_conversion_tag, value&, T&&, Ctx const& )
 template< class Ctx, class T >
 struct from_described_member
 {
+    static_assert(
+        uniquely_named_members< remove_cvref<T> >::value,
+        "The type has several described members with the same name.");
+
     using Ds = described_members< remove_cvref<T> >;
 
     object& obj;

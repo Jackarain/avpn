@@ -98,12 +98,12 @@ int list_test (bool copied_allocators_equal = true)
 {
    typedef std::list<int> MyStdList;
    typedef typename MyShmList::value_type IntType;
-   const int Memsize = 128u * 1024u;
+   const int Memsize = 256u * 1024u;
    const char *const shMemName = test::get_process_id_name();
    const int max = 100;
    typedef push_data_function<DoublyLinked> push_data_t;
 
-   BOOST_TRY{
+   BOOST_INTERPROCESS_TRY{
       //Named new capable shared mem allocator
       //Create shared memory
       shared_memory_object::remove(shMemName);
@@ -134,6 +134,11 @@ int list_test (bool copied_allocators_equal = true)
       shmlist->pop_front();
       stdlist->pop_front();
       if(!CheckEqualContainers(shmlist, stdlist)) return 1;
+
+      {
+         MyShmList m(boost::move(*shmlist));
+         *shmlist = boost::move(m);
+      }
 
       {
          IntType aux_vect[50];
@@ -264,10 +269,10 @@ int list_test (bool copied_allocators_equal = true)
       if(!segment.all_memory_deallocated())
          return 1;
    }
-   BOOST_CATCH(...){
+   BOOST_INTERPROCESS_CATCH(...){
       shared_memory_object::remove(shMemName);
-      BOOST_RETHROW
-   } BOOST_CATCH_END
+      BOOST_INTERPROCESS_RETHROW
+   } BOOST_INTERPROCESS_CATCH_END
    shared_memory_object::remove(shMemName);
    return 0;
 }

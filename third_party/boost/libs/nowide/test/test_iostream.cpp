@@ -1,5 +1,5 @@
 // Copyright (c) 2015 Artyom Beilis (Tonkikh)
-// Copyright (c) 2020 - 2021 Alexander Grund
+// Copyright (c) 2020 - 2026 Alexander Grund
 //
 // Distributed under the Boost Software License, Version 1.0.
 // https://www.boost.org/LICENSE_1_0.txt
@@ -17,6 +17,7 @@
 #include "test.hpp"
 #include "test_sets.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <queue>
@@ -34,6 +35,11 @@ const std::string outputString =
 
 const bool usesNowideRdBufIn = nw::cin.rdbuf() != std::cin.rdbuf();
 const bool usesNowideRdBufOut = nw::cout.rdbuf() != std::cout.rdbuf();
+
+bool is_buffered(const std::ostream& os)
+{
+    return (os.flags() & std::ios_base::unitbuf) == 0;
+}
 
 #ifndef BOOST_NOWIDE_TEST_INTERACTIVE
 class mock_output_buffer final : public nw::detail::console_output_buffer_base
@@ -134,12 +140,14 @@ void test_is_valid_UTF8()
     TEST(!is_valid_UTF8(invalid_utf8_tests[0].utf8));        // Detect invalid
 }
 
-void test_tie()
+void test_tie_and_buffered()
 {
     TEST(nw::cin.tie() == &nw::cout);
     TEST(nw::cerr.tie() == &nw::cout);
-    TEST((nw::cerr.flags() & std::ios_base::unitbuf) != 0);
     TEST(nw::clog.tie() == nullptr);
+    TEST(is_buffered(nw::cout));
+    TEST(!is_buffered(nw::cerr));
+    TEST(is_buffered(nw::clog));
 }
 
 void test_putback_and_get()
@@ -231,6 +239,20 @@ void test_cerr()
     TEST_MOCKED(mock_buf.output == nw::widen("a"));
     TEST_MOCKED(nw::cerr << "Hello World");
     TEST_MOCKED(mock_buf.output == nw::widen("aHello World"));
+}
+
+void test_clog()
+{
+    if(usesNowideRdBufOut) // Only executed when attached to a real terminal, i.e. not on CI
+    {
+        TEST(nw::clog.rdbuf() != std::clog.rdbuf()); // LCOV_EXCL_LINE
+        // for the std:: streams this is not true for all implementations, so only check when using custom buffers
+        TEST(nw::clog.rdbuf() != nw::cerr.rdbuf()); // LCOV_EXCL_LINE
+    }
+
+    TEST(nw::clog.rdbuf() != nw::cin.rdbuf());
+    TEST(nw::clog.rdbuf() != nw::cout.rdbuf());
+    TEST(nw::clog.rdbuf() != std::cout.rdbuf());
 }
 
 void test_cerr_single_char()
@@ -436,10 +458,10 @@ public:
     void setBufferData(const std::wstring& data)
     {
         std::vector<INPUT_RECORD> buffer;
-        buffer.reserve(data.size() * 2 + 2);
+        buffer.reserve(data.size() * 2);
         for(const auto c : data)
         {
-            INPUT_RECORD ev;
+            INPUT_RECORD ev{};
             ev.EventType = KEY_EVENT;
             ev.Event.KeyEvent.bKeyDown = TRUE;
             ev.Event.KeyEvent.dwControlKeyState = 0;
@@ -451,14 +473,15 @@ public:
             } else
             {
                 ev.Event.KeyEvent.uChar.UnicodeChar = c;
-                ev.Event.KeyEvent.wVirtualKeyCode = VkKeyScanW(c);
+                ev.Event.KeyEvent.wVirtualKeyCode = 0;
             }
-            ev.Event.KeyEvent.wVirtualScanCode =
-              static_cast<WORD>(MapVirtualKeyW(ev.Event.KeyEvent.wVirtualKeyCode, MAPVK_VK_TO_VSC));
+            ev.Event.KeyEvent.wVirtualScanCode = 0;
             buffer.push_back(ev);
             ev.Event.KeyEvent.bKeyDown = FALSE;
             buffer.push_back(ev);
         }
+        // Clear any previous contents
+        FlushConsoleInputBuffer(h);
         DWORD dwWritten;
         TEST(WriteConsoleInputW(h, buffer.data(), static_cast<DWORD>(buffer.size()), &dwWritten));
         TEST_EQ(dwWritten, static_cast<DWORD>(buffer.size()));
@@ -467,6 +490,11 @@ public:
 
 void test_console()
 {
+#ifdef __MINGW32__
+    const bool isMinGW_CI = std::getenv("CI");
+#else
+    const bool isMinGW_CI = false;
+#endif
 #ifndef BOOST_NOWIDE_DISABLE_CIN_TEST
     std::cout << "Test cin console: " << std::flush;
     {
@@ -485,36 +513,66 @@ void test_console()
         std::string line;
         TEST(std::getline(cin, line));
         std::cout << "ASCII line read" << std::endl;
-        TEST_EQ(line, testStringIn1);
-        TEST(std::getline(cin, line));
-        std::cout << "UTF-8 line read" << std::endl;
-        TEST_EQ(line, testStringIn2);
+        // MinGW on CI sometimes swallows the (mocked) first line or returns it multiple times
+        DISABLE_CONST_EXPR_DETECTED
+        if(isMinGW_CI && line == testStringIn2)
+        {
+            DISABLE_CONST_EXPR_DETECTED_POP
+            std::cout << "WARNING: MinGW CI issue detected, skipping part of test"; // LCOV_EXCL_LINE
+        } else
+        {
+            TEST_EQ(line, testStringIn1);
+            std::cout << "UTF-8 line read" << std::endl;
+            line.clear();
+            TEST(std::getline(cin, line));
+            DISABLE_CONST_EXPR_DETECTED
+            if(isMinGW_CI && line == testStringIn1)
+            {
+                DISABLE_CONST_EXPR_DETECTED_POP
+                std::cout << "WARNING: MinGW CI issue detected, skipping 1st part of test"; // LCOV_EXCL_LINE
+            } else
+                TEST_EQ(line, testStringIn2);
+        }
     }
 #endif
     std::cout << "Test cout console" << std::endl;
     {
         RedirectStdio stdoutHandle(STD_OUTPUT_HANDLE);
-        decltype(nw::cout) cout(true, nullptr);
+        using cout_t = decltype(nw::cout);
+        cout_t cout(cout_t::target_stream::output, true, nullptr);
         TEST(cout.rdbuf() != std::cout.rdbuf());
 
         const std::string testString = "Hello std out\n\xc3\xa4-\xc3\xb6-\xc3\xbc\n";
         cout << testString << std::flush;
 
         const auto data = stdoutHandle.getBufferData();
-        TEST_EQ(data, nw::widen(testString));
+        DISABLE_CONST_EXPR_DETECTED
+        if(isMinGW_CI && data.empty())
+        {
+            DISABLE_CONST_EXPR_DETECTED_POP
+            std::cout << "WARNING: MinGW CI issue detected, skipping part of test"; // LCOV_EXCL_LINE
+        } else
+            TEST_EQ(data, nw::widen(testString));
     }
     std::cout << "Test cerr console" << std::endl;
     {
         RedirectStdio stderrHandle(STD_ERROR_HANDLE);
 
-        decltype(nw::cerr) cerr(false, nullptr);
+        using cerr_t = decltype(nw::cerr);
+        cerr_t cerr(cerr_t::target_stream::error, false, nullptr);
         TEST(cerr.rdbuf() != std::cerr.rdbuf());
 
         const std::string testString = "Hello std err\n\xc3\xa4-\xc3\xb6-\xc3\xbc\n";
         cerr << testString << std::flush;
 
         const auto data = stderrHandle.getBufferData();
-        TEST_EQ(data, nw::widen(testString));
+        DISABLE_CONST_EXPR_DETECTED
+        if(isMinGW_CI && data.empty())
+        {
+            DISABLE_CONST_EXPR_DETECTED_POP
+            std::cout << "WARNING: MinGW CI issue detected, skipping part of test"; // LCOV_EXCL_LINE
+        } else
+            TEST_EQ(data, nw::widen(testString));
     }
     std::cout << "Console tests done" << std::endl;
 }
@@ -528,7 +586,6 @@ void test_console()
 // coverity[root_function]
 void test_main(int argc, char** argv, char**)
 {
-    // LCOV_EXCL_START
     if(usesNowideRdBufIn)
         nw::cout << "Using Nowide input buffer\n";
     else
@@ -537,7 +594,6 @@ void test_main(int argc, char** argv, char**)
         nw::cout << "Using Nowide output buffer\n"; // LCOV_EXCL_LINE
     else
         nw::cout << "NOT using Nowide output buffer\n";
-    // LCOV_EXCL_STOP
 
     const std::string arg = (argc == 1) ? "" : argv[1];
     if(arg == "passthrough") // Read string from cin and write to cout
@@ -573,12 +629,13 @@ void test_main(int argc, char** argv, char**)
     test_ctrl_z_is_eof();                    // LCOV_EXCL_LINE
 #else
     test_is_valid_UTF8();
-    test_tie();
+    test_tie_and_buffered();
     test_putback_and_get();
     test_cout();
     test_cout_single_char();
     test_cerr();
     test_cerr_single_char();
+    test_clog();
     test_cin();
     test_cin_getline();
     test_ctrl_z_is_eof();

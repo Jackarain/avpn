@@ -29,7 +29,7 @@
 #include <boost/thread/detail/memory.hpp>
 #include <boost/thread/csbl/memory/unique_ptr.hpp>
 #include <memory>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 #include <boost/thread/executors/basic_thread_pool.hpp>
 #include <boost/thread/executor.hpp>
 
@@ -106,12 +106,12 @@ int f0()
   return 3;
 }
 
-int i = 0;
+int g_i = 0;
 
 int& f1()
 {
   boost::this_thread::sleep_for(ms(200));
-  return i;
+  return g_i;
 }
 
 void f2()

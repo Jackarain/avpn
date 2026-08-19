@@ -1,11 +1,13 @@
 #  Boost.Atomic Library Jamfile
 #
 #  Copyright Helge Bahmann 2011.
-#  Copyright Andrey Semashev 2018, 2020-2021.
+#  Copyright Andrey Semashev 2018, 2020-2025.
 #
 #  Distributed under the Boost Software License, Version 1.0.
 #  (See accompanying file LICENSE_1_0.txt or copy at
 #  http://www.boost.org/LICENSE_1_0.txt)
+
+import-search /boost/config/checks ;
 
 import common ;
 import config : requires ;
@@ -15,40 +17,35 @@ import feature ;
 import configure ;
 import atomic-arch-config ;
 
-local here = [ modules.binding $(__name__) ] ;
-
-project.push-current [ project.current ] ;
-project.load [ path.join [ path.make $(here:D) ] ../../config/checks/architecture ] ;
-project.pop-current ;
-
 lib synchronization ;
 explicit synchronization ;
 
-rule check-synchronization-lib ( properties * )
-{
-    local result ;
-
-    if <target-os>windows in $(properties)
-    {
-        if [ configure.builds ../config//has_synchronization_lib : $(properties) : "has synchronization.lib" ]
-        {
-            result += <library>synchronization ;
-        }
-        else
-        {
-            result += <define>BOOST_ATOMIC_NO_SYNCHRONIZATION_LIB ;
-        }
-    }
-
-    return $(result) ;
-}
-
 local cxx_requirements = [ requires
+      cxx11_constexpr
+      cxx11_noexcept
+      cxx11_nullptr
+      cxx11_decltype
+      cxx11_decltype_n3276
+      cxx11_template_aliases
       cxx11_static_assert
-    ] ;
+      cxx11_rvalue_references
+      cxx11_scoped_enums
+      cxx11_defaulted_functions
+      cxx11_deleted_functions
+      cxx11_hdr_ratio
+      cxx11_hdr_chrono
+    ]
+    [ check-target-builds ../config//has_cxx11_nontrivial_union "has unions with non-trivial members" : : <build>no ]
+    [ check-target-builds ../config//has_sufficient_cxx11_type_traits "has <type_traits> sufficient for Boost.Atomic" : : <build>no ]
+    ;
 
-project boost/atomic
+project
+    : common-requirements
+      <include>../include
+      $(boost_dependencies)
     : requirements
+      <library>/boost/align//boost_align
+      <library>/boost/preprocessor//boost_preprocessor
       <include>../src
       <threading>multi
       <link>shared:<define>BOOST_ATOMIC_DYN_LINK=1
@@ -59,6 +56,7 @@ project boost/atomic
     : usage-requirements
       <link>shared:<define>BOOST_ATOMIC_DYN_LINK=1
       <link>static:<define>BOOST_ATOMIC_STATIC_LINK=1
+      <define>BOOST_ATOMIC_NO_LIB=1
     : source-location ../src
     ;
 
@@ -100,6 +98,19 @@ for local src in $(BOOST_ATOMIC_SOURCES_SSE41)
     explicit $(src) ;
 }
 
+rule check-pthread-cond-clockwait ( properties * )
+{
+    local result ;
+
+    local has_pthread_cond_clockwait = [ configure.builds ../config//has_pthread_cond_clockwait : $(properties) : "has pthread_cond_clockwait" ] ;
+    if $(has_pthread_cond_clockwait)
+    {
+        result = <define>BOOST_ATOMIC_HAS_PTHREAD_COND_CLOCKWAIT ;
+    }
+
+    return $(result) ;
+}
+
 rule select-arch-specific-sources ( properties * )
 {
     local result ;
@@ -124,31 +135,21 @@ rule select-arch-specific-sources ( properties * )
     return $(result) ;
 }
 
-rule select-platform-specific-sources ( properties * )
-{
-    local result ;
-
-    if <target-os>windows in $(properties)
-    {
-        result += <source>wait_on_address.cpp ;
-    }
-
-#    ECHO Platform sources: $(result) ;
-
-    return $(result) ;
-}
-
 lib boost_atomic
     : ## sources ##
       lock_pool.cpp
     : ## requirements ##
       <include>../src
+      <conditional>@check-pthread-cond-clockwait
       <conditional>@select-arch-specific-sources
-      <conditional>@select-platform-specific-sources
+      <target-os>windows:<library>synchronization
+      # MinGW-w64 defines _WIN32_WINNT to _WIN32_WINNT_WS03 by default, which disables WaitOnAddress API that is required by Boost.Atomic.
+      # Define the macro ourselves to the Windows version required by Boost.Atomic.
+      # https://github.com/boostorg/atomic/issues/73
+      <toolset>gcc,<target-os>windows:<define>_WIN32_WINNT=0x0A00
       $(cxx_requirements)
     : usage-requirements
-      <conditional>@check-synchronization-lib
+      <target-os>windows:<library>synchronization
+      <toolset>gcc,<target-os>windows:<define>_WIN32_WINNT=0x0A00
       $(cxx_requirements)
    ;
-
-boost-install boost_atomic ;

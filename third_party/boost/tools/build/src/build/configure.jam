@@ -11,6 +11,7 @@
 #   process.
 # - Reporting what is built, and how it is configured.
 
+import args ;
 import "class" : new ;
 import common ;
 import indirect ;
@@ -25,6 +26,13 @@ import modules ;
 import sequence ;
 import utility ;
 import virtual-target ;
+
+
+args.add-arg reconfigure : --reconfigure
+    : "Recreated shared toolset configuration files."
+    : flag ;
+
+.reconfigure = [ args.get-arg reconfigure ] ;
 
 
 rule log-summary ( )
@@ -161,11 +169,6 @@ rule print-configure-checks-summary ( )
     }
 }
 
-if --reconfigure in [ modules.peek : ARGV ]
-{
-    .reconfigure = true ;
-}
-
 # Handle the --reconfigure option
 rule maybe-force-rebuild ( targets * )
 {
@@ -190,7 +193,9 @@ rule try-build ( targets * : ps : what : retry ? )
     local cache-name = $(what) $(cache-props) ;
     cache-name = $(cache-name:J=-) ;
     local value = [ config-cache.get $(cache-name) ] ;
-    local cache-min = [ property.as-path [ SORT [ feature.minimize $(cache-props) ] ] ] ;
+    # NOTE: properties returned by feature.minimize are unexpanded (no grist).
+    local cache-sorted = [ SORT [ feature.minimize $(cache-props) ] ] ;
+    local cache-min = [ property.as-path $(cache-sorted) : dont-minimize ] ;
 
     local result ;
     local jam-targets ;
@@ -266,7 +271,9 @@ rule try-find-build ( ps : what : * )
     local cache-name = $(what) $($(args)[1]) $(cache-props) ;
     cache-name = $(cache-name:J=-) ;
     local value = [ config-cache.get $(cache-name) ] ;
-    local cache-min = [ property.as-path [ SORT [ feature.minimize $(cache-props) ] ] ] ;
+    # NOTE: properties returned by feature.minimize are unexpanded (no grist).
+    local cache-sorted = [ SORT [ feature.minimize $(cache-props) ] ] ;
+    local cache-min = [ property.as-path $(cache-sorted) : dont-minimize ] ;
 
     local result ;
     local jam-targets ;

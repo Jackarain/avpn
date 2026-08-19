@@ -7,7 +7,7 @@
 // Official repository: https://github.com/boostorg/json
 //
 
-//[example_use_allocator
+// tag::example_use_allocator[]
 
 /*
     This example uses a context that stores an allocator to create sequences during conversions
@@ -60,7 +60,7 @@ tag_invoke( try_value_to_tag<T>, const value& jv, const use_allocator_t<Alloc>& 
         auto elem_res = try_value_to<ValueType>( val, full_ctx );
         if( elem_res.has_error() )
             return {boost::system::in_place_error, elem_res.error()};
-        *ins++ = std::move(*elem_res);
+        *ins++ = std::move(elem_res.unsafe_value());
     }
     return result;
 }
@@ -86,4 +86,4 @@ main(int, char**)
     return EXIT_SUCCESS;
 }
 
-//]
+// end::example_use_allocator[]

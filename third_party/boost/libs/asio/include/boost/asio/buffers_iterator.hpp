@@ -2,7 +2,7 @@
 // buffers_iterator.hpp
 // ~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -26,6 +26,16 @@
 
 namespace boost {
 namespace asio {
+BOOST_ASIO_INLINE_NAMESPACE_BEGIN
+
+#if !defined(BOOST_ASIO_BUFFERS_ITERATOR_FWD_DECL)
+#define BOOST_ASIO_BUFFERS_ITERATOR_FWD_DECL
+
+// Forward declaration with defaulted arguments.
+template <typename BufferSequence, typename ByteType = char>
+class buffers_iterator;
+
+#endif // !defined(BOOST_ASIO_BUFFERS_ITERATOR_FWD_DECL)
 
 namespace detail
 {
@@ -84,30 +94,10 @@ namespace detail
     typedef add_const_t<ByteType> byte_type;
     typedef const const_buffer* const_iterator;
   };
-
-#if !defined(BOOST_ASIO_NO_DEPRECATED)
-
-  template <typename ByteType>
-  struct buffers_iterator_types<mutable_buffers_1, ByteType>
-  {
-    typedef mutable_buffer buffer_type;
-    typedef ByteType byte_type;
-    typedef const mutable_buffer* const_iterator;
-  };
-
-  template <typename ByteType>
-  struct buffers_iterator_types<const_buffers_1, ByteType>
-  {
-    typedef const_buffer buffer_type;
-    typedef add_const_t<ByteType> byte_type;
-    typedef const const_buffer* const_iterator;
-  };
-
-#endif // !defined(BOOST_ASIO_NO_DEPRECATED)
-}
+} // namespace detail
 
 /// A random access iterator over the bytes in a buffer sequence.
-template <typename BufferSequence, typename ByteType = char>
+template <typename BufferSequence, typename ByteType>
 class buffers_iterator
 {
 private:
@@ -515,6 +505,7 @@ inline buffers_iterator<BufferSequence> buffers_end(
   return buffers_iterator<BufferSequence>::end(buffers);
 }
 
+BOOST_ASIO_INLINE_NAMESPACE_END
 } // namespace asio
 } // namespace boost
 

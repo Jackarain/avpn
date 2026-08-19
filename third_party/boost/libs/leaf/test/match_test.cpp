@@ -1,5 +1,4 @@
-// Copyright 2018-2023 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2018-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -13,7 +12,6 @@
 
 #include "_test_ec.hpp"
 #include "lightweight_test.hpp"
-#include <exception>
 
 namespace leaf = boost::leaf;
 
@@ -33,7 +31,7 @@ constexpr bool e_my_error_gt( e_my_error const & e ) noexcept
 {
   return e.value > S;
 }
-#endif
+#endif // #if __cplusplus >= 201703L
 
 struct my_exception: std::exception
 {
@@ -101,9 +99,9 @@ int main()
         BOOST_TEST(( !test<leaf::if_not<leaf::match<std::error_code, errc_a::a0>>>(e) ));
         BOOST_TEST(( test<leaf::if_not<leaf::match<std::error_code, errc_a::a2>>>(e) ));
         BOOST_TEST(( !test<leaf::if_not<leaf::match<std::error_code, errc_a::a2, errc_a::a0>>>(e) ));
-#endif
+#endif // #if __cplusplus >= 201703L
     }
-#endif
+#endif // #if BOOST_LEAF_CFG_STD_SYSTEM_ERROR
 
 #if __cplusplus >= 201703L
     {
@@ -276,7 +274,7 @@ int main()
             } );
         BOOST_TEST_EQ(r, 2);
     }
-#endif
+#endif // #if __cplusplus >= 201703L
 
     return boost::report_errors();
 }

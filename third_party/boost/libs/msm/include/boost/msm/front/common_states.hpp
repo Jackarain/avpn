@@ -11,6 +11,9 @@
 #ifndef BOOST_MSM_FRONT_COMMON_STATES_H
 #define BOOST_MSM_FRONT_COMMON_STATES_H
 
+// mpl::copy is not used in msm::front but must be included
+// to enable conversion to Mp11 lists when needed.
+#include <boost/mpl/copy.hpp>
 #include <boost/mpl/int.hpp>
 #include <boost/mpl/vector.hpp>
 #include <boost/fusion/container/map.hpp>
@@ -23,7 +26,6 @@ namespace boost { namespace msm { namespace front
 // default base: non-polymorphic, not visitable
 struct default_base_state 
 {
-    ~default_base_state(){}
 };
 // default polymorphic base state. Derive all states from it to get polymorphic behavior
 struct polymorphic_state

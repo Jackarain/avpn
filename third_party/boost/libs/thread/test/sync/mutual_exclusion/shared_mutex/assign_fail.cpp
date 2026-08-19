@@ -19,12 +19,14 @@
 // shared_mutex& operator=(const shared_mutex&) = delete;
 
 #include <boost/thread/shared_mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 int main()
 {
   boost::shared_mutex m0;
-  boost::shared_mutex m1(m0);
+  boost::shared_mutex m1;
+  m1 = m0;
+  (void)m1;
 }
 
 #include "../../../remove_error_code_unused_warning.hpp"

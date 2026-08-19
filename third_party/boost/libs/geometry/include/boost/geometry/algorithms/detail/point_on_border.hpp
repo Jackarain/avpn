@@ -23,7 +23,6 @@
 
 #include <boost/range/begin.hpp>
 #include <boost/range/end.hpp>
-#include <boost/static_assert.hpp>
 
 #include <boost/geometry/algorithms/assign.hpp>
 #include <boost/geometry/algorithms/detail/convert_point_to_point.hpp>
@@ -214,7 +213,7 @@ inline bool point_on_border(Point& point, Geometry const& geometry)
 
     return dispatch::point_on_border
             <
-                typename tag<Geometry>::type
+                tag_t<Geometry>
             >::apply(point, geometry);
 }
 

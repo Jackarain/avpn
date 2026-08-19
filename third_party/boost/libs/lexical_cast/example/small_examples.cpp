@@ -1,14 +1,15 @@
-// Copyright Antony Polukhin, 2013-2024.
+// Copyright Antony Polukhin, 2013-2026.
 
 // Distributed under the Boost Software License, Version 1.0.
 // (See the accompanying file LICENSE_1_0.txt
 // or a copy at <http://www.boost.org/LICENSE_1_0.txt>.)
 
-#include <boost/lexical_cast.hpp>
-
 #include <array>
 #include <string>
+#include <string.h>
 #include <cstdio>
+
+#include <boost/lexical_cast.hpp>
 
 #ifdef BOOST_MSVC
 #  pragma warning(disable: 4996) // `strerror` is not safe

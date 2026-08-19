@@ -16,31 +16,6 @@
 namespace boost {
 namespace urls {
 
-namespace detail {
-
-template <class T>
-int
-decoded_strcmp(decode_view s0, T s1)
-{
-    auto const n0 = s0.size();
-    auto const n1 = s1.size();
-    auto n = (std::min)(n0, n1);
-    auto it0 = s0.begin();
-    auto it1 = s1.begin();
-    while (n--)
-    {
-        const char c0 = *it0++;
-        const char c1 = *it1++;
-        if (c0 == c1)
-            continue;
-        return 1 - 2 * (static_cast<unsigned char>(c0)
-                      < static_cast<unsigned char>(c1));
-    }
-    return 1 - (n0 == n1) - 2 * (n0 < n1);
-}
-
-} // detail
-
 //------------------------------------------------
 
 auto
@@ -63,34 +38,6 @@ operator*() const noexcept ->
              unsigned char>(d1))));
 }
 
-// unchecked constructor
-decode_view::
-decode_view(
-    core::string_view s,
-    std::size_t n,
-    encoding_opts opt) noexcept
-    : p_(s.data())
-    , n_(s.size())
-    , dn_(n)
-    , space_as_plus_(
-        opt.space_as_plus)
-{
-}
-
-int
-decode_view::
-compare(core::string_view other) const noexcept
-{
-    return detail::decoded_strcmp(*this, other);
-}
-
-int
-decode_view::
-compare(decode_view other) const noexcept
-{
-    return detail::decoded_strcmp(*this, other);
-}
-
 void
 decode_view::
 write(std::ostream& os) const
@@ -105,6 +52,7 @@ void
 decode_view::
 remove_prefix( size_type n )
 {
+    BOOST_ASSERT(n <= dn_);
     auto it = begin();
     auto n0 = n;
     while (n)
@@ -121,6 +69,7 @@ void
 decode_view::
 remove_suffix( size_type n )
 {
+    BOOST_ASSERT(n <= dn_);
     auto it = end();
     auto n0 = n;
     while (n)
@@ -156,6 +105,8 @@ bool
 decode_view::
 ends_with( core::string_view s ) const noexcept
 {
+    if (s.empty())
+        return true;
     if (s.size() > size())
         return false;
     auto it0 = end();

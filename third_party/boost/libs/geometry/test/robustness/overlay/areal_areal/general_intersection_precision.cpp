@@ -3,13 +3,16 @@
 
 // Copyright (c) 2019-2021 Barend Gehrels, Amsterdam, the Netherlands.
 
-// This file was modified by Oracle on 2021.
-// Modifications copyright (c) 2021, Oracle and/or its affiliates.
+// This file was modified by Oracle on 2021-2024.
+// Modifications copyright (c) 2021-2024, Oracle and/or its affiliates.
+// Contributed and/or modified by Vissarion Fysikopoulos, on behalf of Oracle
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
+
+#define BOOST_GEOMETRY_NO_BOOST_TEST
 
 #include <iostream>
 #include <iomanip>
@@ -17,10 +20,10 @@
 #include <sstream>
 #include <string>
 
-#include <geometry_test_common.hpp>
-
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/geometries.hpp>
+
+#include <geometry_test_common.hpp>
 
 // Basic case. Union should deliver 22.0
 static std::string case_a[2] =
@@ -80,18 +83,9 @@ bool test_overlay(std::string const& caseid,
 
     strategy_type strategy;
 
-    typedef typename bg::rescale_overlay_policy_type
-    <
-        Geometry,
-        Geometry
-    >::type rescale_policy_type;
-
-    rescale_policy_type robust_policy
-        = bg::get_rescale_policy<rescale_policy_type>(g1, g2);
-
     Geometry result;
     bg::detail::overlay::overlay_null_visitor visitor;
-    overlay::apply(g1, g2, robust_policy, std::back_inserter(result),
+    overlay::apply(g1, g2, std::back_inserter(result),
                    strategy, visitor);
 
     auto const detected_area = bg::area(result);
@@ -215,18 +209,17 @@ std::size_t test_all(std::size_t case_index, std::size_t min_vertex_index,
 
     std::cout << case_index
             << " #cases: " << n << " #errors: " << error_count << std::endl;
-    BOOST_CHECK_EQUAL(error_count, 0u);
 
     return error_count;
 }
 
-int test_main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     BoostGeometryWriteTestConfiguration();
     using coor_t = default_test_type;
 
     test_settings settings;
-    settings.do_output = argc > 2 && atol(argv[2]) == 1;
+    settings.do_output = true;
 
     // Test three polygons, for the last test two types of intersections
     test_all<coor_t, true, bg::overlay_union>(1, 0, 3, 22.0, settings);

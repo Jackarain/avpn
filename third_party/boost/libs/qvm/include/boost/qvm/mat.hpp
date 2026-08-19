@@ -1,8 +1,7 @@
 #ifndef BOOST_QVM_MAT_HPP_INCLUDED
 #define BOOST_QVM_MAT_HPP_INCLUDED
 
-// Copyright 2008-2022 Emil Dotchevski and Reverge Studios, Inc.
-
+// Copyright 2008-2024 Emil Dotchevski and Reverge Studios, Inc.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
@@ -22,7 +21,7 @@ mat
         , class = typename enable_if<is_mat<R> >::type
 #endif
     >
-    operator R() const
+    BOOST_QVM_CONSTEXPR operator R() const
         {
         R r;
         assign(r,*this);

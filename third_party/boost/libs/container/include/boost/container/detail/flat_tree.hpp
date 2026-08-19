@@ -45,6 +45,7 @@
 #include <boost/move/iterator.hpp>
 #include <boost/move/adl_move_swap.hpp>
 #include <boost/move/detail/iterator_to_raw_pointer.hpp>
+#include <boost/move/detail/to_raw_pointer.hpp>
 #include <boost/move/detail/force_ptr.hpp>
 #include <boost/move/detail/launder.hpp>
 #include <boost/move/algo/adaptive_sort.hpp>
@@ -120,6 +121,7 @@ namespace boost {
 namespace container {
 namespace dtl {
 
+
 ///////////////////////////////////////
 //
 // Helper functions to merge elements
@@ -137,14 +139,19 @@ template<class SequenceContainer, class Compare>
 inline void flat_tree_container_inplace_merge //is_contiguous_container == true
    (SequenceContainer& dest, typename SequenceContainer::iterator it, Compare comp , dtl::true_)
 {
-   typedef typename SequenceContainer::value_type  value_type;
+   typedef typename SequenceContainer::value_type value_type;
+   typedef typename SequenceContainer::size_type  size_type;
+
    value_type *const braw = boost::movelib::to_raw_pointer(dest.data());
    value_type *const iraw = boost::movelib::iterator_to_raw_pointer(it);
    //Don't use iterator_to_raw_pointer for end as debug iterators can assert when
    //"operator ->" is used with the end iterator
    value_type *const eraw = braw + dest.size();
+   size_type dest_unused_storage_size = 0;
+   value_type *const dest_unused_storage_addr =
+      unused_storage<SequenceContainer>::get(dest, dest_unused_storage_size);
    boost::movelib::adaptive_merge
-      (braw, iraw, eraw, comp, eraw, back_free_capacity<SequenceContainer>::get(dest));
+      (braw, iraw, eraw, comp, dest_unused_storage_addr, dest_unused_storage_size);
 }
 
 template<class SequenceContainer, class Compare>
@@ -163,15 +170,19 @@ template<class SequenceContainer, class Compare>
 inline void flat_tree_container_inplace_sort_ending //is_contiguous_container == true
    (SequenceContainer& dest, typename SequenceContainer::iterator it, Compare comp, dtl::true_)
 {
-   typedef typename SequenceContainer::value_type  value_type;
+   typedef typename SequenceContainer::value_type value_type;
+   typedef typename SequenceContainer::size_type  size_type;
+
    value_type *const iraw = boost::movelib::iterator_to_raw_pointer(it);
    //Don't use iterator_to_raw_pointer for end as debug iterators can assert when
    //"operator ->" is used with the end iterator
    value_type* const eraw = boost::movelib::to_raw_pointer(dest.data()) + dest.size();
 
-
+   size_type dest_unused_storage_size;
+   value_type* const dest_unused_storage_addr =
+      unused_storage<SequenceContainer>::get(dest, dest_unused_storage_size);
    boost::movelib::adaptive_sort
-      (iraw, eraw, comp, eraw, back_free_capacity<SequenceContainer>::get(dest));
+      (iraw, eraw, comp, dest_unused_storage_addr, dest_unused_storage_size);
 }
 
 template<class SequenceContainer, class Compare>
@@ -199,7 +210,8 @@ inline void flat_tree_merge_equal   //has_merge_unique == false
 {
    if(first != last) {
       typedef typename SequenceContainer::iterator    iterator;
-      iterator const it = dest.insert( dest.end(), first, last );
+      iterator const it = dest.insert( dest.end(), first, last);
+      BOOST_ASSERT((is_sorted)(it, dest.end(), comp));
       dtl::bool_<is_contiguous_container<SequenceContainer>::value> contiguous_tag;
       (flat_tree_container_inplace_merge)(dest, it, comp, contiguous_tag);
    }
@@ -227,7 +239,9 @@ inline void flat_tree_merge_unique  //has_merge_unique == false
       typedef typename SequenceContainer::difference_type   difference_type;
 
       size_type const old_sz = dest.size();
-      iterator const first_new = dest.insert(dest.cend(), first, last );
+      iterator const first_new = dest.insert(dest.cend(), first, last);
+      //We can't assert "is_sorted_and_unique" because the sequence can come from a multiset
+      BOOST_ASSERT((is_sorted)(first_new, dest.end(), comp));
       iterator e = boost::movelib::inplace_set_unique_difference(first_new, dest.end(), dest.begin(), first_new, comp);
       dest.erase(e, dest.end());
       dtl::bool_<is_contiguous_container<SequenceContainer>::value> contiguous_tag;
@@ -316,23 +330,26 @@ template<class SequenceContainer, class Compare>
 void flat_tree_sort_contiguous_to_adopt // is_contiguous_container == true
    (SequenceContainer &tseq, BOOST_RV_REF(SequenceContainer) seq, Compare comp)
 {
-   if(tseq.capacity() >= (seq.capacity() - seq.size())) {
-      tseq.clear();
-      boost::movelib::adaptive_sort
-      (boost::movelib::iterator_to_raw_pointer(seq.begin())
-         , boost::movelib::iterator_to_raw_pointer(seq.end())
-         , comp
-         , boost::movelib::iterator_to_raw_pointer(tseq.begin())
-         , tseq.capacity());
-   }
-   else{
-      boost::movelib::adaptive_sort
-      (boost::movelib::iterator_to_raw_pointer(seq.begin())
-         , boost::movelib::iterator_to_raw_pointer(seq.end())
-         , comp
-         , boost::movelib::iterator_to_raw_pointer(seq.end())
-         , seq.capacity() - seq.size());
-   }
+   typedef typename SequenceContainer::value_type value_type;
+   typedef typename SequenceContainer::size_type  size_type;
+
+   size_type tseq_unused_storage_size, seq_unused_storage_size;
+   value_type* const tseq_unused_storage_addr =
+      unused_storage<SequenceContainer>::get(tseq, tseq_unused_storage_size);
+   value_type* const seq_unused_storage_addr  =
+      unused_storage<SequenceContainer>::get(seq,  seq_unused_storage_size);
+
+   tseq.clear();
+   const bool use_tseq_storage = tseq_unused_storage_size > seq_unused_storage_size;
+
+   value_type * const seq_beg = boost::movelib::iterator_to_raw_pointer(seq.data());
+
+   boost::movelib::adaptive_sort
+      ( seq_beg
+      , seq_beg + seq.size()
+      , comp
+      , use_tseq_storage ? tseq_unused_storage_addr : seq_unused_storage_addr
+      , use_tseq_storage ? tseq_unused_storage_size : seq_unused_storage_size);
 }
 
 template<class SequenceContainer, class Compare>
@@ -360,9 +377,11 @@ template<class SequenceContainer, class Compare>
 void flat_tree_adopt_sequence_unique// is_contiguous_container == true
    (SequenceContainer &tseq, BOOST_RV_REF(SequenceContainer) seq, Compare comp, dtl::true_)
 {
+   typedef typename SequenceContainer::value_type value_type;
+   value_type * const seq_beg = boost::movelib::iterator_to_raw_pointer(seq.data());
    boost::movelib::pdqsort
-      ( boost::movelib::iterator_to_raw_pointer(seq.begin())
-      , boost::movelib::iterator_to_raw_pointer(seq.end())
+      ( seq_beg
+      , seq_beg + seq.size()
       , comp);
    seq.erase(boost::movelib::unique
       (seq.begin(), seq.end(), boost::movelib::negate<Compare>(comp)), seq.cend());
@@ -454,21 +473,21 @@ class flat_tree_value_compare
 
 ///////////////////////////////////////
 //
-//       select_container_type
+//       select_flat_tree_container_type
 //
 ///////////////////////////////////////
 template < class Value, class AllocatorOrContainer
          , bool = boost::container::dtl::is_container<AllocatorOrContainer>::value
          >
-struct select_container_type
+struct select_flat_tree_container_type
 {
    typedef AllocatorOrContainer type;
 };
 
-template <class Value, class AllocatorOrContainer>
-struct select_container_type<Value, AllocatorOrContainer, false>
+template <class Value, class AllocatorOrVoid>
+struct select_flat_tree_container_type<Value, AllocatorOrVoid, false>
 {
-   typedef boost::container::vector<Value, typename real_allocator<Value, AllocatorOrContainer>::type> type;
+   typedef boost::container::vector<Value, AllocatorOrVoid> type;
 };
 
 
@@ -482,7 +501,7 @@ template <class Value, class KeyOfValue,
 class flat_tree
 {
    public:
-   typedef typename select_container_type<Value, AllocatorOrContainer>::type container_type;
+   typedef typename select_flat_tree_container_type<Value, AllocatorOrContainer>::type container_type;
    typedef container_type sequence_type;  //For backwards compatibility
 
    private:
@@ -562,20 +581,24 @@ class flat_tree
 
    public:
 
-   typedef typename container_type::value_type               value_type;
-   typedef typename container_type::pointer                  pointer;
-   typedef typename container_type::const_pointer            const_pointer;
-   typedef typename container_type::reference                reference;
-   typedef typename container_type::const_reference          const_reference;
+   typedef typename container_type::value_type              value_type;
+   typedef typename container_type::pointer                 pointer;
+   typedef typename container_type::const_pointer           const_pointer;
+   typedef typename container_type::reference               reference;
+   typedef typename container_type::const_reference         const_reference;
    typedef typename KeyOfValue::type                        key_type;
    typedef Compare                                          key_compare;
-   typedef typename container_type::allocator_type           allocator_type;
-   typedef typename container_type::size_type                size_type;
-   typedef typename container_type::difference_type          difference_type;
-   typedef typename container_type::iterator                 iterator;
-   typedef typename container_type::const_iterator           const_iterator;
-   typedef typename container_type::reverse_iterator         reverse_iterator;
-   typedef typename container_type::const_reverse_iterator   const_reverse_iterator;
+   typedef typename container_type::allocator_type          allocator_type;
+   typedef typename container_type::size_type               size_type;
+   typedef typename container_type::difference_type         difference_type;
+   typedef typename container_type::iterator                iterator;
+   typedef typename container_type::const_iterator          const_iterator;
+   typedef typename container_type::reverse_iterator        reverse_iterator;
+   typedef typename container_type::const_reverse_iterator  const_reverse_iterator;
+
+   //`allocator_type::value_type` must match container's `value type`. If this
+   //assertion fails, please review your allocator definition. 
+   BOOST_CONTAINER_STATIC_ASSERT((is_same<value_type, typename allocator_traits_type::value_type>::value));
 
    //!Standard extension
    typedef BOOST_INTRUSIVE_OBTAIN_TYPE_WITH_DEFAULT
@@ -620,11 +643,11 @@ class flat_tree
       :  m_data(boost::move(x.m_data))
    { }
 
-   inline flat_tree(const flat_tree& x, const allocator_type &a)
+   inline flat_tree(const flat_tree& x, const BOOST_CONTAINER_DOC1ST(allocator_type, typename dtl::type_identity<allocator_type>::type) &a)
       :  m_data(x.m_data, a)
    { }
 
-   inline flat_tree(BOOST_RV_REF(flat_tree) x, const allocator_type &a)
+   inline flat_tree(BOOST_RV_REF(flat_tree) x, const BOOST_CONTAINER_DOC1ST(allocator_type, typename dtl::type_identity<allocator_type>::type) &a)
       :  m_data(boost::move(x.m_data), a)
    { }
 
@@ -718,7 +741,8 @@ class flat_tree
    }
 
    inline ~flat_tree()
-   {}
+   {
+   }
 
    inline flat_tree&  operator=(BOOST_COPY_ASSIGN_REF(flat_tree) x)
    {  m_data = x.m_data;   return *this;  }
@@ -748,87 +772,87 @@ class flat_tree
 
    public:
    // accessors:
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       Compare key_comp() const
    { return this->m_data.get_comp(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       value_compare value_comp() const
    { return this->m_data; }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       allocator_type get_allocator() const
    { return this->m_data.m_seq.get_allocator(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       get_stored_allocator_const_return_t get_stored_allocator() const
    {
       return flat_tree_get_stored_allocator(this->m_data.m_seq, dtl::bool_<has_stored_allocator_type>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       get_stored_allocator_noconst_return_t get_stored_allocator()
    {
       return flat_tree_get_stored_allocator(this->m_data.m_seq, dtl::bool_<has_stored_allocator_type>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       iterator begin()
    { return this->m_data.m_seq.begin(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator begin() const
    { return this->cbegin(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator cbegin() const
    { return this->m_data.m_seq.begin(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       iterator end()
    { return this->m_data.m_seq.end(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator end() const
    { return this->cend(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator cend() const
    { return this->m_data.m_seq.end(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       reverse_iterator rbegin()
    { return reverse_iterator(this->end()); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reverse_iterator rbegin() const
    {  return this->crbegin();  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reverse_iterator crbegin() const
    {  return const_reverse_iterator(this->cend());  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       reverse_iterator rend()
    { return reverse_iterator(this->begin()); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reverse_iterator rend() const
    { return this->crend(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_reverse_iterator crend() const
    { return const_reverse_iterator(this->cbegin()); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       bool empty() const
    { return this->m_data.m_seq.empty(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type size() const
    { return this->m_data.m_seq.size(); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type max_size() const
    { return this->m_data.m_seq.max_size(); }
 
@@ -851,6 +875,18 @@ class flat_tree
    }
 
    std::pair<iterator,bool> insert_unique(BOOST_RV_REF(value_type) val)
+   {
+      std::pair<iterator,bool> ret;
+      insert_commit_data data;
+      ret.second = this->priv_insert_unique_prepare(KeyOfValue()(val), data);
+      ret.first = ret.second ? this->priv_insert_commit(data, boost::move(val))
+                             : this->begin() + (data.position - this->cbegin());
+                             //: iterator(vector_iterator_get_ptr(data.position));
+      return ret;
+   }
+
+   template<class Convertible>
+   std::pair<iterator,bool> insert_unique(BOOST_FWD_REF(Convertible) val)
    {
       std::pair<iterator,bool> ret;
       insert_commit_data data;
@@ -895,6 +931,21 @@ class flat_tree
          //: iterator(vector_iterator_get_ptr(data.position));
    }
 
+   template<class K>
+   inline typename dtl::enable_if_c<
+      !dtl::is_convertible<K, iterator>::value &&     //not convertible to iterator
+      !dtl::is_convertible<K, const_iterator>::value  //not convertible to const_iterator
+      , iterator>::type
+    insert_unique(const_iterator hint, BOOST_FWD_REF(K) val)
+   {
+      BOOST_ASSERT(this->priv_in_range_or_end(hint));
+      insert_commit_data data;
+      return this->priv_insert_unique_prepare(hint, KeyOfValue()(val), data)
+         ? this->priv_insert_commit(data, boost::move(val))
+         : this->begin() + (data.position - this->cbegin());
+         //: iterator(vector_iterator_get_ptr(data.position));
+   }
+
    iterator insert_equal(const_iterator hint, const value_type& val)
    {
       BOOST_ASSERT(this->priv_in_range_or_end(hint));
@@ -912,7 +963,7 @@ class flat_tree
    }
 
    template <class InIt>
-   void insert_unique(InIt first, InIt last)
+   void insert_unique_range(InIt first, InIt last)
    {
       dtl::bool_<is_contiguous_container<container_type>::value> contiguous_tag;
       container_type &seq = this->m_data.m_seq;
@@ -928,9 +979,10 @@ class flat_tree
       typename container_type::iterator const e = boost::movelib::inplace_set_unique_difference
          (it, seq.end(), seq.begin(), it, val_cmp);
 
+      //it might be invalidated by erasing [e, seq.end) if e == it, so check it before
+      const bool remaining = e != it;
       seq.erase(e, seq.cend());
-      //it might be invalidated by erasing [e, seq.end) if e == it
-      if (it != e)
+      if (remaining)
       {
          //Step 4: merge both ranges
          (flat_tree_container_inplace_merge)(seq, it, this->priv_value_comp(), contiguous_tag);
@@ -938,7 +990,7 @@ class flat_tree
    }
 
    template <class InIt>
-   void insert_equal(InIt first, InIt last)
+   void insert_equal_range(InIt first, InIt last)
    {
       if (first != last) {
          dtl::bool_<is_contiguous_container<container_type>::value> contiguous_tag;
@@ -952,18 +1004,16 @@ class flat_tree
    //Ordered
 
    template <class InIt>
-   void insert_equal(ordered_range_t, InIt first, InIt last)
+   void insert_equal_range(ordered_range_t, InIt first, InIt last)
    {
-      BOOST_ASSERT((is_sorted)(first, last, this->priv_value_comp()));
       const bool value = boost::container::dtl::
          has_member_function_callable_with_merge_unique<container_type, InIt, InIt, value_compare>::value;
       (flat_tree_merge_equal)(this->m_data.m_seq, first, last, this->priv_value_comp(), dtl::bool_<value>());
    }
 
    template <class InIt>
-   void insert_unique(ordered_unique_range_t, InIt first, InIt last)
+   void insert_unique_range(ordered_unique_range_t, InIt first, InIt last)
    {
-      BOOST_ASSERT((is_sorted_and_unique)(this->m_data.m_seq.cbegin(), this->m_data.m_seq.cend(), this->priv_value_comp()));
       const bool value = boost::container::dtl::
          has_member_function_callable_with_merge_unique<container_type, InIt, InIt, value_compare>::value;
       (flat_tree_merge_unique)(this->m_data.m_seq, first, last, this->priv_value_comp(), dtl::bool_<value>());
@@ -1019,14 +1069,30 @@ class flat_tree
 
    template <class KeyType, class... Args>
    inline std::pair<iterator, bool> try_emplace
+      (BOOST_FWD_REF(KeyType) key, BOOST_FWD_REF(Args)... args)
+   {
+      std::pair<iterator,bool> ret;
+      insert_commit_data data;
+      const typename remove_cvref<KeyType>::type & k = key;  //Support emulated rvalue references
+      ret.second = this->priv_insert_unique_prepare(k, data);
+
+      if(!ret.second){
+         ret.first  = this->nth(size_type(data.position - this->cbegin()));
+      }
+      else{
+         ret.first = this->m_data.m_seq.emplace(data.position, try_emplace_t(), ::boost::forward<KeyType>(key), ::boost::forward<Args>(args)...);
+      }
+      return ret;
+   }
+
+   template <class KeyType, class... Args>
+   inline std::pair<iterator, bool> try_emplace
       (const_iterator hint, BOOST_FWD_REF(KeyType) key, BOOST_FWD_REF(Args)... args)
    {
       std::pair<iterator,bool> ret;
       insert_commit_data data;
-      const key_type & k = key;
-      ret.second = hint == const_iterator()
-         ? this->priv_insert_unique_prepare(k, data)
-         : this->priv_insert_unique_prepare(hint, k, data);
+      const typename remove_cvref<KeyType>::type & k = key;  //Support emulated rvalue references
+      ret.second = this->priv_insert_unique_prepare(hint, k, data);
 
       if(!ret.second){
          ret.first  = this->nth(size_type(data.position - this->cbegin()));
@@ -1085,14 +1151,29 @@ class flat_tree
    }\
    template <class KeyType BOOST_MOVE_I##N BOOST_MOVE_CLASS##N>\
    inline std::pair<iterator, bool>\
+      try_emplace(BOOST_FWD_REF(KeyType) key BOOST_MOVE_I##N BOOST_MOVE_UREF##N)\
+   {\
+      std::pair<iterator,bool> ret;\
+      insert_commit_data data;\
+      const typename remove_cvref<KeyType>::type & k = key;\
+      ret.second = this->priv_insert_unique_prepare(k, data);\
+      \
+      if(!ret.second){\
+         ret.first  = this->nth(size_type(data.position - this->cbegin()));\
+      }\
+      else{\
+         ret.first = this->m_data.m_seq.emplace(data.position, try_emplace_t(), ::boost::forward<KeyType>(key) BOOST_MOVE_I##N BOOST_MOVE_FWD##N);\
+      }\
+      return ret;\
+   }\
+   template <class KeyType BOOST_MOVE_I##N BOOST_MOVE_CLASS##N>\
+   inline std::pair<iterator, bool>\
       try_emplace(const_iterator hint, BOOST_FWD_REF(KeyType) key BOOST_MOVE_I##N BOOST_MOVE_UREF##N)\
    {\
       std::pair<iterator,bool> ret;\
       insert_commit_data data;\
-      const key_type & k = key;\
-      ret.second = hint == const_iterator()\
-         ? this->priv_insert_unique_prepare(k, data)\
-         : this->priv_insert_unique_prepare(hint, k, data);\
+      const typename remove_cvref<KeyType>::type & k = key;\
+      ret.second = this->priv_insert_unique_prepare(hint, k, data);\
       \
       if(!ret.second){\
          ret.first  = this->nth(size_type(data.position - this->cbegin()));\
@@ -1109,14 +1190,29 @@ class flat_tree
    #endif   // !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
 
    template<class KeyType, class M>
-   std::pair<iterator, bool> insert_or_assign(const_iterator hint, BOOST_FWD_REF(KeyType) key, BOOST_FWD_REF(M) obj)
+   std::pair<iterator, bool> insert_or_assign(BOOST_FWD_REF(KeyType) key, BOOST_FWD_REF(M) obj)
    {
-      const key_type& k = key;
+      const typename remove_cvref<KeyType>::type & k = key;  //Support emulated rvalue references
       std::pair<iterator,bool> ret;
       insert_commit_data data;
-      ret.second = hint == const_iterator()
-         ? this->priv_insert_unique_prepare(k, data)
-         : this->priv_insert_unique_prepare(hint, k, data);
+      ret.second = this->priv_insert_unique_prepare(k, data);
+      if(!ret.second){
+         ret.first  = this->nth(size_type(data.position - this->cbegin()));
+         ret.first->second = boost::forward<M>(obj);
+      }
+      else{
+         ret.first = this->m_data.m_seq.emplace(data.position, boost::forward<KeyType>(key), boost::forward<M>(obj));
+      }
+      return ret;
+   }
+
+   template<class KeyType, class M>
+   std::pair<iterator, bool> insert_or_assign(const_iterator hint, BOOST_FWD_REF(KeyType) key, BOOST_FWD_REF(M) obj)
+   {
+      const typename remove_cvref<KeyType>::type & k = key;  //Support emulated rvalue references
+      std::pair<iterator,bool> ret;
+      insert_commit_data data;
+      ret.second = this->priv_insert_unique_prepare(hint, k, data);
       if(!ret.second){
          ret.first  = this->nth(size_type(data.position - this->cbegin()));
          ret.first->second = boost::forward<M>(obj);
@@ -1152,8 +1248,9 @@ class flat_tree
       !dtl::is_convertible<K, iterator>::value &&     //not convertible to iterator
       !dtl::is_convertible<K, const_iterator>::value  //not convertible to const_iterator
       , size_type>::type
-      erase(const K& k)
+      erase(BOOST_FWD_REF(K) key)
    {
+      const typename remove_cvref<K>::type & k = key;  //Support emulated rvalue references
       std::pair<iterator, iterator > itp = this->equal_range(k);
       size_type ret = static_cast<size_type>(itp.second - itp.first);
       if (ret) {
@@ -1202,7 +1299,7 @@ class flat_tree
       return flat_tree_nth<iterator>(this->m_data.m_seq, n, dtl::bool_<value>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator nth(size_type n) const BOOST_NOEXCEPT_OR_NOTHROW
    {
       const bool value = boost::container::dtl::
@@ -1210,7 +1307,7 @@ class flat_tree
       return flat_tree_nth<const_iterator>(this->m_data.m_seq, n, dtl::bool_<value>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type index_of(iterator p) BOOST_NOEXCEPT_OR_NOTHROW
    {
       const bool value = boost::container::dtl::
@@ -1218,7 +1315,7 @@ class flat_tree
       return flat_tree_index_of(this->m_data.m_seq, p, dtl::bool_<value>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type index_of(const_iterator p) const BOOST_NOEXCEPT_OR_NOTHROW
    {
       const bool value = boost::container::dtl::
@@ -1227,7 +1324,7 @@ class flat_tree
    }
 
    // set operations:
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
       iterator find(const key_type& k)
    {
       iterator i = this->lower_bound(k);
@@ -1238,7 +1335,7 @@ class flat_tree
       return i;
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
    const_iterator find(const key_type& k) const
    {
       const_iterator i = this->lower_bound(k);
@@ -1251,7 +1348,7 @@ class flat_tree
    }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
       typename dtl::enable_if_transparent<key_compare, K, iterator>::type
       find(const K& k)
    {
@@ -1264,7 +1361,7 @@ class flat_tree
    }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
       typename dtl::enable_if_transparent<key_compare, K, const_iterator>::type
       find(const K& k) const
    {
@@ -1277,7 +1374,7 @@ class flat_tree
       return i;
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
       size_type count(const key_type& k) const
    {
       std::pair<const_iterator, const_iterator> p = this->equal_range(k);
@@ -1286,7 +1383,7 @@ class flat_tree
    }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD
+   BOOST_CONTAINER_NODISCARD
       typename dtl::enable_if_transparent<key_compare, K, size_type>::type
       count(const K& k) const
    {
@@ -1295,11 +1392,11 @@ class flat_tree
       return n;
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline bool contains(const key_type& x) const
+   BOOST_CONTAINER_NODISCARD inline bool contains(const key_type& x) const
    {  return this->find(x) != this->cend();  }
 
    template<typename K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K, bool>::type
          contains(const K& x) const
    {  return this->find(x) != this->cend();  }
@@ -1307,15 +1404,15 @@ class flat_tree
    template<class C2>
    inline void merge_unique(flat_tree<Value, KeyOfValue, C2, AllocatorOrContainer>& source)
    {
-      this->insert_unique( boost::make_move_iterator(source.begin())
-                         , boost::make_move_iterator(source.end()));
+      this->insert_unique_range( boost::make_move_iterator(source.begin())
+                               , boost::make_move_iterator(source.end()));
    }
 
    template<class C2>
    inline void merge_equal(flat_tree<Value, KeyOfValue, C2, AllocatorOrContainer>& source)
    {
-      this->insert_equal( boost::make_move_iterator(source.begin())
-                        , boost::make_move_iterator(source.end()));
+      this->insert_equal_range( boost::make_move_iterator(source.begin())
+                              , boost::make_move_iterator(source.end()));
    }
 
    inline void merge_unique(flat_tree& source)
@@ -1342,88 +1439,88 @@ class flat_tree
          , dtl::bool_<value>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       iterator lower_bound(const key_type& k)
    {  return this->priv_lower_bound(this->begin(), this->end(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const_iterator lower_bound(const key_type& k) const
    {  return this->priv_lower_bound(this->cbegin(), this->cend(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline 
+   BOOST_CONTAINER_NODISCARD inline 
       typename dtl::enable_if_transparent<key_compare, K, iterator>::type
          lower_bound(const K& k)
    {  return this->priv_lower_bound(this->begin(), this->end(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline 
+   BOOST_CONTAINER_NODISCARD inline 
       typename dtl::enable_if_transparent<key_compare, K, const_iterator>::type
          lower_bound(const K& k) const
    {  return this->priv_lower_bound(this->cbegin(), this->cend(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       iterator upper_bound(const key_type& k)
    {  return this->priv_upper_bound(this->begin(), this->end(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline 
+   BOOST_CONTAINER_NODISCARD inline 
       const_iterator upper_bound(const key_type& k) const
    {  return this->priv_upper_bound(this->cbegin(), this->cend(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K,iterator>::type
    upper_bound(const K& k)
    {  return this->priv_upper_bound(this->begin(), this->end(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K,const_iterator>::type
          upper_bound(const K& k) const
    {  return this->priv_upper_bound(this->cbegin(), this->cend(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       std::pair<iterator,iterator> equal_range(const key_type& k)
    {  return this->priv_equal_range(this->begin(), this->end(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       std::pair<const_iterator, const_iterator> equal_range(const key_type& k) const
    {  return this->priv_equal_range(this->cbegin(), this->cend(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K, std::pair<iterator,iterator> >::type
          equal_range(const K& k)
    {  return this->priv_equal_range(this->begin(), this->end(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K,std::pair<const_iterator,const_iterator> >::type
          equal_range(const K& k) const
    {  return this->priv_equal_range(this->cbegin(), this->cend(), k);  }
 
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       std::pair<iterator, iterator> lower_bound_range(const key_type& k)
    {  return this->priv_lower_bound_range(this->begin(), this->end(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       std::pair<const_iterator, const_iterator> lower_bound_range(const key_type& k) const
    {  return this->priv_lower_bound_range(this->cbegin(), this->cend(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K,std::pair<iterator,iterator> >::type
          lower_bound_range(const K& k)
    {  return this->priv_lower_bound_range(this->begin(), this->end(), k);  }
 
    template<class K>
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       typename dtl::enable_if_transparent<key_compare, K,std::pair<const_iterator,const_iterator> >::type
          lower_bound_range(const K& k) const
    {  return this->priv_lower_bound_range(this->cbegin(), this->cend(), k);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       size_type capacity() const
    {
       const bool value = boost::container::dtl::
@@ -1439,15 +1536,15 @@ class flat_tree
       (flat_tree_reserve)(this->m_data.m_seq, cnt, dtl::bool_<value>());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       container_type extract_sequence()
    {  return boost::move(m_data.m_seq);   }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       container_type &get_sequence_ref()
    {  return m_data.m_seq; }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       const container_type &get_sequence_cref() const
    {  return m_data.m_seq; }
 
@@ -1475,31 +1572,31 @@ class flat_tree
       m_data.m_seq = boost::move(seq);
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator==(const flat_tree& x, const flat_tree& y)
    {
       return x.size() == y.size() && ::boost::container::algo_equal(x.begin(), x.end(), y.begin());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator<(const flat_tree& x, const flat_tree& y)
    {
       return ::boost::container::algo_lexicographical_compare(x.begin(), x.end(), y.begin(), y.end());
    }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator!=(const flat_tree& x, const flat_tree& y)
       {  return !(x == y); }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator>(const flat_tree& x, const flat_tree& y)
       {  return y < x;  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator<=(const flat_tree& x, const flat_tree& y)
       {  return !(y < x);  }
 
-   BOOST_CONTAINER_ATTRIBUTE_NODISCARD inline
+   BOOST_CONTAINER_NODISCARD inline
       friend bool operator>=(const flat_tree& x, const flat_tree& y)
       {  return !(x < y);  }
 
@@ -1517,10 +1614,10 @@ class flat_tree
       //for the constructor
       //Call end() every iteration as reallocation might have invalidated iterators
       if(unique_insertion){
-         this->insert_unique(first, last);
+         this->insert_unique_range(first, last);
       }
       else{
-         this->insert_equal (first, last);
+         this->insert_equal_range(first, last);
       }
    }
 
@@ -1559,20 +1656,23 @@ class flat_tree
       }
    }
 
+   template<class K>
    bool priv_insert_unique_prepare
-      (const_iterator b, const_iterator e, const key_type& k, insert_commit_data &commit_data)
+      (const_iterator b, const_iterator e, const K& k, insert_commit_data &commit_data)
    {
       const key_compare &key_cmp  = this->priv_key_comp();
       commit_data.position = this->priv_lower_bound(b, e, k);
       return commit_data.position == e || key_cmp(k, KeyOfValue()(*commit_data.position));
    }
 
+   template<class K>
    inline bool priv_insert_unique_prepare
-      (const key_type& k, insert_commit_data &commit_data)
+      (const K& k, insert_commit_data &commit_data)
    {  return this->priv_insert_unique_prepare(this->cbegin(), this->cend(), k, commit_data);   }
 
+   template<class K>
    bool priv_insert_unique_prepare
-      (const_iterator pos, const key_type& k, insert_commit_data &commit_data)
+      (const_iterator pos, const K& k, insert_commit_data &commit_data)
    {
       //N1780. Props to Howard Hinnant!
       //To insert k at pos:
@@ -1618,7 +1718,7 @@ class flat_tree
    inline iterator priv_insert_commit
       (insert_commit_data &commit_data, BOOST_FWD_REF(Convertible) convertible)
    {
-      return this->m_data.m_seq.insert
+      return this->m_data.m_seq.emplace
          ( commit_data.position
          , boost::forward<Convertible>(convertible));
    }

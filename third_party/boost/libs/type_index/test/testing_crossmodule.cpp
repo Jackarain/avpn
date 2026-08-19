@@ -1,14 +1,14 @@
 //
-// Copyright 2012-2024 Antony Polukhin.
+// Copyright 2012-2026 Antony Polukhin.
 //
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#include <boost/type_index.hpp>
+#include <boost/core/lightweight_test.hpp>
 #include "test_lib.hpp"
 
-#include <boost/core/lightweight_test.hpp>
+#include <boost/type_index.hpp>
 
 namespace user_defined_namespace {
     class user_defined{};

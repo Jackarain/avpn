@@ -1,20 +1,40 @@
 
-import ../config/checks/config : requires ;
+import-search /boost/config/checks ;
+import config : requires ;
 import ac ;
+import indirect ;
 
 # Configure openssl if it hasn't been done yet
 using openssl ;
 
+# Provide a way to fail the build if OpenSSL is not found - used by CIs
+rule do_fail_impl ( a * )
+{
+    exit "OpenSSL could not be found. Don't build target fail_if_no_openssl to skip this check" ;
+}
+
+local do_fail = [ indirect.make do_fail_impl ] ;
+
+alias fail_if_no_openssl
+    : requirements
+        [ ac.check-library /openssl//ssl    : : <conditional>@$(do_fail) ]
+        [ ac.check-library /openssl//crypto : : <conditional>@$(do_fail) ]
+;
+
+explicit fail_if_no_openssl ;
+
 # Use these requirements as both regular and usage requirements across all tests
-local requirements = 
+local requirements =
+        <library>/boost/redis//boost_redis
         <define>BOOST_ASIO_NO_DEPRECATED=1
         <define>BOOST_ASIO_DISABLE_BOOST_ARRAY=1
         <define>BOOST_ASIO_DISABLE_BOOST_BIND=1
         <define>BOOST_ASIO_DISABLE_BOOST_DATE_TIME=1
         <define>BOOST_ASIO_DISABLE_BOOST_REGEX=1
+        <define>BOOST_ALLOW_DEPRECATED=1  # we need to test deprecated fns
+        <define>_CRT_SECURE_NO_WARNINGS=1 # suppress MSVC warnings
         <toolset>msvc:<cxxflags>"/bigobj"
         <target-os>windows:<define>_WIN32_WINNT=0x0601
-        <include>../include
         [ requires
             cxx14_constexpr
             cxx14_generic_lambdas
@@ -38,25 +58,49 @@ lib redis_test_common
     :
         boost_redis.cpp
         common.cpp
+        sansio_utils.cpp
     : requirements $(requirements)
     : usage-requirements $(requirements)
 ;
 
 # B2 runs tests in parallel, and some tests rely on having exclusive
 # access to a Redis server, so we only run the ones that don't require a DB server.
-local tests = 
-    test_low_level_sync_sans_io
+local tests =
     test_low_level
     test_request
-    test_run
+    test_serialization
+    test_low_level_sync_sans_io
+    test_any_adapter
+    test_log_to_file
+    test_conn_logging
+    test_exec_fsm
+    test_exec_one_fsm
+    test_writer_fsm
+    test_reader_fsm
+    test_sentinel_resolve_fsm
+    test_receive_fsm
+    test_run_fsm
+    test_connect_fsm
+    test_compose_setup_request
+    test_setup_adapter
+    test_multiplexer
+    test_parse_sentinel_response
+    test_update_sentinel_list
+    test_flat_tree
+    test_generic_flat_response
+    test_read_buffer
+    test_subscription_tracker
+    test_push_parser
+    test_config
 ;
 
 # Build and run the tests
 for local test in $(tests)
 {
-    run 
+    run
         $(test).cpp
         redis_test_common/<link>static
     : target-name $(test)
     ;
 }
+

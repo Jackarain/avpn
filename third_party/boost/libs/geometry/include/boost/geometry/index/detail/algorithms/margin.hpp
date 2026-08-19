@@ -34,7 +34,7 @@ struct default_margin_result
 {
     using type = typename select_most_precise
         <
-            typename coordinate_type<Box>::type,
+            coordinate_type_t<Box>,
             double
         >::type;
 };
@@ -115,7 +115,7 @@ template <typename Box,
           std::size_t CurrentDimension = dimension<Box>::value>
 struct simple_margin_for_each_dimension
 {
-    BOOST_STATIC_ASSERT(0 < CurrentDimension);
+    static_assert(0 < CurrentDimension, "Specialization for positive index.");
 
     static inline typename default_margin_result<Box>::type apply(Box const& b)
     {
@@ -168,10 +168,11 @@ struct comparable_margin<Box, box_tag>
 template <typename Geometry>
 typename default_margin_result<Geometry>::type comparable_margin(Geometry const& g)
 {
-    return dispatch::comparable_margin<
-        Geometry,
-        typename tag<Geometry>::type
-    >::apply(g);
+    return dispatch::comparable_margin
+        <
+            Geometry,
+            tag_t<Geometry>
+        >::apply(g);
 }
 
 //template <typename Box>

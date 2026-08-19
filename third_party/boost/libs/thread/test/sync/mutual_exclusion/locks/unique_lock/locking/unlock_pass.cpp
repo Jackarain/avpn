@@ -20,7 +20,7 @@
 
 #include <boost/thread/lock_types.hpp>
 //#include <boost/thread/mutex.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 
 bool unlock_called = false;
@@ -36,11 +36,11 @@ struct mutex
   }
 };
 
-mutex m;
+mutex g_mutex;
 
 int main()
 {
-  boost::unique_lock<mutex> lk(m);
+  boost::unique_lock<mutex> lk(g_mutex);
   lk.unlock();
   BOOST_TEST(unlock_called == true);
   BOOST_TEST(lk.owns_lock() == false);

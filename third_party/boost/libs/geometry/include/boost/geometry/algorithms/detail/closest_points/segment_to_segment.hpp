@@ -12,8 +12,7 @@
 
 #include <algorithm>
 #include <iterator>
-
-#include <boost/core/addressof.hpp>
+#include <memory>
 
 #include <boost/geometry/algorithms/assign.hpp>
 #include <boost/geometry/algorithms/detail/closest_points/utilities.hpp>
@@ -54,7 +53,7 @@ public:
     {
         using intersection_return_type = segment_intersection_points
             <
-                typename point_type<Segment1>::type
+                point_type_t<Segment1>
             >;
 
         using intersection_policy = policies::relate::segments_intersection_points
@@ -74,11 +73,11 @@ public:
             return;
         }
 
-        typename point_type<Segment1>::type p[2];
+        point_type_t<Segment1> p[2];
         detail::assign_point_from_index<0>(segment1, p[0]);
         detail::assign_point_from_index<1>(segment1, p[1]);
 
-        typename point_type<Segment2>::type q[2];
+        point_type_t<Segment2> q[2];
         detail::assign_point_from_index<0>(segment2, q[0]);
         detail::assign_point_from_index<1>(segment2, q[1]);
 
@@ -97,7 +96,7 @@ public:
         d[2] = cds.apply(p[0], cp2);
         d[3] = cds.apply(p[1], cp3);
 
-        std::size_t imin = std::distance(boost::addressof(d[0]), std::min_element(d, d + 4));
+        std::size_t imin = std::distance(std::addressof(d[0]), std::min_element(d, d + 4));
 
         switch (imin)
         {

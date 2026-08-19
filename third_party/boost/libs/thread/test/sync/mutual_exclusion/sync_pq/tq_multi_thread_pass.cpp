@@ -17,6 +17,7 @@
 #include <boost/chrono.hpp>
 #include <boost/thread/concurrent_queues/sync_timed_queue.hpp>
 
+#include <boost/bind/bind.hpp>
 #include <boost/core/lightweight_test.hpp>
 #include "../../../timming.hpp"
 
@@ -42,7 +43,7 @@ void call_pull(sync_tq* q, const steady_clock::time_point start)
     // pull elements off of the queue (earliest element first)
     for (int i = cnt - 1; i >= 0; --i)
     {
-        int j;
+        int j = -1;
         q->pull(j);
         BOOST_TEST_EQ(i, j);
         const steady_clock::time_point expected = start + milliseconds(i * 500) + seconds(cnt - i);
@@ -56,7 +57,7 @@ void call_pull_until(sync_tq* q, const steady_clock::time_point start)
     // pull elements off of the queue (earliest element first)
     for (int i = cnt - 1; i >= 0; --i)
     {
-        int j;
+        int j = -1;
         q->pull_until(steady_clock::now() + hours(1), j);
         BOOST_TEST_EQ(i, j);
         const steady_clock::time_point expected = start + milliseconds(i * 500) + seconds(cnt - i);
@@ -70,7 +71,7 @@ void call_pull_for(sync_tq* q, const steady_clock::time_point start)
     // pull elements off of the queue (earliest element first)
     for (int i = cnt - 1; i >= 0; --i)
     {
-        int j;
+        int j = -1;
         q->pull_for(hours(1), j);
         BOOST_TEST_EQ(i, j);
         const steady_clock::time_point expected = start + milliseconds(i * 500) + seconds(cnt - i);

@@ -1,0 +1,16 @@
+{
+    "key": "openmethod",
+    "name": "OpenMethod",
+    "authors": [
+        "Jean-Louis Leroy"
+    ],
+    "maintainers": [
+        "Jean-Louis Leroy"
+    ],
+    "description": "Open-methods are virtual functions that exist outside of classes, as free-standing functions. They make it possible to add polymorphic behavior to existing classes, without modifying them. This implementation supports single and multiple dispatch.",
+    "category": [
+        "Emulation",
+        "Programming"
+    ],
+    "cxxstd": "17"
+}

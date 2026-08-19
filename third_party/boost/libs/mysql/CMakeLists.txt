@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+# Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 #
 # Distributed under the Boost Software License, Version 1.0. (See accompanying
 # file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -34,7 +34,9 @@ target_link_libraries(
     Boost::asio
     Boost::assert
     Boost::charconv
+    Boost::compat
     Boost::config
+    Boost::container
     Boost::core
     Boost::describe
     Boost::endian
@@ -57,10 +59,22 @@ target_compile_features(boost_mysql INTERFACE cxx_std_11)
 option(BOOST_MYSQL_INTEGRATION_TESTS OFF "Whether to build and run integration tests or not")
 mark_as_advanced(BOOST_MYSQL_INTEGRATION_TESTS)
 
+# List of server features that the CI DB server does not support.
+# Disables running some integration tests and examples
+set(BOOST_MYSQL_DISABLED_SERVER_FEATURES "" CACHE STRING
+    "A CMake list of server features not supported by the CI server, for integration tests"
+)
+mark_as_advanced(BOOST_MYSQL_DISABLED_SERVER_FEATURES)
+
+# Don't build benchmarks unless explicitly requested, since these require the official
+# MySQL and MariaDB client libraries
+option(BOOST_MYSQL_BENCH OFF "Whether to build the benchmarks")
+mark_as_advanced(BOOST_MYSQL_BENCH)
+
 # Examples and tests
 if(BUILD_TESTING)
     # Contains some functions to share code between examples and tests
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_utils.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake)
 
     # Custom target tests; required by the Boost superproject
     if(NOT TARGET tests)
@@ -70,13 +84,13 @@ if(BUILD_TESTING)
     # Tests
     add_subdirectory(test)
     
+    # All examples require a real server to run
     if (BOOST_MYSQL_INTEGRATION_TESTS)
-        # All examples require a real server to run
         add_subdirectory(example)
-
-        # We don't run benchmarks, but we build them to prevent code rotting.
-        # Having them under BOOST_MYSQL_INTEGRATION_TESTS prevents them
-        # from being built in superproject builds
-        add_subdirectory(bench) 
     endif()
+endif()
+
+if (BOOST_MYSQL_BENCH)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake)
+    add_subdirectory(bench)
 endif()

@@ -9,9 +9,6 @@
 #define BOOST_ALL_NO_LIB 1
 #endif // !defined(BOOST_ALL_NO_LIB)
 
-#if defined(BOOST_FILESYSTEM_DYN_LINK)
-#undef BOOST_FILESYSTEM_DYN_LINK
-#endif
 #define BOOST_TEST_IGNORE_SIGCHLD 1
 
 #if  true //defined(BOOST_POSIX_API)
@@ -33,8 +30,11 @@
 
 #include <boost/test/unit_test.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/connect_pipe.hpp>
+#include <boost/asio/cancel_after.hpp>
 #include <boost/asio/detached.hpp>
+#include <boost/asio/error.hpp>
 #include <boost/asio/readable_pipe.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/streambuf.hpp>
@@ -55,9 +55,9 @@ BOOST_AUTO_TEST_CASE(exit_code_sync)
 {
     using boost::unit_test::framework::master_test_suite;
     const auto pth =  master_test_suite().argv[1];
-    
+
     boost::asio::io_context ctx;
-    
+
     BOOST_CHECK_EQUAL(bpv::process(ctx, pth, {"exit-code", "0"}).wait(), 0);
     BOOST_CHECK_EQUAL(bpv::execute(bpv::process(ctx, pth, {"exit-code", "1"})), 1);
     std::vector<std::string> args = {"exit-code", "2"};
@@ -75,7 +75,7 @@ BOOST_AUTO_TEST_CASE(exit_code_async)
     using boost::unit_test::framework::master_test_suite;
     printf("Running exit_code_async\n");
     auto & mm = master_test_suite();
-    printf("Running exit_code_async %p\n", &mm);
+    printf("Running exit_code_async %p\n", static_cast<void*>(&mm));
     printf("Args: '%d'\n", master_test_suite().argc);
     printf("Exe '%s'\n", master_test_suite().argv[0]);
     const auto pth =  master_test_suite().argv[1];
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(exit_code_async)
 
     int called = 0;
     printf("Setting up processes\n");
-    
+
     bpv::process proc1(ctx, pth, {"exit-code", "0"});
     bpv::process proc3(ctx, pth, {"exit-code", "2"});
     bpv::process proc4(ctx, pth, {"exit-code", "42"});
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(print_args_out)
 {
   using boost::unit_test::framework::master_test_suite;
   const auto pth =  master_test_suite().argv[1];
-  
+
   asio::io_context ctx;
 
   asio::readable_pipe rp{ctx};
@@ -242,6 +242,83 @@ BOOST_AUTO_TEST_CASE(print_args_out)
 
   proc.wait();
   BOOST_CHECK(proc.exit_code() == 0);
+}
+
+
+BOOST_AUTO_TEST_CASE(print_args_spec_out)
+{
+    using boost::unit_test::framework::master_test_suite;
+    const auto pth =  master_test_suite().argv[1];
+
+    asio::io_context ctx;
+
+    asio::readable_pipe rp{ctx};
+    asio::writable_pipe wp{ctx};
+    asio::connect_pipe(rp, wp);
+
+    fprintf(stderr, "print_args_spec_out\n"); 
+    
+    bpv::process proc(ctx, pth, {"print-args", "&foo", "&", "", "\"\"", "\\\"", "|bar", "\"", "#foobar"}, 
+                                 bpv::process_stdio{/*in*/{},/*out*/wp, /*err*/ nullptr});
+    BOOST_CHECK(proc.running());                             
+
+    wp.close();
+    asio::streambuf st;
+    std::istream is{&st};
+    bpv::error_code ec;
+
+    auto sz = asio::read(rp, st,  ec);
+    while (ec == asio::error::interrupted)
+    sz += asio::read(rp, st,  ec);
+
+    BOOST_CHECK_NE(sz, 0u);
+    BOOST_CHECK_MESSAGE((ec == asio::error::broken_pipe) || (ec == asio::error::eof), ec.message());
+
+    std::string line;
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL(pth, line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("print-args", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("&foo", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("&", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("\"\"", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("\\\"", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("|bar", line);
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("\"", line);
+
+
+    BOOST_CHECK(std::getline(is, line));
+    trim_end(line);
+    BOOST_CHECK_EQUAL("#foobar", line);
+
+
+    proc.wait();
+    BOOST_CHECK(proc.exit_code() == 0);
 }
 
 
@@ -296,7 +373,7 @@ BOOST_AUTO_TEST_CASE(echo_file)
 {
   using boost::unit_test::framework::master_test_suite;
   const auto pth =  master_test_suite().argv[1];
-  
+
   asio::io_context ctx;
 
   asio::readable_pipe rp{ctx};
@@ -312,7 +389,7 @@ BOOST_AUTO_TEST_CASE(echo_file)
     BOOST_CHECK(ofs);
   }
 
-  bpv::process proc(ctx, pth, {"echo"}, bpv::process_stdio{/*.in=*/p, /*.out=*/wp});
+  bpv::process proc(ctx, pth, {"echo"}, bpv::process_stdio{/*.in=*/p, /*.out=*/wp, /*.err*/{}});
   wp.close();
 
   std::string out;
@@ -330,6 +407,74 @@ BOOST_AUTO_TEST_CASE(echo_file)
   BOOST_CHECK_MESSAGE(proc.exit_code() == 0, proc.exit_code());
 }
 
+BOOST_AUTO_TEST_CASE(stdio_creates_complementary_pipes)
+{
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth =  master_test_suite().argv[1];
+
+  asio::io_context ctx;
+
+  asio::readable_pipe rp{ctx};
+  asio::writable_pipe wp{ctx};
+  // Pipes intentionally not connected. `process_stdio` will create pipes
+  // complementing both of these and retains ownership of those pipes.
+
+  bpv::process proc(ctx, pth, {"echo"}, bpv::process_stdio{/*.in=*/wp, /*.out=*/rp, /*.err=*/nullptr});
+
+  asio::write(wp, asio::buffer("foo", 3));
+  asio::write(wp, asio::buffer("bar", 3));
+  wp.close();
+
+  bpv::error_code ec;
+  std::string out;
+  auto sz = asio::read(rp, asio::dynamic_buffer(out),  ec);
+  while (ec == asio::error::interrupted)
+      sz += asio::read(rp, asio::dynamic_buffer(out),  ec);
+  BOOST_CHECK_EQUAL(sz, 6u);
+  BOOST_CHECK_MESSAGE((ec == asio::error::broken_pipe) || (ec == asio::error::eof), ec.message());
+  BOOST_CHECK_EQUAL(out, "foobar");
+
+  proc.wait();
+  BOOST_CHECK(proc.exit_code() == 0);
+}
+
+BOOST_AUTO_TEST_CASE(stdio_move_semantics)
+{
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth =  master_test_suite().argv[1];
+
+  asio::io_context ctx;
+
+  asio::readable_pipe rp{ctx};
+  asio::writable_pipe wp{ctx};
+
+  auto make_stdio = [&]() -> bpv::process_stdio {
+      bpv::process_stdio stdio{};
+      stdio.in = wp;
+      stdio.out = rp;
+      stdio.err = nullptr;
+      // intentionally pessimizing move, preventing NRVO
+      return std::move(stdio);
+  };
+  bpv::process proc(ctx, pth, {"echo"}, make_stdio());
+
+  bpv::error_code ec;
+  asio::write(wp, asio::buffer("foobar", 6), ec);
+  BOOST_CHECK_MESSAGE(!ec, ec.message());
+  wp.close();
+
+  std::string out;
+  auto sz = asio::read(rp, asio::dynamic_buffer(out),  ec);
+  while (ec == asio::error::interrupted)
+      sz += asio::read(rp, asio::dynamic_buffer(out),  ec);
+  BOOST_CHECK_EQUAL(sz, 6u);
+  BOOST_CHECK_MESSAGE((ec == asio::error::broken_pipe) || (ec == asio::error::eof), ec.message());
+  BOOST_CHECK_EQUAL(out, "foobar");
+
+  proc.wait();
+  BOOST_CHECK(proc.exit_code() == 0);
+}
+
 BOOST_AUTO_TEST_CASE(print_same_cwd)
 {
   using boost::unit_test::framework::master_test_suite;
@@ -340,7 +485,7 @@ BOOST_AUTO_TEST_CASE(print_same_cwd)
   asio::readable_pipe rp{ctx};
 
   // default CWD
-  bpv::process proc(ctx, pth, {"print-cwd"}, bpv::process_stdio{/*.in=*/{},/*.out=*/rp});
+  bpv::process proc(ctx, pth, {"print-cwd"}, bpv::process_stdio{/*.in=*/{},/*.out=*/rp, /*.err*/{}});
 
   std::string out;
   bpv::error_code ec;
@@ -405,7 +550,7 @@ BOOST_AUTO_TEST_CASE(print_other_cwd)
 
   // default CWD
   bpv::process proc(ctx, pth, {"print-cwd"},
-                    bpv::process_stdio{/*.in=*/{}, /*.out=*/wp},
+                    bpv::process_stdio{/*.in=*/{}, /*.out=*/wp, /*.err=*/{}},
                     bpv::process_start_dir(target));
   wp.close();
 
@@ -444,7 +589,7 @@ std::string read_env(const char * name, Inits && ... inits)
   asio::writable_pipe wp{ctx};
   asio::connect_pipe(rp, wp);
 
-  bpv::process proc(ctx, pth, {"print-env", name}, bpv::process_stdio{/*.in-*/{}, /*.out*/{wp}}, std::forward<Inits>(inits)...);
+  bpv::process proc(ctx, pth, {"print-env", name}, bpv::process_stdio{/*.in-*/{}, /*.out*/{wp}, /*.err*/{}}, std::forward<Inits>(inits)...);
 
   wp.close();
 
@@ -476,7 +621,7 @@ BOOST_AUTO_TEST_CASE(environment)
 
   sub_env.push_back("FOOBAR=FOO-BAR");
   BOOST_CHECK_EQUAL("FOO-BAR", read_env("FOOBAR", bpv::process_environment{sub_env}));
-  
+
   sub_env.push_back("XYZ=ZYX");
   auto itr = std::find_if(sub_env.begin(), sub_env.end(), [](const bpv::environment::key_value_pair & kv) {return kv.key() == bpv::environment::key("PATH");});
   path += static_cast<char>(bpv::environment::delimiter);
@@ -511,7 +656,7 @@ BOOST_AUTO_TEST_CASE(exit_code_as_error)
   bpv::process proc3(ctx, pth, {"sleep", "2000"});
 
   int called = 0;
-  
+
   proc3.terminate();
 
 
@@ -558,7 +703,7 @@ BOOST_AUTO_TEST_CASE(bind_launcher)
   auto l = bpv::bind_default_launcher(bpv::process_start_dir(target));
   std::vector<std::string> args = {"print-cwd"};
   // default CWD
-  bpv::process proc = l(ctx, pth, args, bpv::process_stdio{/*.in=*/{}, /*.out=*/rp});
+  bpv::process proc = l(ctx, pth, args, bpv::process_stdio{/*.in=*/{}, /*.out=*/rp, /*.err=*/{}});
 
   std::string out;
   bpv::error_code ec;
@@ -609,7 +754,7 @@ BOOST_AUTO_TEST_CASE(async_interrupt)
                                   bpv::evaluate_exit_code(res) & ~SIGTERM, 0);
                             }));
 
-    tim.async_wait([&](bpv::error_code ec) { sig.emit(asio::cancellation_type::total); });
+    tim.async_wait([&](bpv::error_code) { sig.emit(asio::cancellation_type::total); });
     ctx.run();
 }
 
@@ -638,10 +783,155 @@ BOOST_AUTO_TEST_CASE(async_request_exit)
               BOOST_CHECK_EQUAL(bpv::evaluate_exit_code(res) & ~SIGTERM, 0);
             }));
 
-    tim.async_wait([&](bpv::error_code ec) { sig.emit(asio::cancellation_type::partial); });
+    tim.async_wait([&](bpv::error_code) { sig.emit(asio::cancellation_type::partial); });
     ctx.run();
 }
 
+BOOST_AUTO_TEST_CASE(async_cancel_wait)
+{
+  asio::io_context ctx;
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth = bpv::filesystem::absolute(master_test_suite().argv[1]);
+
+  bpv::process proc(ctx, pth, {"sleep", "1000"});
+
+  asio::steady_timer tim{ctx, std::chrono::milliseconds(250)};
+  asio::cancellation_signal sig;
+
+  // check that the async_wait gets properly cancelled
+  proc.async_wait(asio::cancel_after(std::chrono::milliseconds(100),
+                         [&](boost::system::error_code ec, int)
+                         {
+                           BOOST_CHECK_EQUAL(ec, asio::error::operation_aborted);
+                           BOOST_CHECK(proc.running());
+                           if (proc.running())
+                             proc.terminate();
+                         }));
+
+  ctx.run();
+}
+
+#if defined(BOOST_POSIX_API)
+
+struct capture_pid
+{
+  pid_t &pid;
+  template<typename Launcher>
+  void on_error(Launcher &launcher, const bpv::filesystem::path& executable,
+                const char * const * (&/*cmd_line*/), const bpv::error_code & ec)
+  {
+    BOOST_REQUIRE(!bpv::filesystem::exists(executable));
+    this->pid = launcher.pid;
+  }
+};
+
+BOOST_AUTO_TEST_CASE(no_zombie)
+{
+  asio::io_context ctx;
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth = bpv::filesystem::absolute(master_test_suite().argv[1]);
+
+  pid_t res{-1};
+
+
+  boost::system::error_code ec;
+  bpv::default_process_launcher()(ctx, ec, "/send/more/cops", std::vector<std::string>{}, capture_pid{res});
+  BOOST_CHECK(ec == boost::system::errc::no_such_file_or_directory);
+
+  BOOST_REQUIRE(res != -1);
+  BOOST_CHECK(res != 0);
+  auto r = waitpid(res, nullptr, 0);
+  BOOST_CHECK(r < 0);
+  BOOST_CHECK_EQUAL(errno, ECHILD);
+}
+
+BOOST_AUTO_TEST_CASE(async_terminate_code)
+{
+  asio::io_context ctx;
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth = bpv::filesystem::absolute(master_test_suite().argv[1]);
+
+  bpv::process proc(ctx, pth, {"sleep", "1000"});
+
+  proc.async_wait([&](boost::system::error_code ec, int code)
+                  {
+                    BOOST_CHECK_MESSAGE(!ec, ec.what());
+                    BOOST_CHECK_EQUAL(code, SIGKILL);
+                    BOOST_CHECK(!proc.running());
+                 });
+
+  asio::post(ctx, [&]{proc.terminate();});
+
+  ctx.run();
+}
+
+#endif
+
+
+BOOST_AUTO_TEST_CASE(print_args_combined)
+{
+  using boost::unit_test::framework::master_test_suite;
+  const auto pth =  master_test_suite().argv[1];
+
+  asio::io_context ctx;
+
+  asio::readable_pipe rp{ctx};
+  asio::writable_pipe wp{ctx};
+  asio::connect_pipe(rp, wp);
+
+  bpv::process proc(ctx, pth, {"print-args", "bar", "foo"}, bpv::process_stdio{/*in*/{}, /*.out= */ wp, /* .err=*/ wp});
+  wp.close();
+
+  asio::streambuf st;
+  std::istream is{&st};
+  bpv::error_code ec;
+
+  auto sz = asio::read(rp, st,  ec);
+  while (ec == asio::error::interrupted)
+      sz += asio::read(rp, st,  ec);
+
+  BOOST_CHECK_NE(sz , 0u);
+  BOOST_CHECK_MESSAGE((ec == asio::error::broken_pipe) || (ec == asio::error::eof), ec.message());
+
+  std::string line;
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL(pth, line );
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL(pth, line );
+
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("print-args", line);
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("print-args", line);
+
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("bar", line);
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("bar", line);
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("foo", line);
+
+  BOOST_CHECK(std::getline(is, line));
+  trim_end(line);
+  BOOST_CHECK_EQUAL("foo", line);
+
+
+  proc.wait();
+  BOOST_CHECK_EQUAL(proc.exit_code(), 0);
+}
 
 BOOST_AUTO_TEST_SUITE_END();
 

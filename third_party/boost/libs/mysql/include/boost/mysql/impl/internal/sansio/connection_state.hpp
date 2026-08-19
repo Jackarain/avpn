@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2019-2024 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
+// Copyright (c) 2019-2025 Ruben Perez Hidalgo (rubenperez038 at gmail dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -8,6 +8,7 @@
 #ifndef BOOST_MYSQL_IMPL_INTERNAL_SANSIO_CONNECTION_STATE_HPP
 #define BOOST_MYSQL_IMPL_INTERNAL_SANSIO_CONNECTION_STATE_HPP
 
+#include <boost/mysql/client_errc.hpp>
 #include <boost/mysql/diagnostics.hpp>
 #include <boost/mysql/error_code.hpp>
 #include <boost/mysql/handshake_params.hpp>
@@ -15,6 +16,7 @@
 
 #include <boost/mysql/detail/algo_params.hpp>
 #include <boost/mysql/detail/any_resumable_ref.hpp>
+#include <boost/mysql/detail/next_action.hpp>
 
 #include <boost/mysql/impl/internal/sansio/close_connection.hpp>
 #include <boost/mysql/impl/internal/sansio/close_statement.hpp>
@@ -82,6 +84,14 @@ class connection_state
     connection_state_data st_data_;
     any_algo algo_;
 
+    // A function compatible with any_resumable_ref that always fails immediately
+    // with operation_in_progress. We can't change algo_ while an algorithm is running,
+    // so we need an any_resumable_ref that doesn't point into algo_
+    static next_action fail_op_in_progress(void*, error_code, std::size_t)
+    {
+        return error_code(client_errc::operation_in_progress);
+    }
+
 public:
     // We initialize the algo state with a dummy value. This will be overwritten
     // by setup() before the first algorithm starts running. Doing this avoids
@@ -90,7 +100,8 @@ public:
         : st_data_(read_buffer_size, max_buffer_size, transport_supports_ssl),
           algo_(top_level_algo<quit_connection_algo>(
               st_data_,
-              quit_connection_algo_params{&st_data_.shared_diag}
+              st_data_.shared_diag,
+              quit_connection_algo_params{}
           ))
     {
     }
@@ -99,22 +110,34 @@ public:
     connection_state_data& data() { return st_data_; }
 
     template <class AlgoParams>
-    any_resumable_ref setup(AlgoParams params)
+    any_resumable_ref setup(diagnostics& diag, AlgoParams params)
     {
-        return any_resumable_ref(algo_.emplace<top_level_algo<get_algo_t<AlgoParams>>>(st_data_, params));
+        // Clear diagnostics
+        diag.clear();
+
+        // If there is an operation in progress, don't change anything, just fail
+        if (st_data_.op_in_progress)
+            return any_resumable_ref(nullptr, &fail_op_in_progress);
+
+        // Emplace the algorithm
+        using algo_type = top_level_algo<get_algo_t<AlgoParams>>;
+        return any_resumable_ref(algo_.emplace<algo_type>(st_data_, diag, params));
     }
 
-    any_resumable_ref setup(close_statement_algo_params params)
+    any_resumable_ref setup(diagnostics& diag, close_statement_algo_params params)
     {
-        return setup(setup_close_statement_pipeline(st_data_, params));
+        return setup(diag, setup_close_statement_pipeline(st_data_, params));
     }
 
-    any_resumable_ref setup(reset_connection_algo_params params)
+    any_resumable_ref setup(diagnostics& diag, reset_connection_algo_params)
     {
-        return setup(setup_reset_connection_pipeline(st_data_, params));
+        return setup(diag, setup_reset_connection_pipeline(st_data_));
     }
 
-    any_resumable_ref setup(ping_algo_params params) { return setup(setup_ping_pipeline(st_data_, params)); }
+    any_resumable_ref setup(diagnostics& diag, ping_algo_params)
+    {
+        return setup(diag, setup_ping_pipeline(st_data_));
+    }
 
     template <typename AlgoParams>
     typename AlgoParams::result_type result() const

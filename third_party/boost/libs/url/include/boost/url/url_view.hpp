@@ -18,6 +18,13 @@
 namespace boost {
 namespace urls {
 
+namespace implementation_defined {
+struct origin_form_rule_t;
+struct uri_rule_t;
+struct relative_ref_rule_t;
+struct absolute_uri_rule_t;
+} // implementation_defined
+
 /** A non-owning reference to a valid URL 
 
     Objects of this type represent valid URL
@@ -43,8 +50,8 @@ namespace urls {
 
     @par Example 2
     Parsing functions like @ref parse_uri_reference
-    return a @ref result containing either a valid
-    @ref url_view upon succcess, otherwise they
+    return a `boost::system::result` containing either a valid
+    @ref url_view upon success, otherwise they
     contain an error. The error can be converted to
     an exception by the caller if desired:
     @code
@@ -71,21 +78,21 @@ namespace urls {
         @ref parse_uri,
         @ref parse_uri_reference.
 */
-class BOOST_URL_DECL url_view
+class BOOST_SYMBOL_VISIBLE url_view
     : public url_view_base
 {
     friend std::hash<url_view>;
     friend class url_view_base;
     friend class params_base;
     friend class params_encoded_base;
-
-#ifndef BOOST_URL_DOCS
-    // VFALCO docca emits this erroneously
-    friend struct detail::url_impl;
-#endif
+    friend struct implementation_defined::origin_form_rule_t;
+    friend struct implementation_defined::uri_rule_t;
+    friend struct implementation_defined::relative_ref_rule_t;
+    friend struct implementation_defined::absolute_uri_rule_t;
 
     using url_view_base::digest;
 
+    BOOST_URL_CXX14_CONSTEXPR
     explicit
     url_view(
         detail::url_impl const& impl) noexcept
@@ -143,7 +150,8 @@ public:
         <a href="https://datatracker.ietf.org/doc/html/rfc3986#section-4.2"
             >4.2. Relative Reference (rfc3986)</a>
     */
-    url_view() noexcept;
+    BOOST_URL_CXX14_CONSTEXPR
+    url_view() noexcept = default;
 
     /** Constructor
 
@@ -235,13 +243,18 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @param other The other view.
     */
+    BOOST_URL_CXX14_CONSTEXPR
     url_view(
-        url_view const& other) noexcept
-        : url_view(static_cast<
-            url_view_base const&>(other))
-    {
-    }
+        url_view const& other) noexcept = default;
+
+    /** Move constructor
+    */
+    BOOST_URL_CXX14_CONSTEXPR
+    url_view(
+        url_view&& other) noexcept = default;
 
     /** Constructor
 
@@ -259,9 +272,16 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @param other The other view.
     */
+    BOOST_URL_CXX14_CONSTEXPR
     url_view(
-        url_view_base const& other) noexcept;
+        url_view_base const& other) noexcept
+        : url_view_base(other.impl_)
+    {
+        external_impl_ = other.external_impl_;
+    }
 
     /** Assignment
 
@@ -279,14 +299,17 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @param other The other view.
+        @return A reference to this object.
     */
+    BOOST_URL_CXX14_CONSTEXPR
     url_view&
     operator=(
         url_view const& other) noexcept
     {
-        if (this != &other)
-            *this = static_cast<
-                url_view_base const&>(other);
+        impl_ = other.impl_;
+        external_impl_ = other.external_impl_;
         return *this;
     }
 
@@ -306,9 +329,18 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @param other The other view.
+        @return A reference to this object.
     */
+    BOOST_URL_CXX14_CONSTEXPR
     url_view& operator=(
-        url_view_base const& other) noexcept;
+        url_view_base const& other) noexcept
+    {
+        impl_ = other.impl_;
+        external_impl_ = other.external_impl_;
+        return *this;
+    }
 
     //--------------------------------------------
     //
@@ -327,6 +359,8 @@ public:
 
         @par Exception Safety
         Throws nothing.
+
+        @return The maximum number of characters possible.
     */
     static
     constexpr
@@ -368,6 +402,13 @@ private:
     std::size_t salt_ = 0;
 };
 } // std
+#endif
+
+// When parse.hpp is being processed,
+// it will include impl/url_view.hpp itself
+// after declaring parse_uri_reference.
+#if !defined(BOOST_URL_PARSE_HPP)
+#include <boost/url/impl/url_view.hpp>
 #endif
 
 #endif

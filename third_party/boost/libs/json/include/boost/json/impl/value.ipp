@@ -238,7 +238,6 @@ value(
     }
     else
     {
-#ifndef BOOST_JSON_LEGACY_INIT_LIST_BEHAVIOR
         if( init.size() == 1 )
         {
             ::new(&sca_) scalar();
@@ -246,7 +245,6 @@ value(
             swap(temp);
         }
         else
-#endif
         {
             ::new(&arr_) array(
                 value_ref::make_array(
@@ -533,7 +531,7 @@ value::try_at(string_view key) noexcept
     auto r = try_as_object();
     if( !r )
         return r.error();
-    return r->try_at(key);
+    return r.unsafe_value().try_at(key);
 }
 
 boost::system::result<value const&>
@@ -542,7 +540,7 @@ value::try_at(string_view key) const noexcept
     auto r = try_as_object();
     if( !r )
         return r.error();
-    return r->try_at(key);
+    return r.unsafe_value().try_at(key);
 }
 
 boost::system::result<value&>
@@ -551,7 +549,7 @@ value::try_at(std::size_t pos) noexcept
     auto r = try_as_array();
     if( !r )
         return r.error();
-    return r->try_at(pos);
+    return r.unsafe_value().try_at(pos);
 }
 
 boost::system::result<value const&>
@@ -560,7 +558,7 @@ value::try_at(std::size_t pos) const noexcept
     auto r = try_as_array();
     if( !r )
         return r.error();
-    return r->try_at(pos);
+    return r.unsafe_value().try_at(pos);
 }
 
 object const&
@@ -639,21 +637,24 @@ string&
 value::
 emplace_string() noexcept
 {
-    return *::new(&str_) string(destroy());
+    storage_ptr sp = destroy();
+    return *::new(&str_) string(sp);
 }
 
 array&
 value::
 emplace_array() noexcept
 {
-    return *::new(&arr_) array(destroy());
+    storage_ptr sp = destroy();
+    return *::new(&arr_) array(sp);
 }
 
 object&
 value::
 emplace_object() noexcept
 {
-    return *::new(&obj_) object(destroy());
+    storage_ptr sp = destroy();
+    return *::new(&obj_) object(sp);
 }
 
 void

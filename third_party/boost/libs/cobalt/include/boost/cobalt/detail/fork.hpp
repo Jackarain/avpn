@@ -18,6 +18,7 @@
 #include <boost/intrusive_ptr.hpp>
 
 #include <coroutine>
+#include <optional>
 
 namespace boost::cobalt::detail
 {
@@ -28,7 +29,7 @@ struct fork
   struct shared_state
   {
 #if !defined(BOOST_COBALT_NO_PMR)
-    pmr::monotonic_buffer_resource resource;
+    pmr::monotonic_buffer_resource resource{};
         template<typename ... Args>
     shared_state(Args && ... args)
       : resource(std::forward<Args>(args)...,
@@ -44,7 +45,7 @@ struct fork
     }
 #endif
     // the coro awaiting the fork statement, e.g. awaiting race
-    unique_handle<void> coro;
+    unique_handle<void> coro{};
     std::size_t use_count = 0u;
 
     friend void intrusive_ptr_add_ref(shared_state * st) {st->use_count++;}
@@ -56,13 +57,13 @@ struct fork
 
     bool outstanding_work() {return use_count != 0u;}
 
-    const executor * exec = nullptr;
-    bool wired_up() {return exec != nullptr;}
+    std::optional<executor> exec{};
+    bool wired_up() {return exec.has_value();}
 
     using executor_type = executor;
     const executor_type & get_executor() const
     {
-      BOOST_ASSERT(exec != nullptr);
+      BOOST_ASSERT(exec.has_value());
       return *exec;
     }
 
@@ -138,7 +139,7 @@ struct fork
     struct final_awaitable
     {
       promise_type * self;
-      bool await_ready() noexcept
+      bool await_ready() const noexcept
       {
         return self->state->use_count != 1u;
       }

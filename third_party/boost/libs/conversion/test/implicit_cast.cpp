@@ -3,9 +3,11 @@
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#include <boost/implicit_cast.hpp>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 #include <boost/type.hpp>
+
+#include <boost/implicit_cast.hpp>
+
 using boost::implicit_cast;
 using boost::type;
 
@@ -18,8 +20,8 @@ struct foo
     operator long() const { return 0; }
 };
 
-typedef type<long> long_type;
-typedef type<foo> foo_type;
+using long_type = type<long>;
+using foo_type = type<foo>;
 
 int main()
 {

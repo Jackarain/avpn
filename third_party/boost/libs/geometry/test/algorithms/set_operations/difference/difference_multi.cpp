@@ -23,17 +23,11 @@
 
 #include <boost/geometry/io/wkt/read.hpp>
 
-// Convenience macros (points are not checked)
+// Convenience macros (not using number of points, they are not checked anymore)
 #define TEST_DIFFERENCE(caseid, clips1, area1, clips2, area2, clips3) \
     (test_one<Polygon, MultiPolygon, MultiPolygon>) \
     ( #caseid, caseid[0], caseid[1], clips1, -1, area1, clips2, -1, area2, \
                 clips3, -1, area1 + area2)
-
-#define TEST_DIFFERENCE_IGNORE(caseid, clips1, area1, clips2, area2, clips3) \
-    { ut_settings ignore_validity; ignore_validity.set_test_validity(false); \
-    (test_one<Polygon, MultiPolygon, MultiPolygon>) \
-    ( #caseid, caseid[0], caseid[1], clips1, -1, area1, clips2, -1, area2, \
-                clips3, -1, area1 + area2, ignore_validity); }
 
 #define TEST_DIFFERENCE_WITH(index1, index2, caseid, clips1, area1, \
                 clips2, area2, clips3) \
@@ -106,18 +100,11 @@ void test_areal()
     // A should have 3 clips, B should have 5 clips
     TEST_DIFFERENCE(case_126_multi, 4, 16.0, 5, 27.0, 9);
 
-    {
-        ut_settings settings;
-
-        settings.sym_difference = BG_IF_RESCALED(false, true);
-
-        test_one<Polygon, MultiPolygon, MultiPolygon>("case_108_multi",
-            case_108_multi[0], case_108_multi[1],
-                7, 32, 5.5,
-                4, 24, 9.75,
-                7, 45, 15.25,
-                settings);
-    }
+    test_one<Polygon, MultiPolygon, MultiPolygon>("case_108_multi",
+        case_108_multi[0], case_108_multi[1],
+            7, 32, 5.5,
+            4, 24, 9.75,
+            7, 45, 15.25);
 
     // Ticket on GGL list 2011/10/25
     // to mix polygon/multipolygon in call to difference
@@ -148,39 +135,13 @@ void test_areal()
     {
         ut_settings settings;
         settings.percentage = 0.001;
-        settings.set_test_validity(BG_IF_RESCALED(true, false));
+        settings.set_test_validity(false);
         TEST_DIFFERENCE_WITH(0, 1, ggl_list_20120221_volker, 2, 7962.66, 2, 2775258.93, 4);
     }
 
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
-    {
-        // 1: Very small sliver for B (discarded when rescaling)
-        // 2: sym difference is not considered as valid (without rescaling
-        //    this is a false negative)
-        // 3: with rescaling A is considered as invalid (robustness problem)
-        ut_settings settings;
-        settings.validity_of_sym = BG_IF_RESCALED(false, true);
-        settings.validity_false_negative_sym = true;
-        TEST_DIFFERENCE_WITH(0, 1, bug_21155501,
-                             (count_set(1, 4)), expectation_limits(3.75893, 3.75894),
-                             (count_set(1, 4)), (expectation_limits(1.776357e-15, 7.661281e-15)),
-                             (count_set(2, 5)));
-    }
-#endif
+    TEST_DIFFERENCE(bug_21155501, 1, 3.758937, 1, 1.78e-15, 1);
 
-#if defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
-    {
-        // With rescaling, it is complete but invalid
-        // Without rescaling, one ring is missing (for a and s)
-        ut_settings settings;
-        settings.set_test_validity(BG_IF_RESCALED(false, true));
-        settings.validity_of_sym = BG_IF_RESCALED(false, true);
-        TEST_DIFFERENCE_WITH(0, 1, ticket_9081,
-                             2, 0.0907392476356186,
-                             4, 0.126018011439877,
-                             count_set(3, 4));
-    }
-#endif
+    TEST_DIFFERENCE(ticket_9081, 2, 0.0907392476356186, 4, 0.126018011439877, count_set(3, 4));
 
     TEST_DIFFERENCE(ticket_12503, 46, 920.625, 4, 7.625, 50);
 
@@ -189,21 +150,12 @@ void test_areal()
         ut_settings settings;
         settings.percentage = 0.001;
 
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
         TEST_DIFFERENCE_WITH(0, 1, issue_630_a, 0, expectation_limits(0.0), 1, (expectation_limits(2.023, 2.2004)), 1);
-#endif
-
         TEST_DIFFERENCE_WITH(0, 1, issue_630_b, 1, 0.0056089, 2, 1.498976, 3);
-
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
         TEST_DIFFERENCE_WITH(0, 1, issue_630_c, 0, 0, 1, 1.493367, 1);
-#endif
-
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
-        // Symmetrical difference fails without get_clusters
-        settings.sym_difference = BG_IF_TEST_FAILURES;
-        TEST_DIFFERENCE_WITH(0, 1, issue_643, 1, expectation_limits(76.5385), optional(), optional_sliver(1.0e-6), 1);
-#endif
+        // symmetric-difference output has a self-intersection
+        settings.validity_of_sym = false;
+        TEST_DIFFERENCE_WITH(0, 1, issue_643, 1, expectation_limits(76.5385), optional(), optional_sliver(1.0e-6), count_set(1, 2));
     }
 
     // Cases below go (or went) wrong in either a ( [0] - [1] ) or b ( [1] - [0] )
@@ -221,6 +173,16 @@ void test_areal()
     }
 
     TEST_DIFFERENCE(issue_900, 0, 0.0, 2, 35, 2);
+
+    TEST_DIFFERENCE(issue_1222, 2, 32.0, 1, 4.0, 1);
+    {
+        // "method: t; operations: c/c;" still happening in the result
+        // for multi/multi
+        ut_settings settings;
+        settings.set_test_validity(BG_IF_TEST_FAILURES);
+        settings.validity_of_sym = BG_IF_TEST_FAILURES;
+        TEST_DIFFERENCE_WITH(0, 1, issue_1288, 2, 10.95, 0, 0.0, 2);
+    }
 
     // Areas and #clips correspond with POSTGIS (except sym case)
     test_one<Polygon, MultiPolygon, MultiPolygon>("case_101_multi",
@@ -251,7 +213,6 @@ void test_areal()
     TEST_DIFFERENCE(case_138_multi, 5, 16.6, 3, 8.225, 8);
     TEST_DIFFERENCE(case_139_multi, 4, 16.328125, 3, 8.078125, 7);
     TEST_DIFFERENCE(case_140_multi, 4, 16.328125, 3, 8.078125, 7);
-    TEST_DIFFERENCE(case_141_multi, 5, 15.5, 5, 10.0, 10);
 
     // Areas correspond with POSTGIS,
     // #clips in PostGIS is 11,11,5 but should most probably be be 12,12,6
@@ -387,10 +348,7 @@ void test_areal()
     TEST_DIFFERENCE(case_recursive_boxes_82, 5, 7.25, 7, 4.5, 8);
     TEST_DIFFERENCE(case_recursive_boxes_83, 9, 5.25, 8, 5.25, 12);
     TEST_DIFFERENCE(case_recursive_boxes_84, 4, 8.0, 7, 9.0, 4);
-#if ! defined(BOOST_GEOMETRY_USE_RESCALING) || defined(BOOST_GEOMETRY_TEST_FAILURES)
     TEST_DIFFERENCE(case_recursive_boxes_85, 4, 4.0, 7, 3.75, 9);
-#endif
-
     TEST_DIFFERENCE(case_recursive_boxes_86, 1, 1.5, 2, 1.5, 3);
     TEST_DIFFERENCE(case_recursive_boxes_87, 4, 2.0, 4, 2.5, 8);
     TEST_DIFFERENCE(case_recursive_boxes_88, 3, 4.75, 5, 6.75, 4);
@@ -402,7 +360,7 @@ void test_areal()
 
     {
         ut_settings settings;
-        settings.sym_difference = BG_IF_RESCALED(true, BG_IF_TEST_FAILURES);
+        settings.sym_difference = BG_IF_TEST_FAILURES;
         test_one<Polygon, MultiPolygon, MultiPolygon>("mysql_21965285_b",
             mysql_21965285_b[0],
             mysql_21965285_b[1],
@@ -414,6 +372,8 @@ void test_areal()
     TEST_DIFFERENCE(mysql_regression_1_65_2017_08_31,
                     optional(), optional_sliver(1e-6),
                     3, 152.064185, count_set(3, 4));
+
+    TEST_DIFFERENCE(issue_1299, 1, 3.9706, 0, 0, 1);
 }
 
 
@@ -432,7 +392,7 @@ template <typename Polygon, typename MultiPolygon>
 void test_specific_areal()
 {
     {
-        // Spikes in a-b and b-a, failure in symmetric difference
+        // Spikes in a-b and b-a, causing invalidity
         ut_settings settings;
         settings.sym_difference = false;
         settings.set_test_validity(false);
@@ -520,12 +480,6 @@ int test_main(int, char* [])
 
 #if ! defined(BOOST_GEOMETRY_TEST_ONLY_ONE_TYPE)
     test_all<bg::model::d2::point_xy<float> >();
-#endif
-
-#if defined(BOOST_GEOMETRY_TEST_FAILURES)
-    // Not yet fully tested for float.
-    // The difference algorithm can generate (additional) slivers
-    BoostGeometryWriteExpectedFailures(24, 11, 21, 7);
 #endif
 
     return 0;

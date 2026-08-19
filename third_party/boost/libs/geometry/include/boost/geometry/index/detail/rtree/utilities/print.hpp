@@ -37,7 +37,7 @@ namespace dispatch {
 template <typename Point, size_t Dimension>
 struct print_point
 {
-    BOOST_STATIC_ASSERT(0 < Dimension);
+    static_assert(0 < Dimension, "Dimension must be positive.");
 
     static inline void apply(std::ostream & os, Point const& p)
     {
@@ -59,7 +59,7 @@ struct print_point<Point, 1>
 template <typename Box, size_t Corner, size_t Dimension>
 struct print_corner
 {
-    BOOST_STATIC_ASSERT(0 < Dimension);
+    static_assert(0 < Dimension, "Dimension must be positive.");
 
     static inline void apply(std::ostream & os, Box const& b)
     {
@@ -134,10 +134,11 @@ struct print_indexable<Indexable, segment_tag>
 template <typename Indexable> inline
 void print_indexable(std::ostream & os, Indexable const& i)
 {
-    dispatch::print_indexable<
-        Indexable,
-        typename tag<Indexable>::type
-    >::apply(os, i);
+    dispatch::print_indexable
+        <
+            Indexable,
+            tag_t<Indexable>
+        >::apply(os, i);
 }
 
 } // namespace utilities

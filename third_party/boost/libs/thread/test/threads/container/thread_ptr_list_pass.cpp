@@ -10,13 +10,13 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/csbl/list.hpp>
 //#include <boost/interprocess/smart_ptr/shared_ptr.hpp>
-#include <boost/smart_ptr.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
 #include <iostream>
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 
-int count = 0;
-boost::mutex mutex;
+int g_count = 0;
+boost::mutex g_mutex;
 
 namespace {
 
@@ -33,8 +33,8 @@ void join_all(TC & tc)
 
 void increment_count()
 {
-  boost::unique_lock<boost::mutex> lock(mutex);
-  std::cout << "count = " << ++count << std::endl;
+  boost::unique_lock<boost::mutex> lock(g_mutex);
+  std::cout << "count = " << ++g_count << std::endl;
 }
 
 template <class T>
@@ -72,7 +72,7 @@ int main()
       (*it)->join();
     }
   }
-  count = 0;
+  g_count = 0;
   {
     typedef boost::shared_ptr<boost::thread >  thread_ptr;
     //typedef boost::interprocess::shared_ptr<boost::thread, std::allocator<boost::thread>, default_delete<boost::thread> >  thread_ptr;

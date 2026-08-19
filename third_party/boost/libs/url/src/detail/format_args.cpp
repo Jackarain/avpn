@@ -187,7 +187,7 @@ format(core::string_view str, format_context& ctx, grammar::lut_chars const& cs)
             lpad = pad;
             break;
         case '^':
-            lpad = w / 2;
+            lpad = pad / 2;
             rpad = pad - lpad;
             break;
         }
@@ -364,21 +364,26 @@ measure(
     {
         dn += measure_one('-', cs);
         ++n;
-        v *= -1;
     }
     else if (sign != '-')
     {
         dn += measure_one(sign, cs);
         ++n;
     }
+    // Use bitwise two's-complement negation to obtain |v| without
+    // tripping signed-overflow (v == LLONG_MIN) or
+    // unsigned-overflow (0ull - x) sanitizers.
+    unsigned long long int uv = v < 0
+        ? ~static_cast<unsigned long long int>(v) + 1ull
+        : static_cast<unsigned long long int>(v);
     do
     {
-        int d = v % 10;
-        v /= 10;
+        int d = static_cast<int>(uv % 10);
+        uv /= 10;
         dn += measure_one('0' + static_cast<char>(d), cs);
         ++n;
     }
-    while (v > 0);
+    while (uv > 0);
 
     std::size_t w = width;
     if (width_idx != std::size_t(-1) ||
@@ -445,29 +450,31 @@ format(
     grammar::lut_chars const& cs) const
 {
     // get n digits
-    long long int v0 = v;
-    long long int p = 1;
+    // Bitwise two's-complement negation to obtain |v| without
+    // tripping signed-overflow (v == LLONG_MIN) or
+    // unsigned-overflow (0ull - x) sanitizers.
+    bool const neg = v < 0;
+    unsigned long long int uv = neg
+        ? ~static_cast<unsigned long long int>(v) + 1ull
+        : static_cast<unsigned long long int>(v);
+    unsigned long long int uv0 = uv;
+    unsigned long long int p = 1;
     std::size_t n = 0;
-    if (v < 0)
-    {
-        v *= - 1;
-        ++n;
-    }
-    else if (sign != '-')
+    if (neg || sign != '-')
     {
         ++n;
     }
     do
     {
-        if (v >= 10)
+        if (uv >= 10)
             p *= 10;
-        v /= 10;
+        uv /= 10;
         ++n;
     }
-    while (v > 0);
+    while (uv > 0);
     static constexpr auto m =
         std::numeric_limits<long long int>::digits10;
-    BOOST_ASSERT(n <= m + 1);
+    BOOST_ASSERT(n <= m + 2);
     ignore_unused(m);
 
     // get pad
@@ -506,17 +513,16 @@ format(
     }
 
     // write
-    v = v0;
+    uv = uv0;
     char* out = ctx.out();
     if (!zeros)
     {
         for (std::size_t i = 0; i < lpad; ++i)
             encode_one(out, fill, cs);
     }
-    if (v < 0)
+    if (neg)
     {
         encode_one(out, '-', cs);
-        v *= -1;
         --n;
     }
     else if (sign != '-')
@@ -531,10 +537,10 @@ format(
     }
     while (n)
     {
-        unsigned long long int d = v / p;
+        unsigned long long int d = uv / p;
         encode_one(out, '0' + static_cast<char>(d), cs);
         --n;
-        v %= p;
+        uv %= p;
         p /= 10;
     }
     if (!zeros)
@@ -570,7 +576,7 @@ grammar::lut_chars const& cs) const
     while (v > 0);
     static constexpr auto m =
         std::numeric_limits<unsigned long long int>::digits10;
-    BOOST_ASSERT(n <= m + 1);
+    BOOST_ASSERT(n <= m + 2);
     ignore_unused(m);
 
     // get pad

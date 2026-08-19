@@ -1,7 +1,8 @@
 /* Fast open-addressing concurrent hashmap.
  *
  * Copyright 2023 Christian Mazakas.
- * Copyright 2023-2024 Joaquin M Lopez Munoz.
+ * Copyright 2023-2026 Joaquin M Lopez Munoz.
+ * Copyright 2026 Braden Ganetsky
  * Distributed under the Boost Software License, Version 1.0.
  * (See accompanying file LICENSE_1_0.txt or copy at
  * http://www.boost.org/LICENSE_1_0.txt)
@@ -16,6 +17,7 @@
 #include <boost/unordered/detail/concurrent_static_asserts.hpp>
 #include <boost/unordered/detail/foa/concurrent_table.hpp>
 #include <boost/unordered/detail/foa/flat_map_types.hpp>
+#include <boost/unordered/detail/ranges_support.hpp>
 #include <boost/unordered/detail/type_traits.hpp>
 #include <boost/unordered/unordered_flat_map_fwd.hpp>
 
@@ -101,6 +103,21 @@ namespace boost {
         this->insert(f, l);
       }
 
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<
+        detail::convertible_to_from_range_t FromRangeT,
+        detail::container_compatible_range<value_type> R
+      >
+      concurrent_flat_map(FromRangeT&&, R&& rg,
+        size_type n = detail::foa::default_bucket_count,
+        const hasher& hf = hasher(), const key_equal& eql = key_equal(),
+        const allocator_type& a = allocator_type())
+          : table_(n, hf, eql, a)
+      {
+        this->insert_range(std::forward<R>(rg));
+      }
+#endif
+
       concurrent_flat_map(concurrent_flat_map const& rhs)
           : table_(rhs.table_,
               boost::allocator_select_on_container_copy_construction(
@@ -119,6 +136,19 @@ namespace boost {
           : concurrent_flat_map(f, l, 0, hasher(), key_equal(), a)
       {
       }
+
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<
+        detail::convertible_to_from_range_t FromRangeT,
+        detail::container_compatible_range<value_type> R
+      >
+      concurrent_flat_map(
+        FromRangeT&& fr, R&& rg, allocator_type const& a)
+          : concurrent_flat_map(
+            fr, std::forward<R>(rg), 0, hasher(), key_equal(), a)
+      {
+      }
+#endif
 
       explicit concurrent_flat_map(allocator_type const& a)
           : table_(detail::foa::default_bucket_count, hasher(), key_equal(), a)
@@ -170,6 +200,29 @@ namespace boost {
       {
       }
 
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<
+        detail::convertible_to_from_range_t FromRangeT,
+        detail::container_compatible_range<value_type> R
+      >
+      concurrent_flat_map(
+        FromRangeT&& fr, R&& rg, size_type n, const allocator_type& a)
+          : concurrent_flat_map(
+            fr, std::forward<R>(rg), n, hasher(), key_equal(), a)
+      {
+      }
+
+      template<
+        detail::convertible_to_from_range_t FromRangeT,
+        detail::container_compatible_range<value_type> R
+      >
+      concurrent_flat_map(FromRangeT&& fr, R&& rg, size_type n,
+        const hasher& hf, const allocator_type& a)
+          : concurrent_flat_map(fr, std::forward<R>(rg), n, hf, key_equal(), a)
+      {
+      }
+#endif
+
       concurrent_flat_map(
         std::initializer_list<value_type> il, const allocator_type& a)
           : concurrent_flat_map(
@@ -189,9 +242,10 @@ namespace boost {
       {
       }
 
-
+      template <typename Key2,
+        typename std::enable_if<std::is_same<Key, Key2>::value, int>::type = 0>
       concurrent_flat_map(
-        unordered_flat_map<Key, T, Hash, Pred, Allocator>&& other)
+        unordered_flat_map<Key2, T, Hash, Pred, Allocator>&& other)
           : table_(std::move(other.table_))
       {
       }
@@ -419,16 +473,32 @@ namespace boost {
       }
 
       template <class InputIterator>
-      void insert(InputIterator begin, InputIterator end)
+      size_type insert(InputIterator begin, InputIterator end)
       {
+        size_type count_elements = 0;
         for (auto pos = begin; pos != end; ++pos) {
-          table_.emplace(*pos);
+          if (table_.emplace(*pos)) ++count_elements;
         }
+        return count_elements;
       }
 
-      void insert(std::initializer_list<value_type> ilist)
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<detail::container_compatible_range<value_type> R>
+      size_type insert_range(R&& rg)
       {
-        this->insert(ilist.begin(), ilist.end());
+        size_type count_elements = 0;
+        auto first = std::ranges::begin(rg);
+        auto last = std::ranges::end(rg);
+        while (first != last) {
+          if (table_.emplace(*first++)) ++count_elements;
+        }
+        return count_elements;
+      }
+#endif
+
+      size_type insert(std::initializer_list<value_type> ilist)
+      {
+        return this->insert(ilist.begin(), ilist.end());
       }
 
       template <class M>
@@ -471,19 +541,36 @@ namespace boost {
       }
 
       template <class InputIterator, class F>
-      void insert_or_visit(InputIterator first, InputIterator last, F f)
+      size_type insert_or_visit(InputIterator first, InputIterator last, F f)
       {
         BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F)
-        for (; first != last; ++first) {
+        size_type count_elements = 0;
+        for (; first != last; ++first, ++count_elements) {
           table_.emplace_or_visit(*first, f);
         }
+        return count_elements;
       }
 
-      template <class F>
-      void insert_or_visit(std::initializer_list<value_type> ilist, F f)
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<detail::container_compatible_range<value_type> R, class F>
+      size_type insert_range_or_visit(R&& rg, F f)
       {
         BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F)
-        this->insert_or_visit(ilist.begin(), ilist.end(), f);
+        size_type count_elements = 0;
+        auto first = std::ranges::begin(rg);
+        auto last = std::ranges::end(rg);
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_or_visit(*first, f);
+        }
+        return count_elements;
+      }
+#endif
+
+      template <class F>
+      size_type insert_or_visit(std::initializer_list<value_type> ilist, F f)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F)
+        return this->insert_or_visit(ilist.begin(), ilist.end(), std::ref(f));
       }
 
       template <class Ty, class F>
@@ -502,19 +589,152 @@ namespace boost {
       }
 
       template <class InputIterator, class F>
-      void insert_or_cvisit(InputIterator first, InputIterator last, F f)
+      size_type insert_or_cvisit(InputIterator first, InputIterator last, F f)
       {
         BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F)
-        for (; first != last; ++first) {
+        size_type count_elements = 0;
+        for (; first != last; ++first, ++count_elements) {
           table_.emplace_or_cvisit(*first, f);
         }
+        return count_elements;
       }
 
-      template <class F>
-      void insert_or_cvisit(std::initializer_list<value_type> ilist, F f)
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<detail::container_compatible_range<value_type> R, class F>
+      size_type insert_range_or_cvisit(R&& rg, F f)
       {
         BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F)
-        this->insert_or_cvisit(ilist.begin(), ilist.end(), f);
+        size_type count_elements = 0;
+        auto first = std::ranges::begin(rg);
+        auto last = std::ranges::end(rg);
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_or_cvisit(*first, f);
+        }
+        return count_elements;
+      }
+#endif
+
+      template <class F>
+      size_type insert_or_cvisit(std::initializer_list<value_type> ilist, F f)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F)
+        return this->insert_or_cvisit(ilist.begin(), ilist.end(), std::ref(f));
+      }
+
+      template <class Ty, class F1, class F2>
+      BOOST_FORCEINLINE auto insert_and_visit(Ty&& value, F1 f1, F2 f2)
+        -> decltype(table_.insert_and_visit(std::forward<Ty>(value), f1, f2))
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F2)
+        return table_.insert_and_visit(std::forward<Ty>(value), f1, f2);
+      }
+
+      template <class F1, class F2>
+      BOOST_FORCEINLINE bool insert_and_visit(init_type&& obj, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F2)
+        return table_.insert_and_visit(std::move(obj), f1, f2);
+      }
+
+      template <class InputIterator, class F1, class F2>
+      size_type insert_and_visit(
+        InputIterator first, InputIterator last, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F2)
+        size_type count_elements = 0;
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_and_visit(*first, f1, f2);
+        }
+        return count_elements;
+      }
+
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<
+        detail::container_compatible_range<value_type> R, class F1, class F2
+      >
+      size_type insert_range_and_visit(R&& rg, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F2)
+        size_type count_elements = 0;
+        auto first = std::ranges::begin(rg);
+        auto last = std::ranges::end(rg);
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_and_visit(*first, f1, f2);
+        }
+        return count_elements;
+      }
+#endif
+
+      template <class F1, class F2>
+      size_type insert_and_visit(
+        std::initializer_list<value_type> ilist, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F2)
+        return this->insert_and_visit(
+          ilist.begin(), ilist.end(), std::ref(f1), std::ref(f2));
+      }
+
+      template <class Ty, class F1, class F2>
+      BOOST_FORCEINLINE auto insert_and_cvisit(Ty&& value, F1 f1, F2 f2)
+        -> decltype(table_.insert_and_cvisit(std::forward<Ty>(value), f1, f2))
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F2)
+        return table_.insert_and_cvisit(std::forward<Ty>(value), f1, f2);
+      }
+
+      template <class F1, class F2>
+      BOOST_FORCEINLINE bool insert_and_cvisit(init_type&& obj, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F2)
+        return table_.insert_and_cvisit(std::move(obj), f1, f2);
+      }
+
+      template <class InputIterator, class F1, class F2>
+      size_type insert_and_cvisit(
+        InputIterator first, InputIterator last, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F2)
+        size_type count_elements = 0;
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_and_cvisit(*first, f1, f2);
+        }
+        return count_elements;
+      }
+
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+      template<
+        detail::container_compatible_range<value_type> R, class F1, class F2
+      >
+      size_type insert_range_and_cvisit(R&& rg, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F2)
+        size_type count_elements = 0;
+        auto first = std::ranges::begin(rg);
+        auto last = std::ranges::end(rg);
+        for (; first != last; ++first, ++count_elements) {
+          table_.emplace_and_cvisit(*first, f1, f2);
+        }
+        return count_elements;
+      }
+#endif
+
+      template <class F1, class F2>
+      size_type insert_and_cvisit(
+        std::initializer_list<value_type> ilist, F1 f1, F2 f2)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_INVOCABLE(F1)
+        BOOST_UNORDERED_STATIC_ASSERT_CONST_INVOCABLE(F2)
+        return this->insert_and_cvisit(
+          ilist.begin(), ilist.end(), std::ref(f1), std::ref(f2));
       }
 
       template <class... Args> BOOST_FORCEINLINE bool emplace(Args&&... args)
@@ -536,6 +756,30 @@ namespace boost {
         BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg, Args...)
         return table_.emplace_or_cvisit(
           std::forward<Arg>(arg), std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool emplace_and_visit(
+         Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_INVOCABLE(Arg2, Args...)
+        return table_.emplace_and_visit(
+          std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool emplace_and_cvisit(
+        Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg2, Args...)
+        return table_.emplace_and_cvisit(
+          std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
       }
 
       template <class... Args>
@@ -611,6 +855,78 @@ namespace boost {
         BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg, Args...)
         return table_.try_emplace_or_cvisit(std::forward<K>(k),
           std::forward<Arg>(arg), std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_visit(
+        key_type const& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_visit(
+          k, std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_cvisit(
+        key_type const& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_cvisit(
+          k, std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_visit(
+        key_type&& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_visit(
+          std::move(k), std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_cvisit(
+        key_type&& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_cvisit(
+          std::move(k), std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class K, class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_visit(
+        K&& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_visit(std::forward<K>(k),
+          std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
+      }
+
+      template <class K, class Arg1, class Arg2, class... Args>
+      BOOST_FORCEINLINE bool try_emplace_and_cvisit(
+        K&& k, Arg1&& arg1, Arg2&& arg2, Args&&... args)
+      {
+        BOOST_UNORDERED_STATIC_ASSERT_PENULTIMATE_ARG_INVOCABLE(
+          Arg1, Arg2, Args...)
+        BOOST_UNORDERED_STATIC_ASSERT_LAST_ARG_CONST_INVOCABLE(Arg2, Args...)
+        return table_.try_emplace_and_cvisit(std::forward<K>(k),
+          std::forward<Arg1>(arg1), std::forward<Arg2>(arg2),
+          std::forward<Args>(args)...);
       }
 
       BOOST_FORCEINLINE size_type erase(key_type const& k)
@@ -796,6 +1112,27 @@ namespace boost {
         boost::unordered::detail::iter_val_t<InputIterator>, Hash, Pred,
         Allocator>;
 
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+    template <
+      boost::unordered::detail::convertible_to_from_range_t FromRangeT,
+      std::ranges::input_range R,
+      class Hash =
+        boost::hash<boost::unordered::detail::range_key_t<R> >,
+      class Pred =
+        std::equal_to<boost::unordered::detail::range_key_t<R> >,
+      class Allocator = std::allocator<
+        boost::unordered::detail::range_to_alloc_t<R> >,
+      class = std::enable_if_t<detail::is_hash_v<Hash> >,
+      class = std::enable_if_t<detail::is_pred_v<Pred> >,
+      class = std::enable_if_t<detail::is_allocator_v<Allocator> > >
+    concurrent_flat_map(FromRangeT&&, R&&,
+      std::size_t = boost::unordered::detail::foa::default_bucket_count,
+      Hash = Hash(), Pred = Pred(), Allocator = Allocator())
+      -> concurrent_flat_map<boost::unordered::detail::range_key_t<R>,
+        boost::unordered::detail::range_mapped_t<R>, Hash, Pred,
+        Allocator>;
+#endif
+
     template <class Key, class T,
       class Hash = boost::hash<std::remove_const_t<Key> >,
       class Pred = std::equal_to<std::remove_const_t<Key> >,
@@ -842,6 +1179,42 @@ namespace boost {
         boost::unordered::detail::iter_val_t<InputIterator>, Hash,
         std::equal_to<boost::unordered::detail::iter_key_t<InputIterator> >,
         Allocator>;
+
+#if !defined(BOOST_UNORDERED_NO_RANGES)
+    template <boost::unordered::detail::convertible_to_from_range_t FromRangeT,
+      std::ranges::input_range R,
+      class Allocator,
+      class = std::enable_if_t<detail::is_allocator_v<Allocator> > >
+    concurrent_flat_map(FromRangeT&&, R&&, std::size_t, Allocator)
+      -> concurrent_flat_map<boost::unordered::detail::range_key_t<R>,
+        boost::unordered::detail::range_mapped_t<R>,
+        boost::hash<boost::unordered::detail::range_key_t<R> >,
+        std::equal_to<boost::unordered::detail::range_key_t<R> >,
+        Allocator>;
+
+    template <boost::unordered::detail::convertible_to_from_range_t FromRangeT,
+      std::ranges::input_range R,
+      class Allocator,
+      class = std::enable_if_t<detail::is_allocator_v<Allocator> > >
+    concurrent_flat_map(FromRangeT&&, R&&, Allocator)
+      -> concurrent_flat_map<boost::unordered::detail::range_key_t<R>,
+        boost::unordered::detail::range_mapped_t<R>,
+        boost::hash<boost::unordered::detail::range_key_t<R> >,
+        std::equal_to<boost::unordered::detail::range_key_t<R> >,
+        Allocator>;
+
+    template <boost::unordered::detail::convertible_to_from_range_t FromRangeT,
+      std::ranges::input_range R,
+      class Hash, class Allocator,
+      class = std::enable_if_t<detail::is_hash_v<Hash> >,
+      class = std::enable_if_t<detail::is_allocator_v<Allocator> > >
+    concurrent_flat_map(
+      FromRangeT&&, R&&, std::size_t, Hash, Allocator)
+      -> concurrent_flat_map<boost::unordered::detail::range_key_t<R>,
+        boost::unordered::detail::range_mapped_t<R>, Hash,
+        std::equal_to<boost::unordered::detail::range_key_t<R> >,
+        Allocator>;
+#endif
 
     template <class Key, class T, class Allocator,
       class = std::enable_if_t<detail::is_allocator_v<Allocator> > >

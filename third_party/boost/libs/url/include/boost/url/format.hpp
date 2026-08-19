@@ -16,8 +16,60 @@
 #include <boost/url/detail/vformat.hpp>
 #include <initializer_list>
 
+#ifdef BOOST_URL_HAS_CONCEPTS
+#include <concepts>
+#endif
+
 namespace boost {
 namespace urls {
+
+/** A temporary reference to a named formatting argument
+
+    This class represents a temporary reference
+    to a named formatting argument used by the
+    @ref format function.
+
+    Named arguments should always be created
+    with the @ref arg function.
+
+    Any type that can be formatted into a URL
+    with the @ref format function can also be used
+    in a named argument. All named arguments
+    are convertible to @ref format_arg and
+    can be used in the @ref format function.
+
+    @see
+        @ref arg,
+        @ref format,
+        @ref format_to,
+        @ref format_arg.
+  */
+template <class T>
+using named_arg = detail::named_arg<T>;
+
+/** A temporary reference to a formatting argument
+
+    This class represents a temporary reference
+    to a formatting argument used by the
+    @ref format function.
+
+    A @ref format argument should always be
+    created by passing the argument to be
+    formatted directly to the @ref format function.
+
+    Any type that can be formatted into a URL
+    with the @ref format function is convertible
+    to this type.
+
+    This includes basic types, types convertible
+    to `core::string_view`, and @ref named_arg.
+
+    @see
+        @ref format,
+        @ref format_to,
+        @ref arg.
+  */
+using format_arg = detail::format_arg;
 
 /** Format arguments into a URL
 
@@ -43,8 +95,25 @@ namespace urls {
 
     @par Example
     @code
-    assert(format("{}", "Hello world!").buffer() == "Hello%20world%21");
+    assert(format("{}://{}:{}/rfc/{}",
+        "https", "www.ietf.org", 80, "rfc2396.txt"
+        ).buffer() == "https://www.ietf.org:80/rfc/rfc2396.txt");
     @endcode
+
+    Arguments that contain special characters are
+    automatically percent-encoded for the URL
+    component where they appear:
+
+    @code
+    assert(format("https://example.com/~{}",
+        "John Doe"
+        ).buffer() == "https://example.com/~John%20Doe");
+    @endcode
+
+    @note
+    The formatting machinery relies on language and library
+    features that are broken on GCC 4.8 and GCC 5.x, so this
+    function is not supported on those compilers.
 
     @par Preconditions
     All replacement fields must be valid and the
@@ -84,10 +153,10 @@ namespace urls {
         >Format String Syntax</a>
 
     @see
-        @ref format_to.
-
+        @ref format_to,
+        @ref arg.
 */
-template <class... Args>
+template <BOOST_URL_CONSTRAINT(std::convertible_to<format_arg>)... Args>
 url
 format(
     core::string_view fmt,
@@ -122,9 +191,10 @@ format(
 
     @par Example
     @code
-    static_url<30> u;
-    format(u, "{}", "Hello world!");
-    assert(u.buffer() == "Hello%20world%21");
+    static_url<50> u;
+    format_to(u, "{}://{}:{}/rfc/{}",
+        "https", "www.ietf.org", 80, "rfc2396.txt");
+    assert(u.buffer() == "https://www.ietf.org:80/rfc/rfc2396.txt");
     @endcode
 
     @par Preconditions
@@ -170,7 +240,7 @@ format(
         @ref format.
 
 */
-template <class... Args>
+template <BOOST_URL_CONSTRAINT(std::convertible_to<format_arg>)... Args>
 void
 format_to(
     url_base& u,
@@ -215,7 +285,13 @@ format_to(
 
     @par Example
     @code
-    assert(format("user/{id}", {{"id", 1}}).buffer() == "user/1");
+    assert(format(
+        "{scheme}://{host}:{port}/{dir}/{file}",
+        {{"scheme", "https"}, {"port", 80},
+         {"host", "example.com"},
+         {"dir", "path/to"},
+         {"file", "file.txt"}}
+        ).buffer() == "https://example.com:80/path/to/file.txt");
     @endcode
 
     @par Preconditions
@@ -263,12 +339,7 @@ inline
 url
 format(
     core::string_view fmt,
-#ifdef BOOST_URL_DOCS
-    std::initializer_list<__see_below__> args
-#else
-    std::initializer_list<detail::format_arg> args
-#endif
-    )
+    std::initializer_list<format_arg> args)
 {
     return detail::vformat(
         fmt, detail::format_args(
@@ -308,9 +379,14 @@ format(
 
     @par Example
     @code
-    static_url<30> u;
-    format_to(u, "user/{id}", {{"id", 1}})
-    assert(u.buffer() == "user/1");
+    url u;
+    format_to(u,
+        "{scheme}://{host}:{port}/{dir}/{file}",
+        {{"scheme", "https"}, {"port", 80},
+         {"host", "example.com"},
+         {"dir", "path/to"},
+         {"file", "file.txt"}});
+    assert(u.buffer() == "https://example.com:80/path/to/file.txt");
     @endcode
 
     @par Preconditions
@@ -361,12 +437,7 @@ void
 format_to(
     url_base& u,
     core::string_view fmt,
-#ifdef BOOST_URL_DOCS
-    std::initializer_list<__see_below__> args
-#else
-    std::initializer_list<detail::format_arg> args
-#endif
-    )
+    std::initializer_list<format_arg> args)
 {
     detail::vformat_to(
         u, fmt, detail::format_args(
@@ -385,14 +456,17 @@ format_to(
 
     @par Example
     @code
-    assert(format("user/{id}", arg("id", 1)).buffer() == "user/1");
+    assert(format(
+        "https://example.com/~{username}",
+        arg("username", "mark")
+        ).buffer() == "https://example.com/~mark");
     @endcode
 
-    @return An temporary object with reference
+    @return A temporary object with reference
     semantics for a named argument
 
-    @param name The argument name
-    @param arg The argument value
+    @param name The format argument name
+    @param arg The format argument value
 
     @see
         @ref format,
@@ -400,11 +474,7 @@ format_to(
 
 */
 template <class T>
-#ifdef BOOST_URL_DOCS
-__implementation_defined__
-#else
-detail::named_arg<T>
-#endif
+named_arg<T>
 arg(core::string_view name, T const& arg)
 {
     return {name, arg};

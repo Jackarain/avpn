@@ -123,6 +123,7 @@ foa_tests(SOURCES unordered/uses_allocator.cpp)
 foa_tests(SOURCES unordered/link_test_1.cpp unordered/link_test_2.cpp )
 foa_tests(SOURCES unordered/scoped_allocator.cpp)
 foa_tests(SOURCES unordered/hash_is_avalanching_test.cpp)
+foa_tests(SOURCES unordered/pull_tests.cpp)
 foa_tests(SOURCES exception/constructor_exception_tests.cpp)
 foa_tests(SOURCES exception/copy_exception_tests.cpp)
 foa_tests(SOURCES exception/assign_exception_tests.cpp)
@@ -135,7 +136,17 @@ foa_tests(SOURCES exception/merge_exception_tests.cpp)
 
 # CFOA tests
 
-cfoa_tests(SOURCES cfoa/insert_tests.cpp)
+set(cfoa_insert_test_options $<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
+
+if(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+  list(APPEND cfoa_insert_test_options
+    -O0 -g0
+    --param=ggc-min-expand=10
+    --param=ggc-min-heapsize=16384
+  ) # GCC MinGW32 OOMs otherwise
+endif()
+
+cfoa_tests(SOURCES cfoa/insert_tests.cpp COMPILE_OPTIONS ${cfoa_insert_test_options})
 cfoa_tests(SOURCES cfoa/erase_tests.cpp)
 cfoa_tests(SOURCES cfoa/try_emplace_tests.cpp)
 cfoa_tests(SOURCES cfoa/emplace_tests.cpp)
@@ -161,5 +172,14 @@ cfoa_tests(SOURCES cfoa/rw_spinlock_test5.cpp)
 cfoa_tests(SOURCES cfoa/rw_spinlock_test6.cpp)
 cfoa_tests(SOURCES cfoa/rw_spinlock_test7.cpp)
 cfoa_tests(SOURCES cfoa/rw_spinlock_test8.cpp)
+
+# Compile tests
+
+fca_tests(TYPE compile NAME explicit_instantiation_tests SOURCES unordered/explicit_instantiation_tests.cpp)
+foa_tests(TYPE compile NAME explicit_instantiation_tests SOURCES unordered/explicit_instantiation_tests.cpp)
+cfoa_tests(TYPE compile NAME explicit_instantiation_tests SOURCES cfoa/explicit_instantiation_tests.cpp)
+
+foa_tests(TYPE compile NAME conversion_operator_tests SOURCES unordered/conversion_operator_tests.cpp)
+cfoa_tests(TYPE compile NAME conversion_operator_tests SOURCES cfoa/conversion_operator_tests.cpp)
 
 endif()

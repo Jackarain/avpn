@@ -3,6 +3,7 @@
 // Copyright (c) 2008-2012 Bruno Lalande, Paris, France.
 // Copyright (c) 2008-2012 Barend Gehrels, Amsterdam, the Netherlands.
 // Copyright (c) 2009-2012 Mateusz Loskot, London, UK.
+// Copyright (c) 2024 Adam Wulkiewicz, Lodz, Poland.
 
 // This file was modified by Oracle on 2020.
 // Modifications copyright (c) 2020, Oracle and/or its affiliates.
@@ -88,10 +89,17 @@ template <typename Geometry>
 struct dimension
     : core_dispatch::dimension
         <
-            typename tag<Geometry>::type,
-            typename util::remove_cptrref<Geometry>::type
+            tag_t<Geometry>,
+            util::remove_cptrref_t<Geometry>
         >
 {};
+
+
+#ifndef BOOST_NO_CXX17_INLINE_VARIABLES
+template <typename Geometry>
+inline constexpr std::size_t dimension_v = dimension<Geometry>::value;
+#endif
+
 
 /*!
 \brief assert_dimension, enables compile-time checking if coordinate dimensions are as expected
@@ -100,7 +108,7 @@ struct dimension
 template <typename Geometry, std::size_t Dimensions>
 constexpr inline void assert_dimension()
 {
-    BOOST_STATIC_ASSERT(( dimension<Geometry>::value == Dimensions ));
+    static_assert(dimension<Geometry>::value == Dimensions, "Dimension check failed.");
 }
 
 /*!
@@ -110,13 +118,13 @@ constexpr inline void assert_dimension()
 template <typename Geometry, std::size_t Dimensions>
 constexpr inline void assert_dimension_less_equal()
 {
-    BOOST_STATIC_ASSERT(( dimension<Geometry>::value <= Dimensions ));
+    static_assert(dimension<Geometry>::value <= Dimensions, "Dimension check failed.");
 }
 
 template <typename Geometry, std::size_t Dimensions>
 constexpr inline void assert_dimension_greater_equal()
 {
-    BOOST_STATIC_ASSERT(( dimension<Geometry>::value >= Dimensions ));
+    static_assert(dimension<Geometry>::value >= Dimensions, "Dimension check failed.");
 }
 
 /*!
@@ -126,7 +134,7 @@ constexpr inline void assert_dimension_greater_equal()
 template <typename G1, typename G2>
 constexpr inline void assert_dimension_equal()
 {
-    BOOST_STATIC_ASSERT(( dimension<G1>::value == dimension<G2>::value ));
+    static_assert(dimension<G1>::value == dimension<G2>::value, "Dimension check failed.");
 }
 
 }} // namespace boost::geometry

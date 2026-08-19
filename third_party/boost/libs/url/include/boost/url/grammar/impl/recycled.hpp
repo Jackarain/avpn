@@ -36,7 +36,7 @@ recycled<T>::
         delete it;
         it = next;
     }
-    detail::recycled_remove(
+    implementation_defined::recycled_remove(
         sizeof(U) * n);
 }
 
@@ -57,7 +57,7 @@ acquire() ->
         {
             // reuse
             head_ = head_->next;
-            detail::recycled_remove(
+            implementation_defined::recycled_remove(
                 sizeof(U));
             ++p->refs;
         }
@@ -85,7 +85,7 @@ release(U* u) noexcept
         u->next = head_;
         head_ = u;
     }
-    detail::recycled_add(
+    implementation_defined::recycled_add(
         sizeof(U));
 }
 
@@ -182,6 +182,8 @@ operator=(
     recycled_ptr const& other) noexcept ->
         recycled_ptr&
 {
+    if(this == &other)
+        return *this;
     BOOST_ASSERT(
         bin_ == other.bin_);
     if(p_)

@@ -13,6 +13,7 @@
 
 #include <boost/json/value.hpp> // prevent intellisense bugs
 #include <boost/json/serialize.hpp>
+#include <boost/core/detail/static_assert.hpp>
 #include <boost/core/ignore_unused.hpp>
 #include <boost/describe/class.hpp>
 #include <boost/describe/enum.hpp>
@@ -80,7 +81,7 @@ struct T3
 {
 };
 
-BOOST_STATIC_ASSERT(! ::boost::json::has_value_from<T3>::value);
+BOOST_CORE_STATIC_ASSERT( ! ::boost::json::has_value_from<T3>::value );
 
 struct T4
 {
@@ -90,7 +91,7 @@ struct T4
     }
 };
 
-BOOST_STATIC_ASSERT(! ::boost::json::has_value_from<T4>::value);
+BOOST_CORE_STATIC_ASSERT( ! ::boost::json::has_value_from<T4>::value );
 
 //----------------------------------------------------------
 
@@ -185,6 +186,18 @@ struct T11 : T10
     std::string s;
 
     void
+    set_n(int v)
+    {
+        n = v;
+    }
+
+    void
+    set_d(double v)
+    {
+        d = v;
+    }
+
+    void
     set_b(bool v)
     {
         b = v;
@@ -195,6 +208,24 @@ private:
 
     BOOST_DESCRIBE_CLASS(T11, (T10), (s), (), (b))
 };
+
+struct Base1
+{
+    int a = 1;
+};
+BOOST_DESCRIBE_STRUCT(Base1, (), (a))
+
+struct Base2
+{
+    int a = 2;
+};
+BOOST_DESCRIBE_STRUCT(Base2, (), (a))
+
+struct Derived: Base1, Base2
+{
+    int a = 3;
+};
+BOOST_DESCRIBE_STRUCT(Derived, (Base1, Base2), ())
 
 //----------------------------------------------------------
 
@@ -310,27 +341,28 @@ testValueCtor( T const& t, Context const& ... ctx )
 } // namespace
 
 // integral
-BOOST_STATIC_ASSERT(has_value_from<int>::value);
-BOOST_STATIC_ASSERT(has_value_from<int&>::value);
-BOOST_STATIC_ASSERT(has_value_from<int&&>::value);
+BOOST_CORE_STATIC_ASSERT( has_value_from<int>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<int&>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<int&&>::value );
 // array
-BOOST_STATIC_ASSERT(has_value_from<int[4]>::value);
-BOOST_STATIC_ASSERT(has_value_from<int(&)[4]>::value);
-BOOST_STATIC_ASSERT(has_value_from<int(&&)[4]>::value);
+BOOST_CORE_STATIC_ASSERT( has_value_from<int[4]>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<int(&)[4]>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<int(&&)[4]>::value );
 // forward range
-BOOST_STATIC_ASSERT(has_value_from<std::vector<int>>::value);
-BOOST_STATIC_ASSERT(has_value_from<std::vector<int>&>::value);
-BOOST_STATIC_ASSERT(has_value_from<std::vector<int>&&>::value);
+BOOST_CORE_STATIC_ASSERT( has_value_from<std::vector<int>>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<std::vector<int>&>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<std::vector<int>&&>::value );
 // tuple-like
-BOOST_STATIC_ASSERT(has_value_from<std::tuple<int, int>>::value);
-BOOST_STATIC_ASSERT(has_value_from<std::tuple<int, int>&>::value);
-BOOST_STATIC_ASSERT(has_value_from<std::tuple<int, int>&&>::value);
-BOOST_STATIC_ASSERT(has_value_from<key_value_pair>::value);
-BOOST_STATIC_ASSERT(has_value_from<key_value_pair&>::value);
-BOOST_STATIC_ASSERT(has_value_from<key_value_pair&&>::value);
+BOOST_CORE_STATIC_ASSERT(( has_value_from<std::tuple<int, int>>::value ));
+BOOST_CORE_STATIC_ASSERT(( has_value_from<std::tuple<int, int>&>::value ));
+BOOST_CORE_STATIC_ASSERT(( has_value_from<std::tuple<int, int>&&>::value ));
+BOOST_CORE_STATIC_ASSERT( has_value_from<key_value_pair>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<key_value_pair&>::value );
+BOOST_CORE_STATIC_ASSERT( has_value_from<key_value_pair&&>::value );
 
 // object-like
-BOOST_STATIC_ASSERT(has_value_from<std::map<string_view, int>>::value);
+BOOST_CORE_STATIC_ASSERT((
+    has_value_from<std::map<string_view, int>>::value));
 
 class value_from_test
 {
@@ -495,10 +527,10 @@ public:
         BOOST_TEST(( jv == value{{"n", 909}, {"d", -1.45}} ));
 
         ::value_from_test_ns::T11 t11;
-        t11.n = 67;
-        t11.d = -.12;
-        t11.s = "qwerty";
+        t11.set_n(67);
+        t11.set_d(-.12);
         t11.set_b(true);
+        t11.s = "qwerty";
         jv = value_from( t11, ctx... );
         BOOST_TEST(( jv == value{{"n", 67}, {"d", -.12}, {"s", "qwerty"}, {"b", true}} ));
 
@@ -599,11 +631,11 @@ public:
             Ctx,
             std::vector<value_from_test_ns::T12>,
             detail::value_from_conversion >;
-        BOOST_STATIC_ASSERT( Sup::index::value == 1 );
-        BOOST_STATIC_ASSERT(
+        BOOST_CORE_STATIC_ASSERT( Sup::index::value == 1 );
+        BOOST_CORE_STATIC_ASSERT((
             std::is_same<
                 Sup::type,
-                value_from_test_ns::another_context>::value );
+                value_from_test_ns::another_context>::value));
 
         jv = value_from(
             std::vector<value_from_test_ns::T12>(2),

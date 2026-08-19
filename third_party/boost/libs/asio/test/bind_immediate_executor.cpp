@@ -2,7 +2,7 @@
 // bind_immediate_executor.cpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2024 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2026 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,6 +18,7 @@
 
 #include <functional>
 #include <boost/asio/immediate.hpp>
+#include <boost/asio/inline_executor.hpp>
 #include <boost/asio/io_context.hpp>
 #include "unit_test.hpp"
 
@@ -53,7 +54,7 @@ void bind_immediate_executor_to_function_object_test()
       bind_immediate_executor(
         ioc2.get_executor(),
         bind_immediate_executor(
-          boost::asio::system_executor(),
+          boost::asio::inline_executor(),
           bindns::bind(&increment, &count))));
 
   ioc1.restart();

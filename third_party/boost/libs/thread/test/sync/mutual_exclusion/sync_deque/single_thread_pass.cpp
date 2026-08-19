@@ -13,7 +13,7 @@
 
 #include <boost/thread/concurrent_queues/sync_deque.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 class non_copyable
 {
@@ -49,7 +49,7 @@ int main()
   {
     // empty queue try_pull fails
       boost::sync_deque<int> q;
-      int i;
+      int i = -1;
       BOOST_TEST( boost::queue_op_status::empty == q.try_pull_front(i));
       BOOST_TEST(q.empty());
       BOOST_TEST(! q.full());
@@ -68,7 +68,7 @@ int main()
   {
     // empty queue push lvalue/copyable succeeds
       boost::sync_deque<int> q;
-      int i;
+      int i = 42;
       q.push_back(i);
       BOOST_TEST(! q.empty());
       BOOST_TEST(! q.full());
@@ -111,7 +111,7 @@ int main()
   {
     // empty queue push lvalue succeeds
       boost::sync_deque<int> q;
-      int i;
+      int i = 42;
       q.push_back(i);
       BOOST_TEST(! q.empty());
       BOOST_TEST(! q.full());
@@ -204,7 +204,7 @@ int main()
     // 1-element queue pull_front succeed
       boost::sync_deque<int> q;
       q.push_back(1);
-      int i;
+      int i = -1;
       q.pull_front(i);
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -252,7 +252,7 @@ int main()
     // 1-element queue try_pull_front succeed
       boost::sync_deque<int> q;
       q.push_back(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.try_pull_front(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -277,7 +277,7 @@ int main()
     // 1-element queue nonblocking_pull_front succeed
       boost::sync_deque<int> q;
       q.push_back(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.nonblocking_pull_front(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -315,7 +315,7 @@ int main()
     // 1-element queue wait_pull_front succeed
       boost::sync_deque<int> q;
       q.push_back(1);
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.wait_pull_front(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -365,7 +365,7 @@ int main()
       boost::sync_deque<int> q;
       q.push_back(1);
       q.close();
-      int i;
+      int i = -1;
       q.pull_front(i);
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -378,7 +378,7 @@ int main()
       boost::sync_deque<int> q;
       q.push_back(1);
       q.close();
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::success == q.wait_pull_front(i));
       BOOST_TEST_EQ(i, 1);
       BOOST_TEST(q.empty());
@@ -392,7 +392,7 @@ int main()
       q.close();
       BOOST_TEST(q.empty());
       BOOST_TEST(q.closed());
-      int i;
+      int i = -1;
       BOOST_TEST(boost::queue_op_status::closed == q.wait_pull_front(i));
       BOOST_TEST(q.empty());
       BOOST_TEST(q.closed());
@@ -400,4 +400,3 @@ int main()
 
   return boost::report_errors();
 }
-
