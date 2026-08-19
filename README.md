@@ -79,49 +79,6 @@ ninja
 - FEC 在 Windows x64 上使用 SSSE3/AVX2 运行时分派加速 (MinGW 与 MSVC 均支持).
 - 在完成编译后，同样会生成一个 `avpn.exe` 在 bin/release。
 
-## Android 平台编译
-
-仓库提供了 `build.android.sh` 脚本自动完成 arm64-v8a、armeabi-v7a、x86、x86_64 四个架构的交叉编译：
-
-```
-./build.android.sh <源码目录> <NDK目录> [host-tag]
-```
-
-例如：
-
-```
-./build.android.sh ~/avpn ~/Android/Sdk/ndk/26.1.10909125 linux-x86_64
-```
-
-其中 `<NDK目录>` 替换为 Android NDK 目录，host-tag 可省略，脚本会根据当前系统自动选择（linux-x86_64 / darwin-x86_64 / windows-x86_64）。编译产物输出到 `release/<arch>/` 目录。
-
-也可以手动使用 NDK 提供的 cmake 工具链编译：
-
-```
-cmake \
--DANDROID_NDK=${ANDROID_NDK} \
--DANDROID_ABI=arm64-v8a \
--DANDROID_PLATFORM=android-23 \
--DCMAKE_ANDROID_ARCH_ABI=arm64-v8a \
--DCMAKE_ANDROID_NDK=${ANDROID_NDK} \
--DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
--DCMAKE_BUILD_TYPE=Release \
--DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
--DCMAKE_SYSTEM_NAME=Android \
--DCMAKE_SYSTEM_VERSION=23 \
--DCMAKE_EXE_LINKER_FLAGS="-static" \
-.. \
--G Ninja
-```
-
-在 cmake 命令成功执行完成后，开始输入以下命令编译：
-
-```
-ninja
-```
-
-成功编译后，可执行程序将在 bin 目录下生成，可在 android 的 termux 中运行，当然同时也需要 root 权限。
-
 ## 其它平台交叉编译
 
 这里以 MediaTek MT7621 为例，在 x86_64 linux 平台交叉编译目标为 openwrt mipsel 架构，libc 为 musl，先下载编译工具链：
