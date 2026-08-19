@@ -1179,7 +1179,7 @@ namespace libavpn {
 			// 隧道出口 NAT: 绑定本地源地址的流量统一以虚拟地址出口.
 			::system(("iptables -t nat -C POSTROUTING -o " + dev +
 				" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -o " +
-				dev + " -j MASQUERADE").c_str());
+				dev + " -j MASQUERADE 2>/dev/null").c_str());
 		}
 
 		for (auto& r : scfg.routes)

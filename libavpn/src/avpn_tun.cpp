@@ -51,6 +51,22 @@ namespace libavpn {
 
 #if !defined(_WIN32)
 	namespace {
+		// 执行命令并捕获标准输出/错误, 避免子进程输出直接上屏.
+		// 返回 wait status (与 system 一致), 失败时返回 -1.
+		int run_cmd_capture(const std::string& cmd, std::string& output)
+		{
+			output.clear();
+			FILE* pipe = ::popen((cmd + " 2>&1").c_str(), "r");
+			if (!pipe)
+				return -1;
+
+			char buf[512];
+			std::size_t n;
+			while ((n = std::fread(buf, 1, sizeof(buf), pipe)) > 0)
+				output.append(buf, n);
+			return ::pclose(pipe);
+		}
+
 		// 平台相关的 tun 打开.
 		int platform_open_tun(const std::string& devname,
 			std::string& actual_name)
@@ -402,12 +418,14 @@ namespace libavpn {
 			std::string route = "route -n add " + net_addr.to_string() + "/" +
 				std::to_string(static_cast<int>(prefix)) +
 				" -interface " + m_devname;
-			int ret = ::system(route.c_str());
+			std::string route_out;
+			int ret = run_cmd_capture(route, route_out);
 			if (ret != 0)
 			{
 				// 已存在或不可添加不算致命错误.
 				XLOG_DBG << "add route (may already exist): " << route
-					<< ", ret: " << ret;
+					<< ", ret: " << ret
+					<< (route_out.empty() ? "" : ", " + route_out);
 			}
 			else
 			{
@@ -448,20 +466,24 @@ namespace libavpn {
 #if defined(__linux__)
 		std::string cmd = std::string("ip -6 addr add ") + addr + "/" +
 			std::to_string(prefix) + " dev " + m_devname;
-		int ret = ::system(cmd.c_str());
+		std::string cmd_out;
+		int ret = run_cmd_capture(cmd, cmd_out);
 		if (ret != 0)
 		{
-			XLOG_ERR << "ip -6 addr add failed: " << cmd << ", ret: " << ret;
+			XLOG_ERR << "ip -6 addr add failed: " << cmd << ", ret: " << ret
+				<< (cmd_out.empty() ? "" : ", " + cmd_out);
 			return false;
 		}
 		return true;
 #elif defined(__APPLE__)
 		std::string cmd = std::string("ifconfig ") + m_devname + " inet6 add " +
 			addr + "/" + std::to_string(prefix);
-		int ret = ::system(cmd.c_str());
+		std::string cmd_out;
+		int ret = run_cmd_capture(cmd, cmd_out);
 		if (ret != 0)
 		{
-			XLOG_ERR << "ifconfig failed: " << cmd << ", ret: " << ret;
+			XLOG_ERR << "ifconfig failed: " << cmd << ", ret: " << ret
+				<< (cmd_out.empty() ? "" : ", " + cmd_out);
 			return false;
 		}
 		return true;
