@@ -23,6 +23,9 @@
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
+#if defined(OPENSSL_VERSION_NUMBER)
+#	include <openssl/ssl.h>
+#endif
 
 #include <chrono>
 #include <ctime>
@@ -75,17 +78,19 @@ namespace libavpn {
 
 		boost::system::error_code ec;
 
-		if (m_session)
-		{
-			// 让 jsonrpc 会话停止: 取消挂起的 RPC 调用、异步发送 close 帧.
-			m_session->stop();
-			// 直接关闭底层 TCP 连接: 同步 ws.close() 会等待对端 close 帧
-			// 完成关闭握手, 而对端 (launcher) 可能在 stop_proc 阻塞期间
-			// 无法响应, 导致本线程被拖住数秒 (最坏直到 SIGKILL). 直接关闭
-			// socket 即可让对端读循环以 EOF/错误正常退出.
-			auto& ws_stream = m_session->stream();
-			ws_stream.next_layer().close(ec);
-		}
+		std::visit([&ec, this](auto& sess)
+			{
+				if (!sess)
+					return;
+				// 让 jsonrpc 会话停止: 取消挂起的 RPC 调用、异步发送 close 帧.
+				sess->stop();
+				// 直接关闭底层 TCP 连接: 同步 ws.close() 会等待对端 close 帧
+				// 完成关闭握手, 而对端 (launcher) 可能在 stop_proc 阻塞期间
+				// 无法响应, 导致本线程被拖住数秒 (最坏直到 SIGKILL). 直接关闭
+				// socket 即可让对端读循环以 EOF/错误正常退出.
+				auto& ws_stream = sess->stream();
+				beast::get_lowest_layer(ws_stream).close(ec);
+			}, m_session);
 
 		asio_util::cancel(m_timer, ec);
 	}
@@ -125,17 +130,18 @@ namespace libavpn {
 		}
 
 		auto url = result.value();
-		if (url.scheme() != "ws")
+		std::string scheme = url.scheme();
+		if (scheme != "ws" && scheme != "wss")
 		{
-			XLOG_ERR << "Unsupported URI scheme: " << std::string(url.scheme())
-				<< ", only 'ws' is supported.";
+			XLOG_ERR << "Unsupported URI scheme: " << scheme
+				<< ", only 'ws' and 'wss' are supported.";
 			co_return false;
 		}
 
 		std::string host = url.host();
 		std::string port = url.port();
 		if (port.empty())
-			port = "80";
+			port = scheme == "wss" ? "443" : "80";
 
 		// 握手目标: 路径 + 查询参数 (如 /rpc?instance=..&token=..).
 		// pct_string_view 不能隐式转 std::string, 按 data/size 显式构造.
@@ -157,6 +163,84 @@ namespace libavpn {
 			co_return false;
 		}
 
+		std::string origin = "all";
+
+		using beast::websocket::stream_base;
+		auto decorator = [origin](beast::websocket::request_type& m) {
+			m.insert(beast::http::field::origin, origin);
+			};
+
+		if (scheme == "wss")
+		{
+			if (!m_ssl_ctx)
+				m_ssl_ctx = std::make_unique<net::ssl::context>(net::ssl::context::tls_client);
+
+			auto ws_stream = wss(executor, *m_ssl_ctx);
+
+			co_await net::async_connect(
+				beast::get_lowest_layer(ws_stream), results, net_awaitable[ec]);
+			if (ec)
+			{
+				XLOG_WARN << "Failed to connect to controller " << m_config.controller_
+					<< ", error: " << ec.message();
+				co_return false;
+			}
+
+			// TLS 握手. 证书不做校验: 控制通道凭 URL 信任端点, 便于自签名证书部署.
+			auto& ssl_stream = ws_stream.next_layer();
+			ssl_stream.set_verify_mode(net::ssl::verify_none, ec);
+			if (ec)
+			{
+				XLOG_WARN << "TLS setup failed with controller " << m_config.controller_
+					<< ", error: " << ec.message();
+				beast::get_lowest_layer(ws_stream).close(ec);
+				co_return false;
+			}
+
+			// 仅主机名需要设置 SNI, IP 地址不设置.
+			boost::system::error_code addr_ec;
+			(void)net::ip::make_address(host, addr_ec);
+			if (addr_ec)
+			{
+#if defined(OPENSSL_VERSION_NUMBER)
+				if (::SSL_set_tlsext_host_name(
+						ssl_stream.native_handle(), host.c_str()) != 1)
+					XLOG_WARN << "Failed to set TLS SNI for controller: " << host;
+#endif
+			}
+
+			co_await ssl_stream.async_handshake(
+				net::ssl::stream_base::client, net_awaitable[ec]);
+			if (ec)
+			{
+				XLOG_WARN << "TLS handshake failed with controller " << m_config.controller_
+					<< ", error: " << ec.message();
+				beast::get_lowest_layer(ws_stream).close(ec);
+				co_return false;
+			}
+
+			ws_stream.set_option(stream_base::decorator(decorator));
+
+			co_await ws_stream.async_handshake(host, target, net_awaitable[ec]);
+			if (ec)
+			{
+				XLOG_WARN << "WebSocket handshake failed with controller " << m_config.controller_
+					<< ", error: " << ec.message();
+				beast::get_lowest_layer(ws_stream).close(ec);
+				co_return false;
+			}
+
+			ws_stream.binary(true);
+			ws_stream.read_message_max(16 * 1024 * 1024);
+
+			m_session.emplace<1>(
+				std::make_unique<jsonrpc::jsonrpc_session<wss>>(std::move(ws_stream)));
+			m_session_closed = false;
+
+			XLOG_DBG << "Controller connected: " << m_config.controller_;
+			co_return true;
+		}
+
 		auto ws_stream = ws(executor);
 
 		co_await net::async_connect(
@@ -167,13 +251,6 @@ namespace libavpn {
 				<< ", error: " << ec.message();
 			co_return false;
 		}
-
-		std::string origin = "all";
-
-		using beast::websocket::stream_base;
-		auto decorator = [origin](beast::websocket::request_type& m) {
-			m.insert(beast::http::field::origin, origin);
-			};
 
 		ws_stream.set_option(stream_base::decorator(decorator));
 
@@ -189,7 +266,8 @@ namespace libavpn {
 		ws_stream.binary(true);
 		ws_stream.read_message_max(16 * 1024 * 1024);
 
-		m_session = std::make_unique<jsonrpc::jsonrpc_session<ws>>(std::move(ws_stream));
+		m_session.emplace<0>(
+			std::make_unique<jsonrpc::jsonrpc_session<ws>>(std::move(ws_stream)));
 		m_session_closed = false;
 
 		XLOG_DBG << "Controller connected: " << m_config.controller_;
@@ -198,76 +276,76 @@ namespace libavpn {
 
 	net::awaitable<void> vpn_controller::serve()
 	{
-		auto sess = m_session.get();
-		if (!sess)
-			co_return;
-
-		// 响应 launcher 下发的请求.
-		sess->bind_method("get_status",
-			[this](json::object) -> json::object
+		co_await std::visit([this](auto& sess) -> net::awaitable<void>
 			{
-				return status_report();
-			});
+				if (!sess)
+					co_return;
 
-		sess->bind_method("shutdown",
-			[this](json::object) -> json::object
-			{
-				// 延迟退出: 先让本请求的响应帧写出, launcher 才能收到确认.
-				auto service = m_service;
-				net::co_spawn(m_main_context.get_executor(),
-					[service]() -> net::awaitable<void>
+				// 响应 launcher 下发的请求.
+				sess->bind_method("get_status",
+					[this](json::object) -> json::object
 					{
-						auto ex = co_await net::this_coro::executor;
-						net::steady_timer t(ex);
-						t.expires_after(std::chrono::milliseconds(200));
-						boost::system::error_code sec;
-						co_await t.async_wait(net_awaitable[sec]);
-						if (auto svc = service.lock())
-							svc->stop();
-					}, net::detached);
-				return json::object{};
-			});
+						return status_report();
+					});
 
-		sess->closed_callback([this]() { m_session_closed = true; });
+				sess->bind_method("shutdown",
+					[this](json::object) -> json::object
+					{
+						// 延迟退出: 先让本请求的响应帧写出, launcher 才能收到确认.
+						auto service = m_service;
+						net::co_spawn(m_main_context.get_executor(),
+							[service]() -> net::awaitable<void>
+							{
+								auto ex = co_await net::this_coro::executor;
+								net::steady_timer t(ex);
+								t.expires_after(std::chrono::milliseconds(200));
+								boost::system::error_code sec;
+								co_await t.async_wait(net_awaitable[sec]);
+								if (auto svc = service.lock())
+									svc->stop();
+							}, net::detached);
+						return json::object{};
+					});
 
-		// 先启动读循环, 再发送通知; 否则会话尚未进入运行态,
-		// 入队的写消息可能无法发出.
-		sess->start();
+				sess->closed_callback([this]() { m_session_closed = true; });
 
-		// 注册实例信息.
-		send_register();
-		// 立即上报一次状态.
-		send_status();
+				// 先启动读循环, 再发送通知; 否则会话尚未进入运行态,
+				// 入队的写消息可能无法发出.
+				sess->start();
 
-		// 状态上报循环: 连接断开或 stop 时退出.
-		auto ex = co_await net::this_coro::executor;
-		net::steady_timer timer(ex);
-		boost::system::error_code sec;
-		while (!m_abort && !m_session_closed)
-		{
-			timer.expires_after(k_status_interval);
-			co_await timer.async_wait(net_awaitable[sec]);
-			if (m_abort || m_session_closed)
-				break;
-			send_status();
-		}
+				// 注册实例信息.
+				send_register();
+				// 立即上报一次状态.
+				send_status();
 
-		// 清理: 关闭会话, 断开连接.
-		m_session->stop();
-		if (m_session->stream().is_open())
-		{
-			m_session->stream().next_layer().close(sec);
-		}
-		m_session.reset();
+				// 状态上报循环: 连接断开或 stop 时退出.
+				auto ex = co_await net::this_coro::executor;
+				net::steady_timer timer(ex);
+				boost::system::error_code sec;
+				while (!m_abort && !m_session_closed)
+				{
+					timer.expires_after(k_status_interval);
+					co_await timer.async_wait(net_awaitable[sec]);
+					if (m_abort || m_session_closed)
+						break;
+					send_status();
+				}
+
+				// 清理: 关闭会话, 断开连接.
+				sess->stop();
+				if (beast::get_lowest_layer(sess->stream()).is_open())
+				{
+					beast::get_lowest_layer(sess->stream()).close(sec);
+				}
+				m_session = decltype(m_session){};
+				co_return;
+			}, m_session);
 
 		co_return;
 	}
 
 	void vpn_controller::send_register()
 	{
-		if (!m_session)
-			return;
-
 		json::object reg;
 #ifdef _WIN32
 		reg["pid"] = static_cast<int64_t>(::_getpid());
@@ -278,14 +356,20 @@ namespace libavpn {
 		reg["version"] = std::string(VERSION_GIT);
 #endif
 		reg["started_at"] = static_cast<int64_t>(std::time(nullptr));
-		m_session->notify("register", reg);
+		std::visit([&reg](auto& sess)
+			{
+				if (sess)
+					sess->notify("register", reg);
+			}, m_session);
 	}
 
 	void vpn_controller::send_status()
 	{
-		if (!m_session)
-			return;
-		m_session->notify("status", status_report());
+		std::visit([this](auto& sess)
+			{
+				if (sess)
+					sess->notify("status", status_report());
+			}, m_session);
 	}
 
 	boost::json::object vpn_controller::status_report() const

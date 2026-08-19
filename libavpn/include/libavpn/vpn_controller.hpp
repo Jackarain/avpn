@@ -14,6 +14,11 @@
 #include "libavpn/jsonrpc.hpp"
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ssl.hpp>
+#include <boost/beast/websocket/ssl.hpp>
+
+#include <memory>
+#include <variant>
 
 namespace libavpn {
 
@@ -62,8 +67,14 @@ namespace libavpn {
 		// 被控制的 avpn 服务 (状态快照来源).
 		std::weak_ptr<avpn_service> m_service;
 
+		// 控制通道 WebSocket 流: ws 明文, wss 走 TLS.
 		using ws = beast::websocket::stream<net::ip::tcp::socket>;
-		std::unique_ptr<jsonrpc::jsonrpc_session<ws>> m_session;
+		using wss = beast::websocket::stream<net::ssl::stream<net::ip::tcp::socket>>;
+		std::variant<std::unique_ptr<jsonrpc::jsonrpc_session<ws>>,
+			std::unique_ptr<jsonrpc::jsonrpc_session<wss>>> m_session;
+
+		// wss 连接使用的 TLS 上下文 (须存活于整个会话生命周期).
+		std::unique_ptr<net::ssl::context> m_ssl_ctx;
 
 		net::steady_timer m_timer{ m_ioc_pool.main_io_context() };
 
