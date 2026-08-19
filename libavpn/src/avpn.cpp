@@ -171,11 +171,12 @@ namespace libavpn {
 		if (ec)
 			m_subnet = net::ip::make_network_v4("10.8.0.0/16", ec);
 
-		// 客户端地址分配区间: 从网络地址 +1 开始, 到广播地址 -1.
-		m_next_vaddr = m_subnet.address().to_uint() + 1;
+		// 客户端地址分配区间: 从网络地址 +2 开始 (保留 +1 作为网关地址),
+		// 到广播地址 -1.
+		m_next_vaddr = m_subnet.address().to_uint() + 2;
 		m_vaddr_end = m_subnet.broadcast().to_uint();
 		if (m_next_vaddr >= m_vaddr_end)
-			m_next_vaddr = m_subnet.address().to_uint();
+			m_next_vaddr = m_subnet.address().to_uint() + 1;
 	}
 
 	std::shared_ptr<avpn_service>
@@ -196,9 +197,11 @@ namespace libavpn {
 			uint32_t v = m_next_vaddr;
 			m_next_vaddr++;
 			if (m_next_vaddr >= m_vaddr_end)
-				m_next_vaddr = m_subnet.address().to_uint() + 1;
+				m_next_vaddr = m_subnet.address().to_uint() + 2;
 
-			if (v >= m_vaddr_end || v <= m_subnet.address().to_uint())
+			// 跳过网络地址与网关地址.
+			if (v >= m_vaddr_end ||
+				v <= m_subnet.address().to_uint() + 1)
 				continue;
 
 			if (m_allocated_addrs.insert(v).second)
@@ -597,10 +600,10 @@ namespace libavpn {
 			if (!m_tundev->open(m_config))
 				XLOG_ERR << "open tun device failed";
 
-			// 配置 gateway 自身地址.
+			// 配置 gateway 自身地址 (网络地址 + 1).
 			if (m_config.mtu_size_ <= 0)
 				m_config.mtu_size_ = 1450;
-			m_tundev->configure(m_subnet.address().to_uint(),
+			m_tundev->configure(m_subnet.address().to_uint() + 1,
 				static_cast<uint8_t>(m_subnet.prefix_length()),
 				m_config.mtu_size_);
 			// 配置 IPv6 内网地址 (<v6_subnet> + ffff:ffff).
@@ -1111,11 +1114,12 @@ namespace libavpn {
 			XLOG_ERR << "netlink dump default routes failed: " << nl_err;
 		m_routes_modified = true;
 
-		// 隧道对端 (gateway) 虚拟地址: 子网网络地址.
+		// 隧道对端 (gateway) 虚拟地址: 子网网络地址 + 1.
 		uint32_t gw = m_tunnel->vaddr();
 		auto prefix = m_tunnel->prefix_length();
 		if (prefix < 32)
 			gw &= ~((1u << (32 - prefix)) - 1u);
+		gw += 1;
 		std::string gw_addr = net::ip::address_v4(gw).to_string();
 
 		// 解析物理默认网关, 用于钉住服务器地址与绕过路由.
