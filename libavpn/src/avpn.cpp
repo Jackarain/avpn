@@ -1103,7 +1103,8 @@ namespace libavpn {
 		if (dev.empty())
 			return;
 
-		// 通过 Netlink 获取当前默认路由, 断开时恢复 (等同 ip route show default).
+		// 通过 Netlink 获取当前默认路由, 用于解析物理网关
+		// (钉住服务器地址与绕过路由), 不再删除或恢复.
 		m_saved_default_routes.clear();
 		std::string nl_err;
 		if (!nl_route_dump_default(m_saved_default_routes, nl_err))
@@ -1151,31 +1152,32 @@ namespace libavpn {
 				XLOG_ERR << "pin server route failed: " << nl_err;
 		}
 
-		// 删除现有默认路由, 避免与隧道默认路由竞争.
-		for (auto& rt : m_saved_default_routes)
-		{
-			if (rt.ifname == dev)
-				continue;
-			if (nl_route_delete(rt, nl_err))
-				XLOG_INFO << "Delete default route: "
-					<< nl_route_to_string(rt);
-			else
-				XLOG_DBG << "skip delete default route: " << nl_err;
-		}
-
 		if (scfg.passbyvpn)
 		{
-			nl_route_entry rt;
-			rt.family = AF_INET;
-			rt.dst = "0.0.0.0";
-			rt.prefix = 0;
-			rt.gateway = gw_addr;
-			rt.ifname = dev;
-			if (nl_route_replace(rt, nl_err))
-				XLOG_INFO << "Default route via tunnel: " << gw_addr
+			// 用两条 /1 路由 (0.0.0.0/1, 128.0.0.0/1) 覆盖全部 IPv4 地址
+			// 接管流量, 保留系统默认路由作为兜底 (LPM 优先匹配 /1).
+			const char* split_dsts[] = { "0.0.0.0", "128.0.0.0" };
+			bool ok = true;
+			for (auto dst : split_dsts)
+			{
+				nl_route_entry rt;
+				rt.family = AF_INET;
+				rt.dst = dst;
+				rt.prefix = 1;
+				rt.gateway = gw_addr;
+				rt.ifname = dev;
+				if (!nl_route_replace(rt, nl_err))
+				{
+					XLOG_ERR << "set split default route failed: "
+						<< dst << "/1, " << nl_err;
+					ok = false;
+					break;
+				}
+			}
+			if (ok)
+				XLOG_INFO << "Split default route via tunnel: "
+					<< "0.0.0.0/1, 128.0.0.0/1 via " << gw_addr
 					<< " dev " << dev;
-			else
-				XLOG_ERR << "set default route failed: " << nl_err;
 
 			// 隧道出口 NAT: 绑定本地源地址的流量统一以虚拟地址出口.
 			std::string nat_err;
@@ -1295,26 +1297,24 @@ namespace libavpn {
 			const std::string& dev = m_tundev->device_name();
 			if (!dev.empty())
 			{
-				nl_route_entry rt;
-				rt.family = AF_INET;
-				rt.dst = "0.0.0.0";
-				rt.prefix = 0;
-				rt.ifname = dev;
-				if (!nl_route_delete(rt, nl_err))
-					XLOG_DBG << "delete default route failed: " << nl_err;
+				// 删除 split /1 隧道路由, 原默认路由从未被删除无需恢复.
+				const char* split_dsts[] = { "0.0.0.0", "128.0.0.0" };
+				for (auto dst : split_dsts)
+				{
+					nl_route_entry rt;
+					rt.family = AF_INET;
+					rt.dst = dst;
+					rt.prefix = 1;
+					rt.ifname = dev;
+					if (!nl_route_delete(rt, nl_err))
+						XLOG_DBG << "delete split default route failed: "
+							<< dst << "/1, " << nl_err;
+				}
 				std::string nat_err;
 				nat_rule_del_masquerade(dev, nat_err);
 			}
 		}
 
-		for (auto& rt : m_saved_default_routes)
-		{
-			if (nl_route_replace(rt, nl_err))
-				XLOG_INFO << "Restore default route: "
-					<< nl_route_to_string(rt);
-			else
-				XLOG_DBG << "restore default route failed: " << nl_err;
-		}
 		m_saved_default_routes.clear();
 #endif
 	}
