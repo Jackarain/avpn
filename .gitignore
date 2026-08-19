@@ -1,6 +1,3 @@
-avpn/include/avpn/version.hpp
-avpn/src/resource/avpn.rc
-
 # User-specific files
 *.suo
 *.user
@@ -23,11 +20,6 @@ libstream/include/version.hpp
 bld/
 [Bb]in/
 [Oo]bj/
-musl/
-aarch64/
-mips/
-android/
-openwrt/
 
 # Visual Studio 2015 cache/options directory
 .vs/
@@ -259,7 +251,6 @@ gcc-build/
 ninja-build/
 linux-build/
 withopenssl-build/
-build-*/
 
 # kdev
 .kdev4/
@@ -274,6 +265,7 @@ CMakeLists.txt.asc
 CMakeLists.txt.asc.gpg
 CMakeLists.txt.gpg
 doc
+!/doc/
 doc/.vscode/.cmaketools.json
 doc/.vscode/launch.json
 doc/app-none-wap.js
@@ -288,6 +280,16 @@ compile_commands.json
 mingw/
 llvm/
 linux/
+xcode/
+logs/
 
 .idea/
 .cache/
+
+# generated windows resource file
+avpn/src/resource/avpn.rc
+
+# wintun.dll 构建必需, 覆盖上面的 [Bb]in/ 忽略规则.
+!third_party/wintun/bin/
+!third_party/wintun/bin/*/
+!third_party/wintun/bin/*/*.dll

@@ -1,39 +1,24 @@
 ﻿cmake_minimum_required(VERSION 3.16)
+cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # cmake_policy(SET CMP0077 NEW)
-if (WIN32)
-	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
-endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-project(avpn LANGUAGES CXX)
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+project(avpn LANGUAGES C CXX)
 
 ################################################################################
 
-string(TIMESTAMP VERSION_YEAR "%Y")
-string(TIMESTAMP VERSION_MONTH_YEAR "%m")
-string(TIMESTAMP VERSION_DAY_YEAR "%j")
-string(TIMESTAMP HOUR24 "%H")
-string(TIMESTAMP MINUTE "%M")
-
-math(EXPR VERSION_MAJOR "${VERSION_YEAR} - 2018")
-math(EXPR VERSION_TINY "${VERSION_DAY_YEAR} % 100")
-math(EXPR VERSION_MINOR "${VERSION_MONTH_YEAR} + ${VERSION_DAY_YEAR} / 100")
-math(EXPR VERSION_BUILD "${HOUR24}*60+${MINUTE}")
-
-# Touch cmake everytime for update version
-add_custom_target(invalidate_files ALL
-		COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_LIST_FILE})
-set_target_properties(invalidate_files PROPERTIES FOLDER "third_party")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cmake")
 
 include(CheckCXXCompilerFlag)
 include(CheckLibraryExists)
-include(CheckIPOSupported)
+include(CheckCXXLinkerFlag)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 ################################################################################
 
 # Disable in-source builds to prevent source tree corruption.
-if ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+if("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
   message(FATAL_ERROR "
 FATAL: In-source builds are not allowed.
        You should create a separate directory for build files.
@@ -46,7 +31,7 @@ message(STATUS "Host System name: ${CMAKE_HOST_SYSTEM_NAME}")
 
 set(default_build_type "Release")
 
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
         STRING "Choose the type of build." FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
@@ -59,106 +44,145 @@ if (WIN32)
 	message(STATUS "Platform version: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
 endif()
 
-if (NOT MSVC)
-	message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-endif()
-
-# 跨平台性定义.
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "SYSTEM NAME: ${CMAKE_SYSTEM_NAME}")
-if (WIN32)
-	cmake_policy(SET CMP0091 NEW) # for CMAKE_MSVC_RUNTIME_LIBRARY
-	add_definitions(-DAVPN_USE_WINAPI -DAVPN_WINDOWS)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	add_definitions(-DAVPN_LINUX)
-elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-	add_definitions(-DAVPN_FREEBSD)
-elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-	add_definitions(-DAVPN_APPLE)
-elseif (CMAKE_SYSTEM_NAME MATCHES "Android")
-	add_definitions(-DAVPN_ANDROID)
-endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/cmake")
-
-include(CheckCXXLinkerFlag)
 
 ################################################################################
-option(ENABLE_INTERPROCEDURAL_OPTIMIZATION "Enable Interprocedural Optimization" OFF)
-option(ENABLE_INTEGRATE_SOCKS_SERVER "Enable integrate socks server" OFF)
-option(ENABLE_USE_IO_URING "Enable auto use io_uring" OFF)
+
+option(ENABLE_BUILD_WERROR			"All warnings being treated as errors" OFF)
+option(ENABLE_GIT_VERSION			"Enable git version" ON)
+
+option(ENABLE_USE_IO_URING			"Enable auto use io_uring" OFF)
+option(ENABLE_BUILD_WITH_LIBCXX		"Build with libc++" OFF)
+option(ENABLE_REUSEPORT				"Build with REUSEPORT support" OFF)
 if (WIN32)
-	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" ON)
-	option(REQUIRE_ADMINISTRATOR "Require administrator" OFF)
+	set(ENABLE_USE_WINTUN_DEFAULT ON)
 else()
-	option(ENABLE_USE_WINTUN "Enable use Wintun instead tap-windows" OFF)
+	set(ENABLE_USE_WINTUN_DEFAULT OFF)
 endif()
-option(ENABLE_BUILD_WERROR "All warnings being treated as errors" OFF)
+option(ENABLE_USE_WINTUN				"Build with wintun support" ${ENABLE_USE_WINTUN_DEFAULT})
 
-option(ENABLE_SYSTEM_ZLIB "Build with system zlib support" OFF)
-option(ENABLE_SYSTEM_OPENSSL "Build with system openssl support" OFF)
+option(ENABLE_SYSTEM_ZLIB			"Build with system zlib support" OFF)
+option(ENABLE_SYSTEM_OPENSSL		"Build with system openssl support" OFF)
+option(ENABLE_USE_SYSTEMD_LOG		"Build with systemd log support" OFF)
 
-option(ENABLE_TCMALLOC_STATIC "Build with Tcmalloc support" OFF)
-option(ENABLE_JEMALLOC_STATIC "Build with Jemalloc support" OFF)
-option(ENABLE_MIMALLOC_STATIC "Build with Mimalloc support" OFF)
-option(ENABLE_SNMALLOC_STATIC "Build with snmalloc support" OFF)
+option(ENABLE_USE_OPENSSL			"Build with openssl support" ON)
+option(ENABLE_USE_BORINGSSL			"Build with boringssl support" OFF)
+option(ENABLE_USE_WOLFSSL			"Build with wolfssl support" OFF)
 
-option(ENABLE_GIT_VERSION "Enable git version" ON)
-option(ENABLE_SYSTEMD_LOGGING "Build with systemd journal support" OFF)
-option(DISABLE_WRITE_LOGGING "Build with log file writer disabled" OFF)
+option(ENABLE_USE_MOLD				"Use the mold linker" OFF)
+option(ENABLE_USE_LLD				"Use the lld linker" OFF)
 
-option(ENABLE_BUILD_WITH_LIBCXX "Build with libc++" OFF)
-option(ENABLE_NATIVE_ARCH "Enable native architecture" OFF)
-
-option(ENABLE_MOLD "Build using mold" OFF)
-option(ENABLE_LLD "Build using lld" OFF)
-option(ENABLE_STATIC_LINK_TO_GCC "Build static link to gcc" ON)
-
-option(ENABLE_BUILD_TESTS "Build avpn's unit tests" OFF)
-option(ENABLE_LINKE_TO_LIBATOMIC "Link to libatomic.so - some platform requires it" OFF)
-
-################################################################################
-
-if (ENABLE_INTERPROCEDURAL_OPTIMIZATION)
-	check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
-	if (lto_supported)
-		message(STATUS "IPO / LTO enabled")
-		set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-	endif()
+# ENABLE_USE_MOLD 和 ENABLE_USE_LLD 互斥，不可同时启用
+if (ENABLE_USE_MOLD AND ENABLE_USE_LLD)
+	message(FATAL_ERROR "ENABLE_USE_MOLD and ENABLE_USE_LLD are mutually exclusive! Please enable only one linker.")
 endif()
 
-################################################################################
+option(ENABLE_STATIC_LINK_TO_GCC	"Build static link to gcc" ON)
 
-find_program(MOLD_LINKER mold)
-find_program(LLD_LINKER lld)
+option(ENABLE_TCMALLOC_STATIC		"Build with Tcmalloc support" OFF)
+option(ENABLE_JEMALLOC_STATIC		"Build with Jemalloc support" OFF)
+option(ENABLE_MIMALLOC_STATIC		"Build with mimalloc support" OFF)
+option(ENABLE_SNMALLOC_STATIC		"Build with snmalloc support" OFF)
+
+option(ENABLE_ASIO_HANDLER_TRACKING "Enable asio handler tracking" OFF)
+
+option(ENABLE_BUILD_EXAMPLES		"Build avpn examples" OFF)
+option(ENABLE_LINKE_TO_LIBATOMIC	"Link to libatomic.so - some platform requires it" OFF)
+option(ENABLE_BUILD_TESTS			"Build unit tests" OFF)
 
 ################################################################################
 
 if (ENABLE_GIT_VERSION)
 	find_package(Git)
 	gitGetVersion(${CMAKE_CURRENT_SOURCE_DIR} avpn)
-	set(VERSION_GIT ${avpn_WC_REVISION_HASH})
-	string(TIMESTAMP PVERSION "%Y%m%d-${VERSION_GIT}-${CMAKE_SYSTEM_NAME}")
+	string(STRIP "${avpn_WC_REVISION_HASH}" VERSION_GIT)
+	if (VERSION_GIT STREQUAL "")
+		string(TIMESTAMP PVERSION "(%Y-%m-%d %H:%M:%S)")
+	else()
+		string(TIMESTAMP PVERSION "${VERSION_GIT} (%Y-%m-%d %H:%M:%S)")
+	endif()
+	message(STATUS "Git Version: ${PVERSION}")
 endif()
 
-set(CMAKE_C_STANDARD 11)
+################################################################################
+
+find_program(MOLD_LINKER mold)
+find_program(LLD_LINKER lld)
+find_program(CCACHE_PROGRAM ccache)
+
+################################################################################
+
+if (CCACHE_PROGRAM)
+    # 针对 C 和 C++ 分别开启 ccache
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    set(CMAKE_C_COMPILER_LAUNCHER   "${CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+else()
+    message(STATUS "ccache not found - skipping")
+endif()
+
+################################################################################
+
+if (ENABLE_MIMALLOC_STATIC)
+	if (UNIX AND NOT APPLE)
+		# 必须先编译安装 mimalloc 库(这里限制版本为2.1.2) 编译安装办法：
+		# git clone https://github.com/microsoft/mimalloc.git
+		# mkdir build && cd build && git checkout tags/v2.1.2
+		# cmake -DCMAKE_BUILD_TYPE=Release -DMI_BUILD_STATIC=ON -DMI_BUILD_SHARED=OFF -DMI_BUILD_TESTS=OFF -DMI_BUILD_OBJECT=ON ..
+		# make -j4 && make install
+		set(MIMALLOC_OBJECT "/usr/local/lib/mimalloc-2.1/mimalloc.o")
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MIMALLOC_OBJECT} -lpthread")
+	else()
+		message(FATAL_ERROR "mimalloc only support linux!!!")
+	endif()
+endif()
+
+################################################################################
+
+if (ENABLE_SNMALLOC_STATIC)
+	set(SNMALLOC_HEADER_ONLY_LIBRARY ON)
+
+	add_definitions(-DUSE_SNMALLOC)
+	add_definitions(-DSNMALLOC_USE_WAIT_ON_ADDRESS=1)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc EXCLUDE_FROM_ALL)
+
+	link_libraries(snmalloc)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc)
+endif()
+
+################################################################################
+
+if (ENABLE_USE_SYSTEMD_LOG)
+	add_definitions(-DUSE_SYSTEMD_LOGGING)
+	link_libraries(systemd)
+endif()
+
+################################################################################
+
+if (WIN32)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+	add_definitions(
+		-DWIN32_LEAN_AND_MEAN
+		-D_WIN32_WINNT=0x0A00
+		#-DNOMINMAX # Comment out NOMINMAX for wolfSSL dependency on min/max macro in MSVC.
+		-DUNICODE
+		-D_UNICODE
+	)
+
+	add_definitions(
+		-DBOOST_ALL_STATIC_LINK
+		-DBOOST_THREAD_USE_LIB
+		-DBOOST_FILESYSTEM_STATIC_LINK
+	)
+
+endif()
 
 ################################################################################
 
 if (MSVC)
-	set(MSVC_DISABLED_WARNINGS_LIST
-		"C4702" # unreachable code
-	)
-	set(MSVC_LEVEL4_WARNINGS_LIST
-		"C4265" # class has virtual functions, but destructor is not virtual
-	)
-	string(REPLACE "C" " -wd" MSVC_DISABLED_WARNINGS_STR
-		${MSVC_DISABLED_WARNINGS_LIST})
-	string(REPLACE "C" " -w4" MSVC_LEVEL4_WARNINGS_STR
-		${MSVC_LEVEL4_WARNINGS_LIST})
-
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
-	set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${MSVC_DISABLED_WARNINGS_STR} ${MSVC_LEVEL4_WARNINGS_STR}")
-
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 	add_definitions(
@@ -177,31 +201,10 @@ if (MSVC)
 		-D_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS
 	)
 
-	add_definitions(
-		-DWIN32_LEAN_AND_MEAN
-		-D_WIN32_WINNT=0x0601
-		-DNOMINMAX
-		-DUNICODE
-		-D_UNICODE
-	)
-
-	add_definitions(
-		-DBOOST_ALL_STATIC_LINK
-		-DBOOST_THREAD_USE_LIB
-		-DBOOST_FILESYSTEM_STATIC_LINK
-		-DBOOST_USE_WINAPI_VERSION=0x0601
-	)
-
-	#add_compile_options(/utf-8)
-	#add_compile_options(/bigobj)
-	#add_compile_options(/MP)
-	#add_compile_options(/Zc:__cplusplus)
-
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
+	message(STATUS "Using parallel compiling (/MP)")
+	set(CMAKE_CXX_STACK_SIZE "100000000") #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:100000000")
 	message(STATUS "Set stack size: 100000000 bytes")
-	add_link_options(/STACK:100000000)
-	#set(CMAKE_CXX_STACK_SIZE "100000000")
-	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj /MP /Zc:__cplusplus")
 
 	CHECK_CXX_COMPILER_FLAG(/std:c++20 COMPILER_HAS_STD_CXX20)
 
@@ -214,6 +217,9 @@ if (MSVC)
 		set(CMAKE_CXX_STANDARD_REQUIRED ON)
 		message(STATUS "Set default cxx standard: C++17")
 	endif()
+
+	# 源码使用 UTF-8 编码, 指定 MSVC 按 UTF-8 解析, 避免中文注释/字符串乱码.
+	add_compile_options(/utf-8)
 endif()
 
 ################################################################################
@@ -225,49 +231,34 @@ CHECK_CXX_COMPILER_FLAG(-fcoroutines COMPILER_HAS_FCOROUTINES)
 CHECK_CXX_COMPILER_FLAG(-fcoroutines-ts COMPILER_HAS_FCOROUTINES_TS)
 CHECK_CXX_COMPILER_FLAG(-std=c++20 COMPILER_HAS_STD_CXX20)
 
-################################################################################
-
 if (${COMPILER_HAS_VISIBILITY_INLINE_HIDDEN})
-	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility-inlines-hidden")
 endif()
 
 if (${COMPILER_HAS_VISIBILITY_HIDDEN})
-	add_compile_options(-fvisibility=hidden)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
 if (${COMPILER_HAS_COLOR})
-	add_compile_options(-fdiagnostics-color=always)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
 endif()
-
-#if (COMPILER_HAS_FCOROUTINES)
-#	add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fcoroutines>)
-#elseif(COMPILER_HAS_FCOROUTINES_TS)
-#	if (CMAKE_CXX_COMPILER_ID STREQUAL Clang AND CMAKE_CXX_COMPILER_VERSION STRLESS 16)
-#		add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fcoroutines-ts>)
-#	endif()
-#endif()
 
 if (ENABLE_SYSTEMD_LOGGING)
-	add_compile_definitions(USE_SYSTEMD_LOGGING)
-endif()
-if (DISABLE_WRITE_LOGGING)
-	add_compile_definitions(DISABLE_WRITE_LOGGING)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_SYSTEMD_LOGGING")
 endif()
 
 ################################################################################
 
 if (NOT MSVC)
-	if (NOT APPLE)
+	if(NOT APPLE)
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 			if (ENABLE_BUILD_WITH_LIBCXX)
-				add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
-				add_link_options(-stdlib=libc++)
-
+				set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 				CHECK_LINKER_FLAG(CXX "-rtlib=compiler-rt" IS_COMPILER_RT_SUPPORTED)
 
 				if (IS_COMPILER_RT_SUPPORTED)
 					message(STATUS "clang supports compiler-rt, use it")
-					add_link_options(-rtlib=compiler-rt)
+					add_link_options(-rtlib=compiler-rt -unwindlib=libunwind)
 				endif()
 			else()
 				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
@@ -276,16 +267,26 @@ if (NOT MSVC)
 				endif()
 			endif()
 		elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
+			if (MINGW)
+				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libstdc++")
+				add_compile_options(-Wa,-mbig-obj)
+			else()
+				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++")
+			endif()
 			if (ENABLE_STATIC_LINK_TO_GCC)
 				set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
 			endif()
 		endif()
+
+		if (ENABLE_REUSEPORT)
+			add_definitions(-DENABLE_REUSEPORT)
+		endif()
 	endif()
 	if (ANDROID)
+		add_definitions(-DDISABLE_WRITE_LOGGING)
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fPIE -pie")
 	endif()
-	if (COMPILER_HAS_STD_CXX20)
+	if(COMPILER_HAS_STD_CXX20)
 		set(CMAKE_CXX_STANDARD 20)
 		add_definitions(-DUSE_STD_STRING_VIEW)
 		message(STATUS "Set default cxx standard: C++20")
@@ -293,63 +294,143 @@ if (NOT MSVC)
 		message(FATAL_ERROR "need at least GCC 11 or clang 14")
 	endif()
 
-	if (ENABLE_MOLD)
-		if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-			if (MOLD_LINKER)
-				list(APPEND CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+	if (MOLD_LINKER)
+		if (ENABLE_USE_MOLD)
+			message(STATUS "Using the mold linker (ENABLE_USE_MOLD=ON)")
+			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=mold")
+		endif()
+	elseif (LLD_LINKER)
+		if (ENABLE_USE_LLD)
+			message(STATUS "Using the lld linker (ENABLE_USE_LLD=ON)")
+			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
+		endif()
+	endif()
+endif(NOT MSVC)
+
+################################################################################
+# 全局使用静态链接库
+
+set(BUILD_SHARED_LIBS OFF)
+
+################################################################################
+# 使用 system openssl
+
+if (ENABLE_USE_OPENSSL)
+	if (ENABLE_SYSTEM_OPENSSL)
+		find_package(OpenSSL)
+	else()
+		set(OpenSSL_FOUND TRUE)
+		add_subdirectory(third_party/openssl)
+		if (NOT MSVC AND NOT APPLE)
+			if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+				set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
+				set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
+				set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
 			endif()
 		endif()
 	endif()
 
-	if (ENABLE_LLD)
-		if (LLD_LINKER)
-			list(APPEND CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
-		endif()
-	endif()
+	# 包含 openssl 的头文件和库文件.
+	include_directories(${OPENSSL_INCLUDE_DIR})
+	link_libraries(${OPENSSL_LIBRARIES})
 
-endif(NOT MSVC)
-
-################################################################################
-
-# Attempt to determine a suitable native option
-if (ENABLE_NATIVE_ARCH)
-	if (NOT MSVC)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
-	endif()
+	message(STATUS "Using openssl...")
 endif()
 
 ################################################################################
+# 使用 wolfssl
 
-if (ENABLE_SYSTEM_OPENSSL)
-	find_package(OpenSSL)
-else()
+if (ENABLE_USE_WOLFSSL)
+
+	set(WOLFSSL_EXAMPLES OFF)
+	set(WOLFSSL_CRYPT_TESTS OFF)
+
+	# 打开 wolfssl 的 asio 支持, 它会自动定义 asio 所用到的 openssl 函数以及相关的宏.
+	set(WOLFSSL_ASIO ON)
+	# OpenSSL_FOUND 设置为 TRUE, 以便在编译 asio 时, 添加 ssl 代码的编译.
 	set(OpenSSL_FOUND TRUE)
-	add_subdirectory(third_party/openssl)
+
+	# 必须定义 BOOST_ASIO_USE_WOLFSSL 以便 asio 使用 wolfssl.
+	add_definitions(-DBOOST_ASIO_USE_WOLFSSL)
+
+	# 打开 TLSX 以允许 alpn 设置.
+	set(WOLFSSL_TLSX ON)
+
+	# gcc 编译时 wolfssl 会有一些 stringop-overflow 警告, 这里忽略掉.
 	if (NOT MSVC AND NOT APPLE)
 		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-			set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_SHARED_LINKER_FLAGS}")
-			set(CMAKE_MODULE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_MODULE_LINKER_FLAGS}")
-			set(CMAKE_EXE_LINKER_FLAGS "-Wl,--exclude-libs,ALL ${CMAKE_EXE_LINKER_FLAGS}")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-stringop-overflow -Wno-stringop-overread -Wno-maybe-uninitialized")
 		endif()
 	endif()
+
+	add_subdirectory(third_party/wolfssl)
+
+	# WOLFSSL_INCLUDE_DIRS 用于 wolfssl 的头文件包含.
+	set(WOLFSSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wolfssl/wolfssl/)
+
+	# WOLFSSL_LIBRARIES 用于 wolfssl 的库文件包含.
+	set(WOLFSSL_LIBRARIES wolfssl::wolfssl)
+
+	add_library(OpenSSL::SSL ALIAS wolfssl)
+	add_library(OpenSSL::Crypto ALIAS wolfssl)
+
+	# 包含 wolfssl 的头文件和库文件.
+	include_directories(${WOLFSSL_INCLUDE_DIRS})
+	link_libraries(${WOLFSSL_LIBRARIES})
+
+	message(STATUS "Using wolfssl...")
 endif()
-include_directories(${OPENSSL_INCLUDE_DIR})
+
 
 ################################################################################
+
+if (ENABLE_USE_BORINGSSL)
+	set(OPENSSL_FOUND TRUE)
+	add_subdirectory(third_party/boringssl)
+
+	# BORINGSSL_INCLUDE_DIRS 用于 boringssl 的头文件包含.
+	set(BORINGSSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/boringssl/include)
+
+	# BORINGSSL_LIBRARIES 用于 boringssl 的库文件包含.
+	set(BORINGSSL_LIBRARIES crypto ssl)
+
+	add_library(OpenSSL::SSL ALIAS ssl)
+	add_library(OpenSSL::Crypto ALIAS crypto)
+
+	# 包含 boringssl 的头文件和库文件.
+	include_directories(${BORINGSSL_INCLUDE_DIRS})
+	link_libraries(${BORINGSSL_LIBRARIES})
+
+	message(STATUS "Using boringssl...")
+endif()
+
+################################################################################
+# 使用 boost asio 和 boost beast
 
 if (ENABLE_BUILD_TESTS)
 	set(USE_BOOST_TEST ON)
 endif()
 
+if (ENABLE_ASIO_HANDLER_TRACKING)
+	add_definitions(-DBOOST_ASIO_ENABLE_HANDLER_TRACKING)
+endif()
+
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
+
+#默认使用 boost.filesystem 而不是 std.filesystem, 这是因为
+#std.filesystem 在 GCC-12.3 以下的版本在非 ASCII 中会构造失败
+#参考链接:https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
+add_definitions(-DUSE_BOOST_FILESYSTEM)
 
 #独立编译asio时, 必须要在使用者项目定义, 否则会将
 #定义BOOST_ASIO_HEADER_ONLY, 使用者将会导致符号冲突.
 
 add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
 add_definitions(-DBOOST_BEAST_SEPARATE_COMPILATION)
+
+# 禁用 asio 弃用的兼容性代码
+add_definitions(-DBOOST_ASIO_NO_DEPRECATED)
 
 #此BOOST_ASIO_DYN_LINK只有在编译asio为动态链接的时候
 #才能启用, 它在msvc下将BOOST_ASIO_DECL分别自动作为
@@ -361,17 +442,19 @@ add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
 add_definitions(-DBOOST_DISABLE_PRAGMA_MESSAGE)
 add_definitions(-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 add_definitions(-DBOOST_PROCESS_USE_STD_FS)
+add_definitions(-DBOOST_FILESYSTEM_USE_UTF8_CODECVT_FACET)
 if (ENABLE_USE_IO_URING)
 	find_package(IOUring)
-
 	if (IOUring_FOUND)
 		message(STATUS "Linux using io_uring...")
-		add_definitions(-DBOOST_ASIO_HAS_IO_URING -DBOOST_ASIO_DISABLE_EPOLL)
-		link_libraries(${IOUring_LIBRARIES})
+		add_compile_definitions(BOOST_ASIO_HAS_IO_URING BOOST_ASIO_DISABLE_EPOLL)
+		#link_libraries(${IOUring_LIBRARIES})
+	else()
+		message(FATAL_ERROR "io_uring librariy not found")
 	endif()
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_definitions(-DBOOST_ASIO_HAS_CO_AWAIT)
 endif()
 
@@ -380,69 +463,69 @@ set(BOOST_IOSTREAMS_ENABLE_LZMA OFF)
 set(BOOST_IOSTREAMS_ENABLE_BZIP2 OFF)
 set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
 
+set(BOOST_ASIO_BUILD_CONTEXT OFF)
+set(BOOST_EXCLUDE_LIBRARIES
+    "charconv"               # 字符转换
+    "cobalt"                 # 协程框架
+    "context"                # 上下文切换
+    "contract"               # 契约编程
+    "coroutine"              # 协程库
+    #"date_time"              # 日期时间
+    "fiber"                  # 用户态线程
+    #"filesystem"             # 文件系统
+    "graph"                  # 图论算法
+    "graph_parallel"         # 并行图算法
+    "iostreams"              # 流式输入输出扩展
+    #"json"                   # JSON 解析
+    "locale"                 # 本地化与多语言支持
+    "log"                    # 日志框架
+    "math"                   # 数学公式与特殊函数
+    "mpi"                    # 消息传递接口(分布式计算)
+    #"nowide"                 # Windows UTF-8 兼容库
+    "process"                # 进程管理
+    #"program_options"        # 命令行参数解析
+    "python"                 # Python 绑定支持
+    #"regex"                  # 正则表达式
+    "serialization"          # 序列化库
+    "stacktrace"             # 堆栈回溯
+    "type_erasure"           # 类型擦除
+    #"url"                    # URL 解析库
+    "wave"                   # C++ 预处理器解析器
+)
+
 add_subdirectory(third_party/boost EXCLUDE_FROM_ALL)
 
-set_property(TARGET boost_asio PROPERTY FOLDER "third_party")
-set_property(TARGET boost_assign PROPERTY FOLDER "third_party")
-set_property(TARGET boost_assert PROPERTY FOLDER "third_party")
-set_property(TARGET boost_atomic PROPERTY FOLDER "third_party")
-set_property(TARGET boost_bimap PROPERTY FOLDER "third_party")
-set_property(TARGET boost_chrono PROPERTY FOLDER "third_party")
-set_property(TARGET boost_container PROPERTY FOLDER "third_party")
-set_property(TARGET boost_context PROPERTY FOLDER "third_party")
-set_property(TARGET boost_core PROPERTY FOLDER "third_party")
-set_property(TARGET boost_coroutine PROPERTY FOLDER "third_party")
-set_property(TARGET boost_date_time PROPERTY FOLDER "third_party")
-set_property(TARGET boost_exception PROPERTY FOLDER "third_party")
-set_property(TARGET boost_filesystem PROPERTY FOLDER "third_party")
-set_property(TARGET boost_json PROPERTY FOLDER "third_party")
-set_property(TARGET boost_lockfree PROPERTY FOLDER "third_party")
-set_property(TARGET boost_multi_index PROPERTY FOLDER "third_party")
-set_property(TARGET boost_nowide PROPERTY FOLDER "third_party")
-set_property(TARGET boost_process PROPERTY FOLDER "third_party")
-set_property(TARGET boost_program_options PROPERTY FOLDER "third_party")
-set_property(TARGET boost_random PROPERTY FOLDER "third_party")
-set_property(TARGET boost_system PROPERTY FOLDER "third_party")
-set_property(TARGET boost_thread PROPERTY FOLDER "third_party")
-set_property(TARGET boost_url PROPERTY FOLDER "third_party")
-set_property(TARGET boost_variant2 PROPERTY FOLDER "third_party")
-
-set_property(TARGET boost_prg_exec_monitor PROPERTY FOLDER "third_party")
-set_property(TARGET boost_test_exec_monitor PROPERTY FOLDER "third_party")
-set_property(TARGET boost_unit_test_framework PROPERTY FOLDER "third_party")
+set_property(TARGET boost_assert PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_container PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_atomic PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_chrono PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_core PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_date_time PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_exception PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_filesystem PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_json PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_url PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_nowide PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_program_options PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_system PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_thread PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_variant2 PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_unordered PROPERTY FOLDER "third_party/boost")
+set_property(TARGET boost_optional PROPERTY FOLDER "third_party/boost")
 
 ################################################################################
-
-if (ENABLE_USE_WINTUN)
-	add_definitions(-DAVPN_USE_WINTUN)
-	add_subdirectory(third_party/wintun)
-	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
-	set(nci ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/src/nci.lib)
-endif()
-
-################################################################################
-
-set(CRYPTOPP_DISABLE_ASM         OFF CACHE BOOL "" FORCE)
-set(CRYPTOPP_BUILD_TESTING       OFF CACHE BOOL "" FORCE)
-
-add_subdirectory(third_party/crypto)
-set(CRYPTOPP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/crypto/src/cryptopp)
-
-set_property(TARGET cryptopp PROPERTY FOLDER "third_party")
-
-################################################################################
+# 使用 Threads
 
 find_package(Threads)
 link_libraries(${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
 
 ################################################################################
+# 使用 tcmalloc/jemalloc
 
 if (ENABLE_TCMALLOC_STATIC)
 	find_package(Tcmalloc)
 	link_libraries(${Tcmalloc_LIBRARY})
 endif()
-
-################################################################################
 
 if (ENABLE_JEMALLOC_STATIC)
 	find_package(JeMalloc)
@@ -450,177 +533,120 @@ if (ENABLE_JEMALLOC_STATIC)
 endif()
 
 ################################################################################
-
-if (ENABLE_MIMALLOC_STATIC)
-	add_definitions(-DUSE_MIMALLOC)
-	set(mimalloc_DIR ${CMAKE_SOURCE_DIR}/third_party/mimalloc/cmake)
-
-	set(MI_DEBUG_FULL        OFF CACHE BOOL "" FORCE) # Use full internal heap invariant checking in DEBUG mode (expensive)
-	set(MI_PADDING           ON  CACHE BOOL "" FORCE) # Enable padding to detect heap block overflow (used only in DEBUG mode)
-	if (APPLE)
-		set(MI_OVERRIDE        OFF CACHE BOOL "" FORCE) # Override the standard malloc interface (e.g. define entry points for malloc() etc)
-	else()
-		set(MI_OVERRIDE        ON  CACHE BOOL "" FORCE)
-	endif()
-	set(MI_XMALLOC           OFF CACHE BOOL "" FORCE) # Enable abort() call on memory allocation failure by default
-	set(MI_SHOW_ERRORS       OFF CACHE BOOL "" FORCE) # Show error and warning messages by default (only enabled by default in DEBUG mode)
-	set(MI_USE_CXX           ON  CACHE BOOL "" FORCE) # Use the C++ compiler to compile the library (instead of the C compiler)
-	set(MI_SEE_ASM           OFF CACHE BOOL "" FORCE) # Generate assembly files
-	set(MI_INTERPOSE         ON  CACHE BOOL "" FORCE) # Use interpose to override standard malloc on macOS
-	set(MI_OSX_ZONE          ON  CACHE BOOL "" FORCE) # Use malloc zone to override standard malloc on macOS
-	set(MI_LOCAL_DYNAMIC_TLS OFF CACHE BOOL "" FORCE) # Use slightly slower, dlopen-compatible TLS mechanism (Unix)
-	set(MI_BUILD_SHARED      OFF CACHE BOOL "" FORCE) # Build shared library
-	set(MI_BUILD_STATIC      ON  CACHE BOOL "" FORCE) # Build static library
-	set(MI_BUILD_OBJECT      OFF CACHE BOOL "" FORCE) # Build object library
-	set(MI_BUILD_TESTS       OFF CACHE BOOL "" FORCE) # Build test executables
-	set(MI_DEBUG_TSAN        OFF CACHE BOOL "" FORCE) # Build with thread sanitizer (needs clang)
-	set(MI_DEBUG_UBSAN       OFF CACHE BOOL "" FORCE) # Build with undefined-behavior sanitizer (needs clang++)
-	set(MI_INSTALL_TOPLEVEL  OFF CACHE BOOL "" FORCE) # Install directly into $CMAKE_INSTALL_PREFIX instead of PREFIX/lib/mimalloc-version
-
-	include_directories(third_party/mimalloc/include)
-	add_subdirectory(third_party/mimalloc EXCLUDE_FROM_ALL)
-
-	if (MI_OVERRIDE)
-		add_definitions(-DMI_OVERRIDE) # For preprocessor checks in our source.
-	endif()
-endif()
-
-
-################################################################################
-
-if (ENABLE_SNMALLOC_STATIC)
-	set(SNMALLOC_HEADER_ONLY_LIBRARY ON)
-
-	add_definitions(-DUSE_SNMALLOC)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc EXCLUDE_FROM_ALL)
-
-	link_libraries(snmalloc)
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party/snmalloc)
-endif()
-
-################################################################################
-
-if (ENABLE_SYSTEMD_LOGGING)
-	link_libraries(systemd)
-endif()
-
-################################################################################
+# 使用 zlib
 
 if (WIN32 OR NOT ENABLE_SYSTEM_ZLIB)
+	set(ZLIB_BUILD_TESTING OFF)
+	set(ZLIB_BUILD_SHARED OFF)
+	set(ZLIB_INSTALL OFF)
+	set(ZLIB_BUILD_MINIZIP ON)
+
+	set(MINIZIP_BUILD_STATIC ON)
+	set(MINIZIP_BUILD_SHARED OFF)
+	set(MINIZIP_BUILD_TESTING OFF)
+	set(MINIZIP_INSTALL OFF)
+	set(MINIZIP_ENABLE_BZIP2 OFF)
+
 	add_subdirectory(third_party/zlib EXCLUDE_FROM_ALL)
+
 	set(ZLIB_LIBRARIES zlibstatic)
 	set(ZLIB_INCLUDE_DIRS
 		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
 		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/contrib/minizip
 	)
+
+	set_property(TARGET zlibstatic PROPERTY FOLDER "third_party")
 else()
 	find_package(ZLIB REQUIRED)
 endif()
 
 ################################################################################
+# 使用 wintun (仅 Windows)
+# wintun 驱动文件 (sys/inf/cat) 通过 avpn.rc 嵌入 exe, wintun.dll 在
+# avpn/avpn/CMakeLists.txt 中拷贝到输出目录, 运行时动态加载.
 
-if (UNIX AND NOT APPLE AND NOT ANDROID)
-	add_subdirectory(third_party/iproute2)
-	set(IPROUTE2_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iproute2/include)
-	set(IPROUTE2_LIBRARIES iproute2)
-
-	include_directories(${IPROUTE2_INCLUDE_DIRS})
+if (ENABLE_USE_WINTUN)
+	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
 endif()
 
-################################################################################
+# 使用 fmt
 
 add_subdirectory(third_party/fmt)
+set(FMT_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include)
+set(FMT_LIBRARIES fmt)
 
 ################################################################################
+# 添加 avpn 项目
 
-add_subdirectory(utils)
-add_subdirectory(proxy)
-
-################################################################################
-
-add_subdirectory(third_party/zstd)
-set(ZSTD_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib)
-set(ZSTD_LIBRARIES zstd)
+add_subdirectory(libavpn)
 
 ################################################################################
+# 添加 include 目录
 
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
-	${ZSTD_INCLUDE_DIRS}
-	${CRYPTOPP_INCLUDE_DIRS}
-	${UTILS_INCLUDE_DIRS}
-	${PROXY_INCLUDE_DIRS}
+	${AVPN_INCLUDE_DIRS}
+	${FMT_INCLUDE_DIRS}
+	${WINTUN_INCLUDE_DIRS}
 )
 
 ################################################################################
-
-if (ENABLE_USE_WINTUN)
-	include_directories(${WINTUN_INCLUDE_DIRS})
-
-	link_libraries(
-		${nci}
-		wintun)
-endif()
-
+# 添加 link 项目
 
 link_libraries(
-
-		Boost::asio
-		Boost::assign
-		Boost::beast
-		Boost::bimap
-		Boost::date_time
-		Boost::filesystem
-		Boost::json
-		Boost::lockfree
-		Boost::multi_index
-		Boost::nowide
-		Boost::program_options
-		Boost::signals2
-		Boost::thread
-		Boost::url
-		Boost::uuid
-		Boost::process
-
-#		Boost::thread
-#		Boost::date_time
-#		Boost::program_options
-#		Boost::filesystem
-#		Boost::signals2
-#		Boost::nowide
-#		Boost::json
-#		Boost::url
-#		Boost::uuid
-#		Boost::asio
-#		Boost::beast
-#		Boost::multi_index
-
-		fmt
-		cryptopp::cryptopp
-
-		${OPENSSL_LIBRARIES}
-		${ZLIB_LIBRARIES}
-		${ZSTD_LIBRARIES}
-		${UTILS_LIBRARIES}
+	${FMT_LIBRARIES}
+	${ZLIB_LIBRARIES}
+	${AVPN_LIBRARIES}
 )
 
+################################################################################
+# windows 下的链接库
+
 if (WIN32)
+
+	if (MINGW)
+		link_libraries(
+			secur32
+			ws2_32
+			mswsock
+			bcrypt
+			iphlpapi
+		)
+	else()
+		link_libraries(
+			Secur32.lib
+			Bcrypt.lib
+			Crypt32.lib
+			Winmm.lib
+			Mswsock.lib
+		)
+	endif()
+
+	if (ENABLE_USE_WINTUN)
 		if (MINGW)
 			link_libraries(
-				secur32
-				ws2_32
-				mswsock
-				bcrypt
-				iphlpapi
+				setupapi
+				cfgmgr32
+				newdev
+				shlwapi
+				ole32
+				advapi32
+				user32
+				gdi32
 			)
 		else()
 			link_libraries(
-				Secur32.lib
-				Bcrypt.lib
-				Winmm.lib
-				Mswsock.lib
+				Setupapi.lib
+				Cfgmgr32.lib
+				Newdev.lib
+				Shlwapi.lib
+				Ole32.lib
+				Advapi32.lib
+				User32.lib
+				Gdi32.lib
 			)
 		endif()
+	endif()
 elseif (UNIX AND NOT APPLE)
 	# aviod link std::filesystem fail.
 	set(std_fs_workaround "")
@@ -630,7 +656,6 @@ elseif (UNIX AND NOT APPLE)
 
 	link_libraries(
 		${std_fs_workaround}
-		${IPROUTE2_LIBRARIES}
 	)
 endif()
 
@@ -639,6 +664,7 @@ if (ENABLE_LINKE_TO_LIBATOMIC)
 endif()
 
 ################################################################################
+# 设置输出目录
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -650,23 +676,37 @@ if (WIN32)
 endif()
 
 ################################################################################
+# 添加 avpn 项目
 
 add_subdirectory(avpn)
 
 ################################################################################
+# 添加 launcher 项目 (WebUI 实例管理器)
+
+add_subdirectory(launcher)
+
+################################################################################
+# 添加单元测试
 
 if (ENABLE_BUILD_TESTS)
-	link_libraries(
-		Boost::prg_exec_monitor
-		Boost::test_exec_monitor
-		Boost::unit_test_framework
-	)
 	enable_testing()
-	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/avpn/include)
-	add_subdirectory(unittests)
+	add_subdirectory(tests)
 endif()
 
 ################################################################################
+# 添加 example 项目
 
-configure_file(avpn.service.in avpn.service)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/avpn.service DESTINATION /usr/lib/systemd/system/)
+if (ENABLE_BUILD_EXAMPLES)
+	add_subdirectory(example)
+endif()
+
+################################################################################
+# 安装 avpn 服务
+
+configure_file(avpn.service.in avpn@.service)
+
+install(TARGETS avpn RUNTIME DESTINATION bin)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/avpn@.service DESTINATION /usr/lib/systemd/system/)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/server.conf.example DESTINATION /etc/avpn/)
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/doc/client.conf.example DESTINATION /etc/avpn/)

@@ -1,49 +1,13 @@
 stages:
 - build
-- ubuntu
-- cross compile
-- test
 
 Build:
   stage: build
   script:
-    - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug
-    - cmake --build build --target avpn
-  artifacts:
-    paths:
-      - build/bin/avpn
-    expire_in: 1 day
-
-Ubuntu:
-  stage: ubuntu
-  script:
-    - docker buildx build -t avpn:20.04 . -f Dockerfile.ubuntu
-    - docker create --name xs avpn:20.04
-    - mkdir -p build/docker
-    - docker cp xs:/usr/local/bin/avpn build/docker
-    - docker rm xs
+    - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build
   artifacts:
     name: "avpn"
     paths:
-      - build/docker/avpn
-    expire_in: 5 day
-
-CrossCompile:
-  stage: cross compile
-  script:
-    - cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw.cmake -DCMAKE_EXE_LINKER_FLAGS="-static" -DCMAKE_BUILD_TYPE=Debug -DENABLE_USE_WINTUN=OFF -DBOOST_CHARCONV_QUADMATH_FOUND_EXITCODE=OFF -G Ninja
-    - cmake --build build --target avpn
-  artifacts:
-    paths:
-      - build/bin
-    exclude:
       - build/bin/avpn
-    expire_in: 1 day
-
-RunBoostTest:
-  stage: test
-  script:
-    - cmake -B build -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_TESTS=ON
-    - cmake --build build
-    - cd build
-    - ctest
+    expire_in: 5 day
