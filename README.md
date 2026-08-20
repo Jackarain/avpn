@@ -149,7 +149,7 @@ WebUI 使用 React/Vite 构建，产物在编译期内嵌进 `launcher` 可执�
 ```sh
 cd webui
 npm install
-npm run build        # 产物输出到 ../launcher/webui
+npm run build        # 产物输出到 ../avpn/launcher/webui
 cd ..
 
 cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release

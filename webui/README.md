@@ -14,7 +14,7 @@ launcher WebUI：实例管理、状态监控、配置管理与日志查看。
 ```
 webui/
 ├── index.html            # Vite 入口
-├── vite.config.ts        # 构建输出到 launcher/webui（launcher 编译期内嵌）
+├── vite.config.ts        # 构建输出到 avpn/launcher/webui（launcher 编译期内嵌）
 ├── src/
 │   ├── main.tsx          # 入口
 │   ├── App.tsx           # 布局 + 2 秒轮询调度
@@ -48,7 +48,7 @@ npm run dev
 ```bash
 cd webui
 npm install
-npm run build        # 产物输出到 ../launcher/webui，launcher 编译期内嵌
+npm run build        # 产物输出到 ../avpn/launcher/webui，launcher 编译期内嵌
 ```
 
 构建完成后重新构建 launcher 即得到内嵌 WebUI 的单文件可执行程序。

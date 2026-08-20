@@ -515,7 +515,7 @@ endif()
 ################################################################################
 # 使用 wintun (仅 Windows)
 # wintun 驱动文件 (sys/inf/cat) 通过 avpn.rc 嵌入 exe, wintun.dll 在
-# avpn/avpn/CMakeLists.txt 中拷贝到输出目录, 运行时动态加载.
+# avpn/avpn/avpn/CMakeLists.txt 中拷贝到输出目录, 运行时动态加载.
 
 if (ENABLE_USE_WINTUN)
 	set(WINTUN_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wintun/include)
@@ -634,10 +634,6 @@ endif()
 
 add_subdirectory(avpn)
 
-################################################################################
-# 添加 launcher 项目 (WebUI 实例管理器)
-
-add_subdirectory(launcher)
 
 ################################################################################
 # 添加单元测试

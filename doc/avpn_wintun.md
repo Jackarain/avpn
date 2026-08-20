@@ -171,7 +171,7 @@ rr.receive.tail_moved = m_send_event_moved;  // 驱动等待的事件
 ### 3.1 驱动文件嵌入
 
 wintun 驱动三件套（`wintun.sys` / `wintun.inf` / `wintun.cat`）放在
-`avpn/src/resource/driver/`，通过 `avpn/src/resource/avpn.rc.in` 以
+`avpn/avpn/src/resource/driver/`，通过 `avpn/avpn/src/resource/avpn.rc.in` 以
 `RCDATA` 资源嵌入 `avpn.exe`：
 
 ```rc
