@@ -99,8 +99,8 @@ std::shared_ptr<proc> spawn_proc(const std::string& exe,
 	if (pid == 0) {
 		// 子进程：独立进程组，便于整组终止（防止残留孙进程）。
 		::setpgid(0, 0);
-		if (!workdir.empty())
-			::chdir(workdir.c_str());
+		if (!workdir.empty() && ::chdir(workdir.c_str()) != 0)
+			::_exit(127);
 		::dup2(out_pipe[1], STDOUT_FILENO);
 		::dup2(err_pipe[1], STDERR_FILENO);
 		::close(out_pipe[0]);

@@ -884,7 +884,8 @@ private:
 #ifdef WIN32
 		::_write(m_fd, str, static_cast<unsigned int>(size));
 #else
-		(void)::write(m_fd, str, static_cast<size_t>(size));
+		const auto ret = ::write(m_fd, str, static_cast<size_t>(size));
+		(void)ret;
 #endif
 	}
 
