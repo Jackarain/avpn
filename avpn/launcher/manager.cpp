@@ -439,8 +439,8 @@ bool manager::start_internal(const std::string& id, std::string& err)
 		args.push_back(controller_url);
 		args.push_back("--pid_file");
 		args.push_back(pid_path);
-		// launcher 管理下经 stdout/stderr 采集日志：强制控制台日志并关闭颜色。
-		args.push_back("--console_logs=true");
+		// launcher 管理下经控制通道日志上报采集日志 (logger_tag 钩子),
+		// 无需强制控制台输出.
 		avpn_path = m_avpn_path_;
 		work_dir = m_work_dir_;
 	}

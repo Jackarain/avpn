@@ -220,7 +220,6 @@ launcher 会自动为每个实例生成控制通道 URL（`--controller ws://...
 | `--pre_down <cmd>` | 钩子：在 tun 接口拆除前通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--post_down <cmd>` | 钩子：在 tun 接口拆除后通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--pid_file <path>` | 将进程 PID 写入指定文件（内部使用，由 launcher 设置）。 |
-| `--console_logs` | 强制控制台日志且不使用 ANSI 颜色（内部使用，由 launcher 设置）。 |
 
 ## 文档
 

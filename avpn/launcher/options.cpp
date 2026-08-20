@@ -28,7 +28,6 @@ const option k_options[] = {
 	{ "genkey", option_kind::boolean, "生成新的密钥对并输出到 stdout。", false, false, 0, "", {}, true, false, false, "", "其他" },
 	{ "controller", option_kind::string, "控制服务地址（内部使用，由 launcher 传入）。", false, false, 0, "", {}, true, false, false, "", "其他" },
 	{ "pid_file", option_kind::string, "把进程 PID 写入指定文件（内部使用，由 launcher 传入）。", false, false, 0, "", {}, true, false, false, "", "其他" },
-	{ "console_logs", option_kind::boolean, "强制控制台日志并关闭 ANSI 颜色（内部使用，由 launcher 传入）。", false, false, 0, "", {}, true, false, false, "", "其他" },
 	{ "ptun_fd", option_kind::integer, "外部传入的 tun 设备文件描述符（内部使用）。", false, false, 0, "", {}, true, false, false, "", "其他" },
 	{ "utun_fd", option_kind::integer, "tun 设备 IPC 文件描述符（内部使用）。", false, false, 0, "", {}, true, false, false, "", "其他" },
 

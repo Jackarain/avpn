@@ -105,7 +105,6 @@ int main(int argc, char** argv)
 	std::string log_dir;
 	bool disable_logs = false;
 	std::string pid_file;
-	bool console_logs = false;
 
 	service_config cfg{};
 
@@ -145,7 +144,6 @@ int main(int argc, char** argv)
 		("pre_down", po::value<std::string>(&cfg.pre_down_)->value_name("cmd"), "Shell command run before tun is torn down (%i = interface name).")
 		("post_down", po::value<std::string>(&cfg.post_down_)->value_name("cmd"), "Shell command run after tun is torn down (%i = interface name).")
 		("pid_file", po::value<std::string>(&pid_file)->value_name("path"), "Write process PID to this file (internal, set by launcher).")
-		("console_logs", po::value<bool>(&console_logs)->value_name("bool")->default_value(false), "Force console logging without ANSI colors (internal, set by launcher).")
 	;
 
 	// 解析命令行.
@@ -202,15 +200,6 @@ and/or open issues at https://github.com/Jackarain/proxy)"
 		auto cfg_file = po::parse_config_file(config.c_str(), desc, false);
 		po::store(cfg_file, vm);
 		po::notify(vm);
-	}
-
-	// 初始化日志系统.
-	if (console_logs)
-	{
-		// launcher 管理下日志经 stdout/stderr 采集, 强制开启控制台输出
-		// 并关闭 ANSI 颜色, 避免采集到的日志被颜色码污染.
-		xlogger::toggle_console_logging(true);
-		xlogger::toggle_console_logging_color(false);
 	}
 
 	if (disable_logs && log_dir.empty())
