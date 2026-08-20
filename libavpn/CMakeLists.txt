@@ -22,7 +22,6 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/io_context_pool.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/vpn_controller.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/jsonrpc.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/asio_util.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_crypto.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_protocol.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_compress.hpp
