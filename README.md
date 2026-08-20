@@ -70,7 +70,7 @@ msbuild avpn.sln /p:Configuration="Debug"
 ```sh
 mkdir build && cd build
 cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=../cmake/mingw.cmake \
-	-DENABLE_USE_WINTUN=ON -DENABLE_USE_OPENSSL=ON ..
+	-DENABLE_USE_WINTUN=ON -DENABLE_USE_BORINGSSL=ON ..
 ninja
 ```
 

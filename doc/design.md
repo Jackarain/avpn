@@ -50,7 +50,7 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 |---|---|---|
 | `avpn_service` | `avpn.cpp` / `avpn.hpp` | 服务调度、监听、会话管理、DDoS 防护、虚拟地址分配 |
 | `avpn_session` | `avpn_session.cpp/.hpp` | 单会话：握手、密钥派生、数据通路、保活/断开、UDP/TCP 传输 |
-| `avpn_crypto` | `avpn_crypto.cpp/.hpp` | OpenSSL 封装：X25519、ChaCha20-Poly1305、HKDF-SHA256、base64 |
+| `avpn_crypto` | `avpn_crypto.cpp/.hpp` | OpenSSL/BoringSSL 封装：X25519、ChaCha20-Poly1305、HKDF-SHA256、base64 |
 | `avpn_protocol` | `avpn_protocol.cpp/.hpp` | 协议常量、报文结构、序列化、endpoint 解析 |
 | `avpn_compress` | `avpn_compress.cpp/.hpp` | 压缩抽象（zlib deflate） |
 | `avpn_fec` | `avpn_fec.cpp/.hpp` | Reed-Solomon 纠删码（GF(2⁸)）与分片编解码 |
