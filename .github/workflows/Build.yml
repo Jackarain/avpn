@@ -1,0 +1,168 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  Mingw:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt install -y cmake ninja-build
+          sudo apt install -y mingw-w64
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw.cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_USE_WINTUN=ON -DENABLE_USE_OPENSSL=ON -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-mingw_w64
+          path: |
+            build/bin/release/avpn.exe
+            build/bin/release/launcher.exe
+            build/bin/release/wintun.dll
+
+  Linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-linux_glibc_x64
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
+  BoringSSL:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=OFF -DENABLE_USE_BORINGSSL=ON -G Ninja
+          # boringssl 编译较重, 限制并行度以避免 runner 内存不足.
+          cmake --build build --config Release -- -j2
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-linux_glibc_x64_boringssl
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
+  Alpine:
+    runs-on: ubuntu-24.04
+    container:
+      image: alpine:3.20.1
+    steps:
+      - name: Install packages
+        run: apk add bash git nasm yasm pkgconfig build-base clang cmake ninja linux-headers
+
+      - uses: actions/checkout@v6
+
+      - name: Build avpn
+        run: |
+          CC=clang CXX=clang++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-alpine_musl_x64
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
+  SnMalloc:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_SNMALLOC_STATIC=ON -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-linux_snmalloc
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
+  MacOS:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja
+
+      - name: "Build avpn (Universal Binary: x86_64 + arm64)"
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_BUILD_WERROR=OFF \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+            -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-macos-universal
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
+  Windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-msvc_x64
+          path: |
+            build/bin/release/avpn.exe
+            build/bin/release/launcher.exe
+            build/bin/release/wintun.dll
