@@ -15,6 +15,7 @@
 #include "libavpn/avpn_protocol.hpp"
 #include "libavpn/avpn_fec.hpp"
 #include "libavpn/avpn_compress.hpp"
+#include "libavpn/replay_window.hpp"
 
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -210,6 +211,22 @@ namespace libavpn {
 			return m_role == session_role::initiator ? m_key_s2c : m_key_c2s;
 		}
 
+		// 发送/接收方向 nonce 会话盐.
+		const std::string& send_nonce_salt() const
+		{
+			return m_role == session_role::initiator ?
+				m_nonce_salt_c2s : m_nonce_salt_s2c;
+		}
+		const std::string& recv_nonce_salt() const
+		{
+			return m_role == session_role::initiator ?
+				m_nonce_salt_s2c : m_nonce_salt_c2s;
+		}
+
+		// 由会话盐与计数器构造 12 字节 AEAD nonce.
+		std::string make_nonce(const std::string& salt,
+			uint32_t counter) const;
+
 		// 加密并发送明文帧 (按传输类型分发).
 		void send_plaintext(const std::string& key, std::string_view plaintext);
 
@@ -297,6 +314,16 @@ namespace libavpn {
 		// 会话密钥.
 		std::string m_key_c2s;           // client -> server 加密密钥.
 		std::string m_key_s2c;           // server -> client 加密密钥.
+
+		// AEAD nonce 会话盐 (每方向独立, 握手时派生).
+		std::string m_nonce_salt_c2s;
+		std::string m_nonce_salt_s2c;
+
+		// 发送计数器 (每包递增).
+		uint32_t m_send_counter{ 0 };
+
+		// 接收重放窗口.
+		replay_window m_recv_replay;
 
 		// 协商的会话配置.
 		session_config m_session_config;

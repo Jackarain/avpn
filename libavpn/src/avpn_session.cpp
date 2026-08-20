@@ -35,6 +35,10 @@ namespace libavpn {
 		constexpr std::string_view kdf_session_master_info = "avpn-session-master-v1";
 		constexpr std::string_view kdf_c2s_info = "avpn-session-c2s-v1";
 		constexpr std::string_view kdf_s2c_info = "avpn-session-s2c-v1";
+		constexpr std::string_view kdf_nonce_salt_c2s_info =
+			"avpn-nonce-salt-c2s-v1";
+		constexpr std::string_view kdf_nonce_salt_s2c_info =
+			"avpn-nonce-salt-s2c-v1";
 
 		// 当前时间 (毫秒).
 		inline uint64_t now_ms()
@@ -225,7 +229,20 @@ namespace libavpn {
 		m_key_s2c = crypto::hkdf_sha256(master, "", kdf_s2c_info,
 			crypto::x25519_key_size);
 
-		return !m_key_c2s.empty() && !m_key_s2c.empty();
+		m_nonce_salt_c2s = crypto::hkdf_sha256(master, "",
+			kdf_nonce_salt_c2s_info, crypto::aead_nonce_salt_size);
+		m_nonce_salt_s2c = crypto::hkdf_sha256(master, "",
+			kdf_nonce_salt_s2c_info, crypto::aead_nonce_salt_size);
+
+		if (m_key_c2s.empty() || m_key_s2c.empty() ||
+			m_nonce_salt_c2s.empty() || m_nonce_salt_s2c.empty())
+			return false;
+
+		// 新会话重置发送计数器与接收重放窗口.
+		m_send_counter = 0;
+		m_recv_replay.reset();
+
+		return true;
 	}
 
 	void avpn_session::send_handshake_msg1()
@@ -491,17 +508,28 @@ namespace libavpn {
 			queue_tcp_frame(key, plaintext);
 	}
 
+	std::string avpn_session::make_nonce(const std::string& salt,
+		uint32_t counter) const
+	{
+		std::string nonce;
+		nonce.reserve(crypto::aead_nonce_size);
+		nonce.append(salt);
+		byteorder::put_u32(nonce, counter);
+		return nonce;
+	}
+
 	void avpn_session::encrypt_and_send_udp(const std::string& key,
 		std::string_view plaintext)
 	{
-		auto nonce = crypto::random_bytes(crypto::aead_nonce_size);
+		uint32_t counter = m_send_counter++;
+		auto nonce = make_nonce(send_nonce_salt(), counter);
 		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext);
 		if (ciphertext.empty())
 			return;
 
 		std::vector<uint8_t> wire;
-		wire.reserve(nonce.size() + ciphertext.size());
-		wire.insert(wire.end(), nonce.begin(), nonce.end());
+		wire.reserve(crypto::aead_counter_size + ciphertext.size());
+		byteorder::put_u32_into(wire, counter);
 		wire.insert(wire.end(), ciphertext.begin(), ciphertext.end());
 
 		if (m_udp_send_handler)
@@ -514,17 +542,19 @@ namespace libavpn {
 		if (!m_tcp_stream)
 			return;
 
-		auto nonce = crypto::random_bytes(crypto::aead_nonce_size);
+		uint32_t counter = m_send_counter++;
+		auto nonce = make_nonce(send_nonce_salt(), counter);
 		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext);
 		if (ciphertext.empty())
 			return;
 
 		std::vector<uint8_t> frame;
-		frame.reserve(2 + nonce.size() + ciphertext.size());
-		uint16_t len = static_cast<uint16_t>(nonce.size() + ciphertext.size());
+		frame.reserve(2 + crypto::aead_counter_size + ciphertext.size());
+		uint16_t len = static_cast<uint16_t>(
+			crypto::aead_counter_size + ciphertext.size());
 		frame.push_back(static_cast<uint8_t>((len >> 8) & 0xff));
 		frame.push_back(static_cast<uint8_t>(len & 0xff));
-		frame.insert(frame.end(), nonce.begin(), nonce.end());
+		byteorder::put_u32_into(frame, counter);
 		frame.insert(frame.end(), ciphertext.begin(), ciphertext.end());
 
 		m_tcp_oqe.push_back(std::move(frame));
@@ -561,19 +591,26 @@ namespace libavpn {
 
 	bool avpn_session::process_udp_packet(std::string_view wire)
 	{
-		if (wire.size() < crypto::aead_nonce_size + crypto::aead_tag_size)
+		if (wire.size() < crypto::aead_counter_size + crypto::aead_tag_size)
 			return true;
 
-		std::string_view nonce(wire.data(), crypto::aead_nonce_size);
-		std::string_view ciphertext(wire.data() + crypto::aead_nonce_size,
-			wire.size() - crypto::aead_nonce_size);
+		uint32_t counter = byteorder::get_u32_le(
+			reinterpret_cast<const uint8_t*>(wire.data()));
+		std::string_view ciphertext(
+			wire.data() + crypto::aead_counter_size,
+			wire.size() - crypto::aead_counter_size);
 
+		auto nonce = make_nonce(recv_nonce_salt(), counter);
 		auto plaintext = crypto::aead_decrypt(recv_key(), nonce, ciphertext);
 		if (plaintext.empty())
 		{
 			// 解密失败则丢弃.
 			return true;
 		}
+
+		// 认证通过后更新重放窗口.
+		if (!m_recv_replay.check_and_update(counter))
+			return true;
 
 		m_last_seen = std::chrono::steady_clock::now();
 		process_plaintext(plaintext);
@@ -642,15 +679,12 @@ namespace libavpn {
 
 			const uint8_t* p =
 				reinterpret_cast<const uint8_t*>(body.data());
-			uint32_t fec_id = byteorder::get_u32_le(p);
-			uint8_t total = p[4];
-			uint8_t index = p[5];
-			uint16_t len = byteorder::get_u16_le(p + 6);
+			uint32_t seq = byteorder::get_u32_le(p);
+			uint16_t len = byteorder::get_u16_le(p + 4);
 			std::string_view shard = body.substr(fec_frame_header_size);
 
 			std::vector<uint8_t> ip_packet;
-			if (m_fec_decoder->add(fec_id, index, total, len, shard,
-					ip_packet))
+			if (m_fec_decoder->add(seq, len, shard, ip_packet))
 			{
 				deliver_ip_packet(std::move(ip_packet));
 			}
@@ -1105,15 +1139,17 @@ namespace libavpn {
 			return false;
 		if (m_transport != transport_type::udp)
 			return false;
-		if (data.size() < crypto::aead_nonce_size + crypto::aead_tag_size)
+		if (data.size() < crypto::aead_counter_size + crypto::aead_tag_size)
 			return false;
 
-		std::string_view nonce(data.data(), crypto::aead_nonce_size);
+		uint32_t counter = byteorder::get_u32_le(
+			reinterpret_cast<const uint8_t*>(data.data()));
 		std::string_view ciphertext(
-			data.data() + crypto::aead_nonce_size,
-			data.size() - crypto::aead_nonce_size);
+			data.data() + crypto::aead_counter_size,
+			data.size() - crypto::aead_counter_size);
 
 		// 用本会话接收密钥尝试解密, 仅判断认证是否成功.
+		auto nonce = make_nonce(recv_nonce_salt(), counter);
 		return !crypto::aead_decrypt(recv_key(), nonce, ciphertext).empty();
 	}
 

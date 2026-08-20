@@ -27,8 +27,14 @@ namespace libavpn {
 		// X25519 密钥大小(字节).
 		inline constexpr std::size_t x25519_key_size = 32;
 
-		// AEAD nonce 大小(ChaCha20-Poly1305 使用 12 字节).
+		// AEAD nonce 由 8 字节会话盐 + 4 字节计数器组成.
 		inline constexpr std::size_t aead_nonce_size = 12;
+
+		// 会话盐部分 (握手时派生, 不走网络).
+		inline constexpr std::size_t aead_nonce_salt_size = 8;
+
+		// 计数器部分 (每包递增, 线上仅传输该部分).
+		inline constexpr std::size_t aead_counter_size = 4;
 
 		// AEAD 认证标签大小.
 		inline constexpr std::size_t aead_tag_size = 16;

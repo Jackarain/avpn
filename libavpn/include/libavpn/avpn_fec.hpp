@@ -58,12 +58,10 @@ namespace libavpn {
 	};
 
 	// FEC 数据分片在加密体中的帧头.
-	//   [fec_id(4, 小端)]
-	//   [total(1)]
-	//   [index(1)]
+	//   [index(4, 小端)]  全局分片序号, gid = index / total, pid = index % total.
 	//   [len(2, 小端)]  原始数据包长度, 用于去除分片填充.
 	//   [data...]
-	inline constexpr std::size_t fec_frame_header_size = 8;
+	inline constexpr std::size_t fec_frame_header_size = 6;
 
 	// 一个 IP 数据包的 FEC 编码分组.
 	class fec_encode_group
@@ -73,7 +71,8 @@ namespace libavpn {
 		~fec_encode_group() = default;
 
 		// 将 ip 数据包编码为多个分片, 每个分片为:
-		//   [fec_id(4)][total(1)][index(1)][shard_data]
+		//   [index(4)][len(2)][shard_data]
+		// fec_id 为分组号, 分片 index = fec_id * total + shard_index.
 		// 返回所有分片 (data_shards + parity_shards 个).
 		bool encode(uint32_t fec_id, std::string_view ip_packet,
 			std::vector<std::vector<uint8_t>>& frames);
@@ -92,11 +91,12 @@ namespace libavpn {
 		~fec_decode_group() = default;
 
 		// 添加一个已解密的分片帧.
+		// index 为全局分片序号, 由推导出的分组内序号处理去重.
 		// original_len 为原始数据包长度 (用于去除分片填充).
-		// 返回 true 表示该 fec_id 分组已恢复出完整数据, 通过 output 返回.
+		// 返回 true 表示该分组已恢复出完整数据, 通过 output 返回.
 		// 返回 false 表示还需更多分片.
-		bool add(uint32_t fec_id, uint8_t index, uint8_t total,
-			uint16_t original_len, std::string_view data,
+		bool add(uint32_t index, uint16_t original_len,
+			std::string_view data,
 			std::vector<uint8_t>& output);
 
 		// 清理过期分组, 返回被清理的分组数量.

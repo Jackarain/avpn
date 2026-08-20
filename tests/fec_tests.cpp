@@ -3,6 +3,7 @@
 
 // 直接包含 FEC 实现, 以访问内部 gf/fec_cache 及全部 FEC 组件.
 #include "../libavpn/src/avpn_fec.cpp"
+#include "libavpn/replay_window.hpp"
 
 #include <cstring>
 #include <random>
@@ -577,10 +578,11 @@ BOOST_AUTO_TEST_CASE(encode_group_frame_format)
 	for (std::size_t i = 0; i < frames.size(); i++)
 	{
 		const auto& f = frames[i];
-		BOOST_CHECK_EQUAL(read_u32(f, 0), 0x12345678u);
-		BOOST_CHECK_EQUAL(f[4], 6u);
-		BOOST_CHECK_EQUAL(f[5], static_cast<uint8_t>(i));
-		BOOST_CHECK_EQUAL(read_u16(f, 6), static_cast<uint16_t>(ip.size()));
+		// 分片序号 = fec_id * total + shard_index.
+		BOOST_CHECK_EQUAL(read_u32(f, 0),
+			0x12345678u * 6 + static_cast<uint32_t>(i));
+		BOOST_CHECK_EQUAL(read_u16(f, 4),
+			static_cast<uint16_t>(ip.size()));
 		BOOST_CHECK_EQUAL(f.size(),
 			fec_frame_header_size + shard_size);
 	}
@@ -602,7 +604,7 @@ BOOST_AUTO_TEST_CASE(decode_group_recovers_all_loss_patterns)
 			std::vector<uint8_t> ip = make_packet(n, rng);
 			fec_encode_group eg(D, P);
 			std::vector<std::vector<uint8_t>> frames;
-			BOOST_REQUIRE(eg.encode(0xabcdef01, std::string_view(
+			BOOST_REQUIRE(eg.encode(0x12345678, std::string_view(
 				reinterpret_cast<const char*>(ip.data()), ip.size()), frames));
 
 			for (int mask = 0; mask < (1 << total); mask++)
@@ -618,8 +620,8 @@ BOOST_AUTO_TEST_CASE(decode_group_recovers_all_loss_patterns)
 					if (mask & (1 << i))
 						continue; // 模拟丢失.
 					const auto& f = frames[i];
-					if (dg.add(read_u32(f, 0), f[5], f[4],
-						read_u16(f, 6), std::string_view(
+					if (dg.add(read_u32(f, 0), read_u16(f, 4),
+						std::string_view(
 							reinterpret_cast<const char*>(f.data()) +
 							fec_frame_header_size,
 							f.size() - fec_frame_header_size), output))
@@ -641,25 +643,36 @@ BOOST_AUTO_TEST_CASE(duplicate_shard_rejected)
 	fec_decode_group dg(4, 2);
 	std::vector<uint8_t> shard(16, 0x77);
 	std::vector<uint8_t> output;
-	BOOST_REQUIRE(!dg.add(1, 0, 6, 64, std::string_view(
+	// 分组 1 (total=6) 的 0 号分片, 序号 = 1*6+0.
+	BOOST_REQUIRE(!dg.add(6, 64, std::string_view(
 		reinterpret_cast<const char*>(shard.data()), shard.size()), output));
 	// 相同 index 重复添加返回 false (去重).
-	BOOST_CHECK(!dg.add(1, 0, 6, 64, std::string_view(
+	BOOST_CHECK(!dg.add(6, 64, std::string_view(
 		reinterpret_cast<const char*>(shard.data()), shard.size()), output));
 	// 同一分组不同 index 正常接收.
-	BOOST_REQUIRE(!dg.add(1, 1, 6, 64, std::string_view(
+	BOOST_REQUIRE(!dg.add(7, 64, std::string_view(
 		reinterpret_cast<const char*>(shard.data()), shard.size()), output));
 }
 
-BOOST_AUTO_TEST_CASE(invalid_args_rejected)
+BOOST_AUTO_TEST_CASE(group_index_derivation)
 {
 	fec_decode_group dg(2, 1);
-	std::vector<uint8_t> shard(16, 0);
+	std::vector<uint8_t> shard(16, 0x11);
 	std::vector<uint8_t> output;
 	std::string_view s(reinterpret_cast<const char*>(shard.data()),
 		shard.size());
-	BOOST_CHECK(!dg.add(1, 3, 3, 32, s, output)); // index >= total.
-	BOOST_CHECK(!dg.add(1, 0, 9, 32, s, output)); // total 不匹配.
+	// 分组 0 (total=3) 的 0/1 号分片凑齐两片数据分片即可恢复.
+	BOOST_REQUIRE(!dg.add(0, 32, s, output));
+	BOOST_REQUIRE(dg.add(1, 32, s, output));
+	BOOST_CHECK_EQUAL(output.size(), 32u);
+	for (auto b : output)
+		BOOST_CHECK_EQUAL(b, 0x11);
+
+	// 分组 1 序号 3..5, 与分组 0 隔离.
+	output.clear();
+	BOOST_REQUIRE(dg.add(3, 32, s, output) == false);
+	BOOST_REQUIRE(dg.add(4, 32, s, output));
+	BOOST_CHECK_EQUAL(output.size(), 32u);
 }
 
 BOOST_AUTO_TEST_CASE(purge_expired)
@@ -667,7 +680,8 @@ BOOST_AUTO_TEST_CASE(purge_expired)
 	fec_decode_group dg(4, 2, std::chrono::milliseconds(20));
 	std::vector<uint8_t> shard(16, 0x42);
 	std::vector<uint8_t> output;
-	BOOST_REQUIRE(!dg.add(7, 0, 6, 64, std::string_view(
+	// 分组 7 (total=6) 的 0 号分片, 序号 = 7*6+0.
+	BOOST_REQUIRE(!dg.add(42, 64, std::string_view(
 		reinterpret_cast<const char*>(shard.data()), shard.size()), output));
 	BOOST_CHECK_EQUAL(dg.purge(), 0u); // 未过期.
 	std::this_thread::sleep_for(std::chrono::milliseconds(40));
@@ -741,6 +755,70 @@ BOOST_AUTO_TEST_CASE(lru_eviction)
 	BOOST_CHECK(!fec_cache::find_inverse(keys[0], out)); // 最旧淘汰.
 	for (std::size_t i = 1; i <= cap; i++)
 		BOOST_CHECK(fec_cache::find_inverse(keys[i], out));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+//////////////////////////////////////////////////////////////////////////
+// AEAD 计数器接收重放窗口
+
+BOOST_AUTO_TEST_SUITE(replay_window_tests)
+
+BOOST_AUTO_TEST_CASE(monotonic_accepted)
+{
+	libavpn::replay_window w(1024);
+	for (uint32_t c = 0; c < 10000; c++)
+		BOOST_CHECK(w.check_and_update(c));
+}
+
+BOOST_AUTO_TEST_CASE(replay_rejected)
+{
+	libavpn::replay_window w(1024);
+	BOOST_REQUIRE(w.check_and_update(100));
+	BOOST_CHECK(!w.check_and_update(100)); // 重放拒绝.
+	BOOST_REQUIRE(w.check_and_update(101));
+	BOOST_CHECK(!w.check_and_update(100)); // 旧包重放拒绝.
+}
+
+BOOST_AUTO_TEST_CASE(out_of_order_within_window)
+{
+	libavpn::replay_window w(8);
+	BOOST_REQUIRE(w.check_and_update(100));
+	// 窗口内的乱序包接受.
+	BOOST_CHECK(w.check_and_update(99));
+	BOOST_CHECK(w.check_and_update(98));
+	// 重复乱序包拒绝.
+	BOOST_CHECK(!w.check_and_update(99));
+}
+
+BOOST_AUTO_TEST_CASE(too_old_rejected)
+{
+	libavpn::replay_window w(8);
+	BOOST_REQUIRE(w.check_and_update(100));
+	// 窗口 8 覆盖 [93, 100].
+	for (uint32_t c = 93; c <= 99; c++)
+		BOOST_CHECK(w.check_and_update(c));
+	BOOST_CHECK(!w.check_and_update(100)); // 重放拒绝.
+	BOOST_CHECK(!w.check_and_update(90));
+}
+
+BOOST_AUTO_TEST_CASE(large_jump_advances)
+{
+	libavpn::replay_window w(8);
+	BOOST_REQUIRE(w.check_and_update(0));
+	// 大幅跳跃后窗口整体前移, 新窗口内包可接受.
+	BOOST_CHECK(w.check_and_update(1000));
+	BOOST_CHECK(w.check_and_update(999));
+	BOOST_CHECK(!w.check_and_update(0));
+}
+
+BOOST_AUTO_TEST_CASE(reset_clears_state)
+{
+	libavpn::replay_window w(8);
+	BOOST_REQUIRE(w.check_and_update(100));
+	BOOST_CHECK(!w.check_and_update(100));
+	w.reset();
+	BOOST_CHECK(w.check_and_update(100)); // 重置后重新接受.
 }
 
 BOOST_AUTO_TEST_SUITE_END()

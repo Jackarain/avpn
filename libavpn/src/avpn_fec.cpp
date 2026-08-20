@@ -779,9 +779,8 @@ namespace libavpn {
 		auto make_frame = [&](int index, const std::vector<uint8_t>& shard) {
 			std::vector<uint8_t> frame;
 			frame.reserve(fec_frame_header_size + shard.size());
-			byteorder::put_u32_into(frame, fec_id);
-			frame.push_back(static_cast<uint8_t>(total));
-			frame.push_back(static_cast<uint8_t>(index));
+			uint32_t seq = fec_id * static_cast<uint32_t>(total) + index;
+			byteorder::put_u32_into(frame, seq);
 			byteorder::put_u16_into(frame,
 				static_cast<uint16_t>(ip_packet.size()));
 			frame.insert(frame.end(), shard.begin(), shard.end());
@@ -806,14 +805,14 @@ namespace libavpn {
 		, m_rs(m_data_shards, m_parity_shards)
 	{}
 
-	bool fec_decode_group::add(uint32_t fec_id, uint8_t index, uint8_t total,
-		uint16_t original_len, std::string_view data,
+	bool fec_decode_group::add(uint32_t index, uint16_t original_len,
+		std::string_view data,
 		std::vector<uint8_t>& output)
 	{
-		if (index >= total)
-			return false;
-		if (total != m_rs.total_shards())
-			return false;
+		int total = m_rs.total_shards();
+		uint32_t fec_id = index / static_cast<uint32_t>(total);
+		uint8_t idx = static_cast<uint8_t>(
+			index % static_cast<uint32_t>(total));
 
 		auto now = std::chrono::steady_clock::now();
 
@@ -860,12 +859,12 @@ namespace libavpn {
 		}
 
 		// 去重.
-		if (g->present[index])
+		if (g->present[idx])
 			return false;
 
-		g->shards[index].assign(data.begin(), data.end());
-		g->shards[index].resize(g->shard_size);
-		g->present[index] = true;
+		g->shards[idx].assign(data.begin(), data.end());
+		g->shards[idx].resize(g->shard_size);
+		g->present[idx] = true;
 		g->received++;
 		g->last_seen = now;
 
