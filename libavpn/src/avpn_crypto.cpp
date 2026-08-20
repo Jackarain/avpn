@@ -15,6 +15,9 @@
 #include <openssl/kdf.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
+#if defined(OPENSSL_IS_BORINGSSL)
+#include <openssl/aead.h>
+#endif
 
 #include <memory>
 #include <vector>
@@ -59,6 +62,20 @@ namespace libavpn::crypto {
 		};
 
 		using cipher_ctx_ptr = std::unique_ptr<EVP_CIPHER_CTX, cipher_ctx_free>;
+
+#if defined(OPENSSL_IS_BORINGSSL)
+		// RAII 封装 EVP_AEAD_CTX (BoringSSL 专用).
+		struct aead_ctx_free
+		{
+			void operator()(EVP_AEAD_CTX* p) const
+			{
+				if (p)
+					EVP_AEAD_CTX_free(p);
+			}
+		};
+
+		using aead_ctx_ptr = std::unique_ptr<EVP_AEAD_CTX, aead_ctx_free>;
+#endif
 
 	} // namespace detail
 
@@ -261,6 +278,28 @@ namespace libavpn::crypto {
 			nonce.size() != aead_nonce_size)
 			return {};
 
+#if defined(OPENSSL_IS_BORINGSSL)
+		// BoringSSL 不提供 EVP_chacha20_poly1305 (EVP_CIPHER), 使用 EVP_AEAD 接口.
+		detail::aead_ctx_ptr aead(EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
+			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
+			aead_tag_size));
+		if (!aead)
+			return {};
+
+		// 一次调用完成 ChaCha20-Poly1305 加密并输出密文+认证标签.
+		std::string out(plaintext.size() + aead_tag_size, 0);
+		std::size_t out_len = 0;
+		if (EVP_AEAD_CTX_seal(aead.get(),
+				reinterpret_cast<unsigned char*>(out.data()), &out_len, out.size(),
+				reinterpret_cast<const unsigned char*>(nonce.data()), nonce.size(),
+				reinterpret_cast<const unsigned char*>(plaintext.data()),
+				plaintext.size(),
+				reinterpret_cast<const unsigned char*>(aad.data()), aad.size()) != 1)
+			return {};
+
+		out.resize(out_len);
+		return out;
+#else
 		detail::cipher_ctx_ptr ctx(EVP_CIPHER_CTX_new());
 		if (!ctx)
 			return {};
@@ -319,6 +358,7 @@ namespace libavpn::crypto {
 		std::memcpy(out.data() + out_len, tag, aead_tag_size);
 		out.resize(out_len + aead_tag_size);
 		return out;
+#endif
 	}
 
 	std::string aead_decrypt(std::string_view key, std::string_view nonce,
@@ -331,6 +371,27 @@ namespace libavpn::crypto {
 
 		std::size_t cipher_len = ciphertext.size() - aead_tag_size;
 
+#if defined(OPENSSL_IS_BORINGSSL)
+		detail::aead_ctx_ptr aead(EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
+			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
+			aead_tag_size));
+		if (!aead)
+			return {};
+
+		// 一次调用完成认证与解密, 输入为密文+认证标签.
+		std::string out(ciphertext.size(), 0);
+		std::size_t out_len = 0;
+		if (EVP_AEAD_CTX_open(aead.get(),
+				reinterpret_cast<unsigned char*>(out.data()), &out_len, out.size(),
+				reinterpret_cast<const unsigned char*>(nonce.data()), nonce.size(),
+				reinterpret_cast<const unsigned char*>(ciphertext.data()),
+				ciphertext.size(),
+				reinterpret_cast<const unsigned char*>(aad.data()), aad.size()) != 1)
+			return {};
+
+		out.resize(out_len);
+		return out;
+#else
 		detail::cipher_ctx_ptr ctx(EVP_CIPHER_CTX_new());
 		if (!ctx)
 			return {};
@@ -389,6 +450,7 @@ namespace libavpn::crypto {
 		out_len += final_len;
 		out.resize(out_len);
 		return out;
+#endif
 	}
 
 } // namespace libavpn::crypto
