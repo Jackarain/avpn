@@ -103,6 +103,12 @@ namespace {
 	}
 
 	// 追加路由属性.
+#if defined(__GNUC__) && !defined(__clang__)
+	// GCC 无法理解 RTA_DATA 基于 NLMSG_ALIGN 的对齐偏移, 对 netlink
+	// 惯用法误报 -Wstringop-overflow (属性实际写入 req.buf, 未越界).
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 	static void addattr_l(struct nlmsghdr* n, unsigned int maxlen, int type,
 		const void* data, int alen)
 	{
@@ -118,6 +124,9 @@ namespace {
 			std::memcpy(RTA_DATA(rta), data, alen);
 		n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + RTA_ALIGN(len);
 	}
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 	// 构造路由请求 (RTM_NEWROUTE/RTM_DELROUTE).
 	static void build_route_request(struct nlmsghdr* n, int type,
