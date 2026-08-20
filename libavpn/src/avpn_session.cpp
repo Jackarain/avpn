@@ -10,6 +10,7 @@
 
 #include "libavpn/avpn_session.hpp"
 #include "libavpn/avpn_crypto.hpp"
+#include "libavpn/asio_util.hpp"
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
 
@@ -1069,7 +1070,8 @@ namespace libavpn {
 					return false;
 
 				// 通知握手协程握手完成.
-				m_hs_timer.cancel();
+				boost::system::error_code ec;
+				asio_util::cancel(m_hs_timer, ec);
 				return true;
 			}
 			else
@@ -1179,8 +1181,8 @@ namespace libavpn {
 			return;
 
 		boost::system::error_code ec;
-		m_hs_timer.cancel();
-		m_tick_timer.cancel();
+		asio_util::cancel(m_hs_timer, ec);
+		asio_util::cancel(m_tick_timer, ec);
 
 		if (m_tcp_stream)
 		{

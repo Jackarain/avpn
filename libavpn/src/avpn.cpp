@@ -2,6 +2,7 @@
 #include "libavpn/avpn_session.hpp"
 #include "libavpn/avpn_tun.hpp"
 #include "libavpn/avpn_protocol.hpp"
+#include "libavpn/asio_util.hpp"
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
 #include "libavpn/nat_rule.hpp"
@@ -1557,13 +1558,13 @@ namespace libavpn {
 			m_controller.reset();
 		}
 
+		boost::system::error_code ec;
+
 		// 取消周期任务定时器, 唤醒挂起的协程检查 m_abort 后自然退出,
 		// 使 main_io_context_.run() 无需 stop() 即可返回.
-		m_bandwidth_timer.cancel();
-		m_bypass_timer.cancel();
-		m_netmon_timer.cancel();
-
-		boost::system::error_code ec;
+		asio_util::cancel(m_bandwidth_timer, ec);
+		asio_util::cancel(m_bypass_timer, ec);
+		asio_util::cancel(m_netmon_timer, ec);
 
 		// 关闭所有会话. 注意: session->close() 会经 close handler 同步
 		// 调用 on_session_close 从 m_sessions 中移除当前元素, 必须先在
