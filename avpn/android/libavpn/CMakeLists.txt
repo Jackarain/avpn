@@ -43,8 +43,9 @@ if (SWIG_FOUND)
 	# 设置 SWIG 模块名称, 该名称用于生成的文件名.
 	set(SWIG_MODULE_NAME "xavpn")
 
-	# CMAKE_SWIG_FLAGS 用于设置 SWIG 参数, 这里指定生成的 Java 包名.
-	set(CMAKE_SWIG_FLAGS -package com.jackarain)
+	# CMAKE_SWIG_FLAGS 用于设置 SWIG 参数, 这里指定生成的 Java 包名,
+	# 并启用 director 以支持 Java 端回调接口.
+	set(CMAKE_SWIG_FLAGS -package com.jackarain -directors)
 
 	# include_directories 用于添加头文件搜索路径.
 	include_directories(${CMAKE_CURRENT_SOURCE_DIR})

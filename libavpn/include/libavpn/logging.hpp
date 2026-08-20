@@ -1168,6 +1168,23 @@ static LONG WINAPI unexpectedExceptionHandling(EXCEPTION_POINTERS* info);
 #endif
 void signal_handler(int);
 
+// 日志回调类型: time 为 Unix 秒时间戳, level 为日志级别, message 为日志消息.
+using log_callback_fn = void (*)(int64_t time, int level, const std::string& message);
+
+// 注册日志回调 (线程安全), 传入 nullptr 取消; 回调在日志输出前调用, 不影响原有输出.
+void set_log_callback(log_callback_fn callback);
+
+// 日志转发实现 (定义于 libavpn/src/logging.cpp).
+void log_hook_forward(int64_t time, const int& level, const std::string& message) noexcept;
+
+// logger_tag 的 ADL 钩子: 输出前将日志转发给注册的回调, 返回 false 不拦截原有输出.
+inline bool tag_invoke(logger_tag, int64_t time, const int& level,
+	const std::string& message) noexcept
+{
+	log_hook_forward(time, level, message);
+	return false;
+}
+
 namespace logger_aux__ {
 	using namespace std::chrono_literals;
 

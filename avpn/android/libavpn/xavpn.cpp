@@ -1,12 +1,14 @@
 ﻿#include "xavpn.hpp"
 
 #include "libavpn/avpn.hpp"
+#include "libavpn/logging.hpp"
 
 #include <boost/json.hpp>
 
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -19,6 +21,20 @@ namespace {
 std::unique_ptr<libavpn::io_context_pool> g_io_pool;
 std::shared_ptr<libavpn::avpn_service> g_service;
 std::thread g_io_thread;
+std::mutex g_log_callback_mutex;
+std::shared_ptr<log_callback> g_log_callback;
+
+// xlogger 日志回调: 转发到注册的 log_callback.
+void android_log_hook(int64_t time, int level, const std::string& message)
+{
+	std::shared_ptr<log_callback> cb;
+	{
+		std::lock_guard<std::mutex> lock(g_log_callback_mutex);
+		cb = g_log_callback;
+	}
+	if (cb)
+		cb->on_log(level, message);
+}
 
 // 取配置中的 stringlist.
 std::vector<std::string> config_list(const boost::json::object& cfg, const char* key)
@@ -127,6 +143,15 @@ libavpn::service_config config_from_json(const std::string& config)
 }
 
 } // namespace
+
+void set_log_callback(std::shared_ptr<log_callback> callback)
+{
+	{
+		std::lock_guard<std::mutex> lock(g_log_callback_mutex);
+		g_log_callback = std::move(callback);
+	}
+	xlogger::set_log_callback(g_log_callback ? android_log_hook : nullptr);
+}
 
 std::string min_sdk_version()
 {
