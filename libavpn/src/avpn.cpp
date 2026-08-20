@@ -330,7 +330,6 @@ namespace libavpn {
 			}
 
 			// gateway 模式: IPv6 内网 (默认 fd00:8888::/64) 目标地址低 32 位即虚拟地址.
-			uint32_t dst = 0;
 			std::memcpy(&dst, ip_packet.data() + 24 + 12, 4);
 			dst = ntohl(dst);
 
