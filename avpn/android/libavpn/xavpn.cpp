@@ -27,13 +27,18 @@ std::shared_ptr<log_callback> g_log_callback;
 // xlogger 日志回调: 转发到注册的 log_callback.
 void android_log_hook(int64_t time, int level, const std::string& message)
 {
+	// 仅转发 debug/info/warn/error, 过滤内部 file 级别日志.
+	if (level < static_cast<int>(log_level::debug) ||
+		level > static_cast<int>(log_level::error))
+		return;
+
 	std::shared_ptr<log_callback> cb;
 	{
 		std::lock_guard<std::mutex> lock(g_log_callback_mutex);
 		cb = g_log_callback;
 	}
 	if (cb)
-		cb->on_log(level, message);
+		cb->on_log(time, static_cast<log_level>(level), message);
 }
 
 // 取配置中的 stringlist.
