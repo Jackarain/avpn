@@ -69,7 +69,6 @@ option(ENABLE_USE_SYSTEMD_LOG		"Build with systemd log support" OFF)
 
 option(ENABLE_USE_OPENSSL			"Build with openssl support" OFF)
 option(ENABLE_USE_BORINGSSL			"Build with boringssl support" ON)
-option(ENABLE_USE_WOLFSSL			"Build with wolfssl support" OFF)
 
 option(ENABLE_USE_MOLD				"Use the mold linker" OFF)
 option(ENABLE_USE_LLD				"Use the lld linker" OFF)
@@ -167,7 +166,6 @@ if (WIN32)
 	add_definitions(
 		-DWIN32_LEAN_AND_MEAN
 		-D_WIN32_WINNT=0x0A00
-		#-DNOMINMAX # Comment out NOMINMAX for wolfSSL dependency on min/max macro in MSVC.
 		-DUNICODE
 		-D_UNICODE
 	)
@@ -313,8 +311,8 @@ endif(NOT MSVC)
 set(BUILD_SHARED_LIBS OFF)
 
 ################################################################################
-# TLS/crypto 后端 (互斥): 同时开启多个时按 openssl > wolfssl > boringssl 的
-# 优先级生效, 避免多个后端重复定义 crypto/ssl 目标导致配置失败.
+# TLS/crypto 后端 (互斥): 同时开启多个时按 openssl > boringssl 的优先级
+# 生效, 避免多个后端重复定义 crypto/ssl 目标导致配置失败.
 
 # 使用 system openssl
 
@@ -338,56 +336,6 @@ if (ENABLE_USE_OPENSSL)
 	link_libraries(${OPENSSL_LIBRARIES})
 
 	message(STATUS "Using openssl...")
-elseif (ENABLE_USE_WOLFSSL)
-
-	set(WOLFSSL_EXAMPLES OFF)
-	set(WOLFSSL_CRYPT_TESTS OFF)
-
-	# 打开 wolfssl 的 asio 支持, 它会自动定义 asio 所用到的 openssl 函数以及相关的宏.
-	set(WOLFSSL_ASIO ON)
-	# OpenSSL_FOUND 设置为 TRUE, 以便在编译 asio 时, 添加 ssl 代码的编译.
-	set(OpenSSL_FOUND TRUE)
-
-	# 必须定义 BOOST_ASIO_USE_WOLFSSL 以便 asio 使用 wolfssl.
-	add_definitions(-DBOOST_ASIO_USE_WOLFSSL)
-
-	# 打开 TLSX 以允许 alpn 设置.
-	set(WOLFSSL_TLSX ON)
-
-	# avpn_crypto 的 X25519 依赖 wolfssl 的 Curve25519 支持, 默认关闭需显式开启.
-	set(WOLFSSL_CURVE25519 "yes" CACHE STRING "Enable Curve25519" FORCE)
-	# wolfssl 仅对自身 target 传递该宏, 外部使用其头文件需自行定义.
-	add_definitions(-DHAVE_CURVE25519)
-
-	# gcc 编译时 wolfssl 会有一些 stringop-overflow 警告, 这里忽略掉.
-	if (NOT MSVC AND NOT APPLE)
-		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-stringop-overflow -Wno-stringop-overread -Wno-maybe-uninitialized")
-		endif()
-	endif()
-
-	add_subdirectory(third_party/wolfssl)
-
-	# wolfssl 自身代码在较新 GCC 下触发 -Wstringop-truncation
-	# (第三方代码, 非本项目), 关闭该警告避免 -Werror 构建失败.
-	if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-		target_compile_options(wolfssl PRIVATE -Wno-stringop-truncation)
-	endif()
-
-	# WOLFSSL_INCLUDE_DIRS 用于 wolfssl 的头文件包含.
-	set(WOLFSSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wolfssl/wolfssl/)
-
-	# WOLFSSL_LIBRARIES 用于 wolfssl 的库文件包含.
-	set(WOLFSSL_LIBRARIES wolfssl::wolfssl)
-
-	add_library(OpenSSL::SSL ALIAS wolfssl)
-	add_library(OpenSSL::Crypto ALIAS wolfssl)
-
-	# 包含 wolfssl 的头文件和库文件.
-	include_directories(${WOLFSSL_INCLUDE_DIRS})
-	link_libraries(${WOLFSSL_LIBRARIES})
-
-	message(STATUS "Using wolfssl...")
 elseif (ENABLE_USE_BORINGSSL)
 	set(OPENSSL_FOUND TRUE)
 	add_subdirectory(third_party/boringssl)

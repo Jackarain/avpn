@@ -18,12 +18,6 @@
 #if defined(OPENSSL_IS_BORINGSSL)
 #include <openssl/aead.h>
 #endif
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-// wolfSSL 兼容层缺少 EVP raw key 与 EVP_PKEY HKDF 接口, X25519/HKDF 直接使用 wolfCrypt API.
-#include <wolfssl/wolfcrypt/curve25519.h>
-#include <wolfssl/wolfcrypt/hmac.h>
-#include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-#endif
 
 #include <memory>
 #include <vector>
@@ -83,21 +77,6 @@ namespace libavpn::crypto {
 		using aead_ctx_ptr = std::unique_ptr<EVP_AEAD_CTX, aead_ctx_free>;
 #endif
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		// RAII 封装 wc_curve25519_key (wolfSSL).
-		struct curve25519_key_free
-		{
-			void operator()(curve25519_key* p) const
-			{
-				if (p)
-					wc_curve25519_free(p);
-			}
-		};
-
-		using curve25519_key_ptr =
-			std::unique_ptr<curve25519_key, curve25519_key_free>;
-#endif
-
 	} // namespace detail
 
 	std::string random_bytes(std::size_t n)
@@ -154,12 +133,7 @@ namespace libavpn::crypto {
 		if (data.size() > 1 && data[data.size() - 2] == '=')
 			padding++;
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		// wolfssl 的 EVP_DecodeBlock 返回已去除填充的实际数据长度.
-		out.resize(static_cast<std::size_t>(len));
-#else
 		out.resize(static_cast<std::size_t>(len) - padding);
-#endif
 		return out;
 	}
 
@@ -187,22 +161,6 @@ namespace libavpn::crypto {
 		if (private_key.size() != x25519_key_size)
 			return {};
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		// wolfssl 要求私钥已按 RFC 7748 clamp, OpenSSL 内部自动处理.
-		std::string priv(private_key);
-		priv[0] = static_cast<char>(static_cast<unsigned char>(priv[0]) & 248);
-		priv[31] = static_cast<char>(
-			(static_cast<unsigned char>(priv[31]) & 127) | 64);
-
-		std::string pub(x25519_key_size, 0);
-		if (wc_curve25519_make_pub(static_cast<int>(pub.size()),
-				reinterpret_cast<unsigned char*>(pub.data()),
-				static_cast<int>(priv.size()),
-				reinterpret_cast<const unsigned char*>(priv.data())) != 0)
-			return {};
-
-		return pub;
-#else
 		detail::pkey_ptr pkey(EVP_PKEY_new_raw_private_key(
 			EVP_PKEY_X25519, nullptr,
 			reinterpret_cast<const unsigned char*>(private_key.data()),
@@ -218,7 +176,6 @@ namespace libavpn::crypto {
 
 		pub.resize(len);
 		return pub;
-#endif
 	}
 
 	std::string x25519_ecdh(std::string_view private_key,
@@ -228,42 +185,6 @@ namespace libavpn::crypto {
 			peer_public_key.size() != x25519_key_size)
 			return {};
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		detail::curve25519_key_ptr priv(new curve25519_key);
-		detail::curve25519_key_ptr peer(new curve25519_key);
-		if (!priv || !peer)
-			return {};
-		wc_curve25519_init(priv.get());
-		wc_curve25519_init(peer.get());
-
-		std::string priv_raw(private_key);
-		priv_raw[0] = static_cast<char>(
-			static_cast<unsigned char>(priv_raw[0]) & 248);
-		priv_raw[31] = static_cast<char>(
-			(static_cast<unsigned char>(priv_raw[31]) & 127) | 64);
-
-		// wolfssl 默认按大端序导入/导出, 而 X25519 原始密钥是小端序 (RFC 7748).
-		if (wc_curve25519_import_private_ex(
-				reinterpret_cast<const unsigned char*>(priv_raw.data()),
-				static_cast<word32>(priv_raw.size()), priv.get(),
-				EC25519_LITTLE_ENDIAN) != 0)
-			return {};
-		if (wc_curve25519_import_public_ex(
-				reinterpret_cast<const unsigned char*>(peer_public_key.data()),
-				static_cast<word32>(peer_public_key.size()), peer.get(),
-				EC25519_LITTLE_ENDIAN) != 0)
-			return {};
-
-		std::string shared(x25519_key_size, 0);
-		word32 len = static_cast<word32>(shared.size());
-		if (wc_curve25519_shared_secret_ex(priv.get(), peer.get(),
-				reinterpret_cast<unsigned char*>(shared.data()), &len,
-				EC25519_LITTLE_ENDIAN) != 0)
-			return {};
-
-		shared.resize(static_cast<std::size_t>(len));
-		return shared;
-#else
 		detail::pkey_ptr pkey(EVP_PKEY_new_raw_private_key(
 			EVP_PKEY_X25519, nullptr,
 			reinterpret_cast<const unsigned char*>(private_key.data()),
@@ -301,7 +222,6 @@ namespace libavpn::crypto {
 
 		shared.resize(len);
 		return shared;
-#endif
 	}
 
 	std::string hkdf_sha256(std::string_view ikm, std::string_view salt,
@@ -310,23 +230,6 @@ namespace libavpn::crypto {
 		if (ikm.empty() || out_len == 0)
 			return {};
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		std::string out(out_len, 0);
-		if (wc_HKDF(WC_SHA256,
-				reinterpret_cast<const byte*>(ikm.data()),
-				static_cast<word32>(ikm.size()),
-				salt.empty() ? nullptr :
-					reinterpret_cast<const byte*>(salt.data()),
-				static_cast<word32>(salt.size()),
-				info.empty() ? nullptr :
-					reinterpret_cast<const byte*>(info.data()),
-				static_cast<word32>(info.size()),
-				reinterpret_cast<byte*>(out.data()),
-				static_cast<word32>(out.size())) != 0)
-			return {};
-
-		return out;
-#else
 		detail::pkey_ctx_ptr ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
 		if (!ctx)
 			return {};
@@ -366,7 +269,6 @@ namespace libavpn::crypto {
 
 		out.resize(len);
 		return out;
-#endif
 	}
 
 	std::string aead_encrypt(std::string_view key, std::string_view nonce,
@@ -376,23 +278,7 @@ namespace libavpn::crypto {
 			nonce.size() != aead_nonce_size)
 			return {};
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		// wolfssl 的 EVP 兼容层解密时不校验认证标签, 直接使用 wolfCrypt 原生 AEAD.
-		std::string out(plaintext.size() + aead_tag_size, 0);
-		unsigned char tag[aead_tag_size]{};
-		if (wc_ChaCha20Poly1305_Encrypt(
-				reinterpret_cast<const byte*>(key.data()),
-				reinterpret_cast<const byte*>(nonce.data()),
-				aad.empty() ? nullptr : reinterpret_cast<const byte*>(aad.data()),
-				static_cast<word32>(aad.size()),
-				reinterpret_cast<const byte*>(plaintext.data()),
-				static_cast<word32>(plaintext.size()),
-				reinterpret_cast<byte*>(out.data()), tag) != 0)
-			return {};
-
-		std::memcpy(out.data() + plaintext.size(), tag, aead_tag_size);
-		return out;
-#elif defined(OPENSSL_IS_BORINGSSL)
+#if defined(OPENSSL_IS_BORINGSSL)
 		// BoringSSL 不提供 EVP_chacha20_poly1305 (EVP_CIPHER), 使用 EVP_AEAD 接口.
 		detail::aead_ctx_ptr aead(EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
 			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
@@ -485,21 +371,7 @@ namespace libavpn::crypto {
 
 		std::size_t cipher_len = ciphertext.size() - aead_tag_size;
 
-#if defined(BOOST_ASIO_USE_WOLFSSL)
-		std::string out(cipher_len, 0);
-		if (wc_ChaCha20Poly1305_Decrypt(
-				reinterpret_cast<const byte*>(key.data()),
-				reinterpret_cast<const byte*>(nonce.data()),
-				aad.empty() ? nullptr : reinterpret_cast<const byte*>(aad.data()),
-				static_cast<word32>(aad.size()),
-				reinterpret_cast<const byte*>(ciphertext.data()),
-				static_cast<word32>(cipher_len),
-				reinterpret_cast<const byte*>(ciphertext.data() + cipher_len),
-				reinterpret_cast<byte*>(out.data())) != 0)
-			return {};
-
-		return out;
-#elif defined(OPENSSL_IS_BORINGSSL)
+#if defined(OPENSSL_IS_BORINGSSL)
 		detail::aead_ctx_ptr aead(EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
 			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
 			aead_tag_size));

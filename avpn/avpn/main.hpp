@@ -33,10 +33,6 @@
 #  include <sys/utsname.h>
 #endif
 
-#if __has_include("wolfssl/version.h")
-#  include "wolfssl/version.h"
-#endif
-
 #if __has_include("openssl/opensslv.h")
 #  include "openssl/opensslv.h"
 #else

@@ -76,29 +76,6 @@ jobs:
             build/bin/avpn
             build/bin/launcher
 
-  Wolfssl:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Update OS and Compilers
-        run: |
-          sudo apt update
-          sudo apt install -y cmake ninja-build
-
-      - name: Build avpn
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=OFF -DENABLE_USE_BORINGSSL=OFF -DENABLE_USE_WOLFSSL=ON -G Ninja
-          cmake --build build --config Release
-
-      - name: Archive artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: avpn-linux_glibc_x64_wolfssl
-          path: |
-            build/bin/avpn
-            build/bin/launcher
-
   Alpine:
     runs-on: ubuntu-24.04
     container:
