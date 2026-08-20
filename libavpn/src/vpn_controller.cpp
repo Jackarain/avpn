@@ -13,6 +13,7 @@
 //
 
 #include "libavpn/vpn_controller.hpp"
+#include "libavpn/launcher_log.hpp"
 #include "libavpn/logging.hpp"
 #include "libavpn/asio_util.hpp"
 #include "libavpn/avpn_protocol.hpp"
@@ -59,6 +60,9 @@ namespace libavpn {
 		if (m_abort)
 			return;
 
+		// 启用日志采集: logger_tag 钩子收集日志, 由控制通道上报时批量发送.
+		detail::launcher_log_set_enabled(true);
+
 		// 协程闭包持有 shared_from_this: service 的 stop() 会 reset 本对象,
 		// 但 worker/serve 协程运行期间仍由该引用保活, 协程结束后再析构.
 		net::co_spawn(m_main_context.get_executor(),
@@ -73,6 +77,9 @@ namespace libavpn {
 	{
 		if (m_abort)
 			return;
+
+		// 停止日志采集.
+		detail::launcher_log_set_enabled(false);
 
 		m_abort = true;
 
@@ -367,8 +374,21 @@ namespace libavpn {
 	{
 		std::visit([this](auto& sess)
 			{
-				if (sess)
-					sess->notify("status", status_report());
+				if (!sess)
+					return;
+				sess->notify("status", status_report());
+
+				// 批量转发经 logger_tag 钩子采集的日志 (逐条 notify 开销大).
+				auto lines = detail::launcher_log_drain();
+				if (!lines.empty())
+				{
+					json::array arr;
+					for (auto& l : lines)
+						arr.emplace_back(std::move(l));
+					json::object log;
+					log["lines"] = std::move(arr);
+					sess->notify("log", log);
+				}
 			}, m_session);
 	}
 

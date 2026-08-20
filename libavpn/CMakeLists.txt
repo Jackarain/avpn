@@ -20,6 +20,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/xxhash.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/io_context_pool.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/launcher_log.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/vpn_controller.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/jsonrpc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/asio_util.hpp
@@ -36,6 +37,7 @@ target_sources(libavpn
 
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lib_asio_beast.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_log.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ipip.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/io_context_pool.cpp
