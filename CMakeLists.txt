@@ -338,6 +338,8 @@ if (ENABLE_USE_OPENSSL)
 	message(STATUS "Using openssl...")
 elseif (ENABLE_USE_BORINGSSL)
 	set(OPENSSL_FOUND TRUE)
+	# 禁止编译 boringssl 自带的 benchmark 与测试 (BUILD_TESTING 默认开启).
+	set(BUILD_TESTING OFF)
 	add_subdirectory(third_party/boringssl)
 
 	# BORINGSSL_INCLUDE_DIRS 用于 boringssl 的头文件包含.
