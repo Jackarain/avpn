@@ -619,6 +619,8 @@ if (WIN32)
 			Crypt32.lib
 			Winmm.lib
 			Mswsock.lib
+			Ws2_32.lib
+			Iphlpapi.lib
 		)
 	endif()
 
