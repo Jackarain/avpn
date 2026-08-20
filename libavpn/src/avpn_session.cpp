@@ -1216,6 +1216,8 @@ namespace libavpn {
 			while ((next == 0 || next == 43 || next == 44 || next == 51 ||
 					next == 60 || next == 135) && remaining >= 2)
 			{
+				// 扩展头首字节即下一个头的类型.
+				uint8_t next_hdr = p[0];
 				if (next == 51)
 				{
 					// AH.
@@ -1224,6 +1226,14 @@ namespace libavpn {
 						return 0;
 					p += hdr_len;
 					remaining -= hdr_len;
+				}
+				else if (next == 44)
+				{
+					// 分段头, 固定 8 字节.
+					if (remaining < 8)
+						return 0;
+					p += 8;
+					remaining -= 8;
 				}
 				else if (next == 0)
 				{
@@ -1243,7 +1253,7 @@ namespace libavpn {
 					p += hdr_len;
 					remaining -= hdr_len;
 				}
-				next = p[-1];
+				next = next_hdr;
 			}
 			return next;
 		}
