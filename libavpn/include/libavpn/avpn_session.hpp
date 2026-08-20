@@ -227,6 +227,12 @@ namespace libavpn {
 		std::string make_nonce(const std::string& salt,
 			uint32_t counter) const;
 
+		// 加密明文帧为线上格式, 按协商配置附加混淆封装.
+		// 返回 [salt][len_enc][garbage][counter][ciphertext] 或
+		// [counter][ciphertext], 失败返回空.
+		std::vector<uint8_t> encrypt_frame(const std::string& key,
+			uint32_t counter, std::string_view plaintext);
+
 		// 加密并发送明文帧 (按传输类型分发).
 		void send_plaintext(const std::string& key, std::string_view plaintext);
 

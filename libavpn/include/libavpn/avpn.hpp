@@ -116,6 +116,11 @@ namespace libavpn {
 		// 压缩选项, 指定压缩算法, 可以指定的压缩算法: deflate, lz4, zstd, 默认为空不压缩.
 		std::string compress_;
 
+		// 数据特征混淆密钥串, 非空时启用混淆.
+		// 开启后加密数据帧外层填充随机垃圾数据以打乱包长特征.
+		// 注意: 两端必须配置相同密钥, 旧版本对端无法解析混淆数据.
+		std::string obfuscate_key_;
+
 		// hook 命令, 通过 shell 执行, 支持 %i 替换为 tun 接口名.
 		// pre_up_ 在 tun 接口启用前执行; post_up_ 在接口配置完成后执行;
 		// pre_down_ 在接口拆除前执行; post_down_ 在接口拆除后执行.

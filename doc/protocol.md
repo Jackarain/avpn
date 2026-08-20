@@ -181,6 +181,40 @@ TCP 是字节流，帧外加 2 字节**大端**长度前缀：
 - `nexthop=udp://host:port`：UDP 传输，配合 FEC 抗丢包。
 - `nexthop=tcp://host:port`：TCP 传输，穿透对 UDP 封锁的网络。
 
+### 5.4 数据特征混淆（可选）
+
+两端配置相同混淆密钥串（`obfuscate_key`，WebUI/命令行均可设置）后，
+握手时协商 `session_config.obfuscate=1`（见 §6.3），数据通道每个加密帧
+外层追加随机垃圾数据以打乱包长分布，隐藏真实载荷长度特征。
+
+混淆后的数据帧线格式：
+
+```
+[ salt(4) | len_enc(2) | garbage(16~64) | counter(4) | ciphertext ]
+```
+
+| 字段 | 长度 | 说明 |
+|---|---|---|
+| `salt` | 4 | 每包 CSPRNG 随机，用于派生本包掩码 |
+| `len_enc` | 2 | 垃圾长度加密字段，`len_enc = garbage_len XOR mask` |
+| `garbage` | 16~64 | 随机垃圾数据，长度每包随机 |
+| `counter`/`ciphertext` | 4 / 密文 | 原始加密帧（见 §7.1） |
+
+掩码派生：
+
+```
+mask = XXH64(混淆密钥串 + salt) 的低 16 位
+```
+
+- `salt` 每包随机，因此掩码逐包变化；`len_enc` 同时作为 AEAD 的 AAD
+  输入参与认证，篡改长度字段会导致解密失败被丢弃。
+- XXH64 为高速非加密哈希，此处仅用于隐藏垃圾长度（不含机密信息），
+  真实载荷仍由 ChaCha20-Poly1305 加密保护。
+- 混淆开销每包 22~68 字节，开启时建议相应调小 tun MTU（如 1300），
+  避免加密后数据报超过物理链路 MTU。
+- 兼容性：混淆须两端同时配置（握手协商），旧版本对端未协商开启时
+  数据通道维持原有格式。
+
 ---
 
 ## 6. 握手协议（1-RTT）
@@ -350,7 +384,8 @@ tun 读到的 IP 包
   → 压缩（协商为 none 时跳过）
   → FEC 编码（data_shards>1 时拆分为多片）
   → 组装 data 消息：msg_type(0x01) + [fec_header + shard]
-  → AEAD 加密（方向密钥 + 随机 nonce）
+  → AEAD 加密（方向密钥 + 随机 nonce，混淆时以 len_enc 为 AAD）
+  → 混淆封装（协商开启时追加 [salt][len_enc][garbage]，见 §5.4）
   → UDP 数据报 或 TCP 长度前缀帧
 ```
 
@@ -358,7 +393,8 @@ tun 读到的 IP 包
 
 ```
 UDP 数据报 / TCP 帧
-  → AEAD 解密（接收密钥），失败静默丢弃
+  → 剥离混淆封装（协商开启时，先解出垃圾长度并校验，见 §5.4）
+  → AEAD 解密（接收密钥，混淆时以 len_enc 为 AAD），失败静默丢弃
   → 解析 msg_type
   → data：FEC 解码（按 fec_id 分组、凑够分片重建）或直接取整包
   → 解压（协商为 none 时跳过）

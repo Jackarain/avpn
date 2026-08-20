@@ -100,6 +100,8 @@ namespace libavpn {
 			out.push_back(static_cast<char>(r.size()));
 			out.append(r);
 		}
+		// [obfuscate(1)] 可选字段, 老版本对端无此字节.
+		out.push_back(c.obfuscate ? 1 : 0);
 
 		return out;
 	}
@@ -164,6 +166,15 @@ namespace libavpn {
 			pos += len;
 		}
 
+		// 可选字段: obfuscate, 老版本对端握手包无此字节时保持默认关闭.
+		c.obfuscate = false;
+		if (pos < data.size())
+		{
+			if (!get_u8(data, pos, v8))
+				return false;
+			c.obfuscate = v8 != 0;
+		}
+
 		return pos == data.size();
 	}
 
@@ -218,6 +229,7 @@ namespace libavpn {
 		cfg.passbyvpn = config.passbyvpn_;
 		cfg.pushdns = config.pushdns_;
 		cfg.routes = config.pushroutes_;
+		cfg.obfuscate = !config.obfuscate_key_.empty();
 
 		return cfg;
 	}

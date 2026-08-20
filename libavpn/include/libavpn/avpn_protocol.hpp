@@ -116,6 +116,10 @@ namespace libavpn {
 
 		// gateway 推送的路由.
 		std::vector<std::string> routes;
+
+		// 数据特征混淆 (traffic obfuscation), 握手时协商.
+		// 开启后数据帧外层附加随机垃圾数据以打乱包长特征.
+		bool obfuscate{ false };
 	};
 
 	// 握手 Message 2 明文载荷:

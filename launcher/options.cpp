@@ -75,6 +75,8 @@ const option k_options[] = {
 	  "本端静态公钥，base64 编码。", "密钥" },
 	{ "pkl", option_kind::string_list, "对端公钥白名单（base64，可重复添加）。", false, false, 0, "", {}, false, false, false,
 	  "对端静态公钥白名单（可添加多条），base64 编码。", "密钥" },
+	{ "obfuscate_key", option_kind::string, "数据特征混淆密钥串。", false, false, 0, "", {}, false, false, false,
+	  "非空时启用流量混淆：加密帧外层填充随机垃圾数据打乱包长。两端必须配置相同密钥串，留空关闭。", "密钥" },
 	{ "data_shards", option_kind::integer, "FEC 数据分片数。", true, false, 0, "", {}, false, false, false,
 	  "FEC 数据分片数。大于 1 时启用 FEC 恢复；为 1 时按 parity_shards 倍数发包；0 关闭 FEC。", "FEC" },
 	{ "parity_shards", option_kind::integer, "FEC 冗余分片数。", true, false, 0, "", {}, false, false, false,

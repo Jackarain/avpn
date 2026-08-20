@@ -10,6 +10,7 @@
 
 #include "libavpn/avpn_session.hpp"
 #include "libavpn/avpn_crypto.hpp"
+#include "libavpn/avpn_obfuscate.hpp"
 #include "libavpn/asio_util.hpp"
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
@@ -518,19 +519,50 @@ namespace libavpn {
 		return nonce;
 	}
 
+	std::vector<uint8_t> avpn_session::encrypt_frame(const std::string& key,
+		uint32_t counter, std::string_view plaintext)
+	{
+		// 混淆开启时, 长度字段作为 AEAD 的 AAD 参与认证, 防篡改.
+		std::array<uint8_t, obfuscate_len_field_size> len_field{};
+		std::string aad;
+		bool obf = m_session_config.obfuscate;
+
+		obfuscate_head head;
+		if (obf)
+		{
+			if (!make_obfuscate_head(m_config.obfuscate_key_, head))
+				return {};
+			len_field = head.len_field;
+			aad.assign(reinterpret_cast<const char*>(len_field.data()),
+				len_field.size());
+		}
+
+		auto nonce = make_nonce(send_nonce_salt(), counter);
+		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext, aad);
+		if (ciphertext.empty())
+			return {};
+
+		std::vector<uint8_t> wire;
+		wire.reserve((obf ? obfuscate_max_overhead : 0) +
+			crypto::aead_counter_size + ciphertext.size());
+		if (obf)
+		{
+			wire.insert(wire.end(), head.salt.begin(), head.salt.end());
+			wire.insert(wire.end(), head.len_field.begin(), head.len_field.end());
+			wire.insert(wire.end(), head.garbage.begin(), head.garbage.end());
+		}
+		byteorder::put_u32_into(wire, counter);
+		wire.insert(wire.end(), ciphertext.begin(), ciphertext.end());
+		return wire;
+	}
+
 	void avpn_session::encrypt_and_send_udp(const std::string& key,
 		std::string_view plaintext)
 	{
 		uint32_t counter = m_send_counter++;
-		auto nonce = make_nonce(send_nonce_salt(), counter);
-		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext);
-		if (ciphertext.empty())
+		auto wire = encrypt_frame(key, counter, plaintext);
+		if (wire.empty())
 			return;
-
-		std::vector<uint8_t> wire;
-		wire.reserve(crypto::aead_counter_size + ciphertext.size());
-		byteorder::put_u32_into(wire, counter);
-		wire.insert(wire.end(), ciphertext.begin(), ciphertext.end());
 
 		if (m_udp_send_handler)
 			m_udp_send_handler(m_remote_udp, std::move(wire));
@@ -543,19 +575,16 @@ namespace libavpn {
 			return;
 
 		uint32_t counter = m_send_counter++;
-		auto nonce = make_nonce(send_nonce_salt(), counter);
-		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext);
-		if (ciphertext.empty())
+		auto body = encrypt_frame(key, counter, plaintext);
+		if (body.empty())
 			return;
 
 		std::vector<uint8_t> frame;
-		frame.reserve(2 + crypto::aead_counter_size + ciphertext.size());
-		uint16_t len = static_cast<uint16_t>(
-			crypto::aead_counter_size + ciphertext.size());
+		frame.reserve(2 + body.size());
+		uint16_t len = static_cast<uint16_t>(body.size());
 		frame.push_back(static_cast<uint8_t>((len >> 8) & 0xff));
 		frame.push_back(static_cast<uint8_t>(len & 0xff));
-		byteorder::put_u32_into(frame, counter);
-		frame.insert(frame.end(), ciphertext.begin(), ciphertext.end());
+		frame.insert(frame.end(), body.begin(), body.end());
 
 		m_tcp_oqe.push_back(std::move(frame));
 		start_tcp_write();
@@ -591,6 +620,14 @@ namespace libavpn {
 
 	bool avpn_session::process_udp_packet(std::string_view wire)
 	{
+		// 混淆开启时, 先剥离随机垃圾数据, 长度字段作为 AAD 参与认证.
+		std::string_view len_field;
+		if (m_session_config.obfuscate)
+		{
+			if (!deobfuscate_packet(m_config.obfuscate_key_, wire, wire, len_field))
+				return true;
+		}
+
 		if (wire.size() < crypto::aead_counter_size + crypto::aead_tag_size)
 			return true;
 
@@ -601,7 +638,8 @@ namespace libavpn {
 			wire.size() - crypto::aead_counter_size);
 
 		auto nonce = make_nonce(recv_nonce_salt(), counter);
-		auto plaintext = crypto::aead_decrypt(recv_key(), nonce, ciphertext);
+		auto plaintext = crypto::aead_decrypt(recv_key(), nonce, ciphertext,
+			len_field);
 		if (plaintext.empty())
 		{
 			// 解密失败则丢弃.
@@ -1139,6 +1177,13 @@ namespace libavpn {
 			return false;
 		if (m_transport != transport_type::udp)
 			return false;
+
+		std::string_view len_field;
+		if (m_session_config.obfuscate)
+		{
+			if (!deobfuscate_packet(m_config.obfuscate_key_, data, data, len_field))
+				return false;
+		}
 		if (data.size() < crypto::aead_counter_size + crypto::aead_tag_size)
 			return false;
 
@@ -1150,7 +1195,8 @@ namespace libavpn {
 
 		// 用本会话接收密钥尝试解密, 仅判断认证是否成功.
 		auto nonce = make_nonce(recv_nonce_salt(), counter);
-		return !crypto::aead_decrypt(recv_key(), nonce, ciphertext).empty();
+		return !crypto::aead_decrypt(recv_key(), nonce, ciphertext,
+			len_field).empty();
 	}
 
 	void avpn_session::update_remote_udp(const net::ip::udp::endpoint& remote)
