@@ -313,6 +313,9 @@ endif(NOT MSVC)
 set(BUILD_SHARED_LIBS OFF)
 
 ################################################################################
+# TLS/crypto 后端 (互斥): 同时开启多个时按 openssl > wolfssl > boringssl 的
+# 优先级生效, 避免多个后端重复定义 crypto/ssl 目标导致配置失败.
+
 # 使用 system openssl
 
 if (ENABLE_USE_OPENSSL)
@@ -335,12 +338,7 @@ if (ENABLE_USE_OPENSSL)
 	link_libraries(${OPENSSL_LIBRARIES})
 
 	message(STATUS "Using openssl...")
-endif()
-
-################################################################################
-# 使用 wolfssl
-
-if (ENABLE_USE_WOLFSSL)
+elseif (ENABLE_USE_WOLFSSL)
 
 	set(WOLFSSL_EXAMPLES OFF)
 	set(WOLFSSL_CRYPT_TESTS OFF)
@@ -356,6 +354,11 @@ if (ENABLE_USE_WOLFSSL)
 	# 打开 TLSX 以允许 alpn 设置.
 	set(WOLFSSL_TLSX ON)
 
+	# avpn_crypto 的 X25519 依赖 wolfssl 的 Curve25519 支持, 默认关闭需显式开启.
+	set(WOLFSSL_CURVE25519 "yes" CACHE STRING "Enable Curve25519" FORCE)
+	# wolfssl 仅对自身 target 传递该宏, 外部使用其头文件需自行定义.
+	add_definitions(-DHAVE_CURVE25519)
+
 	# gcc 编译时 wolfssl 会有一些 stringop-overflow 警告, 这里忽略掉.
 	if (NOT MSVC AND NOT APPLE)
 		if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
@@ -364,6 +367,12 @@ if (ENABLE_USE_WOLFSSL)
 	endif()
 
 	add_subdirectory(third_party/wolfssl)
+
+	# wolfssl 自身代码在较新 GCC 下触发 -Wstringop-truncation
+	# (第三方代码, 非本项目), 关闭该警告避免 -Werror 构建失败.
+	if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(wolfssl PRIVATE -Wno-stringop-truncation)
+	endif()
 
 	# WOLFSSL_INCLUDE_DIRS 用于 wolfssl 的头文件包含.
 	set(WOLFSSL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wolfssl/wolfssl/)
@@ -379,12 +388,7 @@ if (ENABLE_USE_WOLFSSL)
 	link_libraries(${WOLFSSL_LIBRARIES})
 
 	message(STATUS "Using wolfssl...")
-endif()
-
-
-################################################################################
-
-if (ENABLE_USE_BORINGSSL)
+elseif (ENABLE_USE_BORINGSSL)
 	set(OPENSSL_FOUND TRUE)
 	add_subdirectory(third_party/boringssl)
 

@@ -16,7 +16,8 @@ jobs:
 
       - name: Build avpn
         run: |
-          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw.cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_USE_WINTUN=ON -DENABLE_USE_OPENSSL=ON -G Ninja
+          # MinGW 交叉编译使用 openssl 后端 (boringssl 未验证).
+          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=./cmake/mingw.cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_USE_WINTUN=ON -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF -G Ninja
           cmake --build build --config Release
 
       - name: Archive artifacts
@@ -40,7 +41,7 @@ jobs:
 
       - name: Build avpn
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -G Ninja
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF -G Ninja
           cmake --build build --config Release
 
       - name: Archive artifacts
@@ -75,6 +76,29 @@ jobs:
             build/bin/avpn
             build/bin/launcher
 
+  Wolfssl:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=OFF -DENABLE_USE_BORINGSSL=OFF -DENABLE_USE_WOLFSSL=ON -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-linux_glibc_x64_wolfssl
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
   Alpine:
     runs-on: ubuntu-24.04
     container:
@@ -87,7 +111,7 @@ jobs:
 
       - name: Build avpn
         run: |
-          CC=clang CXX=clang++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja
+          CC=clang CXX=clang++ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF -DCMAKE_EXE_LINKER_FLAGS="-static" -G Ninja
           cmake --build build --config Release
 
       - name: Archive artifacts
@@ -110,7 +134,7 @@ jobs:
 
       - name: Build avpn
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_SNMALLOC_STATIC=ON -G Ninja
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_SNMALLOC_STATIC=ON -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF -G Ninja
           cmake --build build --config Release
 
       - name: Archive artifacts
@@ -135,6 +159,8 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DENABLE_BUILD_WERROR=OFF \
+            -DENABLE_USE_OPENSSL=ON \
+            -DENABLE_USE_BORINGSSL=OFF \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
             -G Ninja
@@ -155,7 +181,7 @@ jobs:
 
       - name: Build avpn
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF
           cmake --build build --config Release
 
       - name: Archive artifacts
