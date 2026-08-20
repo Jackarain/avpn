@@ -491,20 +491,12 @@ if (WIN32 OR NOT ENABLE_SYSTEM_ZLIB)
 	set(ZLIB_BUILD_TESTING OFF)
 	set(ZLIB_BUILD_SHARED OFF)
 	set(ZLIB_INSTALL OFF)
-	set(ZLIB_BUILD_MINIZIP ON)
-
-	set(MINIZIP_BUILD_STATIC ON)
-	set(MINIZIP_BUILD_SHARED OFF)
-	set(MINIZIP_BUILD_TESTING OFF)
-	set(MINIZIP_INSTALL OFF)
-	set(MINIZIP_ENABLE_BZIP2 OFF)
 
 	add_subdirectory(third_party/zlib EXCLUDE_FROM_ALL)
 
 	set(ZLIB_LIBRARIES zlibstatic)
 	set(ZLIB_INCLUDE_DIRS
 		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
-		${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib/contrib/minizip
 	)
 
 	set_property(TARGET zlibstatic PROPERTY FOLDER "third_party")
