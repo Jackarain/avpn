@@ -1565,8 +1565,11 @@ namespace libavpn {
 
 		boost::system::error_code ec;
 
-		// 关闭所有会话.
-		for (auto& [key, session] : m_sessions)
+		// 关闭所有会话. 注意: session->close() 会经 close handler 同步
+		// 调用 on_session_close 从 m_sessions 中移除当前元素, 必须先在
+		// 副本上迭代, 否则迭代器失效导致未定义行为 (可能死循环).
+		auto sessions = m_sessions;
+		for (auto& [key, session] : sessions)
 		{
 			if (session)
 				session->close();
