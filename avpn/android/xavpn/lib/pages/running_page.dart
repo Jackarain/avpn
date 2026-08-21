@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/vpn_config.dart';
 import '../services/app_session.dart';
@@ -412,28 +413,63 @@ class _RunningPageState extends State<RunningPage>
     if (_logs.isEmpty) {
       return const Center(child: Text('暂无日志'));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _logs.length,
-      itemBuilder: (context, i) {
-        final log = _logs[i];
-        final level = log['level'] as int? ?? 1;
-        final message = log['message'] as String? ?? '';
-        final time = log['time'] as int? ?? 0;
-        final color = switch (level) {
-          0 => Colors.grey,
-          2 => Colors.orange,
-          3 => Colors.red,
-          _ => Theme.of(context).colorScheme.onSurface,
-        };
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Text(
-            '[${_fmtTimeMs(time)}] $message',
-            style: TextStyle(fontSize: 12, color: color),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Row(
+            children: [
+              Text(
+                '${_logs.length} 条',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _copyAllLogs,
+                icon: const Icon(Icons.copy_all, size: 18),
+                label: const Text('复制全部'),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            itemCount: _logs.length,
+            itemBuilder: (context, i) {
+              final log = _logs[i];
+              final level = log['level'] as int? ?? 1;
+              final message = log['message'] as String? ?? '';
+              final time = log['time'] as int? ?? 0;
+              final color = switch (level) {
+                0 => Colors.grey,
+                2 => Colors.orange,
+                3 => Colors.red,
+                _ => Theme.of(context).colorScheme.onSurface,
+              };
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: SelectableText(
+                  '[${_fmtTimeMs(time)}] $message',
+                  style: TextStyle(fontSize: 12, color: color),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _copyAllLogs() async {
+    final text = _logs
+        .map((log) => '[${_fmtTimeMs(log['time'] as int? ?? 0)}] '
+            '${log['message'] as String? ?? ''}')
+        .join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已复制全部日志到剪贴板')),
     );
   }
 
