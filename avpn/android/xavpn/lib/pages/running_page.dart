@@ -280,7 +280,8 @@ class _RunningPageState extends State<RunningPage>
     );
   }
 
-  /// 通过配置的测试 URL 发起连接 (流量走 VPN 隧道), 测量网络延迟.
+  /// 通过配置的测试 URL 发起下载 (流量走 VPN 隧道),
+  /// 测量网络延迟 (首字节) 与下载速率.
   Future<void> _testVpn() async {
     final config = _runningConfig();
     if (config == null) {
@@ -304,13 +305,26 @@ class _RunningPageState extends State<RunningPage>
     try {
       client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
       final req = await client
-          .openUrl('HEAD', Uri.parse(url))
+          .openUrl('GET', Uri.parse(url))
           .timeout(const Duration(seconds: 10));
       final res = await req.close().timeout(const Duration(seconds: 10));
-      await res.drain<void>().timeout(const Duration(seconds: 10));
-      final ms = stopwatch.elapsedMilliseconds;
+      // 首字节到达时间即延迟.
+      final latencyMs = stopwatch.elapsedMilliseconds;
+      // 继续读取响应体, 按字节数/耗时计算下载速率.
+      var received = 0;
+      await for (final chunk in res) {
+        received += chunk.length;
+      }
+      final totalMs = stopwatch.elapsedMilliseconds;
+      final kbPerSec = totalMs > 0 ? received * 1000.0 / totalMs / 1024.0 : 0.0;
+      final speedText = kbPerSec >= 1024
+          ? '${(kbPerSec / 1024).toStringAsFixed(2)} MB/s'
+          : '${kbPerSec.toStringAsFixed(1)} KB/s';
       if (mounted) {
-        setState(() => _testResult = '延迟: $ms ms (HTTP ${res.statusCode})');
+        setState(
+          () => _testResult =
+              '延迟: $latencyMs ms\n速率: $speedText (HTTP ${res.statusCode})',
+        );
       }
     } catch (e) {
       if (mounted) {
