@@ -365,6 +365,8 @@ namespace libavpn {
 		std::chrono::steady_clock::time_point m_last_keepalive{
 			std::chrono::steady_clock::now() };
 		net::steady_timer m_tick_timer;
+		// tick 协程启动标记 (避免同一会话重复启动, 共享定时器导致互相取消).
+		bool m_tick_started{ false };
 
 		// 带宽统计.
 		struct speed_stat
