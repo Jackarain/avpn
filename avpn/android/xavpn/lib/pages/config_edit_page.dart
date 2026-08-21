@@ -177,7 +177,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             controller: _name,
             decoration: const InputDecoration(
               labelText: '名称',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -185,7 +185,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             value: _mode,
             decoration: const InputDecoration(
               labelText: '模式',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
             items: const [
               DropdownMenuItem(value: 'client', child: Text('客户端 (Client)')),
@@ -200,7 +200,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               decoration: const InputDecoration(
                 labelText: 'Nexthop 服务器',
                 hintText: '例如 1.2.3.4:19090 或 tcp://1.2.3.4:19090',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -211,7 +211,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             controller: _privateKey,
             decoration: const InputDecoration(
               labelText: '本端私钥 private_key',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -220,7 +220,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             decoration: const InputDecoration(
               labelText: '对端公钥 public_key',
               hintText: '服务器/网关的公钥 (base64), 客户端必填',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -229,7 +229,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: '对端公钥列表 pkl (每行一个)',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -244,7 +244,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'MTU',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -256,7 +256,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'Keepalive (s)',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -272,7 +272,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'FEC 数据份数',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -284,7 +284,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'FEC 冗余份数',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -295,7 +295,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             value: _compress,
             decoration: const InputDecoration(
               labelText: '压缩',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
             items: const [
               DropdownMenuItem(value: '', child: Text('不压缩')),
@@ -311,7 +311,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             decoration: const InputDecoration(
               labelText: '混淆密钥 obfuscate_key',
               hintText: '两端一致时启用数据特征混淆',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -323,7 +323,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'UDP 监听 (每行一个, 如 0.0.0.0:19090)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -332,7 +332,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'TCP 监听 (每行一个)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -341,7 +341,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               decoration: const InputDecoration(
                 labelText: '虚拟子网 subnet',
                 hintText: '如 10.9.0.0/16',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -369,7 +369,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               maxLines: 2,
               decoration: const InputDecoration(
                 labelText: '推送路由 pushroutes (每行一个)',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -379,7 +379,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
                 labelText: '推送 DNS pushdns',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
             const SizedBox(height: 12),
@@ -395,7 +395,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   decoration: const InputDecoration(
                     labelText: 'TUN 地址',
                     hintText: '如 10.8.0.2',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -407,7 +407,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: '前缀',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                   ),
                 ),
               ),
@@ -420,7 +420,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             decoration: const InputDecoration(
               labelText: 'VPN 路由 routes (每行一个 CIDR)',
               hintText: '默认 0.0.0.0/0 全隧道; 也可只加 10.9.0.0/16 等',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -429,7 +429,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             maxLines: 2,
             decoration: const InputDecoration(
               labelText: 'DNS 服务器 (每行一个)',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 12),
@@ -438,7 +438,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             maxLines: 2,
             decoration: const InputDecoration(
               labelText: '绕过 VPN 路由 bypassroutes (每行一个)',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           _section('测试连接'),
@@ -448,7 +448,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             decoration: const InputDecoration(
               labelText: '测试 URL',
               hintText: '如 https://google.com, 用于运行页测量 VPN 延迟',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
             ),
           ),
           const SizedBox(height: 24),
