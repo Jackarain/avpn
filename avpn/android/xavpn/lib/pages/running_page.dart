@@ -130,35 +130,6 @@ class _RunningPageState extends State<RunningPage>
     return result;
   }
 
-  Future<void> _applyKeepalive(int seconds) async {
-    setState(() => _busy = true);
-    try {
-      await _applyUpdate({'keepalive': seconds});
-      // 同步持久化, 下次启动沿用新值.
-      final config = await _currentConfig();
-      if (config != null && config.keepalive != seconds) {
-        config.keepalive = seconds;
-        final list = await _storage.loadConfigs();
-        final i = list.indexWhere((c) => c.id == config.id);
-        if (i >= 0) list[i] = config;
-        await _storage.saveConfigs(list);
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('keepalive 已热更新为 $seconds s')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
   Future<void> _applyFullConfig() async {
     final config = await _currentConfig();
     if (config == null) return;
@@ -236,43 +207,6 @@ class _RunningPageState extends State<RunningPage>
       }
     } finally {
       if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _editKeepalive() async {
-    final config = await _currentConfig();
-    final controller = TextEditingController(
-      text: (config?.keepalive ?? 60).toString(),
-    );
-    if (!mounted) return;
-    final seconds = await showDialog<int>(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('热更新 keepalive'),
-            content: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '秒',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('取消'),
-              ),
-              FilledButton(
-                onPressed:
-                    () => Navigator.of(ctx).pop(int.tryParse(controller.text)),
-                child: const Text('应用'),
-              ),
-            ],
-          ),
-    );
-    if (seconds != null && seconds > 0) {
-      await _applyKeepalive(seconds);
     }
   }
 
@@ -408,12 +342,6 @@ class _RunningPageState extends State<RunningPage>
           onPressed: _busy ? null : _applyFullConfig,
           icon: const Icon(Icons.sync),
           label: const Text('应用当前配置 (update_config)'),
-        ),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: _busy ? null : _editKeepalive,
-          icon: const Icon(Icons.timer),
-          label: const Text('热更新 keepalive'),
         ),
       ],
     );
