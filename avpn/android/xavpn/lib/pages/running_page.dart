@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/vpn_config.dart';
 import '../services/app_session.dart';
 import '../services/controller_server.dart';
 import '../services/storage_service.dart';
@@ -24,6 +28,8 @@ class _RunningPageState extends State<RunningPage>
   String _stateMessage = '';
   Map<String, dynamic>? _status;
   bool _busy = false;
+  bool _testing = false;
+  String _testResult = '';
   bool _connected = false;
   StreamSubscription<Map<String, dynamic>>? _statusSub;
   StreamSubscription<Map<String, dynamic>>? _logSub;
@@ -252,8 +258,79 @@ class _RunningPageState extends State<RunningPage>
                 ),
               ),
         ],
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: _testing ? null : _testVpn,
+          icon: Icon(_testing ? Icons.hourglass_top : Icons.speed),
+          label: Text(_testing ? '测试中...' : '测试连接'),
+        ),
+        if (_testResult.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            _testResult,
+            style: TextStyle(
+              fontSize: 13,
+              color: _testResult.startsWith('延迟')
+                  ? Colors.green
+                  : Theme.of(context).colorScheme.error,
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  /// 通过配置的测试 URL 发起连接 (流量走 VPN 隧道), 测量网络延迟.
+  Future<void> _testVpn() async {
+    final config = _runningConfig();
+    if (config == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('无法获取当前配置')));
+      }
+      return;
+    }
+    final url = config.testUrl.trim().isEmpty
+        ? 'https://google.com'
+        : config.testUrl.trim();
+
+    setState(() {
+      _testing = true;
+      _testResult = '';
+    });
+    final stopwatch = Stopwatch()..start();
+    HttpClient? client;
+    try {
+      client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+      final req = await client
+          .openUrl('HEAD', Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
+      final res = await req.close().timeout(const Duration(seconds: 10));
+      await res.drain<void>().timeout(const Duration(seconds: 10));
+      final ms = stopwatch.elapsedMilliseconds;
+      if (mounted) {
+        setState(() => _testResult = '延迟: $ms ms (HTTP ${res.statusCode})');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _testResult = '测试失败: $e');
+      }
+    } finally {
+      client?.close(force: true);
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  /// 当前运行的完整配置 (含 testUrl 等 UI 字段).
+  VpnConfig? _runningConfig() {
+    final json = AppSession.instance.startedConfigJson;
+    if (json == null || json.isEmpty) return null;
+    try {
+      return VpnConfig.fromJson(jsonDecode(json) as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _buildLogTab() {

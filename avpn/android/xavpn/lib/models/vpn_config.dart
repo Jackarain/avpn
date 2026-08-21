@@ -33,6 +33,7 @@ class VpnConfig {
     this.tunPrefix = 24,
     List<String>? routes,
     List<String>? dns,
+    this.testUrl = 'https://google.com',
   }) : pkl = pkl ?? [],
        udpListen = udpListen ?? [],
        tcpListen = tcpListen ?? [],
@@ -78,6 +79,9 @@ class VpnConfig {
   List<String> routes;
   List<String> dns;
 
+  // ---- UI 工具 ----
+  String testUrl; // 测试连接的 URL, 用于运行页测量 VPN 延迟.
+
   /// 生成新的配置 id (时间戳 + 随机后缀).
   static String newId() {
     final rand = Random.secure();
@@ -115,6 +119,10 @@ class VpnConfig {
     }
     if (tunAddress.trim().isEmpty) {
       errors.add('TUN 地址不能为空');
+    }
+    final url = testUrl.trim();
+    if (url.isNotEmpty && !url.startsWith('http://') && !url.startsWith('https://')) {
+      errors.add('测试连接需以 http:// 或 https:// 开头');
     }
     return errors;
   }
@@ -181,6 +189,7 @@ class VpnConfig {
     'tunPrefix': tunPrefix,
     'routes': routes,
     'dns': dns,
+    'testUrl': testUrl,
   };
 
   factory VpnConfig.fromJson(Map<String, dynamic> json) => VpnConfig(
@@ -210,6 +219,7 @@ class VpnConfig {
     tunPrefix: json['tunPrefix'] as int? ?? 24,
     routes: _strList(json['routes']),
     dns: _strList(json['dns']),
+    testUrl: json['testUrl'] as String? ?? 'https://google.com',
   );
 
   static List<String> _strList(dynamic v) {

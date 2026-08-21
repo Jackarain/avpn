@@ -73,6 +73,9 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late final TextEditingController _dns = TextEditingController(
     text: c.dns.join('\n'),
   );
+  late final TextEditingController _testUrl = TextEditingController(
+    text: c.testUrl,
+  );
 
   @override
   void dispose() {
@@ -97,6 +100,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
       _tunPrefix,
       _routes,
       _dns,
+      _testUrl,
     ]) {
       t.dispose();
     }
@@ -139,7 +143,8 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..tunAddress = _tunAddress.text.trim()
           ..tunPrefix = _toInt(_tunPrefix.text, 24)
           ..routes = _lines(_routes.text)
-          ..dns = _lines(_dns.text);
+          ..dns = _lines(_dns.text)
+          ..testUrl = _testUrl.text.trim();
     final errors = vpn.validate();
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
@@ -433,6 +438,16 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             maxLines: 2,
             decoration: const InputDecoration(
               labelText: '绕过 VPN 路由 bypassroutes (每行一个)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          _section('测试连接'),
+          TextField(
+            controller: _testUrl,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(
+              labelText: '测试 URL',
+              hintText: '如 https://google.com, 用于运行页测量 VPN 延迟',
               border: OutlineInputBorder(),
             ),
           ),
