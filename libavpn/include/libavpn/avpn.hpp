@@ -98,6 +98,10 @@ namespace libavpn {
 		// 格式如: "10.0.0.0/16".
 		std::string subnet_;
 
+		// 客户端请求的虚拟地址 (initiator 使用, 0 表示由网关分配).
+		// Android 等场景下应与本端 tun 地址一致, 网关优先分配该地址.
+		uint32_t vaddr_{ 0 };
+
 		// IPv6 内网子网配置, 格式如 "fd00:8888::/64", 默认为 fd00:8888::/64.
 		std::string v6_subnet_;
 
@@ -263,7 +267,9 @@ namespace libavpn {
 		void on_session_close(const std::shared_ptr<avpn_session>& session);
 
 		// 分配虚拟地址 (gateway).
-		uint32_t alloc_vaddr();
+		// 分配虚拟地址. requested 为客户端请求的地址 (0 表示不请求),
+		// 未被占用时优先分配请求地址, 否则分配下一个可用地址.
+		uint32_t alloc_vaddr(uint32_t requested);
 
 		// 释放虚拟地址.
 		void free_vaddr(uint32_t vaddr);

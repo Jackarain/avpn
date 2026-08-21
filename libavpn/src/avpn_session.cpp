@@ -153,6 +153,11 @@ namespace libavpn {
 		m_close_handler = std::move(h);
 	}
 
+	void avpn_session::set_established_handler(established_handler h)
+	{
+		m_established_handler = std::move(h);
+	}
+
 	void avpn_session::set_udp_send_handler(udp_send_handler h)
 	{
 		m_udp_send_handler = std::move(h);
@@ -266,6 +271,7 @@ namespace libavpn {
 		msg1.timestamp = now_ms();
 		std::memcpy(msg1.client_id.data(), m_client_id.data(),
 			std::min<std::size_t>(m_client_id.size(), msg1.client_id.size()));
+		msg1.requested_vaddr = m_config.vaddr_;
 
 		auto plaintext = serialize_handshake_msg1(msg1);
 		auto k_temp = derive_temp_key(m_peer_static_pub);
@@ -371,6 +377,7 @@ namespace libavpn {
 		m_peer_eph_pub.assign(msg1.ephemeral_pub.begin(),
 			msg1.ephemeral_pub.end());
 		m_client_id.assign(msg1.client_id.begin(), msg1.client_id.end());
+		m_requested_vaddr = msg1.requested_vaddr;
 		m_remote_udp = remote;
 
 		// 回复 Message 2 并建立会话.
@@ -399,7 +406,7 @@ namespace libavpn {
 		uint32_t vaddr = 0;
 		uint8_t prefix = 0;
 		if (m_vaddr_allocator)
-			std::tie(vaddr, prefix) = m_vaddr_allocator();
+			std::tie(vaddr, prefix) = m_vaddr_allocator(m_requested_vaddr);
 		m_vaddr = vaddr;
 		m_session_config = make_session_config(m_config, vaddr, prefix);
 		// TCP 传输本身可靠, 无需 FEC.
@@ -459,6 +466,10 @@ namespace libavpn {
 
 		m_established = true;
 		m_last_seen = std::chrono::steady_clock::now();
+
+		// 通知网关登记会话 (替换同公钥旧会话等).
+		if (m_established_handler)
+			m_established_handler();
 	}
 
 	bool avpn_session::handle_handshake_msg2(std::string_view plaintext)

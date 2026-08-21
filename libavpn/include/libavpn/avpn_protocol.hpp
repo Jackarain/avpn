@@ -71,11 +71,13 @@ namespace libavpn {
 	//   [TPubC(32)]
 	//   [timestamp(8, 小端, 单位毫秒, 防重放)]
 	//   [client_id(32)]
+	//   [requested_vaddr(4, 小端, 0 表示不请求, 可选: 老版本无此字段)]
 	struct handshake_msg1
 	{
 		std::array<uint8_t, avpn_ephemeral_key_size> ephemeral_pub{};
 		uint64_t timestamp{ 0 };
 		std::array<uint8_t, avpn_client_id_size> client_id{};
+		uint32_t requested_vaddr{ 0 };
 	};
 
 	// 握手 Message 2 中协商的会话配置.
