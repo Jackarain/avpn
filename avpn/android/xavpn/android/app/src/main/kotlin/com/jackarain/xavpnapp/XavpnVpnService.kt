@@ -23,6 +23,10 @@ import androidx.core.content.ContextCompat
  * protect 同样经控制通道请求到达 (onProtectSocket), 由本服务放行,
  * 避免对外 socket 流量回环进 tun.
  *
+ * 需要直通物理网络的 socket 一律经控制通道 protect: 隧道 nexthop 连接
+ * 与 DNS 拦截的直连 DNS socket. 其余流量 (DoH/gfwlist 下载等) 不 protect,
+ * 按路由进入 tun 走 VPN 隧道.
+ *
  * 启停均在专用工作线程执行: 避免阻塞主线程 (avpn 启动/停止涉及线程池
  * 创建与回收), 同时保证 START/STOP 串行处理, 不会并发操作同一实例.
  */
@@ -158,14 +162,6 @@ class XavpnVpnService : VpnService() {
         val builder = Builder()
         builder.setSession(session.ifEmpty { "aVPN" })
         builder.addAddress(address, prefix)
-        // 排除本 app 自身: 隧道 socket 流量不进入 VPN, 避免回环.
-        // 不依赖 protect() 的 fwmark (部分 ROM 上对已建立 socket 无效),
-        // 改为按 uid 排除, 保证 libavpn 的对外连接始终走物理网络.
-        try {
-            builder.addDisallowedApplication(packageName)
-        } catch (_: Throwable) {
-            // 缺少 QUERY_ALL_PACKAGES 权限时忽略, 仍可依赖 protect() 兜底.
-        }
         if (routes.isNotEmpty()) {
             for (route in routes) {
                 addRoute(builder, route)
