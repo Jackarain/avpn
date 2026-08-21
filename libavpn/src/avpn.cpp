@@ -438,6 +438,41 @@ namespace libavpn {
 		co_return co_await controller->call_protect(fd);
 	}
 
+	void avpn_service::reprotect_nexthop_sockets()
+	{
+		auto self = shared_from_this();
+
+		// TCP 隧道: 放行会话持有的控制连接.
+		if (m_tunnel)
+		{
+			if (auto sock = m_tunnel->tcp_stream();
+				sock && sock->is_open())
+			{
+				int fd = sock->native_handle();
+				net::co_spawn(m_main_context,
+					[self, fd]() -> net::awaitable<void>
+					{
+						if (!(co_await self->protect_socket_async(fd)))
+							XLOG_WARN << "reprotect tcp socket failed: " << fd;
+						co_return;
+					}, net::detached);
+			}
+		}
+
+		// UDP 隧道: 放行客户端 UDP socket.
+		if (m_client_udp && m_client_udp->is_open())
+		{
+			int fd = m_client_udp->native_handle();
+			net::co_spawn(m_main_context,
+				[self, fd]() -> net::awaitable<void>
+				{
+					if (!(co_await self->protect_socket_async(fd)))
+						XLOG_WARN << "reprotect udp socket failed: " << fd;
+					co_return;
+				}, net::detached);
+		}
+	}
+
 	bool avpn_service::set_tun_fd(int fd)
 	{
 		if (fd < 0)
@@ -470,6 +505,10 @@ namespace libavpn {
 		}
 
 		start_tun_io_task();
+
+		// Android VPN 网络此时才注册完成, 之前 (握手阶段) 对隧道 socket
+		// 的 protect 可能无效; 重新放行隧道连接, 避免其流量回环进 tun.
+		reprotect_nexthop_sockets();
 		return true;
 	}
 

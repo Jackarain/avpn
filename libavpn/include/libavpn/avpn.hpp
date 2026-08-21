@@ -156,6 +156,10 @@ namespace libavpn {
 		// 无控制通道时视为放行. 须在 io_context 协程中调用.
 		net::awaitable<bool> protect_socket_async(int fd);
 
+		// Android VPN 网络注册完成后, 重新放行隧道 socket (TCP/UDP),
+		// 避免其流量回环进 tun. 须在 io_context 线程中调用.
+		void reprotect_nexthop_sockets();
+
 		// 注入外部 tun fd (Android VpnService 建立后), 替换旧 fd 并启动读写.
 		// 须在 io_context 线程中调用.
 		bool set_tun_fd(int fd);
