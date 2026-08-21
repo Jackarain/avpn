@@ -217,6 +217,12 @@ and/or open issues at https://github.com/Jackarain/proxy)"
 			xlogger::toggle_console_logging(false);
 	}
 
+	// launcher 管理下日志经控制通道上报采集（logger_tag 钩子），
+	// 关闭控制台输出，避免调试构建下 stdout 与控制通道双路写入
+	// 导致日志重复。
+	if (!cfg.controller_.empty())
+		xlogger::toggle_console_logging(false);
+
 	// 创建 io_context 池.
 	io_context_pool io_pool(std::max<std::size_t>(4, std::thread::hardware_concurrency()));
 	net::io_context& ioc = io_pool.main_io_context();

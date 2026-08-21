@@ -835,12 +835,13 @@ bool manager::logs(const std::string& id, std::int64_t since, json::value& out) 
 
 	std::vector<std::string> l;
 	std::vector<std::int64_t> s;
+	std::int64_t next = 0;
 	json::array lines;
 	json::array seqs;
 	if (since < 0)
-		in->logs_->tail_seq(2000, l, s);
+		in->logs_->tail_next(2000, l, s, next);
 	else
-		in->logs_->since(since, l, s);
+		in->logs_->since_next(since, l, s, next);
 	for (std::size_t i = 0; i < l.size(); i++) {
 		lines.emplace_back(l[i]);
 		seqs.emplace_back(s[i]);
@@ -848,7 +849,7 @@ bool manager::logs(const std::string& id, std::int64_t since, json::value& out) 
 	json::object o;
 	o["lines"] = std::move(lines);
 	o["seqs"] = std::move(seqs);
-	o["next"] = in->logs_->next_seq();
+	o["next"] = next;
 	o["gen"] = in->logs_->generation();
 	out = std::move(o);
 	return true;

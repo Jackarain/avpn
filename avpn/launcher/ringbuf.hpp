@@ -51,34 +51,36 @@ public:
 		return out;
 	}
 
-	// 返回最近 n 行及其序号。
-	void tail_seq(int n, std::vector<std::string>& lines, std::vector<std::int64_t>& seqs)
+	// 返回最近 n 行及其序号，并返回读取时的 next（同一临界区）。
+	// next 与行内容必须来自同一次加锁快照，否则增量拉取时两者之间
+	// 新到达的行会被计入 next 却未返回，客户端据此跳过这些行。
+	void tail_next(int n, std::vector<std::string>& lines,
+		std::vector<std::int64_t>& seqs, std::int64_t& next)
 	{
 		std::lock_guard<std::mutex> lock(mu_);
 		if (n <= 0 || n > static_cast<int>(lines_.size()))
 			n = static_cast<int>(lines_.size());
 		lines.assign(lines_.end() - n, lines_.end());
 		seqs.assign(seq_.end() - n, seq_.end());
+		next = next_;
 	}
 
-	// 返回序号大于 pos 的行及其序号。
-	void since(std::int64_t pos, std::vector<std::string>& lines, std::vector<std::int64_t>& seqs)
+	// 返回序号不小于 pos 的行及其序号，并返回读取时的 next（同一临界区）。
+	// since 为含端点语义（seq >= pos）：客户端以 next 为增量拉取游标，
+	// 新到达的行序号恰好等于游标值，必须包含在内，否则会被永久跳过。
+	void since_next(std::int64_t pos, std::vector<std::string>& lines,
+		std::vector<std::int64_t>& seqs, std::int64_t& next)
 	{
 		std::lock_guard<std::mutex> lock(mu_);
 		lines.clear();
 		seqs.clear();
 		for (std::size_t i = 0; i < seq_.size(); i++) {
-			if (seq_[i] > pos) {
+			if (seq_[i] >= pos) {
 				lines.push_back(lines_[i]);
 				seqs.push_back(seq_[i]);
 			}
 		}
-	}
-
-	std::int64_t next_seq()
-	{
-		std::lock_guard<std::mutex> lock(mu_);
-		return next_;
+		next = next_;
 	}
 
 	std::int64_t generation()
