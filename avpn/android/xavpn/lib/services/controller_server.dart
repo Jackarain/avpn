@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'vpn_channel.dart';
+
 /// 本地 JSON-RPC over WebSocket 控制服务端.
 ///
 /// 作为 libavpn controller 的控制端: avpn 启动后会主动连接
-/// ws://127.0.0.1:port, 注册实例并持续上报 status/log;
-/// 本端可向其发起 get_status / update_config / shutdown 等 RPC 请求.
+/// ws://127.0.0.1:port, 注册实例并持续上报 status/log/vaddr;
+/// 本端可向其发起 get_status / update_config / set_tun_fd / shutdown 等
+/// RPC 请求, 并响应 avpn 的 protect 请求 (放行对外 socket).
 class ControllerServer {
   HttpServer? _server;
   WebSocket? _socket;
@@ -22,6 +25,12 @@ class ControllerServer {
 
   /// 监听端口 (start 后有效).
   int get port => _server?.port ?? 0;
+
+  /// 启动时的 VpnConfig.toJson 快照 (vaddr 下发后建立 tun 用).
+  Map<String, dynamic>? _vpnConfig;
+
+  /// 设置 VPN 配置快照, vaddr 通知时据此建立 tun (路由/DNS/会话名).
+  void setVpnConfig(Map<String, dynamic> config) => _vpnConfig = config;
 
   /// 是否已连接 (avpn 控制通道在线).
   bool get connected => _socket != null;
@@ -100,6 +109,87 @@ class ControllerServer {
     } catch (_) {}
   }
 
+  /// 回复 avpn 的请求.
+  void _reply(Object? id, Map<String, dynamic> result) {
+    final ws = _socket;
+    if (ws == null) return;
+    try {
+      ws.add(
+        utf8.encode(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'id': id,
+            'result': result,
+          }),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  /// 处理 avpn -> app 请求.
+  Future<void> _handleWsRequest(
+    String method,
+    Map<String, dynamic> params,
+    Object? id,
+  ) async {
+    try {
+      switch (method) {
+        case 'protect':
+          // 放行 libavpn 对外 socket, 避免流量回环进 tun.
+          final fd = (params['fd'] as num?)?.toInt() ?? -1;
+          _reply(id, {'ok': await VpnChannel.protect(fd)});
+        default:
+          _replyError(id, -32601, 'method not found');
+      }
+    } catch (e) {
+      _replyError(id, -32602, e.toString());
+    }
+  }
+
+  /// 处理 vaddr 通知: 用服务端下发的地址建立 tun, 再注入 libavpn.
+  Future<void> _handleVaddr(Map<String, dynamic> params) async {
+    final address = params['ip'] as String? ?? '';
+    final prefix = (params['prefix'] as num?)?.toInt() ?? 24;
+    final mtu = (params['mtu'] as num?)?.toInt() ?? 1450;
+    if (address.isEmpty) return;
+    final cfg = _vpnConfig ?? const <String, dynamic>{};
+    try {
+      final fd = await VpnChannel.establishTun(
+        address: address,
+        prefix: prefix,
+        mtu: mtu,
+        routes: _strList(cfg['routes']),
+        dns: _strList(cfg['dns']),
+        session: cfg['name'] as String? ?? 'aVPN',
+      );
+      final result = await call('set_tun_fd', {'ptun_fd': fd});
+      if (result['ok'] != true) {
+        _logLocal('set_tun_fd 失败: ${result['error']}');
+      }
+    } catch (e) {
+      _logLocal('建立 TUN 失败: $e');
+    }
+  }
+
+  void _logLocal(String message) {
+    try {
+      _logCtrl.add({
+        'lines': [
+          {
+            'time': DateTime.now().millisecondsSinceEpoch,
+            'level': 3,
+            'message': message,
+          },
+        ],
+      });
+    } catch (_) {}
+  }
+
+  static List<String> _strList(dynamic v) {
+    if (v is List) return v.whereType<String>().toList();
+    return const [];
+  }
+
   void _onMessage(dynamic data) {
     String text;
     if (data is List<int>) {
@@ -121,8 +211,8 @@ class ControllerServer {
       final method = msg['method'] as String? ?? '';
       final params = msg['params'] as Map<String, dynamic>? ?? const {};
       if (msg.containsKey('id')) {
-        // avpn -> app 请求: 当前不支持, 回 JSON-RPC 错误避免请求悬挂.
-        _replyError(msg['id'], -32601, 'method not found');
+        // avpn -> app 请求 (如 protect), 异步处理并回复.
+        unawaited(_handleWsRequest(method, params, msg['id']));
         return;
       }
       // avpn -> app 通知.
@@ -133,6 +223,9 @@ class ControllerServer {
           _logCtrl.add(params);
         case 'register':
           _registerCtrl.add(params);
+        case 'vaddr':
+          // 服务端下发的 tun 地址: 建立 VpnService tun 并注入 libavpn.
+          unawaited(_handleVaddr(params));
       }
     } else if (msg.containsKey('id')) {
       // 本端 RPC 请求的响应.

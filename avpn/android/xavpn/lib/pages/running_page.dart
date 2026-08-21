@@ -51,19 +51,9 @@ class _RunningPageState extends State<RunningPage>
       });
       _logSub = server.logStream.listen(_onLog);
     }
-    // 事件通道 (native vpn_state / JNI 日志兜底).
+    // 事件通道 (native vpn_state; 日志已全部经 WS 控制通道上报).
     _nativeEventsSub = VpnChannel.events().listen((e) {
-      if (e['type'] == 'log') {
-        if (mounted) {
-          setState(() {
-            _addLog({
-              'time': e['time'] ?? 0,
-              'level': e['level'] ?? 1,
-              'message': e['message'] ?? '',
-            });
-          });
-        }
-      } else if (e['type'] == 'vpn_state') {
+      if (e['type'] == 'vpn_state') {
         final state = e['state'] as String? ?? '';
         if (state == 'error') {
           // native 启动失败/异常退出: 清理运行状态, 界面提示.

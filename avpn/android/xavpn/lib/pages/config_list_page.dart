@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -32,17 +33,12 @@ class _ConfigListPageState extends State<ConfigListPage> {
   }
 
   /// 界面重建 (Activity 重新打开) 时, 若 VPN 仍在同一进程运行,
-  /// 恢复控制通道并标记运行状态.
+  /// 恢复控制通道并标记运行状态. 存活判定基于控制通道 WebSocket 连接
+  /// (avpn 重连机制会在数秒内重新连上), 不再使用 JNI status 接口.
   Future<void> _tryResumeSession() async {
     final state = await _storage.loadRunState();
     if (state == null) return;
     final (configId, port) = state;
-
-    final alive = await _nativeAlive();
-    if (!alive) {
-      await _storage.clearRunState();
-      return;
-    }
 
     final session = AppSession.instance;
     session.beginRun(configId);
@@ -59,18 +55,40 @@ class _ConfigListPageState extends State<ConfigListPage> {
         return;
       }
     }
+
+    // 等待 avpn 经控制通道连上; 未连上说明服务已不在运行, 清理状态.
+    if (!await _waitControllerConnected(server)) {
+      await _storage.clearRunState();
+      session.endRun();
+      return;
+    }
+
+    // 恢复 vpnConfig 快照, vaddr 下发时据此建立 tun.
+    final configs = await _storage.loadConfigs();
+    for (final c in configs) {
+      if (c.id == configId) {
+        server.setVpnConfig(jsonDecode(jsonEncode(c.toJson())));
+        break;
+      }
+    }
     server.connectionStream.listen((c) => session.setConnected(c));
     if (mounted) setState(() {});
   }
 
-  /// native 服务是否仍在运行 (status json 含 mode 字段).
-  Future<bool> _nativeAlive() async {
+  /// 等待 avpn 控制通道连接 (最长 [timeout]), 判定服务是否存活.
+  Future<bool> _waitControllerConnected(
+    ControllerServer server, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    if (server.connected) return true;
+    final completer = Completer<bool>();
+    final sub = server.connectionStream.listen((c) {
+      if (c && !completer.isCompleted) completer.complete(true);
+    });
     try {
-      final json = await VpnChannel.status();
-      final map = jsonDecode(json) as Map<String, dynamic>;
-      return map.containsKey('mode');
-    } catch (_) {
-      return false;
+      return await completer.future.timeout(timeout, onTimeout: () => false);
+    } finally {
+      await sub.cancel();
     }
   }
 
@@ -127,6 +145,8 @@ class _ConfigListPageState extends State<ConfigListPage> {
       server.connectionStream.listen((c) => session.setConnected(c));
 
       final fullJson = jsonEncode(config.toJson());
+      // 设置 vpnConfig 快照: 握手后 vaddr 下发时据此建立 VpnService tun.
+      server.setVpnConfig(config.toJson());
       await VpnChannel.start(fullJson, server.port);
       session.beginRun(config.id, configJson: fullJson);
       await _storage.saveRunState(config.id, server.port);
