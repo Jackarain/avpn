@@ -44,8 +44,33 @@ class VpnChannel {
     }
   }
 
-  static Future<String> status() async {
-    return (await _channel.invokeMethod<String>('status')) ?? '{}';
+  /// 放行原生对外 socket (经控制通道 protect 请求触发).
+  static Future<bool> protect(int fd) async {
+    final ok = await _channel.invokeMethod<bool>('protect', {'fd': fd});
+    return ok ?? false;
+  }
+
+  /// 以服务端下发的 vaddr 建立 VpnService tun, 返回注入 libavpn 的 fd.
+  static Future<int> establishTun({
+    required String address,
+    required int prefix,
+    required int mtu,
+    required List<String> routes,
+    required List<String> dns,
+    required String session,
+  }) async {
+    final fd = await _channel.invokeMethod<int>('establish_tun', {
+      'address': address,
+      'prefix': prefix,
+      'mtu': mtu,
+      'routes': routes,
+      'dns': dns,
+      'session': session,
+    });
+    if (fd == null || fd < 0) {
+      throw StateError('establish_tun 失败');
+    }
+    return fd;
   }
 
   /// 原生事件: {"type":"log"|"vpn_state", ...}.
