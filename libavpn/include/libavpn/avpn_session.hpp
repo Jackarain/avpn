@@ -130,6 +130,9 @@ namespace libavpn {
 		bool aborted() const { return m_abort; }
 		session_role role() const { return m_role; }
 		transport_type transport() const { return m_transport; }
+		// TCP 控制连接 (TCP 隧道时有效, 用于 Android VPN 建立后重新 protect).
+		std::shared_ptr<net::ip::tcp::socket> tcp_stream() const
+		{ return m_tcp_stream; }
 		uint32_t vaddr() const { return m_vaddr; }
 		uint8_t prefix_length() const { return m_session_config.prefix_length; }
 		int mtu() const { return m_session_config.mtu; }
