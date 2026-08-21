@@ -187,6 +187,27 @@ class _ConfigListPageState extends State<ConfigListPage> {
       if (i >= 0) _configs[i] = saved;
       await _save();
       _reload();
+      // 保存后自动应用到运行中的会话, 无需再手动点击应用.
+      if (AppSession.instance.runningConfigId == saved.id) {
+        try {
+          final applied = await AppSession.instance.applyConfig(saved);
+          if (mounted && applied != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  applied == 'restarted' ? '配置已保存, VPN 已重建' : '配置已保存并热更新',
+                ),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('保存成功, 但应用失败: $e')),
+            );
+          }
+        }
+      }
     }
   }
 

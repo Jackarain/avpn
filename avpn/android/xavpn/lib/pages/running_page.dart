@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/vpn_config.dart';
 import '../services/app_session.dart';
 import '../services/controller_server.dart';
 import '../services/storage_service.dart';
@@ -109,88 +106,6 @@ class _RunningPageState extends State<RunningPage>
     _nativeEventsSub?.cancel();
     _tabs.dispose();
     super.dispose();
-  }
-
-  Future<VpnConfig?> _currentConfig() async {
-    final list = await _storage.loadConfigs();
-    for (final c in list) {
-      if (c.id == widget.configId) return c;
-    }
-    return null;
-  }
-
-  /// 通过 controller ws 协议动态更新参数, 返回原生响应.
-  Future<Map<String, dynamic>> _applyUpdate(Map<String, dynamic> params) async {
-    final server = _server;
-    if (server == null) throw StateError('控制通道未就绪');
-    final result = await server.call('update_config', params);
-    if (result['ok'] != true) {
-      throw StateError('update_config 失败: ${result['error']}');
-    }
-    return result;
-  }
-
-  Future<void> _applyFullConfig() async {
-    final config = await _currentConfig();
-    if (config == null) return;
-    setState(() => _busy = true);
-    try {
-      // TUN 地址/路由/DNS/MTU 由 VpnService 建立, 变更时直接整体重建 VPN.
-      if (_tunFieldsChanged(config)) {
-        await _restartWithConfig(config);
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('TUN 参数已变更, VPN 已重建')));
-        }
-        return;
-      }
-
-      final params = jsonDecode(config.toAvpnJson()) as Map<String, dynamic>;
-      final result = await _applyUpdate(params);
-      if (mounted) {
-        final restarting = result['restarting'] == true;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(restarting ? '配置已下发, 服务自动重启生效' : '配置已热更新生效')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('应用失败: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// TUN 相关字段是否与启动时不同.
-  bool _tunFieldsChanged(VpnConfig config) {
-    final started = AppSession.instance.startedConfigJson;
-    if (started == null || started.isEmpty) return false;
-    try {
-      final old = VpnConfig.fromJson(
-        jsonDecode(started) as Map<String, dynamic>,
-      );
-      return old.tunAddress != config.tunAddress ||
-          old.tunPrefix != config.tunPrefix ||
-          old.routes.join(',') != config.routes.join(',') ||
-          old.dns.join(',') != config.dns.join(',') ||
-          old.mtuSize != config.mtuSize;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// 停止并重新建立 VPN (VpnService 重建 TUN, 控制通道保持).
-  Future<void> _restartWithConfig(VpnConfig config) async {
-    final server = AppSession.instance.server;
-    if (server == null) throw StateError('控制通道未就绪');
-    final fullJson = jsonEncode(config.toJson());
-    await VpnChannel.restart(fullJson, server.port);
-    AppSession.instance.beginRun(config.id, configJson: fullJson);
-    await _storage.saveRunState(config.id, server.port);
   }
 
   Future<void> _stop() async {
@@ -337,12 +252,6 @@ class _RunningPageState extends State<RunningPage>
                 ),
               ),
         ],
-        const SizedBox(height: 24),
-        FilledButton.icon(
-          onPressed: _busy ? null : _applyFullConfig,
-          icon: const Icon(Icons.sync),
-          label: const Text('应用当前配置 (update_config)'),
-        ),
       ],
     );
   }

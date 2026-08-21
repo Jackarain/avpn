@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import 'controller_server.dart';
 import 'storage_service.dart';
 import 'vpn_channel.dart';
+import '../models/vpn_config.dart';
 
 /// 全局运行状态 (单例).
 class AppSession extends ChangeNotifier {
@@ -58,6 +61,49 @@ class AppSession extends ChangeNotifier {
     if (connected != value) {
       connected = value;
       notifyListeners();
+    }
+  }
+
+  /// 将配置应用到运行中的会话:
+  /// - TUN 字段变更时整体重建 VPN (VpnService 重新 establish);
+  /// - 其余参数经控制通道 update_config 热更新.
+  /// 返回 'restarted' / 'updated'; 配置未在运行时返回 null.
+  Future<String?> applyConfig(VpnConfig config) async {
+    if (!running || runningConfigId != config.id) return null;
+    final server = this.server;
+    if (server == null) throw StateError('控制通道未就绪');
+
+    if (_tunFieldsChanged(config)) {
+      final fullJson = jsonEncode(config.toJson());
+      await VpnChannel.restart(fullJson, server.port);
+      beginRun(config.id, configJson: fullJson);
+      await StorageService().saveRunState(config.id, server.port);
+      return 'restarted';
+    }
+
+    final params = jsonDecode(config.toAvpnJson()) as Map<String, dynamic>;
+    final result = await server.call('update_config', params);
+    if (result['ok'] != true) {
+      throw StateError('update_config 失败: ${result['error']}');
+    }
+    return result['restarting'] == true ? 'restarted' : 'updated';
+  }
+
+  /// TUN 相关字段是否与启动时不同.
+  bool _tunFieldsChanged(VpnConfig config) {
+    final started = startedConfigJson;
+    if (started == null || started.isEmpty) return false;
+    try {
+      final old = VpnConfig.fromJson(
+        jsonDecode(started) as Map<String, dynamic>,
+      );
+      return old.tunAddress != config.tunAddress ||
+          old.tunPrefix != config.tunPrefix ||
+          old.routes.join(',') != config.routes.join(',') ||
+          old.dns.join(',') != config.dns.join(',') ||
+          old.mtuSize != config.mtuSize;
+    } catch (_) {
+      return false;
     }
   }
 }
