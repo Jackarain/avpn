@@ -1,9 +1,6 @@
 ﻿#include "xavpn.hpp"
 
 #include "libavpn/avpn.hpp"
-#include "libavpn/logging.hpp"
-
-#include <boost/json.hpp>
 
 #include <algorithm>
 #include <cstdint>
