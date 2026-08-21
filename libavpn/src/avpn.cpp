@@ -7,6 +7,7 @@
 #include "libavpn/logging.hpp"
 #include "libavpn/nat_rule.hpp"
 #include "libavpn/vpn_controller.hpp"
+#include "libavpn/dns_proxy.hpp"
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -134,6 +135,11 @@ namespace libavpn {
 		cfg.post_up_ = config_string(obj, "post_up");
 		cfg.pre_down_ = config_string(obj, "pre_down");
 		cfg.post_down_ = config_string(obj, "post_down");
+		cfg.dns_intercept_ = config_bool(obj, "dns_intercept", false);
+		cfg.dns_doh_url_ = config_string(obj, "dns_doh_url");
+		cfg.dns_direct_ = config_string(obj, "dns_direct");
+		cfg.gfwlist_url_ = config_string(obj, "gfwlist_url");
+		cfg.gfwlist_cache_ = config_string(obj, "gfwlist_cache");
 
 		return cfg;
 	}
@@ -252,6 +258,11 @@ namespace libavpn {
 		assign_str("post_up", dst.post_up_);
 		assign_str("pre_down", dst.pre_down_);
 		assign_str("post_down", dst.post_down_);
+		assign_bool("dns_intercept", dst.dns_intercept_);
+		assign_str("dns_doh_url", dst.dns_doh_url_);
+		assign_str("dns_direct", dst.dns_direct_);
+		assign_str("gfwlist_url", dst.gfwlist_url_);
+		assign_str("gfwlist_cache", dst.gfwlist_cache_);
 	}
 
 	// 每个 UDP socket 并发接收协程数, 参考 avpn 的 global_op_concurrency.
@@ -512,6 +523,56 @@ namespace libavpn {
 		return true;
 	}
 
+	void avpn_service::setup_dns_proxy()
+	{
+		// 仅在 client 模式且启用时创建.
+		if (!m_config.dns_intercept_ || m_config.nexthop_.empty())
+		{
+			if (m_dns_proxy)
+			{
+				m_dns_proxy->stop();
+				m_dns_proxy.reset();
+			}
+			return;
+		}
+
+		// 从 service_config 组装 dns_proxy 配置 (空值回退默认).
+		dns_proxy::config cfg;
+		cfg.enabled = true;
+		if (!m_config.dns_doh_url_.empty())
+			cfg.doh_url = m_config.dns_doh_url_;
+		if (!m_config.dns_direct_.empty())
+			cfg.direct_dns = m_config.dns_direct_;
+		if (!m_config.gfwlist_url_.empty())
+			cfg.gfwlist_url = m_config.gfwlist_url_;
+		cfg.gfwlist_cache = m_config.gfwlist_cache_;
+
+		if (!m_dns_proxy)
+		{
+			// 回调持有 weak_ptr: dns_proxy 协程可能晚于 service 析构,
+			// 避免回调访问已销毁的 service.
+			auto weak = weak_from_this();
+			m_dns_proxy = dns_proxy::create(m_main_context, cfg,
+				[weak](std::vector<uint8_t> packet)
+				{
+					if (auto svc = weak.lock())
+						svc->write_to_tun(std::move(packet));
+				},
+				[weak](int fd) -> net::awaitable<bool>
+				{
+					auto svc = weak.lock();
+					if (!svc)
+						co_return true;
+					co_return co_await svc->protect_socket_async(fd);
+				});
+			m_dns_proxy->start();
+		}
+		else
+		{
+			m_dns_proxy->update_config(cfg);
+		}
+	}
+
 	void avpn_service::notify_vaddr()
 	{
 		auto controller = m_controller;
@@ -653,9 +714,12 @@ namespace libavpn {
 			if (ip_packet.size() < 40)
 				return;
 
-			// client 模式: 全部转发给唯一会话.
+			// client 模式: 先做 DNS 拦截, 其余转发给唯一会话.
 			if (m_tunnel)
 			{
+				if (m_dns_proxy &&
+					m_dns_proxy->on_tun_packet(ip_packet))
+					return;
 				m_tunnel->tun_submit(std::move(ip_packet));
 				return;
 			}
@@ -682,9 +746,12 @@ namespace libavpn {
 			return;
 		}
 
-		// client 模式: 全部转发给唯一会话.
+		// client 模式: 先做 DNS 拦截, 其余转发给唯一会话.
 		if (m_tunnel)
 		{
+			if (m_dns_proxy &&
+				m_dns_proxy->on_tun_packet(ip_packet))
+				return;
 			m_tunnel->tun_submit(std::move(ip_packet));
 			return;
 		}
@@ -1931,6 +1998,9 @@ namespace libavpn {
 			m_controller->start();
 		}
 
+		// client 模式 DNS 拦截 (tun 建立后随数据路径生效).
+		setup_dns_proxy();
+
 		if (!m_config.nexthop_.empty())
 			return run_as_client();
 
@@ -1952,6 +2022,13 @@ namespace libavpn {
 		{
 			m_controller->stop();
 			m_controller.reset();
+		}
+
+		// 停止 DNS 拦截模块.
+		if (m_dns_proxy)
+		{
+			m_dns_proxy->stop();
+			m_dns_proxy.reset();
 		}
 
 		boost::system::error_code ec;
@@ -2077,6 +2154,16 @@ namespace libavpn {
 		// keepalive 热更新日志.
 		if (m_config.keepalive_ != old.keepalive_)
 			XLOG_INFO << "keepalive updated: " << m_config.keepalive_;
+
+		// DNS 拦截字段热更新 (无需重启).
+		if (m_config.dns_intercept_ != old.dns_intercept_
+			|| m_config.dns_doh_url_ != old.dns_doh_url_
+			|| m_config.dns_direct_ != old.dns_direct_
+			|| m_config.gfwlist_url_ != old.gfwlist_url_
+			|| m_config.gfwlist_cache_ != old.gfwlist_cache_)
+		{
+			setup_dns_proxy();
+		}
 
 		if (!restart)
 			return 0;

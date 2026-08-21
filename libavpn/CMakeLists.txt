@@ -16,9 +16,11 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/logging.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/socks_io.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/strutil.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/httpc/httpc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/use_awaitable.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/xxhash.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/dns_proxy.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/io_context_pool.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/launcher_log.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/vpn_controller.hpp
@@ -35,11 +37,13 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/netlink_route.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/nat_rule.hpp
 
+	${CMAKE_CURRENT_SOURCE_DIR}/src/httpc.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lib_asio_beast.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_log.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ipip.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/dns_proxy.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/io_context_pool.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/vpn_controller.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_crypto.cpp
@@ -91,6 +95,7 @@ target_link_libraries(libavpn
 	Boost::asio
 	Boost::beast
 	Boost::scope
+	Boost::system
 
 	fmt
 	${ZLIB_LIBRARIES}

@@ -133,6 +133,18 @@ namespace libavpn {
 		std::string post_up_;
 		std::string pre_down_;
 		std::string post_down_;
+
+		// tun 上 53 端口 DNS 拦截分流 (client).
+		// 命中 gfwlist 的域名走 DoH 加密解析, 其余直连 dns_direct_.
+		bool dns_intercept_{ false };
+		// DoH 服务地址, 如 https://1.1.1.1/dns-query.
+		std::string dns_doh_url_;
+		// 直连 DNS 服务器, 默认 114.114.114.114.
+		std::string dns_direct_{ "114.114.114.114" };
+		// gfwlist 下载地址.
+		std::string gfwlist_url_;
+		// gfwlist 缓存文件路径 (Android 应用私有目录, 空则不缓存).
+		std::string gfwlist_cache_;
 	};
 
 	// JSON 配置转 service_config, 键名与 xavpn 启动配置一致.
@@ -147,6 +159,7 @@ namespace libavpn {
 	class avpn_session;
 	class tun_device;
 	class vpn_controller;
+	class dns_proxy;
 
 	class avpn_service
 		: public std::enable_shared_from_this<avpn_service>
@@ -277,6 +290,9 @@ namespace libavpn {
 		// 经 controller 通知 app 握手下发的 vaddr (Android 配置 tun 用).
 		void notify_vaddr();
 
+		// 创建/重建 DNS 拦截模块 (client 模式且启用时).
+		void setup_dns_proxy();
+
 		// 分配虚拟地址 (gateway).
 		// 分配虚拟地址. requested 为客户端请求的地址 (0 表示不请求),
 		// 未被占用时优先分配请求地址, 否则分配下一个可用地址.
@@ -304,6 +320,9 @@ namespace libavpn {
 		// 用 shared_ptr 持有: stop() 时 reset 后, 运行中的 worker/serve 协程
 		// 仍通过自身持有的 shared_from_this 保活, 协程结束后再析构.
 		std::shared_ptr<vpn_controller> m_controller;
+
+		// DNS 拦截模块 (client 模式且启用时创建).
+		std::shared_ptr<dns_proxy> m_dns_proxy;
 
 		// 服务启动时间 (Unix 秒, 0 表示未启动).
 		std::time_t m_started_at{ 0 };
