@@ -20,6 +20,7 @@
 #ifndef INCLUDE__2026_08_21__LAUNCHER_LOG_HPP
 #define INCLUDE__2026_08_21__LAUNCHER_LOG_HPP
 
+#include <cstdint>
 #include <deque>
 #include <string>
 
