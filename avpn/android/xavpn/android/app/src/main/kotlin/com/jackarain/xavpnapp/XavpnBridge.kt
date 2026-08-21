@@ -1,6 +1,9 @@
 package com.jackarain.xavpnapp
 
 import com.jackarain.xavpn
+import com.jackarain.LogLevel
+import com.jackarain.LogCallback
+import com.jackarain.ProtectCallback
 import org.json.JSONObject
 
 /**
@@ -14,24 +17,34 @@ object XavpnBridge {
         System.loadLibrary("xavpn")
     }
 
+    // SWIG director 包装对象必须被强引用持有, 否则 Java GC 回收后
+    // C++ 侧回调会因 upcall object 为 null 而抛 NullPointerException
+    // (如 xavpn::log_callback::on_log / protect_callback::on_protect).
+    // 注意不能使用 xavpn.setLogCallback(LogCallbackHandler) 这类函数式
+    // 接口重载: 它在内部 new 的 LogCallbackAdapter 无强引用, 同样会被 GC.
+    private var protectCallback: ProtectCallback? = null
+    private var logCallback: LogCallback? = null
+
     /** 注册 socket 保护回调 (VpnService.protect), 传 null 取消. */
     fun setProtectHandler(handler: ((Int) -> Boolean)?) {
-        if (handler == null) {
-            xavpn.setProtectCallback(null as xavpn.ProtectHandler?)
-        } else {
-            xavpn.setProtectCallback(xavpn.ProtectHandler { fd -> handler(fd) })
+        protectCallback = handler?.let {
+            object : ProtectCallback() {
+                override fun onProtect(fd: Int): Boolean = it(fd)
+            }
         }
+        xavpn.setProtectCallback(protectCallback)
     }
 
     /** 注册日志回调, 传 null 取消. */
     fun setLogHandler(handler: ((Long, Int, String) -> Unit)?) {
-        if (handler == null) {
-            xavpn.setLogCallback(null as xavpn.LogCallbackHandler?)
-        } else {
-            xavpn.setLogCallback(xavpn.LogCallbackHandler { time, level, message ->
-                handler(time, level.swigValue(), message)
-            })
+        logCallback = handler?.let {
+            object : LogCallback() {
+                override fun onLog(time: Long, level: LogLevel, message: String) {
+                    it(time, level.swigValue(), message)
+                }
+            }
         }
+        xavpn.setLogCallback(logCallback)
     }
 
     /**
@@ -75,7 +88,6 @@ object XavpnBridge {
         cfg.put("controller", "ws://127.0.0.1:$controllerPort")
         return xavpn.start(cfg.toString())
     }
-
 
     fun stop() = xavpn.stop()
 
