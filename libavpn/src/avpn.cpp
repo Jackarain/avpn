@@ -151,6 +151,7 @@ namespace libavpn {
 		cfg.ignore_push_ = config_bool(obj, "ignore_push", false);
 		cfg.c2c_ = config_bool(obj, "c2c", false);
 		cfg.subnet_ = config_string(obj, "subnet");
+		cfg.vaddr_ = static_cast<uint32_t>(config_int(obj, "vaddr", 0));
 		cfg.v6_subnet_ = config_string(obj, "v6_subnet");
 		cfg.data_shards_ = config_int(obj, "data_shards", 0);
 		cfg.parity_shards_ = config_int(obj, "parity_shards", 0);
@@ -268,6 +269,7 @@ namespace libavpn {
 		assign_bool("ignore_push", dst.ignore_push_);
 		assign_bool("c2c", dst.c2c_);
 		assign_str("subnet", dst.subnet_);
+		assign_dns("vaddr", dst.vaddr_);
 		assign_str("v6_subnet", dst.v6_subnet_);
 		assign_int("data_shards", dst.data_shards_);
 		assign_int("parity_shards", dst.parity_shards_);
@@ -466,8 +468,18 @@ namespace libavpn {
 		XLOG_DBG << "avpn_service::~avpn_service()";
 	}
 
-	uint32_t avpn_service::alloc_vaddr()
+	uint32_t avpn_service::alloc_vaddr(uint32_t requested)
 	{
+		auto usable = [this](uint32_t v)
+		{
+			return v < m_vaddr_end && v > m_subnet.address().to_uint() + 1;
+		};
+
+		// 优先分配客户端请求的地址 (如 Android tun 地址).
+		if (requested != 0 && usable(requested) &&
+			m_allocated_addrs.insert(requested).second)
+			return requested;
+
 		for (int i = 0; i < 10000; i++)
 		{
 			uint32_t v = m_next_vaddr;
@@ -476,8 +488,7 @@ namespace libavpn {
 				m_next_vaddr = m_subnet.address().to_uint() + 2;
 
 			// 跳过网络地址与网关地址.
-			if (v >= m_vaddr_end ||
-				v <= m_subnet.address().to_uint() + 1)
+			if (!usable(v))
 				continue;
 
 			if (m_allocated_addrs.insert(v).second)
@@ -734,9 +745,10 @@ namespace libavpn {
 			});
 
 		session->set_vaddr_allocator(
-			[self = shared_from_this()]() -> std::pair<uint32_t, uint8_t>
+			[self = shared_from_this()](uint32_t requested)
+				-> std::pair<uint32_t, uint8_t>
 			{
-				return std::make_pair(self->alloc_vaddr(),
+				return std::make_pair(self->alloc_vaddr(requested),
 					static_cast<uint8_t>(self->m_subnet.prefix_length()));
 			});
 
@@ -821,9 +833,9 @@ namespace libavpn {
 			});
 
 		session->set_vaddr_allocator(
-			[self]() -> std::pair<uint32_t, uint8_t>
+			[self](uint32_t requested) -> std::pair<uint32_t, uint8_t>
 			{
-				return std::make_pair(self->alloc_vaddr(),
+				return std::make_pair(self->alloc_vaddr(requested),
 					static_cast<uint8_t>(self->m_subnet.prefix_length()));
 			});
 
@@ -831,6 +843,25 @@ namespace libavpn {
 			[self = shared_from_this()](const std::shared_ptr<avpn_session>& s)
 			{
 				self->on_session_close(s);
+			});
+
+		// 握手完成后按公钥登记会话, 替换同公钥旧会话 (释放旧 vaddr).
+		session->set_established_handler(
+			[self = shared_from_this(), session]()
+			{
+				auto peer_pub = session->peer_public_key();
+				if (peer_pub.empty())
+					return;
+
+				auto old_it = self->m_sessions_by_pubkey.find(peer_pub);
+				if (old_it != self->m_sessions_by_pubkey.end() &&
+					old_it->second && old_it->second != session)
+				{
+					XLOG_INFO << "Replacing old session for peer, vaddr: "
+						<< net::ip::address_v4(old_it->second->vaddr()).to_string();
+					old_it->second->close();
+				}
+				self->m_sessions_by_pubkey[peer_pub] = session;
 			});
 
 		// 登记会话 (TCP 控制连接 key 使用客户端地址:端口).

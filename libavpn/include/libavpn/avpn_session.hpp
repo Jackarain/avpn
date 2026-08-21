@@ -68,12 +68,17 @@ namespace libavpn {
 		// 会话关闭回调.
 		using close_handler = std::function<void(const std::shared_ptr<avpn_session>&)>;
 
+		// 会话建立完成回调 (responder 握手成功后调用, 用于网关登记会话).
+		using established_handler = std::function<void()>;
+
 		// UDP 数据报发送回调 (由 service 提供共享的 udp socket).
 		using udp_send_handler = std::function<void(
 			const net::ip::udp::endpoint&, std::vector<uint8_t>)>;
 
-		// 虚拟地址分配回调 (responder 使用), 返回 {vaddr, prefix_length}.
-		using vaddr_allocator = std::function<std::pair<uint32_t, uint8_t>()>;
+		// 虚拟地址分配回调 (responder 使用).
+		// 参数 requested 为客户端请求的地址 (0 表示不请求), 返回 {vaddr, prefix_length}.
+		using vaddr_allocator = std::function<std::pair<uint32_t, uint8_t>(
+			uint32_t requested)>;
 
 		// 会话创建 (由 service 调用).
 		static std::shared_ptr<avpn_session> create(
@@ -90,6 +95,7 @@ namespace libavpn {
 		// 设置回调.
 		void set_ip_packet_handler(ip_packet_handler h);
 		void set_close_handler(close_handler h);
+		void set_established_handler(established_handler h);
 		void set_udp_send_handler(udp_send_handler h);
 		void set_vaddr_allocator(vaddr_allocator h);
 
@@ -302,6 +308,7 @@ namespace libavpn {
 		// 回调.
 		ip_packet_handler m_ip_packet_handler;
 		close_handler m_close_handler;
+		established_handler m_established_handler;
 		udp_send_handler m_udp_send_handler;
 
 		// 密钥材料.
@@ -338,6 +345,9 @@ namespace libavpn {
 
 		// 分配的虚拟地址.
 		uint32_t m_vaddr{ 0 };
+
+		// 客户端在握手 Message 1 中请求的虚拟地址 (responder 记录用).
+		uint32_t m_requested_vaddr{ 0 };
 
 		// 压缩器.
 		compressor m_compressor;

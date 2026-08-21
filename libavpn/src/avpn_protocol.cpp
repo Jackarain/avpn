@@ -31,6 +31,8 @@ namespace libavpn {
 		// [client_id(32)]
 		out.append(reinterpret_cast<const char*>(msg.client_id.data()),
 			msg.client_id.size());
+		// [requested_vaddr(4)]
+		put_u32(out, msg.requested_vaddr);
 
 		return out;
 	}
@@ -39,7 +41,9 @@ namespace libavpn {
 	{
 		std::size_t pos = 0;
 
-		if (data.size() != avpn_ephemeral_key_size + 8 + avpn_client_id_size)
+		// 兼容老版本 (无 requested_vaddr) 与新版本载荷.
+		const std::size_t base = avpn_ephemeral_key_size + 8 + avpn_client_id_size;
+		if (data.size() != base && data.size() != base + 4)
 			return false;
 
 		std::memcpy(msg.ephemeral_pub.data(), data.data() + pos,
@@ -52,6 +56,13 @@ namespace libavpn {
 		std::memcpy(msg.client_id.data(), data.data() + pos,
 			msg.client_id.size());
 		pos += msg.client_id.size();
+
+		msg.requested_vaddr = 0;
+		if (pos + 4 == data.size())
+		{
+			if (!get_u32(data, pos, msg.requested_vaddr))
+				return false;
+		}
 
 		return pos == data.size();
 	}
