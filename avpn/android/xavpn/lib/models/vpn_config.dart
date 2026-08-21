@@ -35,6 +35,11 @@ class VpnConfig {
     List<String>? dns,
     this.testUrl = 'https://google.com',
     this.bypassCn = false,
+    this.dnsIntercept = false,
+    this.dohUrl = 'https://1.1.1.1/dns-query',
+    this.directDns = '114.114.114.114',
+    this.gfwlistUrl =
+        'https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt',
   }) : pkl = pkl ?? [],
        udpListen = udpListen ?? [],
        tcpListen = tcpListen ?? [],
@@ -87,14 +92,28 @@ class VpnConfig {
   /// 中国大陆流量走系统物理网络直连.
   bool bypassCn;
 
+  /// 启用 tun 上 53 端口 DNS 拦截分流: 命中 gfwlist 走 DoH,
+  /// 其余直连 directDns.
+  bool dnsIntercept;
+
+  /// DoH 服务地址, 如 https://1.1.1.1/dns-query.
+  String dohUrl;
+
+  /// 直连 DNS 服务器, 默认 114.114.114.114.
+  String directDns;
+
+  /// gfwlist 下载地址 (每日更新并缓存).
+  String gfwlistUrl;
+
   /// 生成新的配置 id (时间戳 + 随机后缀).
   static String newId() {
     final rand = Random.secure();
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(16);
-    final suffix = List.generate(
-      8,
-      (_) => rand.nextInt(0x100).toRadixString(16).padLeft(2, '0'),
-    ).join();
+    final suffix =
+        List.generate(
+          8,
+          (_) => rand.nextInt(0x100).toRadixString(16).padLeft(2, '0'),
+        ).join();
     return '$ts$suffix';
   }
 
@@ -168,8 +187,20 @@ class VpnConfig {
       errors.add('请填写虚拟子网 subnet (用于自动推导 TUN 地址)');
     }
     final url = testUrl.trim();
-    if (url.isNotEmpty && !url.startsWith('http://') && !url.startsWith('https://')) {
+    if (url.isNotEmpty &&
+        !url.startsWith('http://') &&
+        !url.startsWith('https://')) {
       errors.add('测试连接需以 http:// 或 https:// 开头');
+    }
+    if (dnsIntercept) {
+      if (dohUrl.trim().isEmpty ||
+          (!dohUrl.trim().startsWith('https://') &&
+              !dohUrl.trim().startsWith('http://'))) {
+        errors.add('DoH 地址需以 http(s):// 开头');
+      }
+      if (directDns.trim().isEmpty) {
+        errors.add('请填写直连 DNS 服务器');
+      }
     }
     return errors;
   }
@@ -199,6 +230,14 @@ class VpnConfig {
       'ignore_push': ignorePush,
       'c2c': c2c,
       if (bypassroutes.isNotEmpty) 'bypassroutes': bypassroutes,
+      'dns_intercept': dnsIntercept,
+      if (dnsIntercept) ...{
+        if (dohUrl.trim().isNotEmpty) 'dns_doh_url': dohUrl.trim(),
+        if (directDns.trim().isNotEmpty) 'dns_direct': directDns.trim(),
+        if (gfwlistUrl.trim().isNotEmpty) 'gfwlist_url': gfwlistUrl.trim(),
+        // gfwlist 缓存落在应用私有目录, 下次启动直接复用.
+        'gfwlist_cache': '/data/data/com.jackarain.xavpn/files/gfwlist.txt',
+      },
     };
     return jsonEncode(map);
   }
@@ -238,6 +277,10 @@ class VpnConfig {
     'dns': dns,
     'testUrl': testUrl,
     'bypassCn': bypassCn,
+    'dnsIntercept': dnsIntercept,
+    'dohUrl': dohUrl,
+    'directDns': directDns,
+    'gfwlistUrl': gfwlistUrl,
   };
 
   factory VpnConfig.fromJson(Map<String, dynamic> json) => VpnConfig(
@@ -269,6 +312,12 @@ class VpnConfig {
     dns: _strList(json['dns']),
     testUrl: json['testUrl'] as String? ?? 'https://google.com',
     bypassCn: json['bypassCn'] as bool? ?? false,
+    dnsIntercept: json['dnsIntercept'] as bool? ?? false,
+    dohUrl: json['dohUrl'] as String? ?? 'https://1.1.1.1/dns-query',
+    directDns: json['directDns'] as String? ?? '114.114.114.114',
+    gfwlistUrl:
+        json['gfwlistUrl'] as String? ??
+        'https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt',
   );
 
   static List<String> _strList(dynamic v) {

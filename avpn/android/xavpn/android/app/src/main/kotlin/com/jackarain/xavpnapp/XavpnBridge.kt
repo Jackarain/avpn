@@ -37,6 +37,10 @@ object XavpnBridge {
         rename(cfg, "udpListen", "udp_listen")
         rename(cfg, "tcpListen", "tcp_listen")
         rename(cfg, "ignorePush", "ignore_push")
+        rename(cfg, "dnsIntercept", "dns_intercept")
+        rename(cfg, "dohUrl", "dns_doh_url")
+        rename(cfg, "directDns", "dns_direct")
+        rename(cfg, "gfwlistUrl", "gfwlist_url")
         // tunAddress (VpnService 分配的地址) -> vaddr: 请求网关分配同一地址,
         // 避免网关分配的 vaddr 与本端 tun 地址不一致导致数据包无法投递.
         val tunAddress = cfg.optString("tunAddress", "")
@@ -56,6 +60,14 @@ object XavpnBridge {
         cfg.put("ifdev", "")
         cfg.put("ptun_fd", -1)
         cfg.put("controller", "ws://127.0.0.1:$controllerPort")
+        // gfwlist 缓存落盘应用私有目录 (与 lib/services 的默认路径一致),
+        // 保证下次启动直接复用, 无需重新下载.
+        if (!cfg.has("gfwlist_cache")) {
+            cfg.put(
+                "gfwlist_cache",
+                "/data/data/com.jackarain.xavpn/files/gfwlist.txt",
+            )
+        }
         return xavpn.start(cfg.toString())
     }
 
