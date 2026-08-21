@@ -61,12 +61,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late final TextEditingController _bypassroutes = TextEditingController(
     text: c.bypassroutes.join('\n'),
   );
-  late final TextEditingController _tunAddress = TextEditingController(
-    text: c.tunAddress,
-  );
-  late final TextEditingController _tunPrefix = TextEditingController(
-    text: c.tunPrefix.toString(),
-  );
   late final TextEditingController _routes = TextEditingController(
     text: c.routes.join('\n'),
   );
@@ -96,8 +90,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
       _pushroutes,
       _pushdns,
       _bypassroutes,
-      _tunAddress,
-      _tunPrefix,
       _routes,
       _dns,
       _testUrl,
@@ -140,11 +132,14 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..ignorePush = _ignorePush
           ..c2c = _c2c
           ..bypassroutes = _lines(_bypassroutes.text)
-          ..tunAddress = _tunAddress.text.trim()
-          ..tunPrefix = _toInt(_tunPrefix.text, 24)
           ..routes = _lines(_routes.text)
           ..dns = _lines(_dns.text)
           ..testUrl = _testUrl.text.trim();
+    // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
+    // 保证与服务端 subnet 一致, 避免手工填错导致无法上网.
+    final derivedTun = vpn.deriveTun();
+    vpn.tunAddress = derivedTun.$1;
+    vpn.tunPrefix = derivedTun.$2;
     final errors = vpn.validate();
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
@@ -160,6 +155,15 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late bool _passbyvpn = c.passbyvpn;
   late bool _ignorePush = c.ignorePush;
   late bool _c2c = c.c2c;
+
+  /// 依据当前表单 subnet 预览自动推导的 TUN 地址/前缀.
+  (String, int) _tunPreview() {
+    final tmp = VpnConfig(id: '', name: '', mode: _mode)
+      ..subnet = _subnet.text.trim()
+      ..tunAddress = c.tunAddress
+      ..tunPrefix = c.tunPrefix;
+    return tmp.deriveTun();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -316,6 +320,18 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ),
           const SizedBox(height: 12),
 
+          _section('虚拟子网'),
+          TextField(
+            controller: _subnet,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: '虚拟子网 subnet',
+              hintText: '如 10.10.0.0/16, 客户端需与服务端一致',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           if (isGateway) ...[
             _section('网关监听'),
             TextField(
@@ -332,15 +348,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'TCP 监听 (每行一个)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _subnet,
-              decoration: const InputDecoration(
-                labelText: '虚拟子网 subnet',
-                hintText: '如 10.9.0.0/16',
                 border: OutlineInputBorder(borderRadius: BorderRadius.zero),
               ),
             ),
@@ -386,32 +393,18 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ],
 
           _section('Android VpnService'),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _tunAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'TUN 地址',
-                    hintText: '如 10.8.0.2',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
+          // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
+          // 只读展示, 避免手工填写与服务端 subnet 不一致.
+          InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'TUN 地址 (自动推导)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _tunPrefix,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: '前缀',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
-              ),
-            ],
+            ),
+            child: Text(_tunPreview().$1),
           ),
           const SizedBox(height: 12),
           TextField(

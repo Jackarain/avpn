@@ -29,8 +29,8 @@ class VpnConfig {
     this.ignorePush = false,
     this.c2c = false,
     List<String>? bypassroutes,
-    this.tunAddress = '10.8.0.2',
-    this.tunPrefix = 24,
+    this.tunAddress = '',
+    this.tunPrefix = 0,
     List<String>? routes,
     List<String>? dns,
     this.testUrl = 'https://google.com',
@@ -93,6 +93,48 @@ class VpnConfig {
     return '$ts$suffix';
   }
 
+  /// 解析 subnet "a.b.c.d/prefix", 返回 (网络地址, 前缀); 无效返回 null.
+  static (int, int)? parseSubnet(String subnet) {
+    final s = subnet.trim();
+    final slash = s.indexOf('/');
+    if (slash <= 0) return null;
+    final host = s.substring(0, slash).trim();
+    final prefix = int.tryParse(s.substring(slash + 1).trim());
+    if (prefix == null || prefix < 0 || prefix > 32) return null;
+    final parts = host.split('.');
+    if (parts.length != 4) return null;
+    final octets = <int>[];
+    for (final p in parts) {
+      final o = int.tryParse(p);
+      if (o == null || o < 0 || o > 255) return null;
+      octets.add(o);
+    }
+    final ip =
+        (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+    // 掩码到网络地址, 避免主机位非零.
+    final mask = prefix == 0 ? 0 : (0xffffffff << (32 - prefix)) & 0xffffffff;
+    return (ip & mask, prefix);
+  }
+
+  static String _ipToString(int v) =>
+      '${(v >> 24) & 0xff}.${(v >> 16) & 0xff}.${(v >> 8) & 0xff}.${v & 0xff}';
+
+  /// 计算本端 tun 地址与前缀: 客户端取网络地址+2 (服务端首个分配地址),
+  /// 网关取网络地址+1 (网关自身). subnet 缺失或非法时退回手动 tunAddress
+  /// 或默认 10.8.0.2/24 (向后兼容旧配置).
+  (String, int) deriveTun() {
+    final parsed = parseSubnet(subnet);
+    if (parsed != null) {
+      final (net, prefix) = parsed;
+      final offset = mode == 'gateway' ? 1 : 2;
+      return (_ipToString(net + offset), prefix);
+    }
+    if (tunAddress.trim().isNotEmpty && tunPrefix > 0) {
+      return (tunAddress.trim(), tunPrefix);
+    }
+    return ('10.8.0.2', 24);
+  }
+
   /// 校验配置, 返回错误描述列表; 为空表示可运行.
   List<String> validate() {
     final errors = <String>[];
@@ -117,8 +159,8 @@ class VpnConfig {
     if (mode == 'gateway' && subnet.isEmpty) {
       errors.add('网关模式必须填写虚拟子网 subnet');
     }
-    if (tunAddress.trim().isEmpty) {
-      errors.add('TUN 地址不能为空');
+    if (subnet.trim().isEmpty && tunAddress.trim().isEmpty) {
+      errors.add('请填写虚拟子网 subnet (用于自动推导 TUN 地址)');
     }
     final url = testUrl.trim();
     if (url.isNotEmpty && !url.startsWith('http://') && !url.startsWith('https://')) {
@@ -215,8 +257,8 @@ class VpnConfig {
     ignorePush: json['ignorePush'] as bool? ?? false,
     c2c: json['c2c'] as bool? ?? false,
     bypassroutes: _strList(json['bypassroutes']),
-    tunAddress: json['tunAddress'] as String? ?? '10.8.0.2',
-    tunPrefix: json['tunPrefix'] as int? ?? 24,
+    tunAddress: json['tunAddress'] as String? ?? '',
+    tunPrefix: json['tunPrefix'] as int? ?? 0,
     routes: _strList(json['routes']),
     dns: _strList(json['dns']),
     testUrl: json['testUrl'] as String? ?? 'https://google.com',
