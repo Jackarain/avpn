@@ -31,33 +31,6 @@
 
 namespace libavpn {
 
-	namespace {
-
-		// socket 保护回调 (如 Android VpnService.protect).
-		std::mutex g_socket_protect_mutex;
-		std::function<bool(int)> g_socket_protect_handler;
-
-		// 调用保护回调, 未注册回调时视为放行.
-		bool socket_protect(int fd)
-		{
-			std::function<bool(int)> handler;
-			{
-				std::lock_guard<std::mutex> lock(g_socket_protect_mutex);
-				handler = g_socket_protect_handler;
-			}
-			if (!handler)
-				return true;
-			return handler(fd);
-		}
-
-	} // namespace
-
-	void set_socket_protect_handler(std::function<bool(int)> handler)
-	{
-		std::lock_guard<std::mutex> lock(g_socket_protect_mutex);
-		g_socket_protect_handler = std::move(handler);
-	}
-
 	// 取配置中的 stringlist.
 	std::vector<std::string> config_list(const boost::json::object& cfg, const char* key)
 	{
@@ -455,6 +428,63 @@ namespace libavpn {
 		m_vaddr_end = m_subnet.broadcast().to_uint();
 		if (m_next_vaddr >= m_vaddr_end)
 			m_next_vaddr = m_subnet.address().to_uint() + 1;
+	}
+
+	net::awaitable<bool> avpn_service::protect_socket_async(int fd)
+	{
+		auto controller = m_controller;
+		if (!controller)
+			co_return true;
+		co_return co_await controller->call_protect(fd);
+	}
+
+	bool avpn_service::set_tun_fd(int fd)
+	{
+		if (fd < 0)
+			return false;
+
+		// 替换旧 tun 设备 (重连后 VpnService 重建 tun, 旧 fd 已失效).
+		if (m_tundev)
+		{
+			m_tundev->close();
+			m_tundev.reset();
+		}
+
+		m_config.ptun_fd_ = fd;
+		m_tundev = std::make_unique<tun_device>(m_main_context);
+		if (!m_tundev->open(m_config))
+		{
+			XLOG_ERR << "open ptun fd failed: " << fd;
+			m_tundev.reset();
+			m_config.ptun_fd_ = -1;
+			return false;
+		}
+
+		XLOG_INFO << "Inject tun fd: " << fd;
+
+		// 外部 fd 模式下地址由 VpnService 配置, configure 仅记录日志.
+		if (m_tunnel && m_tunnel->established())
+		{
+			m_tundev->configure(m_tunnel->vaddr(),
+				m_tunnel->prefix_length(), m_tunnel->mtu());
+		}
+
+		start_tun_io_task();
+		return true;
+	}
+
+	void avpn_service::notify_vaddr()
+	{
+		auto controller = m_controller;
+		if (!controller || !m_tunnel || !m_tunnel->established())
+			return;
+
+		boost::json::object obj;
+		obj["ip"] = net::ip::address_v4(m_tunnel->vaddr()).to_string();
+		obj["prefix"] = m_tunnel->prefix_length();
+		obj["mtu"] = m_tunnel->mtu();
+		controller->notify("vaddr", obj);
+		XLOG_INFO << "Notify app vaddr: " << obj["ip"].as_string();
 	}
 
 	std::shared_ptr<avpn_service>
@@ -1082,10 +1112,10 @@ namespace libavpn {
 		return {};
 	}
 
-	void avpn_service::renew_client_udp()
+	net::awaitable<void> avpn_service::renew_client_udp()
 	{
 		if (m_abort)
-			return;
+			co_return;
 
 		// 关闭旧 socket 并取消挂起的接收操作 (旧接收循环随之退出).
 		auto old = m_client_udp;
@@ -1102,7 +1132,7 @@ namespace libavpn {
 		{
 			XLOG_ERR << "udp open failed on network switch: " << ec.message();
 			m_client_udp = old;
-			return;
+			co_return;
 		}
 
 		// 尽量复用旧本地端口, 减小服务端迁移代价.
@@ -1122,7 +1152,7 @@ namespace libavpn {
 		}
 
 		// 保护对外 socket (Android VpnService), 避免回环进 tun.
-		if (!socket_protect(socket->native_handle()))
+		if (!(co_await protect_socket_async(socket->native_handle())))
 			XLOG_WARN << "protect renewed udp socket failed";
 
 		m_client_udp = socket;
@@ -1180,7 +1210,7 @@ namespace libavpn {
 			{
 				XLOG_INFO << "Network switch detected: "
 					<< last_addr.to_string() << " -> " << addr.to_string();
-				renew_client_udp();
+				co_await renew_client_udp();
 				last_addr = addr;
 			}
 		}
@@ -1252,7 +1282,7 @@ namespace libavpn {
 			}
 
 			// 保护对外 socket (Android VpnService), 避免回环进 tun.
-			if (!socket_protect(stream.native_handle()))
+			if (!(co_await protect_socket_async(stream.native_handle())))
 				XLOG_WARN << "protect nexthop tcp socket failed";
 
 			co_await stream.async_connect(m_nexthop_tcp, net_awaitable[ec]);
@@ -1321,6 +1351,14 @@ namespace libavpn {
 		{
 			if (m_tunnel && m_tunnel->established())
 			{
+				// 握手成功后通知 app 服务端下发的 vaddr (Android 用其配置
+				// VpnService tun); 地址未变化时不重复通知, 避免重建 tun.
+				if (m_tunnel->vaddr() != m_last_notified_vaddr)
+				{
+					m_last_notified_vaddr = m_tunnel->vaddr();
+					notify_vaddr();
+				}
+
 				// 使用协商的 vaddr/prefix/mtu 配置 tun.
 				if (m_tundev)
 				{
@@ -1746,14 +1784,14 @@ namespace libavpn {
 				XLOG_ERR << "udp open failed: " << ec.message();
 				return false;
 			}
-			// 保护对外 socket (Android VpnService), 避免回环进 tun.
-			if (!socket_protect(m_client_udp->native_handle()))
-				XLOG_WARN << "protect nexthop udp socket failed";
-
-			// 启动握手.
+			// 启动握手: 先 protect 对外 socket (Android VpnService,
+			// 避免回环进 tun), 再发起握手.
 			net::co_spawn(m_main_context,
 				[this, self]() -> net::awaitable<void>
 				{
+					if (!(co_await protect_socket_async(
+							m_client_udp->native_handle())))
+						XLOG_WARN << "protect nexthop udp socket failed";
 					co_await m_tunnel->run_initiator_udp(m_nexthop_udp);
 					co_return;
 				}, net::detached);

@@ -41,6 +41,13 @@ namespace libavpn {
 		void start();
 		void stop();
 
+		// 经控制通道请求 app 对 socket 执行 protect (Android VpnService),
+		// 无会话时视为放行. 须在 io_context 协程中调用.
+		net::awaitable<bool> call_protect(int fd);
+
+		// 经控制通道发送通知 (如 vaddr 下发).
+		void notify(std::string_view method, const boost::json::value& params);
+
 	private:
 		// 连接重试主循环: 连接 → 服务 → 断开后按退避重连.
 		net::awaitable<void> worker();

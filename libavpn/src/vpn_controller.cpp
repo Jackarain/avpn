@@ -337,6 +337,34 @@ namespace libavpn {
 						return result;
 					});
 
+				// 注入外部 tun fd (Android VpnService 建立后).
+				sess->bind_method("set_tun_fd",
+					[this](json::object params) -> json::object
+					{
+						json::object result;
+						result["ok"] = false;
+						auto service = m_service.lock();
+						if (!service)
+						{
+							result["error"] = "service not running";
+							return result;
+						}
+						auto it = params.find("ptun_fd");
+						if (it == params.end() || !it->value().is_int64())
+						{
+							result["error"] = "invalid ptun_fd";
+							return result;
+						}
+						int fd = static_cast<int>(it->value().as_int64());
+						if (!service->set_tun_fd(fd))
+						{
+							result["error"] = "set tun fd failed";
+							return result;
+						}
+						result["ok"] = true;
+						return result;
+					});
+
 				sess->closed_callback([this]() { m_session_closed = true; });
 
 				// 先启动读循环, 再发送通知; 否则会话尚未进入运行态,
@@ -372,6 +400,41 @@ namespace libavpn {
 			}, m_session);
 
 		co_return;
+	}
+
+	net::awaitable<bool> vpn_controller::call_protect(int fd)
+	{
+		co_return co_await std::visit(
+			[fd](auto& sess) -> net::awaitable<bool>
+			{
+				if (!sess)
+					co_return true;
+
+				json::object params;
+				params["fd"] = fd;
+				try
+				{
+					auto result = co_await sess->async_call("protect", params);
+					if (result.contains("ok"))
+						co_return result["ok"].as_bool();
+				}
+				catch (...)
+				{
+					// 控制通道异常时放行, 避免阻塞握手/连接.
+					XLOG_WARN << "protect rpc failed, allow socket";
+				}
+				co_return true;
+			}, m_session);
+	}
+
+	void vpn_controller::notify(std::string_view method,
+		const boost::json::value& params)
+	{
+		std::visit([method, &params](auto& sess)
+			{
+				if (sess)
+					sess->notify(method, params);
+			}, m_session);
 	}
 
 	void vpn_controller::send_register()

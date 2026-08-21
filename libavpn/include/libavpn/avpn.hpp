@@ -139,11 +139,6 @@ namespace libavpn {
 	// 解析失败时返回默认构造的 service_config.
 	service_config config_from_json(const std::string& config);
 
-	// 注册 socket 保护回调 (如 Android VpnService.protect).
-	// 当 avpn 创建对外连接 (nexthop) 的 socket 时回调, 返回 false 表示保护失败.
-	// 传空回调取消注册; 线程安全.
-	void set_socket_protect_handler(std::function<bool(int)> handler);
-
 	// 命名空间及类型别名.
 	namespace net = boost::asio;
 	using net::ip::udp;
@@ -156,6 +151,15 @@ namespace libavpn {
 	class avpn_service
 		: public std::enable_shared_from_this<avpn_service>
 	{
+	public:
+		// 经 controller 控制通道异步 protect 对外 socket (Android VpnService),
+		// 无控制通道时视为放行. 须在 io_context 协程中调用.
+		net::awaitable<bool> protect_socket_async(int fd);
+
+		// 注入外部 tun fd (Android VpnService 建立后), 替换旧 fd 并启动读写.
+		// 须在 io_context 线程中调用.
+		bool set_tun_fd(int fd);
+
 	private:
 		// c++11 noncopyable.
 		avpn_service(const avpn_service&) = delete;
@@ -215,7 +219,7 @@ namespace libavpn {
 		net::awaitable<void> client_network_monitor();
 
 		// 重建客户端 UDP socket (网络切换后使用新的本地端口/地址).
-		void renew_client_udp();
+		net::awaitable<void> renew_client_udp();
 
 		// 获取到指定服务器时本机将使用的出口源地址 (空表示失败).
 		net::ip::address local_source_address(
@@ -265,6 +269,9 @@ namespace libavpn {
 
 		// 会话关闭回调.
 		void on_session_close(const std::shared_ptr<avpn_session>& session);
+
+		// 经 controller 通知 app 握手下发的 vaddr (Android 配置 tun 用).
+		void notify_vaddr();
 
 		// 分配虚拟地址 (gateway).
 		// 分配虚拟地址. requested 为客户端请求的地址 (0 表示不请求),
@@ -319,6 +326,9 @@ namespace libavpn {
 
 		// client: 唯一会话.
 		std::shared_ptr<avpn_session> m_tunnel;
+
+		// 最近一次通知 app 的 vaddr (去重, 重连后地址变化才再次通知).
+		uint32_t m_last_notified_vaddr{ 0 };
 
 		// gateway: UDP 监听 socket.
 		std::vector<std::shared_ptr<net::ip::udp::socket>> m_udp_sockets;
