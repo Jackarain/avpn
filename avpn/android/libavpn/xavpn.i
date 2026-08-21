@@ -9,6 +9,8 @@
 
 %feature("director") xavpn::log_callback;
 %shared_ptr(xavpn::log_callback)
+%feature("director") xavpn::protect_callback;
+%shared_ptr(xavpn::protect_callback)
 
 // Java 命名风格.
 %rename(LogCallback) xavpn::log_callback;
@@ -19,6 +21,9 @@
 %rename(INFO) xavpn::log_level::info;
 %rename(WARN) xavpn::log_level::warn;
 %rename(ERROR) xavpn::log_level::error;
+%rename(ProtectCallback) xavpn::protect_callback;
+%rename(onProtect) xavpn::protect_callback::on_protect;
+%rename(setProtectCallback) xavpn::set_protect_callback;
 
 // Java 便捷封装: 函数式接口 + 适配器, 支持 Java lambda / Kotlin SAM 注册日志回调.
 %pragma(java) modulecode = %{
@@ -42,6 +47,27 @@
     public static void setLogCallback(LogCallbackHandler handler) {
         setLogCallback(handler == null ? null : new LogCallbackAdapter(handler));
     }
+
+    /** socket 保护回调函数式接口, 可用 Java lambda 或 Kotlin SAM 转换注册. */
+    public interface ProtectHandler {
+        boolean onProtect(int fd);
+    }
+
+    private static final class ProtectCallbackAdapter extends ProtectCallback {
+        private final ProtectHandler handler;
+        ProtectCallbackAdapter(ProtectHandler handler) {
+            this.handler = handler;
+        }
+        @Override
+        public boolean onProtect(int fd) {
+            return handler.onProtect(fd);
+        }
+    }
+
+    /** 以函数式接口注册 socket 保护回调, 传 null 取消; 等价于 setProtectCallback(ProtectCallback). */
+    public static void setProtectCallback(ProtectHandler handler) {
+        setProtectCallback(handler == null ? null : new ProtectCallbackAdapter(handler));
+    }
 %}
 
 namespace xavpn {
@@ -63,6 +89,15 @@ namespace xavpn {
 	};
 
 	void set_log_callback(std::shared_ptr<log_callback> callback);
+
+	class protect_callback
+	{
+	public:
+		virtual ~protect_callback() = default;
+		virtual bool on_protect(int fd) = 0;
+	};
+
+	void set_protect_callback(std::shared_ptr<protect_callback> callback);
 
 	std::string min_sdk_version();
 

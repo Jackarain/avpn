@@ -32,6 +32,20 @@ namespace xavpn {
 	// 设置日志回调, 传入空 shared_ptr 取消; 线程安全.
 	void set_log_callback(std::shared_ptr<log_callback> callback);
 
+	// socket 保护回调接口: 当 avpn 创建对外连接 (nexthop) 的 socket 时回调,
+	// 用于 Android VpnService.protect 放行, 避免流量回环进 tun.
+	class protect_callback
+	{
+	public:
+		virtual ~protect_callback() = default;
+
+		// fd 为对外 socket 的文件描述符, 返回 true 表示保护成功.
+		virtual bool on_protect(int fd) = 0;
+	};
+
+	// 设置 socket 保护回调, 传入空 shared_ptr 取消; 线程安全.
+	void set_protect_callback(std::shared_ptr<protect_callback> callback);
+
 	// 返回当前编译环境最低支持的 Android SDK 版本.
 	std::string min_sdk_version();
 

@@ -11,7 +11,6 @@
 #include <mutex>
 #include <string>
 #include <thread>
-#include <vector>
 
 namespace xavpn {
 
@@ -21,8 +20,13 @@ namespace {
 std::unique_ptr<libavpn::io_context_pool> g_io_pool;
 std::shared_ptr<libavpn::avpn_service> g_service;
 std::thread g_io_thread;
+// 保护 g_service/g_io_pool/g_io_thread: start/stop/status 可能来自
+// 不同线程 (Android 上 status 常由 UI 线程调用, 启停在工作线程).
+std::mutex g_service_mutex;
 std::mutex g_log_callback_mutex;
 std::shared_ptr<log_callback> g_log_callback;
+std::mutex g_protect_callback_mutex;
+std::shared_ptr<protect_callback> g_protect_callback;
 
 // xlogger 日志回调: 转发到注册的 log_callback.
 void android_log_hook(int64_t time, int level, const std::string& message)
@@ -41,110 +45,19 @@ void android_log_hook(int64_t time, int level, const std::string& message)
 		cb->on_log(time, static_cast<log_level>(level), message);
 }
 
-// 取配置中的 stringlist.
-std::vector<std::string> config_list(const boost::json::object& cfg, const char* key)
+// 停止并释放服务实例; 调用方须持有 g_service_mutex.
+void stop_locked()
 {
-	std::vector<std::string> out;
-	auto it = cfg.find(key);
-	if (it == cfg.end())
-		return out;
-	const auto& v = it->value();
-	if (v.is_array()) {
-		for (const auto& item : v.as_array()) {
-			if (item.is_string())
-				out.emplace_back(item.as_string());
-		}
-	} else if (v.is_string()) {
-		out.emplace_back(v.as_string());
-	}
-	return out;
-}
+	if (g_service)
+		g_service->stop();
+	if (g_io_pool)
+		g_io_pool->stop();
 
-// 取配置中的字符串.
-std::string config_string(const boost::json::object& cfg, const char* key)
-{
-	auto it = cfg.find(key);
-	if (it == cfg.end() || !it->value().is_string())
-		return {};
-	return std::string(it->value().as_string());
-}
+	if (g_io_thread.joinable())
+		g_io_thread.join();
 
-// 取配置中的整数.
-int config_int(const boost::json::object& cfg, const char* key, int def)
-{
-	auto it = cfg.find(key);
-	if (it == cfg.end())
-		return def;
-	const auto& v = it->value();
-	if (v.is_int64())
-		return static_cast<int>(v.as_int64());
-	if (v.is_uint64())
-		return static_cast<int>(v.as_uint64());
-	if (v.is_double())
-		return static_cast<int>(v.as_double());
-	if (v.is_bool())
-		return v.as_bool() ? 1 : 0;
-	return def;
-}
-
-// 取配置中的布尔值.
-bool config_bool(const boost::json::object& cfg, const char* key, bool def)
-{
-	auto it = cfg.find(key);
-	if (it == cfg.end())
-		return def;
-	const auto& v = it->value();
-	if (v.is_bool())
-		return v.as_bool();
-	if (v.is_int64())
-		return v.as_int64() != 0;
-	if (v.is_string()) {
-		const auto& s = v.as_string();
-		return s == "true" || s == "1";
-	}
-	return def;
-}
-
-// JSON 配置转 service_config.
-libavpn::service_config config_from_json(const std::string& config)
-{
-	libavpn::service_config cfg{};
-	boost::system::error_code ec;
-	auto value = boost::json::parse(config, ec);
-	if (ec || !value.is_object())
-		return cfg;
-
-	const auto& obj = value.as_object();
-	cfg.ifdev_ = config_string(obj, "ifdev");
-	cfg.ptun_fd_ = config_int(obj, "ptun_fd", -1);
-	cfg.utun_fd_ = config_int(obj, "utun_fd", -1);
-	cfg.controller_ = config_string(obj, "controller");
-	cfg.nexthop_ = config_string(obj, "nexthop");
-	cfg.tcp_listens_ = config_list(obj, "tcp_listen");
-	cfg.udp_listens_ = config_list(obj, "udp_listen");
-	cfg.private_key_ = config_string(obj, "private_key");
-	cfg.public_key_ = config_string(obj, "public_key");
-	cfg.pkl_ = config_list(obj, "pkl");
-	cfg.mtu_size_ = config_int(obj, "mtu_size", 1450);
-	cfg.keepalive_ = config_int(obj, "keepalive", 60);
-	cfg.pushroutes_ = config_list(obj, "pushroutes");
-	cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
-	cfg.passbyvpn_ = config_bool(obj, "passbyvpn", false);
-	cfg.bypassroutes_ = config_list(obj, "bypassroutes");
-	cfg.ignore_push_ = config_bool(obj, "ignore_push", false);
-	cfg.c2c_ = config_bool(obj, "c2c", false);
-	cfg.subnet_ = config_string(obj, "subnet");
-	cfg.v6_subnet_ = config_string(obj, "v6_subnet");
-	cfg.data_shards_ = config_int(obj, "data_shards", 0);
-	cfg.parity_shards_ = config_int(obj, "parity_shards", 0);
-	cfg.compress_ = config_string(obj, "compress");
-	cfg.obfuscate_key_ = config_string(obj, "obfuscate_key");
-	cfg.pre_up_ = config_string(obj, "pre_up");
-	cfg.post_up_ = config_string(obj, "post_up");
-	cfg.pre_down_ = config_string(obj, "pre_down");
-	cfg.post_down_ = config_string(obj, "post_down");
-
-	return cfg;
+	g_service.reset();
+	g_io_pool.reset();
 }
 
 } // namespace
@@ -158,6 +71,26 @@ void set_log_callback(std::shared_ptr<log_callback> callback)
 	xlogger::set_log_callback(g_log_callback ? android_log_hook : nullptr);
 }
 
+void set_protect_callback(std::shared_ptr<protect_callback> callback)
+{
+	std::shared_ptr<protect_callback> cb;
+	{
+		std::lock_guard<std::mutex> lock(g_protect_callback_mutex);
+		g_protect_callback = std::move(callback);
+		cb = g_protect_callback;
+	}
+
+	if (cb)
+	{
+		libavpn::set_socket_protect_handler(
+			[cb](int fd) -> bool { return cb->on_protect(fd); });
+	}
+	else
+	{
+		libavpn::set_socket_protect_handler(nullptr);
+	}
+}
+
 std::string min_sdk_version()
 {
 	return "minSdkVersion: " + std::to_string(__ANDROID_MIN_SDK_VERSION__);
@@ -165,21 +98,24 @@ std::string min_sdk_version()
 
 int start(const std::string& config)
 {
+	std::lock_guard<std::mutex> lock(g_service_mutex);
+
+	// 已有实例先停止, 保证同一时刻只有一个 avpn 服务.
 	if (g_service)
-		stop();
+		stop_locked();
 
 	try {
-		auto cfg = config_from_json(config);
+		auto cfg = libavpn::config_from_json(config);
 
 		g_io_pool = std::make_unique<libavpn::io_context_pool>(
 			std::max<std::size_t>(2, std::thread::hardware_concurrency()));
 		g_service = libavpn::avpn_service::create_service(*g_io_pool, cfg);
 		if (!g_service || !g_service->start()) {
-			stop();
+			stop_locked();
 			return -1;
 		}
 	} catch (...) {
-		stop();
+		stop_locked();
 		return -1;
 	}
 
@@ -194,20 +130,13 @@ int start(const std::string& config)
 
 void stop()
 {
-	if (g_service)
-		g_service->stop();
-	if (g_io_pool)
-		g_io_pool->stop();
-
-	if (g_io_thread.joinable())
-		g_io_thread.join();
-
-	g_service.reset();
-	g_io_pool.reset();
+	std::lock_guard<std::mutex> lock(g_service_mutex);
+	stop_locked();
 }
 
 std::string status()
 {
+	std::lock_guard<std::mutex> lock(g_service_mutex);
 	if (!g_service)
 		return "{}";
 	return boost::json::serialize(g_service->status_json());
