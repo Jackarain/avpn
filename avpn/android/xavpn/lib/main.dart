@@ -31,9 +31,9 @@ class XavpnApp extends StatelessWidget {
       useMaterial3: true,
       cardTheme: CardThemeData(
         shape: square,
-        elevation: 0,
         margin: const EdgeInsets.symmetric(vertical: 4),
       ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(shape: square),
       dialogTheme: DialogThemeData(shape: square),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
