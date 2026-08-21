@@ -9,16 +9,19 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.ParcelFileDescriptor
 import com.jackarain.xavpn.R
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
- * VpnService: 创建 TUN 设备、放行 nexthop socket, 并通过 XavpnBridge
- * 在同一个进程内直接调用 libxavpn.so (tun fd 经 ptun_fd 传入).
+ * VpnService: 以服务端下发的 vaddr 创建 TUN 设备、放行 nexthop socket,
+ * 并持有 libxavpn.so 生命周期.
+ *
+ * 启动时先经 XavpnBridge 启动 libavpn (无 tun), 握手后 libavpn 通过
+ * 控制通道 WebSocket 下发 vaddr, Flutter 收到后调用 establishTun 在此
+ * 建立 VpnService tun 并 detach fd, 再经控制通道 set_tun_fd 注入 libavpn.
+ * protect 同样经控制通道请求到达 (onProtectSocket), 由本服务放行,
+ * 避免对外 socket 流量回环进 tun.
  *
  * 启停均在专用工作线程执行: 避免阻塞主线程 (avpn 启动/停止涉及线程池
  * 创建与回收), 同时保证 START/STOP 串行处理, 不会并发操作同一实例.
@@ -35,6 +38,11 @@ class XavpnVpnService : VpnService() {
         private const val CHANNEL_ID = "xavpn_vpn"
         private const val NOTIFY_ID = 1001
 
+        /** 当前服务实例 (MainActivity 经 MethodChannel 调用 establishTun/protect). */
+        @Volatile
+        var instance: XavpnVpnService? = null
+            private set
+
         fun startForegroundServiceCompat(context: Context, intent: Intent) {
             ContextCompat.startForegroundService(context, intent)
         }
@@ -50,10 +58,12 @@ class XavpnVpnService : VpnService() {
     private val worker = Handler(workerThread.looper)
 
     @Volatile
-    private var tunFd: ParcelFileDescriptor? = null
-
-    @Volatile
     private var started = false
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -109,21 +119,9 @@ class XavpnVpnService : VpnService() {
         // 防御: 重复的 START 先停旧实例, 保证同一时刻只有一个.
         if (started) teardown()
         try {
-            val cfg = JSONObject(configJson)
-
-            // 1. 建立 TUN 设备 (地址/路由/MTU 由 VpnService 配置).
-            val fd = buildTun(cfg) ?: throw IllegalStateException("VpnService establish 失败")
-            tunFd = fd
-
-            // 2. 注册 protect 回调: nexthop 等对外 socket 经 VpnService.protect 放行,
-            //    避免流量回环进入 tun; 日志回调转发给 Flutter.
-            XavpnBridge.setProtectHandler { fdInt -> protect(fdInt) }
-            XavpnBridge.setLogHandler { time, level, message ->
-                XavpnEvents.emitLog(time, level, message)
-            }
-
-            // 3. 启动 avpn: tun fd 与本地 controller 地址由 XavpnBridge 注入 json.
-            val rc = XavpnBridge.start(configJson, fd.fd, controllerPort)
+            // 启动 avpn (无 tun): 握手后经控制通道下发 vaddr,
+            // Flutter 据此调用 establishTun 建立 tun 再 set_tun_fd 注入.
+            val rc = XavpnBridge.start(configJson, controllerPort)
             if (rc != 0) {
                 XavpnEvents.emitVpnState("error", "xavpn.start 失败: rc=$rc")
                 teardownAndStop()
@@ -137,65 +135,52 @@ class XavpnVpnService : VpnService() {
         }
     }
 
-    /** 依据配置创建 TUN, 失败返回 null (地址/路由非法时 VpnService 抛异常). */
-    private fun buildTun(cfg: JSONObject): ParcelFileDescriptor? {
+    /**
+     * 以服务端下发的 vaddr 建立 VpnService tun, detach 返回 fd (由 libavpn
+     * 持有并负责关闭). 地址/路由/MTU 在此一次性配置, 后续不可更改.
+     *
+     * @param address 服务端握手下发的 tun 地址.
+     * @param prefix  地址前缀 (由服务端下发).
+     * @param mtu     tun MTU.
+     * @param routes  需要接入 VPN 的路由 (为空时默认全隧道).
+     * @param dns     DNS 服务器列表 (可为空).
+     * @param session VPN 会话名称.
+     * @return tun fd; 失败抛出异常.
+     */
+    fun establishTun(
+        address: String,
+        prefix: Int,
+        mtu: Int,
+        routes: List<String>,
+        dns: List<String>,
+        session: String,
+    ): Int {
         val builder = Builder()
-        builder.setSession(cfg.optString("name", "aVPN"))
-        val (tunAddress, tunPrefix) = resolveTunAddress(cfg)
-        builder.addAddress(tunAddress, tunPrefix)
-        val routes = optStringList(cfg, "routes")
+        builder.setSession(session.ifEmpty { "aVPN" })
+        builder.addAddress(address, prefix)
         if (routes.isNotEmpty()) {
             for (route in routes) {
                 addRoute(builder, route)
             }
         } else {
-            // 默认路由: 客户端全隧道; 网关只放虚拟子网, 避免自身流量回环.
-            val mode = cfg.optString("mode", "client")
-            if (mode == "gateway") {
-                val subnet = cfg.optString("subnet", "10.9.0.0/16")
-                val parsed = parseCidr(subnet)
-                if (parsed != null) {
-                    builder.addRoute(parsed.first, parsed.second)
-                } else {
-                    builder.addRoute("10.9.0.0", 16)
-                }
-            } else {
-                builder.addRoute("0.0.0.0", 0)
-            }
+            // 默认全隧道.
+            builder.addRoute("0.0.0.0", 0)
         }
-        for (dns in optStringList(cfg, "dns")) {
-            builder.addDnsServer(dns)
+        for (server in dns) {
+            if (server.isNotBlank()) builder.addDnsServer(server.trim())
         }
-        val mtu = cfg.optInt("mtuSize", 1450)
         if (mtu > 0) builder.setMtu(mtu)
         builder.setBlocking(true)
-        return builder.establish()
+        val fd = builder.establish()
+            ?: throw IllegalStateException("VpnService establish 失败")
+        return fd.detachFd()
     }
 
-    /**
-     * 解析 TUN 地址/前缀: 优先配置值; 为空时从 subnet 自动推导
-     * (客户端=网络地址+2, 网关=网络地址+1), 保证与服务端 subnet 一致.
-     */
-    private fun resolveTunAddress(cfg: JSONObject): Pair<String, Int> {
-        val addr = cfg.optString("tunAddress", "").trim()
-        if (addr.isNotEmpty()) return addr to cfg.optInt("tunPrefix", 24)
-        val parsed = parseCidr(cfg.optString("subnet", "").trim())
-        if (parsed != null) {
-            val offset = if (cfg.optString("mode", "client") == "gateway") 1 else 2
-            return ipAdd(parsed.first, offset) to parsed.second
-        }
-        return "10.8.0.2" to 24
-    }
-
-    private fun ipAdd(host: String, n: Int): String {
-        val parts = host.split('.').map { it.toInt() }
-        var v = ((parts[0] and 0xff) shl 24) or
-            ((parts[1] and 0xff) shl 16) or
-            ((parts[2] and 0xff) shl 8) or
-            (parts[3] and 0xff)
-        v += n
-        return "${(v ushr 24) and 0xff}.${(v ushr 16) and 0xff}." +
-            "${(v ushr 8) and 0xff}.${v and 0xff}"
+    /** 放行对外 socket (经控制通道 protect 请求到达), 避免回环进 tun. */
+    fun protectSocket(fd: Int): Boolean = try {
+        protect(fd)
+    } catch (_: Throwable) {
+        false
     }
 
     private fun addRoute(builder: Builder, cidr: String) {
@@ -216,28 +201,8 @@ class XavpnVpnService : VpnService() {
         return host to prefix
     }
 
-    private fun optStringList(obj: JSONObject, key: String): List<String> {
-        val v = obj.opt(key) ?: return emptyList()
-        return when (v) {
-            is JSONArray -> {
-                val out = mutableListOf<String>()
-                for (i in 0 until v.length()) {
-                    v.optString(i).takeIf { it.isNotBlank() }?.let { out.add(it) }
-                }
-                out
-            }
-            is String -> {
-                if (v.isBlank()) emptyList()
-                else v.trim().split(Regex("[\\s,;]+")).filter { it.isNotEmpty() }
-            }
-            else -> emptyList()
-        }
-    }
-
-    /** 停止 avpn 并释放资源; 幂等, 可重复调用. */
+    /** 停止 avpn 并释放资源; 幂等, 可重复调用. tun fd 由 libavpn 持有并关闭. */
     private fun teardown() {
-        XavpnBridge.setProtectHandler(null)
-        XavpnBridge.setLogHandler(null)
         if (started) {
             try {
                 XavpnBridge.stop()
@@ -246,11 +211,6 @@ class XavpnVpnService : VpnService() {
             }
             started = false
         }
-        try {
-            tunFd?.close()
-        } catch (_: Throwable) {
-        }
-        tunFd = null
     }
 
     private fun teardownAndStop() {
@@ -260,6 +220,7 @@ class XavpnVpnService : VpnService() {
     }
 
     override fun onDestroy() {
+        if (instance === this) instance = null
         // 工作线程可能正持有资源, 排队清理后退出.
         worker.post {
             teardown()
