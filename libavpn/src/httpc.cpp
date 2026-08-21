@@ -466,7 +466,10 @@ net::awaitable<http_result> http_client::async_read_response()
                     transfer_handler_((char*)data, size);
                 }
             }
-            body.clear();
+            // 未设置下载文件/传输回调时保留 body 内容, 供调用方
+            // 通过 resp.body() 读取完整响应体; 否则消费后清空.
+            if (download_file_ || transfer_handler_)
+                body.clear();
 
             // 检查错误
             if (ec)
