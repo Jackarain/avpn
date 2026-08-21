@@ -1445,6 +1445,11 @@ namespace libavpn {
 		if (!m_tunnel || !m_tundev)
 			return;
 
+		// Android VpnService 等外部 fd 模式下, tun 地址/路由/NAT
+		// 已由宿主应用配置, 这里无需 (也无权限) 再操作系统路由.
+		if (m_config.ptun_fd_ >= 0 || m_config.utun_fd_ >= 0)
+			return;
+
 		const auto& scfg = m_tunnel->negotiated_config();
 		if (!scfg.passbyvpn && scfg.routes.empty())
 			return;
