@@ -158,6 +158,14 @@ class XavpnVpnService : VpnService() {
         val builder = Builder()
         builder.setSession(session.ifEmpty { "aVPN" })
         builder.addAddress(address, prefix)
+        // 排除本 app 自身: 隧道 socket 流量不进入 VPN, 避免回环.
+        // 不依赖 protect() 的 fwmark (部分 ROM 上对已建立 socket 无效),
+        // 改为按 uid 排除, 保证 libavpn 的对外连接始终走物理网络.
+        try {
+            builder.addDisallowedApplication(packageName)
+        } catch (_: Throwable) {
+            // 缺少 QUERY_ALL_PACKAGES 权限时忽略, 仍可依赖 protect() 兜底.
+        }
         if (routes.isNotEmpty()) {
             for (route in routes) {
                 addRoute(builder, route)
