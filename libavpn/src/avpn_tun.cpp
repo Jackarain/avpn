@@ -201,6 +201,7 @@ namespace libavpn {
 			}
 			m_devname = "ptun";
 			m_opened = true;
+			m_external_fd = true;
 			return true;
 		}
 
@@ -219,6 +220,7 @@ namespace libavpn {
 			}
 			m_devname = "utun-ipc";
 			m_opened = true;
+			m_external_fd = true;
 			return true;
 		}
 
@@ -262,6 +264,10 @@ namespace libavpn {
 	{
 		if (!m_opened || m_devname.empty())
 			return false;
+
+		// 外部传入的 fd 已由调用方 (如 Android VpnService) 配置, 跳过.
+		if (m_external_fd)
+			return true;
 
 #if defined(_WIN32)
 		return m_wintun.configure(vaddr, prefix, mtu);
@@ -459,6 +465,10 @@ namespace libavpn {
 	{
 		if (!m_opened || m_devname.empty())
 			return false;
+
+		// 外部传入的 fd 已由调用方 (如 Android VpnService) 配置, 跳过.
+		if (m_external_fd)
+			return true;
 
 #if defined(_WIN32)
 		return m_wintun.configure_v6(v6_net, prefix, host);

@@ -102,6 +102,8 @@ namespace libavpn {
 #endif
 		std::string m_devname;
 		bool m_opened{ false };
+		// 外部传入的 fd (ptun/utun), 地址/路由由外部负责配置.
+		bool m_external_fd{ false };
 	};
 
 } // namespace libavpn
