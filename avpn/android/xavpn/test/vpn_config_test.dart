@@ -69,6 +69,47 @@ void main() {
       expect(map['nexthop'], 'udp://1.2.3.4:19090');
     });
 
+    test('deriveTun 由 subnet 自动推导', () {
+      final client = VpnConfig(
+        id: '1',
+        name: 'c',
+        mode: 'client',
+        subnet: '10.10.0.0/16',
+      );
+      expect(client.deriveTun(), ('10.10.0.2', 16));
+
+      final gateway = VpnConfig(
+        id: '2',
+        name: 'g',
+        mode: 'gateway',
+        subnet: '10.10.0.0/16',
+      );
+      expect(gateway.deriveTun(), ('10.10.0.1', 16));
+
+      // 非 8 位对齐子网按网络地址推导.
+      final odd = VpnConfig(
+        id: '3',
+        name: 'o',
+        mode: 'client',
+        subnet: '10.10.1.5/24',
+      );
+      expect(odd.deriveTun(), ('10.10.1.2', 24));
+
+      // subnet 缺失时退回手动地址.
+      final manual = VpnConfig(
+        id: '4',
+        name: 'm',
+        mode: 'client',
+        tunAddress: '10.8.0.2',
+        tunPrefix: 24,
+      );
+      expect(manual.deriveTun(), ('10.8.0.2', 24));
+
+      // 全部缺失时使用兼容默认.
+      final fallback = VpnConfig(id: '5', name: 'f', mode: 'client');
+      expect(fallback.deriveTun(), ('10.8.0.2', 24));
+    });
+
     test('newId 每次生成不同 id', () {
       final ids = {for (var i = 0; i < 100; i++) VpnConfig.newId()};
       expect(ids.length, 100);
@@ -82,16 +123,22 @@ void main() {
         nexthop: '',
         mtuSize: 10,
         keepalive: 0,
-        tunAddress: '',
       );
       final errors = bad.validate();
       expect(errors, contains('客户端模式必须填写 nexthop'));
       expect(errors, contains('客户端模式必须填写对端公钥 public_key'));
       expect(errors, contains('MTU 需在 576~65535 之间'));
       expect(errors, contains('keepalive 必须大于 0'));
-      expect(errors, contains('TUN 地址不能为空'));
+      expect(errors, contains('请填写虚拟子网 subnet (用于自动推导 TUN 地址)'));
 
-      final ok = VpnConfig(id: '2', name: '好配置', mode: 'client', nexthop: '1.2.3.4:19090', publicKey: 'aGVsbG8=');
+      final ok = VpnConfig(
+        id: '2',
+        name: '好配置',
+        mode: 'client',
+        nexthop: '1.2.3.4:19090',
+        publicKey: 'aGVsbG8=',
+        subnet: '10.10.0.0/16',
+      );
       expect(ok.validate(), isEmpty);
     });
   });

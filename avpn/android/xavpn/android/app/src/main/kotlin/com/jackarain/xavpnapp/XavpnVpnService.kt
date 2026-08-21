@@ -141,10 +141,8 @@ class XavpnVpnService : VpnService() {
     private fun buildTun(cfg: JSONObject): ParcelFileDescriptor? {
         val builder = Builder()
         builder.setSession(cfg.optString("name", "aVPN"))
-        builder.addAddress(
-            cfg.optString("tunAddress", "10.8.0.2"),
-            cfg.optInt("tunPrefix", 24),
-        )
+        val (tunAddress, tunPrefix) = resolveTunAddress(cfg)
+        builder.addAddress(tunAddress, tunPrefix)
         val routes = optStringList(cfg, "routes")
         if (routes.isNotEmpty()) {
             for (route in routes) {
@@ -172,6 +170,32 @@ class XavpnVpnService : VpnService() {
         if (mtu > 0) builder.setMtu(mtu)
         builder.setBlocking(true)
         return builder.establish()
+    }
+
+    /**
+     * 解析 TUN 地址/前缀: 优先配置值; 为空时从 subnet 自动推导
+     * (客户端=网络地址+2, 网关=网络地址+1), 保证与服务端 subnet 一致.
+     */
+    private fun resolveTunAddress(cfg: JSONObject): Pair<String, Int> {
+        val addr = cfg.optString("tunAddress", "").trim()
+        if (addr.isNotEmpty()) return addr to cfg.optInt("tunPrefix", 24)
+        val parsed = parseCidr(cfg.optString("subnet", "").trim())
+        if (parsed != null) {
+            val offset = if (cfg.optString("mode", "client") == "gateway") 1 else 2
+            return ipAdd(parsed.first, offset) to parsed.second
+        }
+        return "10.8.0.2" to 24
+    }
+
+    private fun ipAdd(host: String, n: Int): String {
+        val parts = host.split('.').map { it.toInt() }
+        var v = ((parts[0] and 0xff) shl 24) or
+            ((parts[1] and 0xff) shl 16) or
+            ((parts[2] and 0xff) shl 8) or
+            (parts[3] and 0xff)
+        v += n
+        return "${(v ushr 24) and 0xff}.${(v ushr 16) and 0xff}." +
+            "${(v ushr 8) and 0xff}.${v and 0xff}"
     }
 
     private fun addRoute(builder: Builder, cidr: String) {
