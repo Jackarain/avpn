@@ -23,27 +23,6 @@ std::thread g_io_thread;
 // 保护 g_service/g_io_pool/g_io_thread: start/stop/status 可能来自
 // 不同线程 (Android 上 status 常由 UI 线程调用, 启停在工作线程).
 std::mutex g_service_mutex;
-std::mutex g_log_callback_mutex;
-std::shared_ptr<log_callback> g_log_callback;
-std::mutex g_protect_callback_mutex;
-std::shared_ptr<protect_callback> g_protect_callback;
-
-// xlogger 日志回调: 转发到注册的 log_callback.
-void android_log_hook(int64_t time, int level, const std::string& message)
-{
-	// 仅转发 debug/info/warn/error, 过滤内部 file 级别日志.
-	if (level < static_cast<int>(log_level::debug) ||
-		level > static_cast<int>(log_level::error))
-		return;
-
-	std::shared_ptr<log_callback> cb;
-	{
-		std::lock_guard<std::mutex> lock(g_log_callback_mutex);
-		cb = g_log_callback;
-	}
-	if (cb)
-		cb->on_log(time, static_cast<log_level>(level), message);
-}
 
 // 停止并释放服务实例; 调用方须持有 g_service_mutex.
 void stop_locked()
@@ -61,35 +40,6 @@ void stop_locked()
 }
 
 } // namespace
-
-void set_log_callback(std::shared_ptr<log_callback> callback)
-{
-	{
-		std::lock_guard<std::mutex> lock(g_log_callback_mutex);
-		g_log_callback = std::move(callback);
-	}
-	xlogger::set_log_callback(g_log_callback ? android_log_hook : nullptr);
-}
-
-void set_protect_callback(std::shared_ptr<protect_callback> callback)
-{
-	std::shared_ptr<protect_callback> cb;
-	{
-		std::lock_guard<std::mutex> lock(g_protect_callback_mutex);
-		g_protect_callback = std::move(callback);
-		cb = g_protect_callback;
-	}
-
-	if (cb)
-	{
-		libavpn::set_socket_protect_handler(
-			[cb](int fd) -> bool { return cb->on_protect(fd); });
-	}
-	else
-	{
-		libavpn::set_socket_protect_handler(nullptr);
-	}
-}
 
 std::string min_sdk_version()
 {
@@ -132,14 +82,6 @@ void stop()
 {
 	std::lock_guard<std::mutex> lock(g_service_mutex);
 	stop_locked();
-}
-
-std::string status()
-{
-	std::lock_guard<std::mutex> lock(g_service_mutex);
-	if (!g_service)
-		return "{}";
-	return boost::json::serialize(g_service->status_json());
 }
 
 } // namespace xavpn

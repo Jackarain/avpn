@@ -9,57 +9,6 @@
 package com.jackarain;
 
 public class xavpn {
-
-    /** 日志回调函数式接口, 可用 Java lambda 或 Kotlin SAM 转换注册. */
-    public interface LogCallbackHandler {
-        void onLog(long time, LogLevel level, String message);
-    }
-
-    private static final class LogCallbackAdapter extends LogCallback {
-        private final LogCallbackHandler handler;
-        LogCallbackAdapter(LogCallbackHandler handler) {
-            this.handler = handler;
-        }
-        @Override
-        public void onLog(long time, LogLevel level, String message) {
-            handler.onLog(time, level, message);
-        }
-    }
-
-    /** 以函数式接口注册日志回调, 传 null 取消; 等价于 setLogCallback(LogCallback). */
-    public static void setLogCallback(LogCallbackHandler handler) {
-        setLogCallback(handler == null ? null : new LogCallbackAdapter(handler));
-    }
-
-    /** socket 保护回调函数式接口, 可用 Java lambda 或 Kotlin SAM 转换注册. */
-    public interface ProtectHandler {
-        boolean onProtect(int fd);
-    }
-
-    private static final class ProtectCallbackAdapter extends ProtectCallback {
-        private final ProtectHandler handler;
-        ProtectCallbackAdapter(ProtectHandler handler) {
-            this.handler = handler;
-        }
-        @Override
-        public boolean onProtect(int fd) {
-            return handler.onProtect(fd);
-        }
-    }
-
-    /** 以函数式接口注册 socket 保护回调, 传 null 取消; 等价于 setProtectCallback(ProtectCallback). */
-    public static void setProtectCallback(ProtectHandler handler) {
-        setProtectCallback(handler == null ? null : new ProtectCallbackAdapter(handler));
-    }
-
-  public static void setLogCallback(LogCallback callback) {
-    xavpnJNI.setLogCallback(LogCallback.getCPtr(callback), callback);
-  }
-
-  public static void setProtectCallback(ProtectCallback callback) {
-    xavpnJNI.setProtectCallback(ProtectCallback.getCPtr(callback), callback);
-  }
-
   public static String min_sdk_version() {
     return xavpnJNI.min_sdk_version();
   }
@@ -70,10 +19,6 @@ public class xavpn {
 
   public static void stop() {
     xavpnJNI.stop();
-  }
-
-  public static String status() {
-    return xavpnJNI.status();
   }
 
 }

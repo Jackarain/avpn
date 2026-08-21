@@ -9,36 +9,7 @@
 package com.jackarain;
 
 public class xavpnJNI {
-  public final static native int LogLevel_DEBUG_get();
-  public final static native int LogLevel_INFO_get();
-  public final static native int LogLevel_WARN_get();
-  public final static native int LogLevel_ERROR_get();
-  public final static native void delete_LogCallback(long jarg1);
-  public final static native void LogCallback_onLog(long jarg1, LogCallback jarg1_, long jarg2, int jarg3, String jarg4);
-  public final static native long new_LogCallback();
-  public final static native void LogCallback_director_connect(LogCallback obj, long cptr, boolean mem_own, boolean weak_global);
-  public final static native void LogCallback_change_ownership(LogCallback obj, long cptr, boolean take_or_release);
-  public final static native void setLogCallback(long jarg1, LogCallback jarg1_);
-  public final static native void delete_ProtectCallback(long jarg1);
-  public final static native boolean ProtectCallback_onProtect(long jarg1, ProtectCallback jarg1_, int jarg2);
-  public final static native long new_ProtectCallback();
-  public final static native void ProtectCallback_director_connect(ProtectCallback obj, long cptr, boolean mem_own, boolean weak_global);
-  public final static native void ProtectCallback_change_ownership(ProtectCallback obj, long cptr, boolean take_or_release);
-  public final static native void setProtectCallback(long jarg1, ProtectCallback jarg1_);
   public final static native String min_sdk_version();
   public final static native int start(String jarg1);
   public final static native void stop();
-  public final static native String status();
-
-  public static void SwigDirector_LogCallback_onLog(LogCallback jself, long time, int level, String message) {
-    jself.onLog(time, LogLevel.swigToEnum(level), message);
-  }
-  public static boolean SwigDirector_ProtectCallback_onProtect(ProtectCallback jself, int fd) {
-    return jself.onProtect(fd);
-  }
-
-  private final static native void swig_module_init();
-  static {
-    swig_module_init();
-  }
 }
