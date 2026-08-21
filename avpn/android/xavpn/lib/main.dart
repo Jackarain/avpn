@@ -19,7 +19,7 @@ class XavpnApp extends StatelessWidget {
     );
   }
 
-  /// 扁平矩形 (无圆角) 风格主题.
+  /// 直角矩形风格主题 (保留层次与阴影).
   ThemeData _buildTheme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
       seedColor: Colors.indigo,
