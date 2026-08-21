@@ -42,8 +42,9 @@ flutter build apk --debug
 
 ## 配置字段
 
-- avpn 参数: `nexthop` (支持 `udp://`/`tcp://` 前缀), `private_key`, `public_key`,
-  `pkl`, `mtu_size`, `keepalive`, `data_shards`, `parity_shards`, `compress`,
+- avpn 参数: `nexthop` (支持 `udp://`/`tcp://` 前缀), `private_key`, `public_key`
+  (客户端填对端/服务器公钥), `pkl` (网关侧客户端公钥白名单), `mtu_size`, `keepalive`,
+  `data_shards`, `parity_shards`, `compress`,
   `obfuscate_key`, `udp_listen`, `tcp_listen`, `subnet`, `passbyvpn`,
   `pushroutes`, `pushdns`, `ignore_push`, `c2c`, `bypassroutes`.
 - Android VpnService 专用: `tunAddress`, `tunPrefix`, `routes` (CIDR, 默认全隧道),

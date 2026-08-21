@@ -168,7 +168,7 @@ class XavpnVpnService : VpnService() {
         for (dns in optStringList(cfg, "dns")) {
             builder.addDnsServer(dns)
         }
-        val mtu = cfg.optInt("mtu_size", 1450)
+        val mtu = cfg.optInt("mtuSize", 1450)
         if (mtu > 0) builder.setMtu(mtu)
         builder.setBlocking(true)
         return builder.establish()
