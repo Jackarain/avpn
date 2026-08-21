@@ -215,3 +215,31 @@ jobs:
             build/bin/release/avpn.exe
             build/bin/release/launcher.exe
             build/bin/release/wintun.dll
+
+  Android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.29.3
+          cache: true
+
+      - name: Build Android apk
+        working-directory: avpn/android/xavpn
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-android_apk
+          path: |
+            avpn/android/xavpn/build/app/outputs/flutter-apk/app-release.apk
