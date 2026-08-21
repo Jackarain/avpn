@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import io.flutter.plugin.common.EventChannel
 
-/** 将原生事件 (日志 / VPN 状态) 转发给 Flutter EventChannel. */
+/** 将原生 VPN 状态事件转发给 Flutter EventChannel (日志已改由 WS 控制通道上报). */
 object XavpnEvents {
     @Volatile
     private var sink: EventChannel.EventSink? = null
@@ -13,15 +13,6 @@ object XavpnEvents {
 
     fun setSink(s: EventChannel.EventSink?) {
         sink = s
-    }
-
-    fun emitLog(time: Long, level: Int, message: String) {
-        post(mapOf(
-            "type" to "log",
-            "time" to time,
-            "level" to level,
-            "message" to message,
-        ))
     }
 
     fun emitVpnState(state: String, message: String? = null) {

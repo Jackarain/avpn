@@ -44,7 +44,34 @@ class MainActivity : FlutterActivity() {
                         XavpnVpnService.requestStop(this)
                         result.success(true)
                     }
-                    "status" -> result.success(XavpnBridge.status())
+                    // 控制通道 protect 请求: 放行 libavpn 的对外 socket.
+                    "protect" -> {
+                        val fd = call.argument<Int>("fd") ?: -1
+                        result.success(XavpnVpnService.instance?.protectSocket(fd) ?: false)
+                    }
+                    // 控制通道 vaddr 下发后: 以服务端下发的地址建立 tun.
+                    "establish_tun" -> {
+                        val address = call.argument<String>("address") ?: ""
+                        val prefix = call.argument<Int>("prefix") ?: 24
+                        val mtu = call.argument<Int>("mtu") ?: 1400
+                        val routes = call.argument<List<String>>("routes") ?: emptyList()
+                        val dns = call.argument<List<String>>("dns") ?: emptyList()
+                        val session = call.argument<String>("session") ?: "aVPN"
+                        val instance = XavpnVpnService.instance
+                        if (instance == null) {
+                            result.error("NO_SERVICE", "VpnService 未运行", null)
+                        } else {
+                            try {
+                                result.success(
+                                    instance.establishTun(
+                                        address, prefix, mtu, routes, dns, session
+                                    )
+                                )
+                            } catch (e: Exception) {
+                                result.error("ESTABLISH_FAILED", e.message, null)
+                            }
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }
