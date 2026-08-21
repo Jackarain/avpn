@@ -282,6 +282,16 @@ class _RunningPageState extends State<RunningPage>
       appBar: AppBar(
         title: const Text('运行控制台'),
         actions: [
+          IconButton(
+            onPressed: _logs.isEmpty ? null : _copyAllLogs,
+            icon: const Icon(Icons.copy_all),
+            tooltip: '复制全部日志',
+          ),
+          IconButton(
+            onPressed: _logs.isEmpty ? null : _clearLogs,
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: '清空日志',
+          ),
           TextButton.icon(
             onPressed: _busy ? null : _stop,
             icon: const Icon(Icons.stop),
@@ -413,52 +423,33 @@ class _RunningPageState extends State<RunningPage>
     if (_logs.isEmpty) {
       return const Center(child: Text('暂无日志'));
     }
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Row(
-            children: [
-              Text(
-                '${_logs.length} 条',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _copyAllLogs,
-                icon: const Icon(Icons.copy_all, size: 18),
-                label: const Text('复制全部'),
-              ),
-            ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _logs.length,
+      itemBuilder: (context, i) {
+        final log = _logs[i];
+        final level = log['level'] as int? ?? 1;
+        final message = log['message'] as String? ?? '';
+        final time = log['time'] as int? ?? 0;
+        final color = switch (level) {
+          0 => Colors.grey,
+          2 => Colors.orange,
+          3 => Colors.red,
+          _ => Theme.of(context).colorScheme.onSurface,
+        };
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: SelectableText(
+            '[${_fmtTimeMs(time)}] $message',
+            style: TextStyle(fontSize: 12, color: color),
           ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-            itemCount: _logs.length,
-            itemBuilder: (context, i) {
-              final log = _logs[i];
-              final level = log['level'] as int? ?? 1;
-              final message = log['message'] as String? ?? '';
-              final time = log['time'] as int? ?? 0;
-              final color = switch (level) {
-                0 => Colors.grey,
-                2 => Colors.orange,
-                3 => Colors.red,
-                _ => Theme.of(context).colorScheme.onSurface,
-              };
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: SelectableText(
-                  '[${_fmtTimeMs(time)}] $message',
-                  style: TextStyle(fontSize: 12, color: color),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
+  }
+
+  void _clearLogs() {
+    setState(() => _logs.clear());
   }
 
   Future<void> _copyAllLogs() async {
