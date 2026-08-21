@@ -179,4 +179,73 @@ void main() {
       expect(await storage.loadConfigs(), isEmpty);
     });
   });
+
+  group('VpnConfig dns intercept', () {
+    test('toAvpnJson 包含 DNS 拦截字段', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        mode: 'client',
+        nexthop: '1.2.3.4:19090',
+        publicKey: 'pk',
+        dnsIntercept: true,
+        dohUrl: 'https://cloudflare-dns.com/dns-query',
+        directDns: '223.5.5.5',
+        gfwlistUrl: 'https://example.com/gfwlist.txt',
+      );
+      final map = jsonDecode(c.toAvpnJson()) as Map<String, dynamic>;
+      expect(map['dns_intercept'], true);
+      expect(map['dns_doh_url'], 'https://cloudflare-dns.com/dns-query');
+      expect(map['dns_direct'], '223.5.5.5');
+      expect(map['gfwlist_url'], 'https://example.com/gfwlist.txt');
+      expect(map['gfwlist_cache'], '/data/data/com.jackarain.xavpn/files/gfwlist.txt');
+    });
+
+    test('toAvpnJson 未启用 DNS 拦截时不传 doh/直连字段', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        mode: 'client',
+        nexthop: '1.2.3.4:19090',
+        publicKey: 'pk',
+      );
+      final map = jsonDecode(c.toAvpnJson()) as Map<String, dynamic>;
+      expect(map['dns_intercept'], false);
+      expect(map.containsKey('dns_doh_url'), false);
+      expect(map.containsKey('dns_direct'), false);
+      expect(map.containsKey('gfwlist_url'), false);
+    });
+
+    test('json 往返保留 DNS 拦截字段', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        dnsIntercept: true,
+        dohUrl: 'https://dns.google/dns-query',
+        directDns: '1.1.1.1',
+        gfwlistUrl: 'https://a.b/c.txt',
+      );
+      final restored = VpnConfig.fromJson(c.toJson());
+      expect(restored.dnsIntercept, true);
+      expect(restored.dohUrl, 'https://dns.google/dns-query');
+      expect(restored.directDns, '1.1.1.1');
+      expect(restored.gfwlistUrl, 'https://a.b/c.txt');
+    });
+
+    test('启用 DNS 拦截时校验 DoH 与直连 DNS', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        mode: 'client',
+        nexthop: '1.2.3.4:19090',
+        publicKey: 'pk',
+        dnsIntercept: true,
+        dohUrl: 'not-a-url',
+        directDns: '',
+      );
+      final errors = c.validate();
+      expect(errors.any((e) => e.contains('DoH')), true);
+      expect(errors.any((e) => e.contains('直连 DNS')), true);
+    });
+  });
 }

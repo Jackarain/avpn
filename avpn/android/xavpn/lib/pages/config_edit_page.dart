@@ -70,6 +70,15 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late final TextEditingController _testUrl = TextEditingController(
     text: c.testUrl,
   );
+  late final TextEditingController _dohUrl = TextEditingController(
+    text: c.dohUrl,
+  );
+  late final TextEditingController _directDns = TextEditingController(
+    text: c.directDns,
+  );
+  late final TextEditingController _gfwlistUrl = TextEditingController(
+    text: c.gfwlistUrl,
+  );
 
   @override
   void dispose() {
@@ -93,6 +102,9 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
       _routes,
       _dns,
       _testUrl,
+      _dohUrl,
+      _directDns,
+      _gfwlistUrl,
     ]) {
       t.dispose();
     }
@@ -135,7 +147,11 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..bypassCn = _bypassCn
           ..routes = _lines(_routes.text)
           ..dns = _lines(_dns.text)
-          ..testUrl = _testUrl.text.trim();
+          ..testUrl = _testUrl.text.trim()
+          ..dnsIntercept = _dnsIntercept
+          ..dohUrl = _dohUrl.text.trim()
+          ..directDns = _directDns.text.trim()
+          ..gfwlistUrl = _gfwlistUrl.text.trim();
     // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
     // 保证与服务端 subnet 一致, 避免手工填错导致无法上网.
     final derivedTun = vpn.deriveTun();
@@ -157,13 +173,15 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late bool _ignorePush = c.ignorePush;
   late bool _c2c = c.c2c;
   late bool _bypassCn = c.bypassCn;
+  late bool _dnsIntercept = c.dnsIntercept;
 
   /// 依据当前表单 subnet 预览自动推导的 TUN 地址/前缀.
   (String, int) _tunPreview() {
-    final tmp = VpnConfig(id: '', name: '', mode: _mode)
-      ..subnet = _subnet.text.trim()
-      ..tunAddress = c.tunAddress
-      ..tunPrefix = c.tunPrefix;
+    final tmp =
+        VpnConfig(id: '', name: '', mode: _mode)
+          ..subnet = _subnet.text.trim()
+          ..tunAddress = c.tunAddress
+          ..tunPrefix = c.tunPrefix;
     return tmp.deriveTun();
   }
 
@@ -405,6 +423,50 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
             onChanged: (v) => setState(() => _bypassCn = v),
             contentPadding: EdgeInsets.zero,
           ),
+          const SizedBox(height: 12),
+          _section('DNS 拦截分流'),
+          SwitchListTile(
+            title: const Text('启用 DNS 拦截分流'),
+            subtitle: const Text(
+              '拦截 tun 上 53 端口 DNS: 命中 gfwlist 的域名走 DoH '
+              '加密解析, 其余直连国内 DNS',
+            ),
+            value: _dnsIntercept,
+            onChanged: (v) => setState(() => _dnsIntercept = v),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_dnsIntercept) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _dohUrl,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'DoH 服务地址',
+                hintText: '如 https://1.1.1.1/dns-query',
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _directDns,
+              decoration: const InputDecoration(
+                labelText: '直连 DNS 服务器',
+                hintText: '如 114.114.114.114',
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _gfwlistUrl,
+              keyboardType: TextInputType.url,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'gfwlist 下载地址',
+                hintText: '默认 GitHub gfwlist, 每日自动更新并缓存',
+                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
           // 只读展示, 避免手工填写与服务端 subnet 不一致.
