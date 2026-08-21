@@ -904,6 +904,12 @@ namespace libavpn {
 
 	void avpn_session::start_tick()
 	{
+		// 握手路径与 run_responder_tcp 可能重复调用: 同一会话只允许一个
+		// tick 协程, 多个协程共享 m_tick_timer 会互相取消导致 tick 停摆.
+		if (m_tick_started)
+			return;
+		m_tick_started = true;
+
 		auto self = shared_from_this();
 		net::co_spawn(m_ioc,
 			[this, self]() -> net::awaitable<void>
