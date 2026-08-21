@@ -1235,6 +1235,22 @@ namespace libavpn {
 			tcp::socket stream(m_main_context);
 			boost::system::error_code ec;
 
+			// 显式打开 socket: async_connect 虽会自动 open, 但 protect
+			// 需在 connect 前拿到有效 fd (Android VpnService 放行).
+			stream.open(m_nexthop_tcp.protocol(), ec);
+			if (ec)
+			{
+				XLOG_ERR << "tcp open " << endpoint_to_string(m_nexthop_tcp)
+					<< " failed: " << ec.message();
+				if (m_abort)
+					break;
+
+				net::steady_timer retry(m_main_context);
+				retry.expires_after(std::chrono::seconds(3));
+				co_await retry.async_wait(net_awaitable[ec]);
+				continue;
+			}
+
 			// 保护对外 socket (Android VpnService), 避免回环进 tun.
 			if (!socket_protect(stream.native_handle()))
 				XLOG_WARN << "protect nexthop tcp socket failed";
