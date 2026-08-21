@@ -88,6 +88,9 @@ class _RunningPageState extends State<RunningPage>
         for (final line in lines) {
           if (line is Map) {
             _addLog(Map<String, dynamic>.from(line));
+          } else if (line is String && line.trim().isNotEmpty) {
+            // launcher_log 队列上报的整行文本 (已含时间戳与级别前缀).
+            _addLog({'time': 0, 'level': 1, 'message': line});
           }
         }
       });
