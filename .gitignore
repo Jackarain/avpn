@@ -293,3 +293,7 @@ avpn/avpn/src/resource/avpn.rc
 !third_party/wintun/bin/
 !third_party/wintun/bin/*/
 !third_party/wintun/bin/*/*.dll
+
+# Android 交叉编译产物 (ninja 构建目录) 与 SWIG 输出收集目录.
+/android/
+/outputs/
