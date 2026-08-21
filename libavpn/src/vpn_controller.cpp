@@ -316,7 +316,7 @@ namespace libavpn {
 
 				// 动态修改运行参数 (如 keepalive 热更新, 其余字段自动重启生效).
 				sess->bind_method("update_config",
-					[this](json::object params) -> json::object
+					[this](json::object req) -> json::object
 					{
 						json::object result;
 						result["ok"] = false;
@@ -326,6 +326,11 @@ namespace libavpn {
 							result["error"] = "service not running";
 							return result;
 						}
+						// 请求参数位于 jsonrpc 请求的 params 字段.
+						json::object params;
+						if (auto it = req.find("params");
+							it != req.end() && it->value().is_object())
+							params = it->value().as_object();
 						int rc = service->update_config(params);
 						if (rc < 0)
 						{
@@ -339,7 +344,7 @@ namespace libavpn {
 
 				// 注入外部 tun fd (Android VpnService 建立后).
 				sess->bind_method("set_tun_fd",
-					[this](json::object params) -> json::object
+					[this](json::object req) -> json::object
 					{
 						json::object result;
 						result["ok"] = false;
@@ -349,6 +354,11 @@ namespace libavpn {
 							result["error"] = "service not running";
 							return result;
 						}
+						// 请求参数位于 jsonrpc 请求的 params 字段.
+						json::object params;
+						if (auto it = req.find("params");
+							it != req.end() && it->value().is_object())
+							params = it->value().as_object();
 						auto it = params.find("ptun_fd");
 						if (it == params.end() || !it->value().is_int64())
 						{
