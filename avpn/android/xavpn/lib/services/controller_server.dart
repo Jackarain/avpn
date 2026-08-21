@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'cn_ip_list.dart';
 import 'vpn_channel.dart';
 
 /// 本地 JSON-RPC over WebSocket 控制服务端.
@@ -153,12 +154,24 @@ class ControllerServer {
     final mtu = (params['mtu'] as num?)?.toInt() ?? 1450;
     if (address.isEmpty) return;
     final cfg = _vpnConfig ?? const <String, dynamic>{};
+    List<String> routes;
+    if (cfg['bypassCn'] == true) {
+      // 绕过中国大陆: 仅非中国段接入 VPN, 中国段走系统物理网络直连.
+      final cn = await CnIpList.update();
+      routes = CnIpList.vpnRoutes(cn);
+      if (routes.isEmpty) {
+        // 无缓存且拉取失败时回退用户配置路由.
+        routes = _strList(cfg['routes']);
+      }
+    } else {
+      routes = _strList(cfg['routes']);
+    }
     try {
       final fd = await VpnChannel.establishTun(
         address: address,
         prefix: prefix,
         mtu: mtu,
-        routes: _strList(cfg['routes']),
+        routes: routes,
         dns: _strList(cfg['dns']),
         session: cfg['name'] as String? ?? 'aVPN',
       );

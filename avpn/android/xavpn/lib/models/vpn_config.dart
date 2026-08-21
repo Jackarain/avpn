@@ -34,6 +34,7 @@ class VpnConfig {
     List<String>? routes,
     List<String>? dns,
     this.testUrl = 'https://google.com',
+    this.bypassCn = false,
   }) : pkl = pkl ?? [],
        udpListen = udpListen ?? [],
        tcpListen = tcpListen ?? [],
@@ -81,6 +82,10 @@ class VpnConfig {
 
   // ---- UI 工具 ----
   String testUrl; // 测试连接的 URL, 用于运行页测量 VPN 延迟.
+
+  /// 绕过中国大陆: 拉取中国 IP 段, 仅将非中国段接入 VPN,
+  /// 中国大陆流量走系统物理网络直连.
+  bool bypassCn;
 
   /// 生成新的配置 id (时间戳 + 随机后缀).
   static String newId() {
@@ -232,6 +237,7 @@ class VpnConfig {
     'routes': routes,
     'dns': dns,
     'testUrl': testUrl,
+    'bypassCn': bypassCn,
   };
 
   factory VpnConfig.fromJson(Map<String, dynamic> json) => VpnConfig(
@@ -262,6 +268,7 @@ class VpnConfig {
     routes: _strList(json['routes']),
     dns: _strList(json['dns']),
     testUrl: json['testUrl'] as String? ?? 'https://google.com',
+    bypassCn: json['bypassCn'] as bool? ?? false,
   );
 
   static List<String> _strList(dynamic v) {

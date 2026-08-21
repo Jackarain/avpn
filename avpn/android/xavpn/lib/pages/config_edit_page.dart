@@ -132,6 +132,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..ignorePush = _ignorePush
           ..c2c = _c2c
           ..bypassroutes = _lines(_bypassroutes.text)
+          ..bypassCn = _bypassCn
           ..routes = _lines(_routes.text)
           ..dns = _lines(_dns.text)
           ..testUrl = _testUrl.text.trim();
@@ -155,6 +156,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late bool _passbyvpn = c.passbyvpn;
   late bool _ignorePush = c.ignorePush;
   late bool _c2c = c.c2c;
+  late bool _bypassCn = c.bypassCn;
 
   /// 依据当前表单 subnet 预览自动推导的 TUN 地址/前缀.
   (String, int) _tunPreview() {
@@ -393,6 +395,17 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ],
 
           _section('Android VpnService'),
+          SwitchListTile(
+            title: const Text('绕过中国大陆 (中国 IP 直连)'),
+            subtitle: const Text(
+              '拉取中国 IP 段, 仅非中国流量接入 VPN; '
+              '启用后每次启动自动更新缓存',
+            ),
+            value: _bypassCn,
+            onChanged: (v) => setState(() => _bypassCn = v),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 12),
           // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
           // 只读展示, 避免手工填写与服务端 subnet 不一致.
           InputDecorator(
