@@ -127,6 +127,8 @@ namespace libavpn {
 		uint32_t vaddr() const { return m_vaddr; }
 		uint8_t prefix_length() const { return m_session_config.prefix_length; }
 		int mtu() const { return m_session_config.mtu; }
+		int keepalive() const { return m_session_config.keepalive; }
+		void set_keepalive(int seconds);
 		const session_config& negotiated_config() const { return m_session_config; }
 		const std::string& client_id() const { return m_client_id; }
 		const std::string& peer_public_key() const { return m_peer_static_pub; }

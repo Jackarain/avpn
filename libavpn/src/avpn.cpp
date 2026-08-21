@@ -17,8 +17,10 @@
 #include <boost/asio/ip/address_v6.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <sstream>
 #include <string_view>
 #include <thread>
@@ -28,6 +30,254 @@
 #endif
 
 namespace libavpn {
+
+	namespace {
+
+		// socket 保护回调 (如 Android VpnService.protect).
+		std::mutex g_socket_protect_mutex;
+		std::function<bool(int)> g_socket_protect_handler;
+
+		// 调用保护回调, 未注册回调时视为放行.
+		bool socket_protect(int fd)
+		{
+			std::function<bool(int)> handler;
+			{
+				std::lock_guard<std::mutex> lock(g_socket_protect_mutex);
+				handler = g_socket_protect_handler;
+			}
+			if (!handler)
+				return true;
+			return handler(fd);
+		}
+
+	} // namespace
+
+	void set_socket_protect_handler(std::function<bool(int)> handler)
+	{
+		std::lock_guard<std::mutex> lock(g_socket_protect_mutex);
+		g_socket_protect_handler = std::move(handler);
+	}
+
+	// 取配置中的 stringlist.
+	std::vector<std::string> config_list(const boost::json::object& cfg, const char* key)
+	{
+		std::vector<std::string> out;
+		auto it = cfg.find(key);
+		if (it == cfg.end())
+			return out;
+		const auto& v = it->value();
+		if (v.is_array()) {
+			for (const auto& item : v.as_array()) {
+				if (item.is_string())
+					out.emplace_back(item.as_string());
+			}
+		} else if (v.is_string()) {
+			out.emplace_back(v.as_string());
+		}
+		return out;
+	}
+
+	// 取配置中的字符串.
+	std::string config_string(const boost::json::object& cfg, const char* key)
+	{
+		auto it = cfg.find(key);
+		if (it == cfg.end() || !it->value().is_string())
+			return {};
+		return std::string(it->value().as_string());
+	}
+
+	// 取配置中的整数.
+	int config_int(const boost::json::object& cfg, const char* key, int def)
+	{
+		auto it = cfg.find(key);
+		if (it == cfg.end())
+			return def;
+		const auto& v = it->value();
+		if (v.is_int64())
+			return static_cast<int>(v.as_int64());
+		if (v.is_uint64())
+			return static_cast<int>(v.as_uint64());
+		if (v.is_double())
+			return static_cast<int>(v.as_double());
+		if (v.is_bool())
+			return v.as_bool() ? 1 : 0;
+		return def;
+	}
+
+	// 取配置中的布尔值.
+	bool config_bool(const boost::json::object& cfg, const char* key, bool def)
+	{
+		auto it = cfg.find(key);
+		if (it == cfg.end())
+			return def;
+		const auto& v = it->value();
+		if (v.is_bool())
+			return v.as_bool();
+		if (v.is_int64())
+			return v.as_int64() != 0;
+		if (v.is_string()) {
+			const auto& s = v.as_string();
+			return s == "true" || s == "1";
+		}
+		return def;
+	}
+
+	// JSON 配置转 service_config.
+	service_config config_from_json(const std::string& config)
+	{
+		service_config cfg{};
+		boost::system::error_code ec;
+		auto value = boost::json::parse(config, ec);
+		if (ec || !value.is_object())
+			return cfg;
+
+		const auto& obj = value.as_object();
+		cfg.ifdev_ = config_string(obj, "ifdev");
+		cfg.ptun_fd_ = config_int(obj, "ptun_fd", -1);
+		cfg.utun_fd_ = config_int(obj, "utun_fd", -1);
+		cfg.controller_ = config_string(obj, "controller");
+		cfg.nexthop_ = config_string(obj, "nexthop");
+		cfg.tcp_listens_ = config_list(obj, "tcp_listen");
+		cfg.udp_listens_ = config_list(obj, "udp_listen");
+		cfg.private_key_ = config_string(obj, "private_key");
+		cfg.public_key_ = config_string(obj, "public_key");
+		cfg.pkl_ = config_list(obj, "pkl");
+		cfg.mtu_size_ = config_int(obj, "mtu_size", 1450);
+		cfg.keepalive_ = config_int(obj, "keepalive", 60);
+		cfg.pushroutes_ = config_list(obj, "pushroutes");
+		cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
+		cfg.passbyvpn_ = config_bool(obj, "passbyvpn", false);
+		cfg.bypassroutes_ = config_list(obj, "bypassroutes");
+		cfg.ignore_push_ = config_bool(obj, "ignore_push", false);
+		cfg.c2c_ = config_bool(obj, "c2c", false);
+		cfg.subnet_ = config_string(obj, "subnet");
+		cfg.v6_subnet_ = config_string(obj, "v6_subnet");
+		cfg.data_shards_ = config_int(obj, "data_shards", 0);
+		cfg.parity_shards_ = config_int(obj, "parity_shards", 0);
+		cfg.compress_ = config_string(obj, "compress");
+		cfg.obfuscate_key_ = config_string(obj, "obfuscate_key");
+		cfg.pre_up_ = config_string(obj, "pre_up");
+		cfg.post_up_ = config_string(obj, "post_up");
+		cfg.pre_down_ = config_string(obj, "pre_down");
+		cfg.post_down_ = config_string(obj, "post_down");
+
+		return cfg;
+	}
+
+	// 将 cfg 中出现的键合并到 dst (与 config_from_json 键名一致).
+	void merge_config(service_config& dst, const boost::json::object& cfg)
+	{
+		auto str = [&cfg](const char* key) -> const boost::json::value*
+		{
+			auto it = cfg.find(key);
+			if (it == cfg.end() || !it->value().is_string())
+				return nullptr;
+			return &it->value();
+		};
+		auto num = [&cfg](const char* key) -> const boost::json::value*
+		{
+			auto it = cfg.find(key);
+			if (it == cfg.end())
+				return nullptr;
+			const auto& v = it->value();
+			if (v.is_int64() || v.is_uint64() || v.is_bool())
+				return &v;
+			return nullptr;
+		};
+		auto boolean = [&cfg](const char* key) -> const boost::json::value*
+		{
+			auto it = cfg.find(key);
+			if (it == cfg.end())
+				return nullptr;
+			const auto& v = it->value();
+			if (v.is_bool())
+				return &v;
+			if (v.is_int64())
+				return &v;
+			if (v.is_string()) {
+				const auto& s = v.as_string();
+				if (s == "true" || s == "1" || s == "false" || s == "0")
+					return &v;
+			}
+			return nullptr;
+		};
+		auto assign_str = [&str](const char* key, std::string& field)
+		{
+			if (auto p = str(key))
+				field = std::string(p->as_string());
+		};
+		auto assign_int = [&num](const char* key, int& field)
+		{
+			if (auto p = num(key)) {
+				if (p->is_bool())
+					field = p->as_bool() ? 1 : 0;
+				else if (p->is_int64())
+					field = static_cast<int>(p->as_int64());
+				else
+					field = static_cast<int>(p->as_uint64());
+			}
+		};
+		auto assign_bool = [&boolean](const char* key, bool& field)
+		{
+			if (auto p = boolean(key)) {
+				if (p->is_bool())
+					field = p->as_bool();
+				else if (p->is_int64())
+					field = p->as_int64() != 0;
+				else {
+					const auto& s = p->as_string();
+					field = (s == "true" || s == "1");
+				}
+			}
+		};
+		auto assign_list = [&cfg](const char* key, std::vector<std::string>& field)
+		{
+			auto it = cfg.find(key);
+			if (it == cfg.end())
+				return;
+			field = config_list(cfg, key);
+		};
+		auto assign_dns = [&num](const char* key, uint32_t& field)
+		{
+			if (auto p = num(key)) {
+				if (p->is_bool())
+					field = p->as_bool() ? 1 : 0;
+				else if (p->is_int64())
+					field = static_cast<uint32_t>(p->as_int64());
+				else
+					field = static_cast<uint32_t>(p->as_uint64());
+			}
+		};
+
+		assign_str("ifdev", dst.ifdev_);
+		assign_int("ptun_fd", dst.ptun_fd_);
+		assign_int("utun_fd", dst.utun_fd_);
+		assign_str("controller", dst.controller_);
+		assign_str("nexthop", dst.nexthop_);
+		assign_list("tcp_listen", dst.tcp_listens_);
+		assign_list("udp_listen", dst.udp_listens_);
+		assign_str("private_key", dst.private_key_);
+		assign_str("public_key", dst.public_key_);
+		assign_list("pkl", dst.pkl_);
+		assign_int("mtu_size", dst.mtu_size_);
+		assign_int("keepalive", dst.keepalive_);
+		assign_list("pushroutes", dst.pushroutes_);
+		assign_dns("pushdns", dst.pushdns_);
+		assign_bool("passbyvpn", dst.passbyvpn_);
+		assign_list("bypassroutes", dst.bypassroutes_);
+		assign_bool("ignore_push", dst.ignore_push_);
+		assign_bool("c2c", dst.c2c_);
+		assign_str("subnet", dst.subnet_);
+		assign_str("v6_subnet", dst.v6_subnet_);
+		assign_int("data_shards", dst.data_shards_);
+		assign_int("parity_shards", dst.parity_shards_);
+		assign_str("compress", dst.compress_);
+		assign_str("obfuscate_key", dst.obfuscate_key_);
+		assign_str("pre_up", dst.pre_up_);
+		assign_str("post_up", dst.post_up_);
+		assign_str("pre_down", dst.pre_down_);
+		assign_str("post_down", dst.post_down_);
+	}
 
 	// 每个 UDP socket 并发接收协程数, 参考 avpn 的 global_op_concurrency.
 	// 单 io_context 单线程调度, 多协程并发异步接收, 在数据包处理
@@ -617,13 +867,16 @@ namespace libavpn {
 
 	bool avpn_service::run_as_gateway()
 	{
-		// 打开 tun 设备.
+		// 打开 tun 设备 (重启时复用已打开的设备, 避免关闭外部传入的 fd).
 		if (m_config.ifdev_.size() || m_config.ptun_fd_ >= 0 ||
 			m_config.utun_fd_ >= 0)
 		{
-			m_tundev = std::make_unique<tun_device>(m_main_context);
-			if (!m_tundev->open(m_config))
-				XLOG_ERR << "open tun device failed";
+			if (!m_tundev)
+			{
+				m_tundev = std::make_unique<tun_device>(m_main_context);
+				if (!m_tundev->open(m_config))
+					XLOG_ERR << "open tun device failed";
+			}
 
 			// 配置 gateway 自身地址 (网络地址 + 1).
 			if (m_config.mtu_size_ <= 0)
@@ -837,6 +1090,10 @@ namespace libavpn {
 			}
 		}
 
+		// 保护对外 socket (Android VpnService), 避免回环进 tun.
+		if (!socket_protect(socket->native_handle()))
+			XLOG_WARN << "protect renewed udp socket failed";
+
 		m_client_udp = socket;
 
 		// 重建接收循环.
@@ -946,6 +1203,10 @@ namespace libavpn {
 		{
 			tcp::socket stream(m_main_context);
 			boost::system::error_code ec;
+
+			// 保护对外 socket (Android VpnService), 避免回环进 tun.
+			if (!socket_protect(stream.native_handle()))
+				XLOG_WARN << "protect nexthop tcp socket failed";
 
 			co_await stream.async_connect(m_nexthop_tcp, net_awaitable[ec]);
 			if (ec)
@@ -1394,13 +1655,16 @@ namespace libavpn {
 			}
 		}
 
-		// 打开 tun 设备.
+		// 打开 tun 设备 (重启时复用已打开的设备, 避免关闭外部传入的 fd).
 		if (m_config.ifdev_.size() || m_config.ptun_fd_ >= 0 ||
 			m_config.utun_fd_ >= 0)
 		{
-			m_tundev = std::make_unique<tun_device>(m_main_context);
-			if (!m_tundev->open(m_config))
-				XLOG_ERR << "open tun device failed";
+			if (!m_tundev)
+			{
+				m_tundev = std::make_unique<tun_device>(m_main_context);
+				if (!m_tundev->open(m_config))
+					XLOG_ERR << "open tun device failed";
+			}
 			start_tun_io_task();
 		}
 
@@ -1430,6 +1694,9 @@ namespace libavpn {
 				XLOG_ERR << "udp open failed: " << ec.message();
 				return false;
 			}
+			// 保护对外 socket (Android VpnService), 避免回环进 tun.
+			if (!socket_protect(m_client_udp->native_handle()))
+				XLOG_WARN << "protect nexthop udp socket failed";
 
 			// 启动握手.
 			net::co_spawn(m_main_context,
@@ -1545,7 +1812,7 @@ namespace libavpn {
 		return true;
 	}
 
-	void avpn_service::stop()
+	void avpn_service::stop(bool keep_tun)
 	{
 		XLOG_DBG << "avpn_service::stop";
 
@@ -1559,6 +1826,12 @@ namespace libavpn {
 		}
 
 		boost::system::error_code ec;
+
+		// 重启复用 tun 设备: 先移出保存, 避免关闭外部传入的 fd,
+		// 同时跳过 pre_down/post_down hook.
+		std::unique_ptr<tun_device> keep;
+		if (keep_tun)
+			keep = std::move(m_tundev);
 
 		// 取消周期任务定时器, 唤醒挂起的协程检查 m_abort 后自然退出,
 		// 使 main_io_context_.run() 无需 stop() 即可返回.
@@ -1584,8 +1857,9 @@ namespace libavpn {
 		}
 
 		// hook: tun 接口拆除前执行.
-		run_hook_cmd(m_config.pre_down_, m_tundev ?
-			m_tundev->device_name() : m_config.ifdev_);
+		if (!keep_tun)
+			run_hook_cmd(m_config.pre_down_, m_tundev ?
+				m_tundev->device_name() : m_config.ifdev_);
 
 		// 恢复被修改的系统路由.
 		restore_system_routes();
@@ -1617,8 +1891,86 @@ namespace libavpn {
 			m_tundev->close();
 
 		// hook: tun 接口拆除后执行.
-		run_hook_cmd(m_config.post_down_, m_tundev ?
-			m_tundev->device_name() : m_config.ifdev_);
+		if (!keep_tun)
+			run_hook_cmd(m_config.post_down_, m_tundev ?
+				m_tundev->device_name() : m_config.ifdev_);
+
+		if (keep)
+			m_tundev = std::move(keep);
+	}
+
+	int avpn_service::update_config(const boost::json::object& cfg)
+	{
+		if (m_abort)
+			return -1;
+
+		// 合并新配置 (未给出的键保持原值).
+		auto old = m_config;
+		merge_config(m_config, cfg);
+
+		// 判定需要重启才能生效的字段.
+		bool restart = false;
+		restart = restart || m_config.ifdev_ != old.ifdev_;
+		restart = restart || m_config.ptun_fd_ != old.ptun_fd_;
+		restart = restart || m_config.utun_fd_ != old.utun_fd_;
+		restart = restart || m_config.nexthop_ != old.nexthop_;
+		restart = restart || m_config.tcp_listens_ != old.tcp_listens_;
+		restart = restart || m_config.udp_listens_ != old.udp_listens_;
+		restart = restart || m_config.private_key_ != old.private_key_;
+		restart = restart || m_config.public_key_ != old.public_key_;
+		restart = restart || m_config.pkl_ != old.pkl_;
+		restart = restart || m_config.mtu_size_ != old.mtu_size_;
+		restart = restart || m_config.pushroutes_ != old.pushroutes_;
+		restart = restart || m_config.pushdns_ != old.pushdns_;
+		restart = restart || m_config.passbyvpn_ != old.passbyvpn_;
+		restart = restart || m_config.bypassroutes_ != old.bypassroutes_;
+		restart = restart || m_config.ignore_push_ != old.ignore_push_;
+		restart = restart || m_config.c2c_ != old.c2c_;
+		restart = restart || m_config.subnet_ != old.subnet_;
+		restart = restart || m_config.v6_subnet_ != old.v6_subnet_;
+		restart = restart || m_config.data_shards_ != old.data_shards_;
+		restart = restart || m_config.parity_shards_ != old.parity_shards_;
+		restart = restart || m_config.compress_ != old.compress_;
+		restart = restart || m_config.obfuscate_key_ != old.obfuscate_key_;
+
+		// keepalive 可热更新: 立即应用到活动会话.
+		if (m_config.keepalive_ != old.keepalive_)
+		{
+			if (m_tunnel)
+				m_tunnel->set_keepalive(m_config.keepalive_);
+			for (auto& [key, session] : m_sessions)
+			{
+				if (session)
+					session->set_keepalive(m_config.keepalive_);
+			}
+		}
+
+		// keepalive 热更新日志.
+		if (m_config.keepalive_ != old.keepalive_)
+			XLOG_INFO << "keepalive updated: " << m_config.keepalive_;
+
+		if (!restart)
+			return 0;
+
+		// 延迟重启: 先让当前 RPC 响应写出, 再停止并重新启动服务,
+		// 保留已打开的 tun 设备.
+		XLOG_INFO << "update_config requires restart, restarting service";
+		auto self = shared_from_this();
+		net::co_spawn(m_main_context.get_executor(),
+			[self]() -> net::awaitable<void>
+			{
+				auto ex = co_await net::this_coro::executor;
+				net::steady_timer timer(ex);
+				timer.expires_after(std::chrono::milliseconds(200));
+				boost::system::error_code sec;
+				co_await timer.async_wait(net_awaitable[sec]);
+
+				self->stop(true);
+				if (!self->start())
+					XLOG_ERR << "restart with new config failed";
+			}, net::detached);
+
+		return 1;
 	}
 
 	boost::json::object avpn_service::status_json() const

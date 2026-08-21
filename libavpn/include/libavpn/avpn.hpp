@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <atomic>
+#include <functional>
 #include <map>
 #include <set>
 #include <vector>
@@ -130,6 +131,15 @@ namespace libavpn {
 		std::string post_down_;
 	};
 
+	// JSON 配置转 service_config, 键名与 xavpn 启动配置一致.
+	// 解析失败时返回默认构造的 service_config.
+	service_config config_from_json(const std::string& config);
+
+	// 注册 socket 保护回调 (如 Android VpnService.protect).
+	// 当 avpn 创建对外连接 (nexthop) 的 socket 时回调, 返回 false 表示保护失败.
+	// 传空回调取消注册; 线程安全.
+	void set_socket_protect_handler(std::function<bool(int)> handler);
+
 	// 命名空间及类型别名.
 	namespace net = boost::asio;
 	using net::ip::udp;
@@ -161,7 +171,13 @@ namespace libavpn {
 		bool start();
 
 		// 停止服务.
-		void stop();
+		void stop(bool keep_tun = false);
+
+		// 应用新的配置 (controller 动态下发).
+		// 部分字段可热更新 (如 keepalive), 其余字段在需要重启时内部完成
+		// 重启并保留已打开的 tun 设备.
+		// 返回 0=应用成功无需重启, 1=应用成功且已调度重启, -1=失败.
+		int update_config(const boost::json::object& cfg);
 
 		// 采集服务状态快照 (供控制通道状态上报 / get_status RPC 使用).
 		boost::json::object status_json() const;

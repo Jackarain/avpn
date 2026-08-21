@@ -314,6 +314,29 @@ namespace libavpn {
 						return json::object{};
 					});
 
+				// 动态修改运行参数 (如 keepalive 热更新, 其余字段自动重启生效).
+				sess->bind_method("update_config",
+					[this](json::object params) -> json::object
+					{
+						json::object result;
+						result["ok"] = false;
+						auto service = m_service.lock();
+						if (!service)
+						{
+							result["error"] = "service not running";
+							return result;
+						}
+						int rc = service->update_config(params);
+						if (rc < 0)
+						{
+							result["error"] = "invalid config or service not running";
+							return result;
+						}
+						result["ok"] = true;
+						result["restarting"] = rc > 0;
+						return result;
+					});
+
 				sess->closed_callback([this]() { m_session_closed = true; });
 
 				// 先启动读循环, 再发送通知; 否则会话尚未进入运行态,

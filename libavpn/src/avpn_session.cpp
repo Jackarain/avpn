@@ -163,6 +163,12 @@ namespace libavpn {
 		m_vaddr_allocator = std::move(h);
 	}
 
+	// 动态修改保活间隔 (controller update_config 热更新).
+	void avpn_session::set_keepalive(int seconds)
+	{
+		m_session_config.keepalive = std::max(1, seconds);
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// 握手
 

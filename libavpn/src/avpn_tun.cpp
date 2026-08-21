@@ -187,6 +187,12 @@ namespace libavpn {
 		// 外部传入的 tun fd.
 		if (config.ptun_fd_ >= 0)
 		{
+			// Android VpnService 的 tun fd 默认为阻塞模式, 必须改为非阻塞
+			// 才能配合 Boost.Asio 异步读写.
+			int flags = ::fcntl(config.ptun_fd_, F_GETFL, 0);
+			if (flags >= 0)
+				::fcntl(config.ptun_fd_, F_SETFL, flags | O_NONBLOCK);
+
 			m_stream.assign(config.ptun_fd_, ec);
 			if (ec)
 			{
@@ -201,6 +207,10 @@ namespace libavpn {
 		// 外部传入的 unix domain socket fd (IPC 方式读写 tun).
 		if (config.utun_fd_ >= 0)
 		{
+			int flags = ::fcntl(config.utun_fd_, F_GETFL, 0);
+			if (flags >= 0)
+				::fcntl(config.utun_fd_, F_SETFL, flags | O_NONBLOCK);
+
 			m_stream.assign(config.utun_fd_, ec);
 			if (ec)
 			{
