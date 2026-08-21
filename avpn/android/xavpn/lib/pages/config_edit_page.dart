@@ -213,7 +213,8 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           TextField(
             controller: _publicKey,
             decoration: const InputDecoration(
-              labelText: '本端公钥 public_key',
+              labelText: '对端公钥 public_key',
+              hintText: '服务器/网关的公钥 (base64), 客户端必填',
               border: OutlineInputBorder(),
             ),
           ),

@@ -98,6 +98,9 @@ class VpnConfig {
     if (mode == 'client' && nexthop.trim().isEmpty) {
       errors.add('客户端模式必须填写 nexthop');
     }
+    if (mode == 'client' && publicKey.trim().isEmpty) {
+      errors.add('客户端模式必须填写对端公钥 public_key');
+    }
     if (mtuSize < 576 || mtuSize > 65535) {
       errors.add('MTU 需在 576~65535 之间');
     }

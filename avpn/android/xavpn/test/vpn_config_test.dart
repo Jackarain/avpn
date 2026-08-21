@@ -86,11 +86,12 @@ void main() {
       );
       final errors = bad.validate();
       expect(errors, contains('客户端模式必须填写 nexthop'));
+      expect(errors, contains('客户端模式必须填写对端公钥 public_key'));
       expect(errors, contains('MTU 需在 576~65535 之间'));
       expect(errors, contains('keepalive 必须大于 0'));
       expect(errors, contains('TUN 地址不能为空'));
 
-      final ok = VpnConfig(id: '2', name: '好配置', mode: 'client', nexthop: '1.2.3.4:19090');
+      final ok = VpnConfig(id: '2', name: '好配置', mode: 'client', nexthop: '1.2.3.4:19090', publicKey: 'aGVsbG8=');
       expect(ok.validate(), isEmpty);
     });
   });
