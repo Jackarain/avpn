@@ -31,7 +31,7 @@ namespace detail {
 void launcher_log_enqueue(int64_t time, const int& level,
 	const std::string& message);
 
-// 启用/停用日志采集（控制通道启用时由 vpn_controller 调用）.
+// 启用/停用日志采集（控制通道启用时由 vpn_launcher 调用）.
 void launcher_log_set_enabled(bool enable);
 
 // 取出积压日志（控制通道上报时调用）.

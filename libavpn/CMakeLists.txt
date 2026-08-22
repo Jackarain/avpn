@@ -23,7 +23,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/dns_proxy.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/io_context_pool.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/launcher_log.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/vpn_controller.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/vpn_launcher.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/jsonrpc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/asio_util.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_crypto.hpp
@@ -45,7 +45,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/dns_proxy.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/io_context_pool.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/vpn_controller.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/vpn_launcher.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_crypto.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_protocol.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_compress.cpp

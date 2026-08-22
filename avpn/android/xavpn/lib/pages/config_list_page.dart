@@ -7,7 +7,7 @@ import '../models/vpn_config.dart';
 import '../services/app_session.dart';
 import '../services/storage_service.dart';
 import '../services/vpn_channel.dart';
-import '../services/controller_server.dart';
+import '../services/launcher_server.dart';
 import 'config_edit_page.dart';
 import 'running_page.dart';
 
@@ -46,7 +46,7 @@ class _ConfigListPageState extends State<ConfigListPage> {
     var server = session.server;
     if (server == null) {
       try {
-        server = ControllerServer();
+        server = LauncherServer();
         await server.start(port: port);
         session.server = server;
       } catch (_) {
@@ -57,7 +57,7 @@ class _ConfigListPageState extends State<ConfigListPage> {
     }
 
     // 等待 avpn 经控制通道连上; 未连上说明服务已不在运行, 清理状态.
-    if (!await _waitControllerConnected(server)) {
+    if (!await _waitLauncherConnected(server)) {
       await _storage.clearRunState();
       session.endRun();
       return;
@@ -76,8 +76,8 @@ class _ConfigListPageState extends State<ConfigListPage> {
   }
 
   /// 等待 avpn 控制通道连接 (最长 [timeout]), 判定服务是否存活.
-  Future<bool> _waitControllerConnected(
-    ControllerServer server, {
+  Future<bool> _waitLauncherConnected(
+    LauncherServer server, {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (server.connected) return true;
@@ -138,7 +138,7 @@ class _ConfigListPageState extends State<ConfigListPage> {
       final session = AppSession.instance;
       var server = session.server;
       if (server == null) {
-        server = ControllerServer();
+        server = LauncherServer();
         await server.start();
         session.server = server;
       }

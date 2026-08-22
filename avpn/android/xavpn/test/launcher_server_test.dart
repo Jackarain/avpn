@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xavpn/services/controller_server.dart';
+import 'package:xavpn/services/launcher_server.dart';
 
 void main() {
-  test('controller server 处理 jsonrpc 通知与请求', () async {
-    final server = ControllerServer();
+  test('launcher server 处理 jsonrpc 通知与请求', () async {
+    final server = LauncherServer();
     await server.start();
     final port = server.port;
     addTearDown(server.close);
@@ -135,7 +135,7 @@ void main() {
   });
 
   test('未启动即关闭与重复关闭均安全', () async {
-    final server = ControllerServer();
+    final server = LauncherServer();
     await server.close();
     await server.close();
     // 关闭后不可再启动.
@@ -143,7 +143,7 @@ void main() {
   });
 
   test('关闭后挂起的调用立即失败', () async {
-    final server = ControllerServer();
+    final server = LauncherServer();
     await server.start();
     addTearDown(() async {
       try {

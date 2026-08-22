@@ -32,12 +32,12 @@ class MainActivity : FlutterActivity() {
                     "prepare" -> handlePrepare(result)
                     "start" -> {
                         val config = call.argument<String>("config") ?: ""
-                        val port = call.argument<Int>("controllerPort") ?: 0
+                        val port = call.argument<Int>("launcherPort") ?: 0
                         handleStart(config, port, result)
                     }
                     "restart" -> {
                         val config = call.argument<String>("config") ?: ""
-                        val port = call.argument<Int>("controllerPort") ?: 0
+                        val port = call.argument<Int>("launcherPort") ?: 0
                         handleRestart(config, port, result)
                     }
                     "stop" -> {
@@ -126,17 +126,17 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun sendServiceCommand(
-        action: String, config: String, controllerPort: Int, result: MethodChannel.Result
+        action: String, config: String, launcherPort: Int, result: MethodChannel.Result
     ) {
-        if (config.isEmpty() || controllerPort <= 0) {
-            result.error("BAD_ARGS", "config/controllerPort 缺失", null)
+        if (config.isEmpty() || launcherPort <= 0) {
+            result.error("BAD_ARGS", "config/launcherPort 缺失", null)
             return
         }
         try {
             val intent = Intent(this, XavpnVpnService::class.java).apply {
                 this.action = action
                 putExtra(XavpnVpnService.EXTRA_CONFIG, config)
-                putExtra(XavpnVpnService.EXTRA_CONTROLLER_PORT, controllerPort)
+                putExtra(XavpnVpnService.EXTRA_LAUNCHER_PORT, launcherPort)
             }
             XavpnVpnService.startForegroundServiceCompat(this, intent)
             result.success(true)
@@ -145,11 +145,11 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun handleStart(config: String, controllerPort: Int, result: MethodChannel.Result) {
-        sendServiceCommand(XavpnVpnService.ACTION_START, config, controllerPort, result)
+    private fun handleStart(config: String, launcherPort: Int, result: MethodChannel.Result) {
+        sendServiceCommand(XavpnVpnService.ACTION_START, config, launcherPort, result)
     }
 
-    private fun handleRestart(config: String, controllerPort: Int, result: MethodChannel.Result) {
-        sendServiceCommand(XavpnVpnService.ACTION_RESTART, config, controllerPort, result)
+    private fun handleRestart(config: String, launcherPort: Int, result: MethodChannel.Result) {
+        sendServiceCommand(XavpnVpnService.ACTION_RESTART, config, launcherPort, result)
     }
 }

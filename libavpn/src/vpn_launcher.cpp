@@ -1,5 +1,5 @@
 ﻿//
-// vpn_controller.cpp
+// vpn_launcher.cpp
 // ~~~~~~~~~~~~~~~~~~
 //
 // Copyright (c) 2023 Jack (jack dot wgm at gmail dot com)
@@ -7,12 +7,12 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
-// 控制通道实现: 由 avpn_service 在配置了 controller 地址时创建, 主动连接到
+// 控制通道实现: 由 avpn_service 在配置了 launcher 地址时创建, 主动连接到
 // launcher 的 /rpc WebSocket 控制通道, 上报注册信息与运行状态, 并响应
 // launcher 下发的 shutdown / get_status 请求.
 //
 
-#include "libavpn/vpn_controller.hpp"
+#include "libavpn/vpn_launcher.hpp"
 #include "libavpn/launcher_log.hpp"
 #include "libavpn/logging.hpp"
 #include "libavpn/asio_util.hpp"
@@ -46,7 +46,7 @@ namespace libavpn {
 	// 连接失败后的重连间隔.
 	inline constexpr std::chrono::seconds k_reconnect_base{ 3 };
 
-	vpn_controller::vpn_controller(io_context_pool& ioc_pool,
+	vpn_launcher::vpn_launcher(io_context_pool& ioc_pool,
 		const service_config& config, std::weak_ptr<avpn_service> service)
 		: m_ioc_pool(ioc_pool)
 		, m_main_context(ioc_pool.main_io_context())
@@ -55,7 +55,7 @@ namespace libavpn {
 	{
 	}
 
-	void vpn_controller::start()
+	void vpn_launcher::start()
 	{
 		if (m_abort)
 			return;
@@ -73,7 +73,7 @@ namespace libavpn {
 			}, net::detached);
 	}
 
-	void vpn_controller::stop()
+	void vpn_launcher::stop()
 	{
 		if (m_abort)
 			return;
@@ -102,7 +102,7 @@ namespace libavpn {
 		asio_util::cancel(m_timer, ec);
 	}
 
-	net::awaitable<void> vpn_controller::worker()
+	net::awaitable<void> vpn_launcher::worker()
 	{
 		while (!m_abort)
 		{
@@ -123,15 +123,15 @@ namespace libavpn {
 		co_return;
 	}
 
-	net::awaitable<bool> vpn_controller::connect()
+	net::awaitable<bool> vpn_launcher::connect()
 	{
 		boost::system::error_code ec;
 
-		// 解析 controller URI.
-		auto result = boost::urls::parse_uri(m_config.controller_);
+		// 解析 launcher URI.
+		auto result = boost::urls::parse_uri(m_config.launcher_);
 		if (!result)
 		{
-			XLOG_ERR << "Invalid controller URI: " << m_config.controller_
+			XLOG_ERR << "Invalid launcher URI: " << m_config.launcher_
 				<< ", error: " << result.error().message();
 			co_return false;
 		}
@@ -165,7 +165,7 @@ namespace libavpn {
 		auto results = co_await resolver.async_resolve(host, port, net_awaitable[ec]);
 		if (ec)
 		{
-			XLOG_WARN << "Failed to resolve controller " << m_config.controller_
+			XLOG_WARN << "Failed to resolve launcher " << m_config.launcher_
 				<< ", error: " << ec.message();
 			co_return false;
 		}
@@ -188,7 +188,7 @@ namespace libavpn {
 				beast::get_lowest_layer(ws_stream), results, net_awaitable[ec]);
 			if (ec)
 			{
-				XLOG_WARN << "Failed to connect to controller " << m_config.controller_
+				XLOG_WARN << "Failed to connect to launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
 				co_return false;
 			}
@@ -198,7 +198,7 @@ namespace libavpn {
 			ssl_stream.set_verify_mode(net::ssl::verify_none, ec);
 			if (ec)
 			{
-				XLOG_WARN << "TLS setup failed with controller " << m_config.controller_
+				XLOG_WARN << "TLS setup failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
 				beast::get_lowest_layer(ws_stream).close(ec);
 				co_return false;
@@ -212,7 +212,7 @@ namespace libavpn {
 #if defined(OPENSSL_VERSION_NUMBER)
 				if (::SSL_set_tlsext_host_name(
 						ssl_stream.native_handle(), host.c_str()) != 1)
-					XLOG_WARN << "Failed to set TLS SNI for controller: " << host;
+					XLOG_WARN << "Failed to set TLS SNI for launcher: " << host;
 #endif
 			}
 
@@ -220,7 +220,7 @@ namespace libavpn {
 				net::ssl::stream_base::client, net_awaitable[ec]);
 			if (ec)
 			{
-				XLOG_WARN << "TLS handshake failed with controller " << m_config.controller_
+				XLOG_WARN << "TLS handshake failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
 				beast::get_lowest_layer(ws_stream).close(ec);
 				co_return false;
@@ -231,7 +231,7 @@ namespace libavpn {
 			co_await ws_stream.async_handshake(host, target, net_awaitable[ec]);
 			if (ec)
 			{
-				XLOG_WARN << "WebSocket handshake failed with controller " << m_config.controller_
+				XLOG_WARN << "WebSocket handshake failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
 				beast::get_lowest_layer(ws_stream).close(ec);
 				co_return false;
@@ -244,7 +244,7 @@ namespace libavpn {
 				std::make_unique<jsonrpc::jsonrpc_session<wss>>(std::move(ws_stream)));
 			m_session_closed = false;
 
-			XLOG_DBG << "Controller connected: " << m_config.controller_;
+			XLOG_DBG << "Launcher connected: " << m_config.launcher_;
 			co_return true;
 		}
 
@@ -254,7 +254,7 @@ namespace libavpn {
 			beast::get_lowest_layer(ws_stream), results, net_awaitable[ec]);
 		if (ec)
 		{
-			XLOG_WARN << "Failed to connect to controller " << m_config.controller_
+			XLOG_WARN << "Failed to connect to launcher " << m_config.launcher_
 				<< ", error: " << ec.message();
 			co_return false;
 		}
@@ -264,7 +264,7 @@ namespace libavpn {
 		co_await ws_stream.async_handshake(host, target, net_awaitable[ec]);
 		if (ec)
 		{
-			XLOG_WARN << "WebSocket handshake failed with controller " << m_config.controller_
+			XLOG_WARN << "WebSocket handshake failed with launcher " << m_config.launcher_
 				<< ", error: " << ec.message();
 			beast::get_lowest_layer(ws_stream).close(ec);
 			co_return false;
@@ -277,11 +277,11 @@ namespace libavpn {
 			std::make_unique<jsonrpc::jsonrpc_session<ws>>(std::move(ws_stream)));
 		m_session_closed = false;
 
-		XLOG_DBG << "Controller connected: " << m_config.controller_;
+		XLOG_DBG << "Launcher connected: " << m_config.launcher_;
 		co_return true;
 	}
 
-	net::awaitable<void> vpn_controller::serve()
+	net::awaitable<void> vpn_launcher::serve()
 	{
 		co_await std::visit([this](auto& sess) -> net::awaitable<void>
 			{
@@ -412,7 +412,7 @@ namespace libavpn {
 		co_return;
 	}
 
-	net::awaitable<bool> vpn_controller::call_protect(int fd)
+	net::awaitable<bool> vpn_launcher::call_protect(int fd)
 	{
 		co_return co_await std::visit(
 			[fd](auto& sess) -> net::awaitable<bool>
@@ -437,7 +437,7 @@ namespace libavpn {
 			}, m_session);
 	}
 
-	void vpn_controller::notify(std::string_view method,
+	void vpn_launcher::notify(std::string_view method,
 		const boost::json::value& params)
 	{
 		std::visit([method, &params](auto& sess)
@@ -447,7 +447,7 @@ namespace libavpn {
 			}, m_session);
 	}
 
-	void vpn_controller::send_register()
+	void vpn_launcher::send_register()
 	{
 		json::object reg;
 #ifdef _WIN32
@@ -466,7 +466,7 @@ namespace libavpn {
 			}, m_session);
 	}
 
-	void vpn_controller::send_status()
+	void vpn_launcher::send_status()
 	{
 		std::visit([this](auto& sess)
 			{
@@ -488,7 +488,7 @@ namespace libavpn {
 			}, m_session);
 	}
 
-	boost::json::object vpn_controller::status_report() const
+	boost::json::object vpn_launcher::status_report() const
 	{
 		if (auto svc = m_service.lock())
 			return svc->status_json();

@@ -462,7 +462,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 |---|---|
 | `ifdev_` | tun 设备名称（Linux/macOS 接口名；Windows 为 `wintun`） |
 | `ptun_fd_` / `utun_fd_` | 外部 tun fd / IPC fd（-1 表示不使用） |
-| `controller_` | 控制服务地址（如 `ws://ip:port`），用于动态下发配置 |
+| `launcher_` | 控制服务地址（如 `ws://ip:port`），用于动态下发配置 |
 | `nexthop_` | 目标 VPN 服务器（客户端模式），支持 `udp://` / `tcp://` |
 | `tcp_listens_` / `udp_listens_` | 监听地址（网关模式） |
 | `private_key_` / `public_key_` | 本端静态密钥对（base64） |

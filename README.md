@@ -177,7 +177,7 @@ launcher 主要参数:
 | `--no_kill_on_exit` | 退出 launcher 时不停止已启动的 avpn 实例 |
 
 launcher 启动后，浏览器访问 `http://<host>:18080/` 即可打开 WebUI。
-launcher 会自动为每个实例生成控制通道 URL（`--controller ws://.../rpc`），
+launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../rpc`），
 通过 WebSocket + JSON-RPC 采集实例运行状态与日志，无需手工配置。
 
 ## 功能参数介绍
@@ -193,7 +193,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--controller ws://...
 | `--ifdev <dev>` | 指定 tun 虚拟网卡名称，如 tun0；Windows 下使用 wintun 虚拟网卡。 |
 | `--ptun_fd <fd>` | 使用外部传入的 tun 设备文件描述符（如通过 SCM_RIGHTS 传递），-1 表示不使用。 |
 | `--utun_fd <fd>` | 通过 Unix Domain Datagram Socket 以 IPC 方式读写 tun 设备时的 fd，-1 表示不使用。 |
-| `--controller <ws://ip:port>` | 控制服务地址，avpn 主动连接该 WebSocket 服务并接受控制命令。 |
+| `--launcher <ws://ip:port>` | 控制服务地址，avpn 主动连接该 WebSocket 服务并接受控制命令。 |
 | `--nexthop <ip:port>` | client 端指定下一跳 VPN 服务器地址和端口，gateway 端为空。 |
 | `--tcp_listen <ip:port>` | server 端 TCP 监听地址，可多次指定。 |
 | `--udp_listen <ip:port>` | server 端 UDP 监听地址，可多次指定。 |

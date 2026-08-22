@@ -50,7 +50,7 @@ namespace libavpn {
 		// 格式如: "ws://ip:port", 由 avpn 主动连接到控制端服务, 接受控制命令.
 		// 当为空字符串时, 表示不启用控制服务功能.
 		// 注意: 控制服务通常用于动态下发配置, 启动/停止 service 等功能.
-		std::string controller_;
+		std::string launcher_;
 
 		// 目标 vpn 服务器, 当从 tun 设备读取到数据后, 需要将 IP 数据包发送下一个的服务.
 		// 如果是作为网关服务的话, nexthop 应该为空.
@@ -158,14 +158,14 @@ namespace libavpn {
 
 	class avpn_session;
 	class tun_device;
-	class vpn_controller;
+	class vpn_launcher;
 	class dns_proxy;
 
 	class avpn_service
 		: public std::enable_shared_from_this<avpn_service>
 	{
 	public:
-		// 经 controller 控制通道异步 protect 对外 socket (Android VpnService),
+		// 经 launcher 控制通道异步 protect 对外 socket (Android VpnService),
 		// 无控制通道时视为放行. 须在 io_context 协程中调用.
 		net::awaitable<bool> protect_socket_async(int fd);
 
@@ -198,7 +198,7 @@ namespace libavpn {
 		// 停止服务.
 		void stop(bool keep_tun = false);
 
-		// 应用新的配置 (controller 动态下发).
+		// 应用新的配置 (launcher 动态下发).
 		// 部分字段可热更新 (如 keepalive), 其余字段在需要重启时内部完成
 		// 重启并保留已打开的 tun 设备.
 		// 返回 0=应用成功无需重启, 1=应用成功且已调度重启, -1=失败.
@@ -287,7 +287,7 @@ namespace libavpn {
 		// 会话关闭回调.
 		void on_session_close(const std::shared_ptr<avpn_session>& session);
 
-		// 经 controller 通知 app 握手下发的 vaddr (Android 配置 tun 用).
+		// 经 launcher 通知 app 握手下发的 vaddr (Android 配置 tun 用).
 		void notify_vaddr();
 
 		// 创建/重建 DNS 拦截模块 (client 模式且启用时).
@@ -316,10 +316,10 @@ namespace libavpn {
 		// 服务配置参数.
 		service_config m_config;
 
-		// 控制通道 (controller 非空时启动).
+		// 控制通道 (launcher 非空时启动).
 		// 用 shared_ptr 持有: stop() 时 reset 后, 运行中的 worker/serve 协程
 		// 仍通过自身持有的 shared_from_this 保活, 协程结束后再析构.
-		std::shared_ptr<vpn_controller> m_controller;
+		std::shared_ptr<vpn_launcher> m_launcher;
 
 		// DNS 拦截模块 (client 模式且启用时创建).
 		std::shared_ptr<dns_proxy> m_dns_proxy;

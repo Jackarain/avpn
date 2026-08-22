@@ -5,8 +5,8 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#ifndef INCLUDE__2025_11_22__VPN_CONTROLLER_HPP
-#define INCLUDE__2025_11_22__VPN_CONTROLLER_HPP
+#ifndef INCLUDE__2025_11_22__VPN_LAUNCHER_HPP
+#define INCLUDE__2025_11_22__VPN_LAUNCHER_HPP
 
 #include "libavpn/io_context_pool.hpp"
 #include "libavpn/use_awaitable.hpp"
@@ -26,16 +26,16 @@ namespace libavpn {
 	namespace net = boost::asio;
 
 
-	class vpn_controller
-		: public std::enable_shared_from_this<vpn_controller>
+	class vpn_launcher
+		: public std::enable_shared_from_this<vpn_launcher>
 	{
-		vpn_controller(const vpn_controller&) = delete;
-		vpn_controller& operator=(const vpn_controller&) = delete;
+		vpn_launcher(const vpn_launcher&) = delete;
+		vpn_launcher& operator=(const vpn_launcher&) = delete;
 
 	public:
-		vpn_controller(io_context_pool& ioc_pool, const service_config& config,
+		vpn_launcher(io_context_pool& ioc_pool, const service_config& config,
 			std::weak_ptr<avpn_service> service);
-		~vpn_controller() = default;
+		~vpn_launcher() = default;
 
 	public:
 		void start();
@@ -93,4 +93,4 @@ namespace libavpn {
 
 } // namespace libavpn
 
-#endif // INCLUDE__2025_11_22__VPN_CONTROLLER_HPP
+#endif // INCLUDE__2025_11_22__VPN_LAUNCHER_HPP

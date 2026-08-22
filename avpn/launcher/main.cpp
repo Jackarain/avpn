@@ -226,7 +226,7 @@ int main(int argc, char** argv)
 
 	// 证书目录不可用时 start 会降级为明文 HTTP, 以实际生效的模式
 	// 设置控制通道地址. 必须先于 Load: Load 会自动启动 autostart 实例,
-	// 此时需要正确的地址/端口来构造 --controller 控制通道 URL.
+	// 此时需要正确的地址/端口来构造 --launcher 控制通道 URL.
 	https = server.https_enabled();
 	mgr->set_ws_addr(host, port, https);
 
