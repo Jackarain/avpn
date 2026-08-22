@@ -35,6 +35,13 @@ namespace libavpn {
 
 namespace net = boost::asio;
 
+// 解析 gfwlist 规则文本, 填充规则与例外集合 (纯函数, 供单元测试与
+// dns_proxy::parse_gfwlist 复用). 支持官方 base64 解码后的规则文本
+// 与自建纯文本列表两种内容格式.
+void parse_gfwlist_rules(const std::string& content,
+	std::unordered_set<std::string>& rules,
+	std::unordered_set<std::string>& exceptions);
+
 class dns_proxy
 	: public std::enable_shared_from_this<dns_proxy>
 {
