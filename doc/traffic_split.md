@@ -108,7 +108,7 @@ DNS 请求进入 tun
 - URL 无路径时自动补全 `/dns-query`。
 - 常见 DoH 域名（如 `cloudflare-dns.com`、`dns.google`）映射为 IP 直连，
   避免经系统 DNS 解析时被污染或回环。
-- 默认地址：`https://user:password@doh.example.com`（可配置 `dohUrl`）。
+- 默认地址：`https://1.1.1.1/dns-query`（可配置 `dohUrl`）。
 
 ### 3.5 直连 DNS
 
@@ -127,7 +127,7 @@ DNS 请求进入 tun
 | `routes` | `[]` | 自定义 VPN 路由 CIDR（为空时全隧道） |
 | `dns` | `[]`（空时用 `8.8.8.8`） | VpnService DNS 服务器 |
 | `dnsIntercept` | `false` | 启用 tun 53 端口 DNS 拦截分流 |
-| `dohUrl` | `https://user:password@doh.example.com` | DoH 服务地址 |
+| `dohUrl` | `https://1.1.1.1/dns-query` | DoH 服务地址 |
 | `directDns` | `114.114.114.114` | 直连 DNS 服务器 |
 | `gfwlistUrl` | `https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt` | gfwlist 下载地址 |
 
