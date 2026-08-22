@@ -99,8 +99,7 @@ DNS 请求进入 tun
   尾部 `^`/`*`/`.`。
 - 例外规则（`@@`）优先：命中例外不按被墙处理。
 - 缓存到本地文件，每日自动更新；解析失败/超时回退缓存。
-- 解析实现：`parse_gfwlist_rules()`（纯函数，可单测），
-  `dns_proxy::parse_gfwlist()` 调用并重建匹配集。
+- 解析实现：`dns_proxy::parse_gfwlist()`（私有成员），解析后重建匹配集。
 
 ### 3.4 DoH 服务
 
@@ -153,6 +152,5 @@ DNS 请求进入 tun
 | 建立 tun 时按配置选择路由/DNS | `avpn/android/xavpn/lib/services/launcher_server.dart` |
 | 配置字段定义与校验 | `avpn/android/xavpn/lib/models/vpn_config.dart` |
 | tun 53 拦截与分流决策 | `libavpn/src/dns_proxy.cpp` |
-| gfwlist 解析（纯函数） | `libavpn/include/libavpn/dns_proxy.hpp`、`libavpn/src/dns_proxy.cpp` |
+| gfwlist 解析 | `libavpn/include/libavpn/dns_proxy.hpp`、`libavpn/src/dns_proxy.cpp` |
 | DoH 查询与 Basic 认证 | `libavpn/src/dns_proxy.cpp`（`doh_query`） |
-| gfwlist 单测 | `tests/gfwlist_tests.cpp` |

@@ -284,10 +284,11 @@ void dns_proxy::update_config(const config& cfg)
 //////////////////////////////////////////////////////////////////////////
 // gfwlist 加载与更新
 
-void parse_gfwlist_rules(const std::string& content,
-	std::unordered_set<std::string>& rules,
-	std::unordered_set<std::string>& exceptions)
+void dns_proxy::parse_gfwlist(const std::string& content)
 {
+	std::unordered_set<std::string> rules;
+	std::unordered_set<std::string> exceptions;
+
 	std::istringstream ss(content);
 	std::string line;
 	while (std::getline(ss, line))
@@ -342,13 +343,7 @@ void parse_gfwlist_rules(const std::string& content,
 
 		(is_exception ? exceptions : rules).insert(std::move(domain));
 	}
-}
 
-void dns_proxy::parse_gfwlist(const std::string& content)
-{
-	std::unordered_set<std::string> rules;
-	std::unordered_set<std::string> exceptions;
-	parse_gfwlist_rules(content, rules, exceptions);
 	m_gfwlist = std::move(rules);
 	m_gfwlist_exceptions = std::move(exceptions);
 	XLOG_INFO << "gfwlist parsed: " << m_gfwlist.size()
