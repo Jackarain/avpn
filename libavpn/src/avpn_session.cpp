@@ -1054,6 +1054,7 @@ namespace libavpn {
 		m_role = session_role::responder;
 		m_transport = transport_type::tcp;
 		m_tcp_stream = std::make_shared<tcp::socket>(std::move(stream));
+		auto stream_ptr = m_tcp_stream;
 		// 记录对端地址 (状态上报用).
 		{
 			boost::system::error_code ec;
@@ -1067,7 +1068,7 @@ namespace libavpn {
 		{
 			std::array<uint8_t, 2> lenbuf;
 			boost::system::error_code ec;
-			co_await net::async_read(*m_tcp_stream, net::buffer(lenbuf),
+			co_await net::async_read(*stream_ptr, net::buffer(lenbuf),
 				net_awaitable[ec]);
 			if (ec || m_abort)
 				break;
@@ -1078,7 +1079,7 @@ namespace libavpn {
 				break;
 
 			std::vector<uint8_t> wire(len);
-			co_await net::async_read(*m_tcp_stream, net::buffer(wire),
+			co_await net::async_read(*stream_ptr, net::buffer(wire),
 				net_awaitable[ec]);
 			if (ec || m_abort)
 				break;
@@ -1094,7 +1095,7 @@ namespace libavpn {
 		}
 
 		start_tick();
-		co_await tcp_read_loop(*m_tcp_stream);
+		co_await tcp_read_loop(*stream_ptr);
 		co_return;
 	}
 
