@@ -116,6 +116,40 @@ namespace {
 		return out;
 	}
 
+	// 百分号解码 URL 片段 (如 userinfo 中的 %2D).
+	std::string pct_decode(const urls::pct_string_view& s)
+	{
+		auto hex = [](char h) -> int
+		{
+			if (h >= '0' && h <= '9')
+				return h - '0';
+			if (h >= 'a' && h <= 'f')
+				return h - 'a' + 10;
+			if (h >= 'A' && h <= 'F')
+				return h - 'A' + 10;
+			return -1;
+		};
+		std::string out;
+		out.reserve(s.size());
+		for (std::size_t i = 0; i < s.size(); i++)
+		{
+			char c = s[i];
+			if (c == '%' && i + 2 < s.size())
+			{
+				int hi = hex(s[i + 1]);
+				int lo = hex(s[i + 2]);
+				if (hi >= 0 && lo >= 0)
+				{
+					out.push_back(static_cast<char>((hi << 4) | lo));
+					i += 2;
+					continue;
+				}
+			}
+			out.push_back(c);
+		}
+		return out;
+	}
+
 	// 常见 DoH 服务器域名 -> IP (避免经系统 DNS 解析时被污染或回环).
 	// 域名大小写不敏感, 统一转小写后查表.
 	std::string known_doh_ip(const std::string& host)
@@ -739,20 +773,24 @@ net::awaitable<void> dns_proxy::doh_query(
 	if (doh_host.empty())
 		co_return;
 
-	// 常见 DoH 域名映射为 IP 直连, 避免系统 DNS 解析被污染或回环.
+	// 以 URL 路径作为请求目标; 无路径时补全 /dns-query. 常见 DoH
+	// 域名映射为 IP 直连, 避免系统 DNS 解析被污染或回环.
 	std::string url_str = m_cfg.doh_url;
-	auto ip = known_doh_ip(doh_host);
-	if (!ip.empty() && url.host() != ip)
+	try
 	{
-		try
+		auto mutable_url = urls::url(m_cfg.doh_url);
+		if (mutable_url.encoded_path().empty()
+			|| mutable_url.encoded_path() == "/")
 		{
-			auto mutable_url = urls::url(m_cfg.doh_url);
-			mutable_url.set_host(ip);
-			url_str = mutable_url.buffer();
+			mutable_url.set_path("/dns-query");
 		}
-		catch (const std::exception&)
-		{}
+		auto ip = known_doh_ip(doh_host);
+		if (!ip.empty() && mutable_url.host() != ip)
+			mutable_url.set_host(ip);
+		url_str = mutable_url.buffer();
 	}
+	catch (const std::exception&)
+	{}
 
 	httpc::http_client client(m_ioc.get_executor());
 	client.timeout(std::chrono::seconds(10));
@@ -763,6 +801,15 @@ net::awaitable<void> dns_proxy::doh_query(
 	req.set(httpc::http::field::host, doh_host);
 	req.set(httpc::http::field::content_type, "application/dns-message");
 	req.set(httpc::http::field::accept, "application/dns-message");
+	// URL userinfo (user:pass) -> HTTP Basic 认证.
+	if (url.has_userinfo())
+	{
+		auto user = pct_decode(url.user());
+		auto pass = pct_decode(url.password());
+		auto token = crypto::base64_encode(user + ":" + pass);
+		if (!token.empty())
+			req.set(httpc::http::field::authorization, "Basic " + token);
+	}
 	req.body().assign(reinterpret_cast<const char*>(dns_msg), dns_len);
 	req.prepare_payload();
 

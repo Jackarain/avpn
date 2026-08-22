@@ -166,13 +166,17 @@ class ControllerServer {
     } else {
       routes = _strList(cfg['routes']);
     }
+    // 系统解析默认走隧道 DNS: 底层网络直连 DNS 易被污染, 经 tun 后
+    // 由 dns_intercept 分流 (gfwlist -> DoH, 其余直连) 或隧道转发.
+    var dns = _strList(cfg['dns']);
+    if (dns.isEmpty) dns = ['8.8.8.8'];
     try {
       final fd = await VpnChannel.establishTun(
         address: address,
         prefix: prefix,
         mtu: mtu,
         routes: routes,
-        dns: _strList(cfg['dns']),
+        dns: dns,
         session: cfg['name'] as String? ?? 'aVPN',
       );
       final result = await call('set_tun_fd', {'ptun_fd': fd});

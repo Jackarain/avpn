@@ -36,7 +36,7 @@ class VpnConfig {
     this.testUrl = 'https://google.com',
     this.bypassCn = false,
     this.dnsIntercept = false,
-    this.dohUrl = 'https://1.1.1.1/dns-query',
+    this.dohUrl = 'https://user:password@doh.example.com',
     this.directDns = '114.114.114.114',
     this.gfwlistUrl =
         'https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt',
