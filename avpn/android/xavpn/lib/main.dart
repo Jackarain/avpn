@@ -63,6 +63,8 @@ class XavpnApp extends StatelessWidget {
           color: scheme.primary,
           borderRadius: BorderRadius.zero,
         ),
+        labelColor: scheme.onPrimary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
       ),
     );
   }
