@@ -117,7 +117,7 @@ int main(int argc, char** argv)
 		("ifdev", po::value<std::string>(&cfg.ifdev_)->value_name("tun0"), "Tun device name.")
 		("ptun_fd", po::value<int>(&cfg.ptun_fd_)->value_name("fd"), "Tun device fd passed in from outside.")
 		("utun_fd", po::value<int>(&cfg.utun_fd_)->value_name("fd"), "Tun device fd for IPC.")
-		("controller", po::value<std::string>(&cfg.controller_)->value_name("ws://ip:port"), "Control service address.")
+		("launcher", po::value<std::string>(&cfg.launcher_)->value_name("ws://ip:port"), "Control service address.")
 		("nexthop", po::value<std::string>(&cfg.nexthop_)->value_name("ip:port"), "Next hop vpn server address.")
 		("tcp_listen", po::value<std::vector<std::string>>(&cfg.tcp_listens_)->value_name("ip:port"), "TCP listen address.")
 		("udp_listen", po::value<std::vector<std::string>>(&cfg.udp_listens_)->value_name("ip:port"), "UDP listen address.")
@@ -220,7 +220,7 @@ and/or open issues at https://github.com/Jackarain/proxy)"
 	// launcher 管理下日志经控制通道上报采集（logger_tag 钩子），
 	// 关闭控制台输出，避免调试构建下 stdout 与控制通道双路写入
 	// 导致日志重复。
-	if (!cfg.controller_.empty())
+	if (!cfg.launcher_.empty())
 		xlogger::toggle_console_logging(false);
 
 	// 创建 io_context 池.

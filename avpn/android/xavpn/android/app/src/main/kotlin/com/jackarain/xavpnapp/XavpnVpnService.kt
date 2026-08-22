@@ -37,7 +37,7 @@ class XavpnVpnService : VpnService() {
         const val ACTION_RESTART = "com.jackarain.xavpnapp.RESTART"
         const val ACTION_STOP = "com.jackarain.xavpnapp.STOP"
         const val EXTRA_CONFIG = "config"
-        const val EXTRA_CONTROLLER_PORT = "controller_port"
+        const val EXTRA_LAUNCHER_PORT = "launcher_port"
 
         private const val CHANNEL_ID = "xavpn_vpn"
         private const val NOTIFY_ID = 1001
@@ -74,7 +74,7 @@ class XavpnVpnService : VpnService() {
             ACTION_STOP -> worker.post { teardownAndStop() }
             ACTION_RESTART -> {
                 val config = intent.getStringExtra(EXTRA_CONFIG) ?: ""
-                val port = intent.getIntExtra(EXTRA_CONTROLLER_PORT, 0)
+                val port = intent.getIntExtra(EXTRA_LAUNCHER_PORT, 0)
                 // 前台通知必须在 startForegroundService 后尽快发出 (主线程同步).
                 startForegroundCompat()
                 // 在单个工作线程任务内完成 停旧->启新, 避免 stopSelf 与 START
@@ -83,7 +83,7 @@ class XavpnVpnService : VpnService() {
             }
             ACTION_START -> {
                 val config = intent.getStringExtra(EXTRA_CONFIG) ?: ""
-                val port = intent.getIntExtra(EXTRA_CONTROLLER_PORT, 0)
+                val port = intent.getIntExtra(EXTRA_LAUNCHER_PORT, 0)
                 // 前台通知必须在 startForegroundService 后尽快发出 (主线程同步).
                 startForegroundCompat()
                 worker.post { startVpn(config, port) }
@@ -114,18 +114,18 @@ class XavpnVpnService : VpnService() {
         startForeground(NOTIFY_ID, notification)
     }
 
-    private fun restartVpn(configJson: String, controllerPort: Int) {
+    private fun restartVpn(configJson: String, launcherPort: Int) {
         teardown()
-        startVpn(configJson, controllerPort)
+        startVpn(configJson, launcherPort)
     }
 
-    private fun startVpn(configJson: String, controllerPort: Int) {
+    private fun startVpn(configJson: String, launcherPort: Int) {
         // 防御: 重复的 START 先停旧实例, 保证同一时刻只有一个.
         if (started) teardown()
         try {
             // 启动 avpn (无 tun): 握手后经控制通道下发 vaddr,
             // Flutter 据此调用 establishTun 建立 tun 再 set_tun_fd 注入.
-            val rc = XavpnBridge.start(configJson, controllerPort)
+            val rc = XavpnBridge.start(configJson, launcherPort)
             if (rc != 0) {
                 XavpnEvents.emitVpnState("error", "xavpn.start 失败: rc=$rc")
                 teardownAndStop()

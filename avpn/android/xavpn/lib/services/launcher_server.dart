@@ -7,11 +7,11 @@ import 'vpn_channel.dart';
 
 /// 本地 JSON-RPC over WebSocket 控制服务端.
 ///
-/// 作为 libavpn controller 的控制端: avpn 启动后会主动连接
+/// 作为 libavpn launcher 的控制端: avpn 启动后会主动连接
 /// ws://127.0.0.1:port, 注册实例并持续上报 status/log/vaddr;
 /// 本端可向其发起 get_status / update_config / set_tun_fd / shutdown 等
 /// RPC 请求, 并响应 avpn 的 protect 请求 (放行对外 socket).
-class ControllerServer {
+class LauncherServer {
   HttpServer? _server;
   WebSocket? _socket;
   int _nextId = 1;
@@ -51,8 +51,8 @@ class ControllerServer {
   /// 启动本地控制端. [port] 用于进程重启后恢复原端口以便 avpn 重连;
   /// 绑定失败时抛出异常 (调用方决定是否回退).
   Future<void> start({int? port}) async {
-    if (_closed) throw StateError('controller 已关闭, 请创建新实例');
-    if (_server != null) throw StateError('controller 已启动');
+    if (_closed) throw StateError('launcher 已关闭, 请创建新实例');
+    if (_server != null) throw StateError('launcher 已启动');
     _statusCtrl = StreamController<Map<String, dynamic>>.broadcast();
     _logCtrl = StreamController<Map<String, dynamic>>.broadcast();
     _registerCtrl = StreamController<Map<String, dynamic>>.broadcast();
@@ -267,7 +267,7 @@ class ControllerServer {
     Duration timeout = const Duration(seconds: 10),
   }) async {
     final ws = _socket;
-    if (ws == null) throw StateError('controller 未连接');
+    if (ws == null) throw StateError('launcher 未连接');
     final id = _nextId++;
     final completer = Completer<Map<String, dynamic>>();
     _pending[id] = completer;
@@ -294,7 +294,7 @@ class ControllerServer {
     _closed = true;
     for (final c in _pending.values) {
       if (!c.isCompleted) {
-        c.completeError(StateError('controller closed'));
+        c.completeError(StateError('launcher closed'));
       }
     }
     _pending.clear();

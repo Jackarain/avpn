@@ -31,12 +31,12 @@ class StorageService {
 
   /// 正在运行的配置 (界面关闭/进程存活的场景下用于恢复控制通道).
   static const String runIdKey = 'xavpn_running_id';
-  static const String runPortKey = 'xavpn_controller_port';
+  static const String runPortKey = 'xavpn_launcher_port';
 
-  Future<void> saveRunState(String configId, int controllerPort) async {
+  Future<void> saveRunState(String configId, int launcherPort) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(runIdKey, configId);
-    await prefs.setInt(runPortKey, controllerPort);
+    await prefs.setInt(runPortKey, launcherPort);
   }
 
   Future<(String, int)?> loadRunState() async {

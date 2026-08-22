@@ -66,7 +66,7 @@ const char* kind_type_name(option_kind kind);
 // stringlist 以 json::array 表示，与 JSON 反序列化后的类型一致。
 boost::json::object default_config();
 
-// 由实例配置生成 avpn 启动参数（不含 --controller/--pid_file 等内部选项）。
+// 由实例配置生成 avpn 启动参数（不含 --launcher/--pid_file 等内部选项）。
 // avpn 没有注册表默认值，空 stringlist 直接跳过。
 std::vector<std::string> args_for(const boost::json::object& cfg);
 

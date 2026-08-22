@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'controller_server.dart';
+import 'launcher_server.dart';
 import 'storage_service.dart';
 import 'vpn_channel.dart';
 import '../models/vpn_config.dart';
@@ -16,7 +16,7 @@ class AppSession extends ChangeNotifier {
   String? runningConfigId;
 
   /// 本地控制通道服务 (跨重启保持).
-  ControllerServer? server;
+  LauncherServer? server;
 
   /// 连接状态: true=avpn 控制通道在线.
   bool connected = false;

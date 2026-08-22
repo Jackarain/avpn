@@ -10,7 +10,7 @@ Flutter (Dart)                          Android 原生 (Kotlin)                 
 ┌────────────────────────┐  MethodChannel ┌─────────────────────────┐  JNI   ┌──────────────────────┐
 │ 配置管理/存储/UI        │ ──────────────▶ │ MainActivity            │ ─────▶ │ xavpn.start(json)     │
 │ 本地 WS 控制端 (Dart)   │                │ VpnService (TUN+protect)│        │ libavpn 服务          │
-│ ControllerServer       │ ◀── ws jsonrpc ─┤                         │ ◀───── │ controller 客户端     │
+│ LauncherServer       │ ◀── ws jsonrpc ─┤                         │ ◀───── │ launcher 客户端     │
 └────────────────────────┘                └─────────────────────────┘        └──────────────────────┘
 ```
 
@@ -18,7 +18,7 @@ Flutter (Dart)                          Android 原生 (Kotlin)                 
 - **TUN**: `VpnService.establish()` 返回的 fd 经 `ptun_fd` 字段注入 json, 同进程直接使用.
 - **protect**: `libavpn` 创建 nexthop 对外 socket 时回调 `setProtectCallback`,
   Kotlin 侧调用 `VpnService.protect(fd)` 放行, 避免流量回环进入 TUN.
-- **控制通道**: Flutter 内置本地 WS 服务 (`127.0.0.1:<port>`), 经 `controller`
+- **控制通道**: Flutter 内置本地 WS 服务 (`127.0.0.1:<port>`), 经 `launcher`
   字段交给 avpn, avpn 主动连接并上报 `register/status/log`;
   应用可下发 `get_status` / `update_config` / `shutdown` RPC.
   `update_config` 支持 keepalive 热更新, 其余字段由原生自动重启生效 (TUN 保留).
@@ -49,7 +49,7 @@ flutter build apk --debug
   `pushroutes`, `pushdns`, `ignore_push`, `c2c`, `bypassroutes`.
 - Android VpnService 专用: `tunAddress`, `tunPrefix`, `routes` (CIDR, 默认全隧道),
   `dns`, `name`, `mode` (client/gateway, 决定默认路由: 网关模式只放虚拟子网).
-- 运行时注入 (无需手填): `ptun_fd`, `controller`.
+- 运行时注入 (无需手填): `ptun_fd`, `launcher`.
 - 保存前做基础校验 (客户端需 nexthop、网关需 subnet、MTU/keepalive 范围等).
 
 ## 测试

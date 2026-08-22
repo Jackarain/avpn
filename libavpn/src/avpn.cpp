@@ -6,7 +6,7 @@
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
 #include "libavpn/nat_rule.hpp"
-#include "libavpn/vpn_controller.hpp"
+#include "libavpn/vpn_launcher.hpp"
 #include "libavpn/dns_proxy.hpp"
 
 #include <boost/asio/co_spawn.hpp>
@@ -109,7 +109,7 @@ namespace libavpn {
 		cfg.ifdev_ = config_string(obj, "ifdev");
 		cfg.ptun_fd_ = config_int(obj, "ptun_fd", -1);
 		cfg.utun_fd_ = config_int(obj, "utun_fd", -1);
-		cfg.controller_ = config_string(obj, "controller");
+		cfg.launcher_ = config_string(obj, "launcher");
 		cfg.nexthop_ = config_string(obj, "nexthop");
 		cfg.tcp_listens_ = config_list(obj, "tcp_listen");
 		cfg.udp_listens_ = config_list(obj, "udp_listen");
@@ -232,7 +232,7 @@ namespace libavpn {
 		assign_str("ifdev", dst.ifdev_);
 		assign_int("ptun_fd", dst.ptun_fd_);
 		assign_int("utun_fd", dst.utun_fd_);
-		assign_str("controller", dst.controller_);
+		assign_str("launcher", dst.launcher_);
 		assign_str("nexthop", dst.nexthop_);
 		assign_list("tcp_listen", dst.tcp_listens_);
 		assign_list("udp_listen", dst.udp_listens_);
@@ -443,10 +443,10 @@ namespace libavpn {
 
 	net::awaitable<bool> avpn_service::protect_socket_async(int fd)
 	{
-		auto controller = m_controller;
-		if (!controller)
+		auto launcher = m_launcher;
+		if (!launcher)
 			co_return true;
-		co_return co_await controller->call_protect(fd);
+		co_return co_await launcher->call_protect(fd);
 	}
 
 	void avpn_service::reprotect_nexthop_sockets()
@@ -575,15 +575,15 @@ namespace libavpn {
 
 	void avpn_service::notify_vaddr()
 	{
-		auto controller = m_controller;
-		if (!controller || !m_tunnel || !m_tunnel->established())
+		auto launcher = m_launcher;
+		if (!launcher || !m_tunnel || !m_tunnel->established())
 			return;
 
 		boost::json::object obj;
 		obj["ip"] = net::ip::address_v4(m_tunnel->vaddr()).to_string();
 		obj["prefix"] = m_tunnel->prefix_length();
 		obj["mtu"] = m_tunnel->mtu();
-		controller->notify("vaddr", obj);
+		launcher->notify("vaddr", obj);
 		XLOG_INFO << "Notify app vaddr: " << obj["ip"].as_string();
 	}
 
@@ -1990,12 +1990,12 @@ namespace libavpn {
 		run_hook_cmd(m_config.pre_up_, m_config.ifdev_);
 		m_post_up_done_ = false;
 
-		// 配置了 controller 时, 启动控制通道 (连接 launcher 的 /rpc 服务).
-		if (!m_config.controller_.empty())
+		// 配置了 launcher 时, 启动控制通道 (连接 launcher 的 /rpc 服务).
+		if (!m_config.launcher_.empty())
 		{
-			m_controller = std::make_shared<vpn_controller>(
+			m_launcher = std::make_shared<vpn_launcher>(
 				m_ioc_pool, m_config, shared_from_this());
-			m_controller->start();
+			m_launcher->start();
 		}
 
 		// client 模式 DNS 拦截 (tun 建立后随数据路径生效).
@@ -2018,10 +2018,10 @@ namespace libavpn {
 		m_abort = true;
 
 		// 停止控制通道.
-		if (m_controller)
+		if (m_launcher)
 		{
-			m_controller->stop();
-			m_controller.reset();
+			m_launcher->stop();
+			m_launcher.reset();
 		}
 
 		// 停止 DNS 拦截模块.

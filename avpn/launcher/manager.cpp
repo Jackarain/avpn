@@ -416,7 +416,7 @@ bool manager::start(const std::string& id, std::string& err)
 bool manager::start_internal(const std::string& id, std::string& err)
 {
 	std::vector<std::string> args;
-	std::string avpn_path, work_dir, controller_url, pid_path;
+	std::string avpn_path, work_dir, launcher_url, pid_path;
 	{
 		auto in = find_instance(id);
 		if (!in) {
@@ -433,10 +433,10 @@ bool manager::start_internal(const std::string& id, std::string& err)
 			return false;
 		}
 		args = args_for(in->config_);
-		controller_url = ws_url(in);
+		launcher_url = ws_url(in);
 		pid_path = pid_file_path(id);
-		args.push_back("--controller");
-		args.push_back(controller_url);
+		args.push_back("--launcher");
+		args.push_back(launcher_url);
 		args.push_back("--pid_file");
 		args.push_back(pid_path);
 		// launcher 管理下经控制通道日志上报采集日志 (logger_tag 钩子),
@@ -504,7 +504,7 @@ bool manager::start_internal(const std::string& id, std::string& err)
 		if (no_conn)
 			std::fprintf(stderr,
 				"[warn] instance %s: avpn did not connect to launcher within %llds; "
-				"check the avpn binary supports --controller and the control channel URL\n",
+				"check the avpn binary supports --launcher and the control channel URL\n",
 				id.c_str(), (long long)kConnectWarnInterval.count());
 	}).detach();
 	return true;

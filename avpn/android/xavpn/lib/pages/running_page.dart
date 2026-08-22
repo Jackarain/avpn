@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../models/vpn_config.dart';
 import '../services/app_session.dart';
-import '../services/controller_server.dart';
+import '../services/launcher_server.dart';
 import '../services/storage_service.dart';
 import '../services/vpn_channel.dart';
 
@@ -36,7 +36,7 @@ class _RunningPageState extends State<RunningPage>
   StreamSubscription<bool>? _connSub;
   StreamSubscription<Map<String, dynamic>>? _nativeEventsSub;
 
-  ControllerServer? get _server => AppSession.instance.server;
+  LauncherServer? get _server => AppSession.instance.server;
 
   @override
   void initState() {

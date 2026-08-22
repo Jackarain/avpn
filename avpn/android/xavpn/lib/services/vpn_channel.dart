@@ -18,10 +18,10 @@ class VpnChannel {
   }
 
   /// 启动 VpnService 并调用 xavpn.start(configJson).
-  static Future<void> start(String configJson, int controllerPort) async {
+  static Future<void> start(String configJson, int launcherPort) async {
     final ok = await _channel.invokeMethod<bool>('start', {
       'config': configJson,
-      'controllerPort': controllerPort,
+      'launcherPort': launcherPort,
     });
     if (ok != true) {
       throw StateError('native start failed');
@@ -34,10 +34,10 @@ class VpnChannel {
   }
 
   /// 不停服务重建 VPN (TUN 参数变更): 原生端在单个任务内 停旧->启新.
-  static Future<void> restart(String configJson, int controllerPort) async {
+  static Future<void> restart(String configJson, int launcherPort) async {
     final ok = await _channel.invokeMethod<bool>('restart', {
       'config': configJson,
-      'controllerPort': controllerPort,
+      'launcherPort': launcherPort,
     });
     if (ok != true) {
       throw StateError('native restart failed');

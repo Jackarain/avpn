@@ -23,9 +23,9 @@ object XavpnBridge {
      * 服务端下发的 vaddr 建立 VpnService tun 再经控制通道 set_tun_fd 注入.
      *
      * @param config 用户配置 json (VpnConfig.toJson, 含 VpnService 专用字段).
-     * @param controllerPort 本地 JSON-RPC over WS 控制端端口.
+     * @param launcherPort 本地 JSON-RPC over WS 控制端端口.
      */
-    fun start(config: String, controllerPort: Int): Int {
+    fun start(config: String, launcherPort: Int): Int {
         val cfg = JSONObject(config)
         // camelCase (Flutter) -> snake_case (libavpn).
         rename(cfg, "privateKey", "private_key")
@@ -59,7 +59,7 @@ object XavpnBridge {
         }
         cfg.put("ifdev", "")
         cfg.put("ptun_fd", -1)
-        cfg.put("controller", "ws://127.0.0.1:$controllerPort")
+        cfg.put("launcher", "ws://127.0.0.1:$launcherPort")
         // gfwlist 缓存落盘应用私有目录 (与 lib/services 的默认路径一致),
         // 保证下次启动直接复用, 无需重新下载.
         if (!cfg.has("gfwlist_cache")) {
