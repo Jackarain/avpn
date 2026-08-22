@@ -98,6 +98,29 @@ jobs:
             build/bin/avpn
             build/bin/launcher
 
+  Ubuntu2204-IoUring-Clang:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Update OS and Compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake ninja-build libssl-dev liburing-dev clang
+
+      - name: Build avpn
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_WERROR=OFF -DENABLE_USE_OPENSSL=ON -DENABLE_USE_BORINGSSL=OFF -DENABLE_SYSTEM_OPENSSL=ON -DENABLE_USE_IO_URING=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -G Ninja
+          cmake --build build --config Release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: avpn-ubuntu2204_glibc_x64_io_uring_clang
+          path: |
+            build/bin/avpn
+            build/bin/launcher
+
   BoringSSL:
     runs-on: ubuntu-24.04
     steps:
