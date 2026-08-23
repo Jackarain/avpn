@@ -32,10 +32,10 @@ Flutter (Dart)                          Android 原生 (Kotlin)                 
 ./build.android.sh /root/avpn /opt/android-sdk/ndk/26.3.11579264 linux-x86_64
 
 # 2. 将产物同步到本工程 (或直接手工拷贝)
-cp /root/avpn/release/*/libxavpn.so android/app/src/main/jniLibs/<abi>/
+#    (libxavpn.so 由 app 构建时自动复制到 jniLibs, 无需手工拷贝)
 cp /root/avpn/outputs/*.java android/app/src/main/java/com/jackarain/
 
-# 3. 构建 APK
+# 3. 构建 APK (构建时自动将 release/<abi>/libxavpn.so 同步到 jniLibs)
 flutter pub get
 flutter build apk --debug
 ```

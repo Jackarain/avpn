@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# JNI libs auto-copied by syncXavpnLibs during APK builds.
+android/app/src/main/jniLibs/*/*.so
