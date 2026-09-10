@@ -817,13 +817,12 @@ namespace libavpn {
 
 	void avpn_service::on_gateway_udp_packet(
 		const std::shared_ptr<net::ip::udp::socket>& socket,
-		const net::ip::udp::endpoint& remote, std::vector<uint8_t> data)
+		const net::ip::udp::endpoint& remote, std::string_view data)
 	{
 		if (m_abort)
 			return;
 
-		std::string_view sv(reinterpret_cast<const char*>(data.data()),
-			data.size());
+		std::string_view sv = data;
 		auto key = endpoint_to_string(remote);
 
 		// 已存在的会话.
@@ -934,9 +933,10 @@ namespace libavpn {
 	{
 		auto self = shared_from_this();
 
+		// 复用接收缓冲区, 避免每包分配.
+		std::array<uint8_t, avpn_max_packet_size> buf;
 		while (!m_abort)
 		{
-			std::vector<uint8_t> buf(avpn_max_packet_size);
 			net::ip::udp::endpoint remote;
 			boost::system::error_code ec;
 			std::size_t n = co_await socket->async_receive_from(
@@ -944,8 +944,8 @@ namespace libavpn {
 			if (ec || m_abort)
 				break;
 
-			buf.resize(n);
-			on_gateway_udp_packet(socket, remote, std::move(buf));
+			on_gateway_udp_packet(socket, remote, std::string_view(
+				reinterpret_cast<const char*>(buf.data()), n));
 		}
 
 		co_return;
@@ -1176,9 +1176,10 @@ namespace libavpn {
 	{
 		auto self = shared_from_this();
 
+		// 复用接收缓冲区, 避免每包分配.
+		std::array<uint8_t, avpn_max_packet_size> buf;
 		while (!m_abort)
 		{
-			std::vector<uint8_t> buf(avpn_max_packet_size);
 			net::ip::udp::endpoint remote;
 			boost::system::error_code ec;
 			std::size_t n = co_await socket->async_receive_from(
@@ -1186,11 +1187,10 @@ namespace libavpn {
 			if (ec || m_abort)
 				break;
 
-			buf.resize(n);
 			if (m_tunnel)
 			{
 				m_tunnel->on_udp_packet(remote, std::string_view(
-					reinterpret_cast<const char*>(buf.data()), buf.size()));
+					reinterpret_cast<const char*>(buf.data()), n));
 			}
 		}
 

@@ -275,7 +275,7 @@ namespace libavpn {
 		// 处理 gateway 收到的 UDP 数据包.
 		void on_gateway_udp_packet(
 			const std::shared_ptr<net::ip::udp::socket>& socket,
-			const net::ip::udp::endpoint& remote, std::vector<uint8_t> data);
+			const net::ip::udp::endpoint& remote, std::string_view data);
 
 		// 处理 gateway 接受的 TCP 连接.
 		net::awaitable<void> on_gateway_tcp_connection(
