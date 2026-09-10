@@ -271,6 +271,26 @@ namespace libavpn {
 	const std::size_t udp_receive_concurrency = std::clamp<std::size_t>(
 		std::thread::hardware_concurrency(), 2, 16);
 
+	// UDP socket 收发缓冲目标大小. 内核默认缓冲 (通常 212KB) 在长 RTT
+	// 链路上远小于带宽时延积, 会因接收队列溢出丢包, 而隧道内的每一次
+	// 丢包都会让内层 TCP 大幅降速, 因此这里显式放大 (受系统的
+	// net.core.rmem_max / wmem_max 上限约束, 超出部分会被内核截断).
+	constexpr int udp_socket_buffer_size = 8 * 1024 * 1024;
+
+	void apply_udp_socket_buffers(
+		const std::shared_ptr<net::ip::udp::socket>& socket)
+	{
+		boost::system::error_code ec;
+		socket->set_option(net::socket_base::receive_buffer_size(
+			udp_socket_buffer_size), ec);
+		if (ec)
+			XLOG_WARN << "set udp receive buffer failed: " << ec.message();
+		socket->set_option(net::socket_base::send_buffer_size(
+			udp_socket_buffer_size), ec);
+		if (ec)
+			XLOG_WARN << "set udp send buffer failed: " << ec.message();
+	}
+
 	// 解析 IPv6 内网子网字符串, 默认 fd00:8888::/64.
 	// 低 32 位作为虚拟地址主机位, 因此前缀必须 <= 96.
 	static void parse_v6_subnet(const std::string& text,
@@ -1089,6 +1109,7 @@ namespace libavpn {
 				continue;
 			}
 			socket->set_option(net::socket_base::reuse_address(true), ec);
+			apply_udp_socket_buffers(socket);
 			socket->bind(ep, ec);
 			if (ec)
 			{
@@ -1243,6 +1264,7 @@ namespace libavpn {
 			m_client_udp = old;
 			co_return;
 		}
+		apply_udp_socket_buffers(socket);
 
 		// 尽量复用旧本地端口, 减小服务端迁移代价.
 		if (old)
@@ -1904,6 +1926,7 @@ namespace libavpn {
 				XLOG_ERR << "udp open failed: " << ec.message();
 				return false;
 			}
+			apply_udp_socket_buffers(m_client_udp);
 			// 启动握手: 先 protect 对外 socket (Android VpnService,
 			// 避免回环进 tun), 再发起握手.
 			net::co_spawn(m_main_context,
