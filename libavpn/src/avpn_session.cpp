@@ -711,6 +711,14 @@ namespace libavpn {
 		case msg_type::data:
 			process_data_msg(body);
 			break;
+		case msg_type::data_raw:
+			// 未经 fec 编码的数据消息, 载荷可能仍是批量聚合.
+			if (!body.empty() && body[0] == fec_batch_marker)
+				parse_fec_batch(body);
+			else
+				deliver_ip_packet(std::vector<uint8_t>(
+					body.begin(), body.end()));
+			break;
 		case msg_type::keepalive:
 		{
 			uint64_t ts = 0;
@@ -745,6 +753,7 @@ namespace libavpn {
 				std::memcmp(body.data(), capability_magic.data(),
 					capability_magic.size()) == 0)
 			{
+				XLOG_INFO << "Peer announces FEC batch capability";
 				m_peer_fec_batch = true;
 				m_cap_announce_left = 0;
 			}
@@ -980,8 +989,29 @@ namespace libavpn {
 		payload.push_back(fec_batch_marker);
 		payload.insert(payload.end(), m_fec_pending.begin(), m_fec_pending.end());
 
+		const std::size_t pending_count = m_fec_pending_count;
 		m_fec_pending.clear();
 		m_fec_pending_count = 0;
+
+		// 载荷能装进单个数据包时不做 fec 编码: 否则会被补齐成 ds+ps 个
+		// 分片, 包数放大数倍, 在低速链路上反而把物理链路打满.
+		// 封装开销 = 消息类型(1) + nonce + aead tag + IP/UDP 头.
+		constexpr std::size_t raw_frame_overhead =
+			1 + crypto::aead_counter_size + crypto::aead_tag_size + 28;
+		if ((pending_count == 1 ||
+				payload.size() <= fec_batch_shard_target()) &&
+			payload.size() + raw_frame_overhead <= avpn_max_mtu)
+		{
+			auto& plaintext = m_send_scratch;
+			plaintext.clear();
+			plaintext.reserve(1 + payload.size());
+			plaintext.push_back(static_cast<uint8_t>(msg_type::data_raw));
+			plaintext.insert(plaintext.end(), payload.begin(), payload.end());
+			send_plaintext(send_key(), std::string_view(
+				reinterpret_cast<const char*>(plaintext.data()),
+				plaintext.size()));
+			return;
+		}
 
 		encode_and_send_fec(std::string_view(
 			reinterpret_cast<const char*>(payload.data()), payload.size()));

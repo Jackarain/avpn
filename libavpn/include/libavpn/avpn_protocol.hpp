@@ -65,6 +65,7 @@ namespace libavpn {
 		keepalive_reply = 0x03,    // 保活回复.
 		disconnect = 0x04,         // 断开消息.
 		ack = 0x05,                // 数据确认消息(预留).
+		data_raw = 0x06,           // 未经 fec 编码的数据消息 (批量过小).
 	};
 
 	// 握手 Message 1 明文载荷:
