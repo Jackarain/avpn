@@ -241,10 +241,32 @@ veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理�
 | 场景 | FEC 关闭 | FEC 8/2 | FEC 8/4 |
 | --- | --- | --- | --- |
 | 无延迟/无丢包 | ~700 Mbit/s | ~500 Mbit/s | ~420 Mbit/s |
-| 20ms 延迟 + 0.5% 丢包 | ~4 Mbit/s | ~75 Mbit/s | ~85 Mbit/s |
+| 20ms 延迟 + 0.5% 丢包 | ~4 Mbit/s | ~75 Mbit/s | ~115/~155 Mbit/s |
 
 > 高丢包链路下 FEC 对吞吐的提升是数量级的（TCP 会把丢包当作拥塞），
 > 因此移动网络建议保持 FEC 开启；干净链路可适当降低 `parity_shards`。
+
+### 长 RTT 链路注意事项
+
+长 RTT 链路上还有两个容易被忽略的瓶颈，代码中已做处理：
+
+- 内核默认 UDP 收发缓冲通常只有 212KB，远小于长 RTT 的带宽时延积，
+  接收队列溢出造成的丢包会直接打断内层 TCP 的拥塞窗口。avpn 会显式
+  放大 socket 缓冲，并在具备 `CAP_NET_ADMIN` 时使用 `SO_*BUFFFORCE`
+  突破 `net.core.{r,w}mem_max` 上限。
+- FEC 以 `data_shards` 为一个分组，分组未填满时会被补齐成
+  `data_shards + parity_shards` 个分片。分组越小，包数放大越严重，
+  低速链路上会把物理链路占满并形成“越慢越放大”的恶性循环。因此能装
+  进单个数据包的批量直接以 `data_raw` 发送，不再拆分。
+
+公网实测（本机 ↔ VPS, RTT ≈ 141ms, MTU 1400, FEC 8/4, 链路 UDP 上行
+能力约 60 Mbit/s）：
+
+| 方向 | 优化前 | 优化后 |
+| --- | --- | --- |
+| 隧道内 TCP 上行 | ~6 Mbit/s | ~35–38 Mbit/s |
+| 隧道内 TCP 下行 | ~57 Mbit/s | ~76 Mbit/s |
+| 隧道内 RTT | 141 ms | 141 ms |
 
 ## 文档
 
