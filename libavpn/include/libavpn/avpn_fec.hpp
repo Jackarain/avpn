@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <cstddef>
@@ -66,6 +67,18 @@ namespace libavpn {
 	//   [data...]
 	inline constexpr std::size_t fec_frame_header_size = 6;
 
+	// 自适应 FEC 分片在加密体中的帧头 (分组大小随载荷变化).
+	//   [fec_id(4, 小端)]  分组号.
+	//   [pid(1)]  分片在分组内的序号.
+	//   [data_shards(1)]  本组数据分片数.
+	//   [parity_shards(1)]  本组冗余分片数.
+	//   [len(2, 小端)]  原始数据包长度, 用于去除分片填充.
+	//   [data...]
+	inline constexpr std::size_t afec_frame_header_size = 9;
+
+	// 自适应分组允许的最大分片数 (防御异常帧).
+	inline constexpr int afec_max_shards = 255;
+
 	// 一个 IP 数据包的 FEC 编码分组.
 	class fec_encode_group
 	{
@@ -80,8 +93,18 @@ namespace libavpn {
 		bool encode(uint32_t fec_id, std::string_view ip_packet,
 			std::vector<std::vector<uint8_t>>& frames);
 
+		// 使用指定的数据/冗余分片数编码, 分片帧头为 afec_frame_header_size 字节.
+		// 用于载荷较小时按需缩小分组, 避免补齐出大量小分片.
+		bool encode_variable(uint32_t fec_id, int data_shards,
+			int parity_shards, std::string_view ip_packet,
+			std::vector<std::vector<uint8_t>>& frames);
+
 	private:
+		// 按 (data_shards, parity_shards) 缓存编码器, 避免重复构造.
+		reedsolomon* code(int data_shards, int parity_shards);
+
 		reedsolomon m_rs;
+		std::unordered_map<uint32_t, std::unique_ptr<reedsolomon>> m_codes;
 	};
 
 	// FEC 解码分组, 按 fec_id 收集分片, 达到足够数量后恢复原始数据.
@@ -102,6 +125,13 @@ namespace libavpn {
 			std::string_view data,
 			std::vector<uint8_t>& output);
 
+		// 添加一个自适应 FEC 分片帧 (分组大小由帧头携带).
+		// 返回 true 表示该分组已恢复出完整数据, 通过 output 返回.
+		bool add_adaptive(uint32_t fec_id, uint8_t pid, uint8_t data_shards,
+			uint8_t parity_shards, uint16_t original_len,
+			std::string_view data,
+			std::vector<uint8_t>& output);
+
 		// 清理过期分组, 返回被清理的分组数量.
 		std::size_t purge();
 
@@ -110,7 +140,8 @@ namespace libavpn {
 		struct group
 		{
 			uint32_t fec_id{ 0 };
-			uint8_t total{ 0 };
+			uint8_t data_shards{ 1 };
+			uint8_t parity_shards{ 0 };
 			std::size_t original_len{ 0 };
 			std::size_t shard_size{ 0 };
 			std::vector<std::vector<uint8_t>> shards;
@@ -118,6 +149,15 @@ namespace libavpn {
 			std::size_t received{ 0 };
 			std::chrono::steady_clock::time_point last_seen;
 		};
+
+		// 按分组携带的 (data_shards, parity_shards) 取得解码器.
+		reedsolomon* code(int data_shards, int parity_shards);
+
+		// 收下一个分片, 达到条件时恢复分组.
+		bool add_shard(uint32_t fec_id, uint8_t pid, int data_shards,
+			int parity_shards, uint16_t original_len,
+			std::string_view data,
+			std::vector<uint8_t>& output);
 
 		// 按 fec_id 索引, 避免线性扫描造成的 O(n²) 开销.
 		std::unordered_map<uint32_t, group> m_groups;
@@ -131,6 +171,7 @@ namespace libavpn {
 		std::size_t m_add_count{ 0 };
 		std::chrono::milliseconds m_max_live_time;
 		reedsolomon m_rs;
+		std::unordered_map<uint32_t, std::unique_ptr<reedsolomon>> m_codes;
 	};
 
 } // namespace libavpn

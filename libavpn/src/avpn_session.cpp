@@ -53,6 +53,9 @@ namespace libavpn {
 		// 能力协商消息标记 (FEC 批量聚合).
 		constexpr std::array<uint8_t, 4> capability_magic{ 'A', 'V', 'B', '1' };
 
+		// 能力协商消息标记 (自适应 FEC 分组).
+		constexpr std::array<uint8_t, 4> capability_magic_v2{ 'A', 'V', 'B', '2' };
+
 		// 当前时间 (毫秒).
 		inline uint64_t now_ms()
 		{
@@ -719,6 +722,9 @@ namespace libavpn {
 				deliver_ip_packet(std::vector<uint8_t>(
 					body.begin(), body.end()));
 			break;
+		case msg_type::data_afec:
+			process_afec_msg(body);
+			break;
 		case msg_type::keepalive:
 		{
 			uint64_t ts = 0;
@@ -748,14 +754,23 @@ namespace libavpn {
 			break;
 		case msg_type::ack:
 		{
-			// 对端能力协商: 声明支持 FEC 批量聚合.
-			if (body.size() >= capability_magic.size() &&
+			// 对端能力协商.
+			if (body.size() >= capability_magic_v2.size() &&
+				std::memcmp(body.data(), capability_magic_v2.data(),
+					capability_magic_v2.size()) == 0)
+			{
+				XLOG_INFO << "Peer announces adaptive FEC capability";
+				m_peer_fec_batch = true;
+				m_peer_fec_adaptive = true;
+				m_cap_announce_left = 0;
+			}
+			// 声明支持 FEC 批量聚合 (旧版本能力).
+			else if (body.size() >= capability_magic.size() &&
 				std::memcmp(body.data(), capability_magic.data(),
 					capability_magic.size()) == 0)
 			{
 				XLOG_INFO << "Peer announces FEC batch capability";
 				m_peer_fec_batch = true;
-				m_cap_announce_left = 0;
 			}
 			break;
 		}
@@ -784,21 +799,47 @@ namespace libavpn {
 
 			std::vector<uint8_t> ip_packet;
 			if (m_fec_decoder->add(seq, len, shard, ip_packet))
-			{
-				// 批量聚合载荷以 0x00 标记开头, 需拆分为多个 IP 包.
-				if (!ip_packet.empty() && ip_packet[0] == fec_batch_marker)
-					parse_fec_batch(std::string_view(
-						reinterpret_cast<const char*>(ip_packet.data()),
-						ip_packet.size()));
-				else
-					deliver_ip_packet(std::move(ip_packet));
-			}
+				deliver_recovered_payload(std::move(ip_packet));
 		}
 		else
 		{
 			std::vector<uint8_t> data(body.begin(), body.end());
 			deliver_ip_packet(std::move(data));
 		}
+	}
+
+	void avpn_session::process_afec_msg(std::string_view body)
+	{
+		if (!m_fec_decoder)
+			return;
+
+		// 自适应 FEC 分片.
+		if (body.size() < afec_frame_header_size)
+			return;
+
+		const uint8_t* p = reinterpret_cast<const uint8_t*>(body.data());
+		uint32_t fec_id = byteorder::get_u32_le(p);
+		uint8_t pid = p[4];
+		uint8_t data_shards = p[5];
+		uint8_t parity_shards = p[6];
+		uint16_t len = byteorder::get_u16_le(p + 7);
+		std::string_view shard = body.substr(afec_frame_header_size);
+
+		std::vector<uint8_t> ip_packet;
+		if (m_fec_decoder->add_adaptive(fec_id, pid, data_shards,
+				parity_shards, len, shard, ip_packet))
+			deliver_recovered_payload(std::move(ip_packet));
+	}
+
+	void avpn_session::deliver_recovered_payload(std::vector<uint8_t> payload)
+	{
+		// 批量聚合载荷以 0x00 标记开头, 需拆分为多个 IP 包.
+		if (!payload.empty() && payload[0] == fec_batch_marker)
+			parse_fec_batch(std::string_view(
+				reinterpret_cast<const char*>(payload.data()),
+				payload.size()));
+		else
+			deliver_ip_packet(std::move(payload));
 	}
 
 	void avpn_session::deliver_ip_packet(std::vector<uint8_t> data)
@@ -893,6 +934,32 @@ namespace libavpn {
 			plaintext.clear();
 			plaintext.reserve(1 + frame.size());
 			plaintext.push_back(static_cast<uint8_t>(msg_type::data));
+			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
+			send_plaintext(key, std::string_view(
+				reinterpret_cast<const char*>(plaintext.data()),
+				plaintext.size()));
+		}
+	}
+
+	// 按指定分片数做自适应 FEC 编码后逐片加密发送.
+	void avpn_session::encode_and_send_afec(std::string_view payload,
+		int data_shards, int parity_shards)
+	{
+		if (!m_fec_encoder)
+			return;
+
+		std::vector<std::vector<uint8_t>> frames;
+		if (!m_fec_encoder->encode_variable(++m_fec_id, data_shards,
+				parity_shards, payload, frames))
+			return;
+
+		const auto& key = send_key();
+		for (auto& frame : frames)
+		{
+			auto& plaintext = m_send_scratch;
+			plaintext.clear();
+			plaintext.reserve(1 + frame.size());
+			plaintext.push_back(static_cast<uint8_t>(msg_type::data_afec));
 			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
 			send_plaintext(key, std::string_view(
 				reinterpret_cast<const char*>(plaintext.data()),
@@ -1013,6 +1080,29 @@ namespace libavpn {
 			return;
 		}
 
+		// 自适应分组: 载荷未填满整个分组时按需缩小分片数, 在保留 FEC
+		// 保护的前提下减少数据报数量.
+		const int ds = static_cast<int>(m_session_config.data_shards);
+		const int ps = static_cast<int>(m_session_config.parity_shards);
+		if (m_peer_fec_adaptive && ds + ps <= afec_max_shards)
+		{
+			const std::size_t target = fec_batch_shard_target();
+			int use_ds = static_cast<int>(
+				(payload.size() + target - 1) / target);
+			use_ds = std::clamp(use_ds, 1, std::max(1, ds));
+			const int use_ps = ps > 0
+				? std::clamp((use_ds * ps + ds - 1) / ds, 1, ps)
+				: 0;
+			if (use_ds < ds || use_ps < ps)
+			{
+				encode_and_send_afec(
+					std::string_view(
+						reinterpret_cast<const char*>(payload.data()),
+						payload.size()), use_ds, use_ps);
+				return;
+			}
+		}
+
 		encode_and_send_fec(std::string_view(
 			reinterpret_cast<const char*>(payload.data()), payload.size()));
 	}
@@ -1042,14 +1132,21 @@ namespace libavpn {
 		if (!m_established || m_abort)
 			return;
 
-		std::vector<uint8_t> plaintext;
-		plaintext.reserve(1 + capability_magic.size());
-		plaintext.push_back(static_cast<uint8_t>(msg_type::ack));
-		plaintext.insert(plaintext.end(),
-			capability_magic.begin(), capability_magic.end());
-
-		send_plaintext(send_key(), std::string_view(
-			reinterpret_cast<const char*>(plaintext.data()), plaintext.size()));
+		// 逐条发送各项能力 (旧版本对端不认识的消息将被忽略).
+		constexpr std::array<std::array<uint8_t, 4>, 2> magics{
+			capability_magic, capability_magic_v2
+		};
+		for (const auto& magic : magics)
+		{
+			std::vector<uint8_t> plaintext;
+			plaintext.reserve(1 + magic.size());
+			plaintext.push_back(static_cast<uint8_t>(msg_type::ack));
+			plaintext.insert(plaintext.end(),
+				magic.begin(), magic.end());
+			send_plaintext(send_key(), std::string_view(
+				reinterpret_cast<const char*>(plaintext.data()),
+				plaintext.size()));
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1098,7 +1195,8 @@ namespace libavpn {
 				continue;
 
 			// 能力协商消息重发 (对端为旧版本时不会回应).
-			if (!m_peer_fec_batch && m_cap_announce_left > 0)
+			if ((!m_peer_fec_batch || !m_peer_fec_adaptive) &&
+				m_cap_announce_left > 0)
 			{
 				send_capability();
 				--m_cap_announce_left;

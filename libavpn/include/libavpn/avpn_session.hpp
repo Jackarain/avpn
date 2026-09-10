@@ -268,8 +268,14 @@ namespace libavpn {
 		// 处理 data 消息.
 		void process_data_msg(std::string_view body);
 
+		// 处理自适应分组的 data 消息.
+		void process_afec_msg(std::string_view body);
+
 		// 将恢复/解压后的 IP 包交付给 tun.
 		void deliver_ip_packet(std::vector<uint8_t> data);
+
+		// 交付 FEC 恢复出的载荷 (可能仍为批量聚合体).
+		void deliver_recovered_payload(std::vector<uint8_t> payload);
 
 		// 按协商配置创建/重建 FEC 编解码器.
 		void setup_fec();
@@ -279,6 +285,10 @@ namespace libavpn {
 
 		// 将单个载荷 FEC 编码后逐片发送.
 		void encode_and_send_fec(std::string_view payload);
+
+		// 将单个载荷按指定分片数做自适应 FEC 编码后逐片发送.
+		void encode_and_send_afec(std::string_view payload,
+			int data_shards, int parity_shards);
 
 		// FEC 批量聚合: 多个小载荷合并为一个分组, 使分片接近 MTU.
 		void append_fec_batch(std::string_view payload);
@@ -418,6 +428,9 @@ namespace libavpn {
 
 		// 对端已声明支持 FEC 批量聚合 (收到能力协商消息).
 		bool m_peer_fec_batch{ false };
+
+		// 对端已声明支持自适应 FEC 分组.
+		bool m_peer_fec_adaptive{ false };
 
 		// 能力协商消息剩余发送次数 (对端为旧版本时不会回应).
 		int m_cap_announce_left{ 4 };

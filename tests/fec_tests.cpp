@@ -714,6 +714,103 @@ BOOST_AUTO_TEST_CASE(purge_expired)
 	BOOST_CHECK_EQUAL(dg.purge(), 1u); // 已过期.
 }
 
+BOOST_AUTO_TEST_CASE(encode_variable_frame_format)
+{
+	std::mt19937 rng(20);
+	fec_encode_group eg(8, 4);
+	std::vector<uint8_t> ip = make_packet(2803, rng);
+	std::vector<std::vector<uint8_t>> frames;
+	BOOST_REQUIRE(eg.encode_variable(0x01020304, 3, 2, std::string_view(
+		reinterpret_cast<const char*>(ip.data()), ip.size()), frames));
+	BOOST_CHECK_EQUAL(frames.size(), 5u);
+
+	std::size_t shard_size = (ip.size() + 2) / 3;
+	for (std::size_t i = 0; i < frames.size(); i++)
+	{
+		const auto& f = frames[i];
+		BOOST_CHECK_EQUAL(read_u32(f, 0), 0x01020304u);
+		BOOST_CHECK_EQUAL(f[4], static_cast<uint8_t>(i));
+		BOOST_CHECK_EQUAL(f[5], 3);
+		BOOST_CHECK_EQUAL(f[6], 2);
+		BOOST_CHECK_EQUAL(read_u16(f, 7), static_cast<uint16_t>(ip.size()));
+		BOOST_CHECK_EQUAL(f.size(), afec_frame_header_size + shard_size);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(decode_adaptive_recovers_all_loss_patterns)
+{
+	std::mt19937 rng(21);
+	const std::vector<std::pair<int, int>> configs = {
+		{1, 1}, {2, 1}, {3, 2}, {8, 4}
+	};
+	const std::vector<std::size_t> lengths = { 1, 2, 97, 1365, 2803 };
+
+	for (auto [D, P] : configs)
+	{
+		const int total = D + P;
+		for (std::size_t n : lengths)
+		{
+			std::vector<uint8_t> ip = make_packet(n, rng);
+			fec_encode_group eg(8, 4);
+			std::vector<std::vector<uint8_t>> frames;
+			BOOST_REQUIRE(eg.encode_variable(7, D, P, std::string_view(
+				reinterpret_cast<const char*>(ip.data()), ip.size()), frames));
+
+			for (int mask = 0; mask < (1 << total); mask++)
+			{
+				if (static_cast<int>(missing_indices(mask, total).size()) > P)
+					continue;
+
+				fec_decode_group dg(8, 4);
+				std::vector<uint8_t> output;
+				bool recovered = false;
+				for (int i = 0; i < total; i++)
+				{
+					if (mask & (1 << i))
+						continue; // 模拟丢失.
+					const auto& f = frames[i];
+					if (dg.add_adaptive(read_u32(f, 0), f[4], f[5], f[6],
+						read_u16(f, 7), std::string_view(
+							reinterpret_cast<const char*>(f.data()) +
+							afec_frame_header_size,
+							f.size() - afec_frame_header_size), output))
+					{
+						recovered = true;
+						break;
+					}
+				}
+				BOOST_REQUIRE(recovered);
+				BOOST_CHECK_EQUAL_COLLECTIONS(output.begin(), output.end(),
+					ip.begin(), ip.end());
+			}
+		}
+	}
+}
+
+BOOST_AUTO_TEST_CASE(decode_adaptive_rejects_bad_frames)
+{
+	fec_decode_group dg(8, 4);
+	std::vector<uint8_t> shard(16, 0x33);
+	std::vector<uint8_t> output;
+	std::string_view s(reinterpret_cast<const char*>(shard.data()),
+		shard.size());
+
+	// 分片序号越界.
+	BOOST_CHECK(!dg.add_adaptive(1, 5, 3, 2, 48, s, output));
+	// data_shards 为 0.
+	BOOST_CHECK(!dg.add_adaptive(1, 0, 0, 2, 48, s, output));
+	// 超过最大分片数.
+	BOOST_CHECK(!dg.add_adaptive(1, 0, 200, 100, 48, s, output));
+
+	// 同一分组携带不同分片数的分片被丢弃.
+	BOOST_REQUIRE(!dg.add_adaptive(2, 0, 3, 2, 48, s, output));
+	BOOST_CHECK(!dg.add_adaptive(2, 1, 2, 2, 48, s, output));
+	// 与首个分片一致的分片仍可继续, 凑齐数据分片后恢复.
+	BOOST_REQUIRE(!dg.add_adaptive(2, 1, 3, 2, 48, s, output));
+	BOOST_REQUIRE(dg.add_adaptive(2, 2, 3, 2, 48, s, output));
+	BOOST_CHECK_EQUAL(output.size(), 48u);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 //////////////////////////////////////////////////////////////////////////

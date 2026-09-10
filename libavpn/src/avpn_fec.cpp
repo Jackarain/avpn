@@ -742,9 +742,69 @@ namespace libavpn {
 
 	//////////////////////////////////////////////////////////////////////////
 
+	namespace {
+
+		// 将载荷均分为 data_shards 片, 计算冗余并按 [数据分片..., 冗余分片...]
+		// 输出. 分片不足部分以 0 补齐.
+		bool encode_shards(reedsolomon* rs, std::string_view payload,
+			std::vector<std::vector<uint8_t>>& shards)
+		{
+			int ds = rs->data_shards();
+			int ps = rs->parity_shards();
+
+			std::size_t shard_size = (payload.size() + ds - 1) / ds;
+			if (shard_size == 0)
+				shard_size = 1;
+
+			std::vector<std::vector<uint8_t>> data(ds,
+				std::vector<uint8_t>(shard_size, 0));
+			for (int d = 0; d < ds; d++)
+			{
+				std::size_t offset = static_cast<std::size_t>(d) * shard_size;
+				if (offset >= payload.size())
+					break;
+				std::size_t len = std::min<std::size_t>(shard_size,
+					payload.size() - offset);
+				std::memcpy(data[d].data(), payload.data() + offset, len);
+			}
+
+			std::vector<std::vector<uint8_t>> parity;
+			if (!rs->encode(data, parity))
+				return false;
+
+			shards.clear();
+			shards.reserve(static_cast<std::size_t>(ds + ps));
+			for (auto& d : data)
+				shards.push_back(std::move(d));
+			for (auto& p : parity)
+				shards.push_back(std::move(p));
+			shards.resize(static_cast<std::size_t>(ds + ps));
+			return true;
+		}
+
+	} // namespace
+
 	fec_encode_group::fec_encode_group(int data_shards, int parity_shards)
 		: m_rs(data_shards, parity_shards)
 	{}
+
+	reedsolomon* fec_encode_group::code(int data_shards, int parity_shards)
+	{
+		if (data_shards == m_rs.data_shards() &&
+			parity_shards == m_rs.parity_shards())
+			return &m_rs;
+
+		uint32_t key = (static_cast<uint32_t>(data_shards) << 8) |
+			static_cast<uint32_t>(parity_shards);
+		auto it = m_codes.find(key);
+		if (it != m_codes.end())
+			return it->second.get();
+
+		auto rs = std::make_unique<reedsolomon>(data_shards, parity_shards);
+		reedsolomon* raw = rs.get();
+		m_codes.emplace(key, std::move(rs));
+		return raw;
+	}
 
 	bool fec_encode_group::encode(uint32_t fec_id, std::string_view ip_packet,
 		std::vector<std::vector<uint8_t>>& frames)
@@ -753,47 +813,54 @@ namespace libavpn {
 		int ps = m_rs.parity_shards();
 		int total = ds + ps;
 
-		// 计算分片大小 (向上取整).
-		std::size_t shard_size = (ip_packet.size() + ds - 1) / ds;
-		if (shard_size == 0)
-			shard_size = 1;
-
-		// 拆分数据分片.
-		std::vector<std::vector<uint8_t>> data_shards(ds,
-			std::vector<uint8_t>(shard_size, 0));
-		for (int d = 0; d < ds; d++)
-		{
-			std::size_t offset = static_cast<std::size_t>(d) * shard_size;
-			std::size_t len = std::min<std::size_t>(shard_size,
-				ip_packet.size() - std::min(offset, ip_packet.size()));
-			if (offset < ip_packet.size())
-				std::memcpy(data_shards[d].data(), ip_packet.data() + offset, len);
-		}
-
-		// 计算冗余分片.
-		std::vector<std::vector<uint8_t>> parity_shards;
-		if (!m_rs.encode(data_shards, parity_shards))
+		std::vector<std::vector<uint8_t>> shards;
+		if (!encode_shards(&m_rs, ip_packet, shards))
 			return false;
 
-		// 组装所有分片帧.
 		frames.clear();
-		frames.reserve(total);
-
-		auto make_frame = [&](int index, const std::vector<uint8_t>& shard) {
-			std::vector<uint8_t> frame;
-			frame.reserve(fec_frame_header_size + shard.size());
-			uint32_t seq = fec_id * static_cast<uint32_t>(total) + index;
+		frames.reserve(static_cast<std::size_t>(total));
+		for (std::size_t i = 0; i < shards.size(); i++)
+		{
+			auto& frame = frames.emplace_back();
+			frame.reserve(fec_frame_header_size + shards[i].size());
+			uint32_t seq = fec_id * static_cast<uint32_t>(total) +
+				static_cast<uint32_t>(i);
 			byteorder::put_u32_into(frame, seq);
 			byteorder::put_u16_into(frame,
 				static_cast<uint16_t>(ip_packet.size()));
-			frame.insert(frame.end(), shard.begin(), shard.end());
-			return frame;
-		};
+			frame.insert(frame.end(), shards[i].begin(), shards[i].end());
+		}
 
-		for (int d = 0; d < ds; d++)
-			frames.push_back(make_frame(d, data_shards[d]));
-		for (int p = 0; p < ps; p++)
-			frames.push_back(make_frame(ds + p, parity_shards[p]));
+		return true;
+	}
+
+	bool fec_encode_group::encode_variable(uint32_t fec_id, int data_shards,
+		int parity_shards, std::string_view ip_packet,
+		std::vector<std::vector<uint8_t>>& frames)
+	{
+		reedsolomon* rs = code(data_shards, parity_shards);
+		if (!rs || rs->data_shards() != data_shards ||
+			rs->parity_shards() != parity_shards)
+			return false;
+
+		std::vector<std::vector<uint8_t>> shards;
+		if (!encode_shards(rs, ip_packet, shards))
+			return false;
+
+		frames.clear();
+		frames.reserve(shards.size());
+		for (std::size_t i = 0; i < shards.size(); i++)
+		{
+			auto& frame = frames.emplace_back();
+			frame.reserve(afec_frame_header_size + shards[i].size());
+			byteorder::put_u32_into(frame, fec_id);
+			frame.push_back(static_cast<uint8_t>(i));
+			frame.push_back(static_cast<uint8_t>(data_shards));
+			frame.push_back(static_cast<uint8_t>(parity_shards));
+			byteorder::put_u16_into(frame,
+				static_cast<uint16_t>(ip_packet.size()));
+			frame.insert(frame.end(), shards[i].begin(), shards[i].end());
+		}
 
 		return true;
 	}
@@ -808,16 +875,62 @@ namespace libavpn {
 		, m_rs(m_data_shards, m_parity_shards)
 	{}
 
+	reedsolomon* fec_decode_group::code(int data_shards, int parity_shards)
+	{
+		data_shards = std::max(1, data_shards);
+		parity_shards = std::max(0, parity_shards);
+		if (data_shards == m_data_shards &&
+			parity_shards == m_parity_shards)
+			return &m_rs;
+
+		uint32_t key = (static_cast<uint32_t>(data_shards) << 8) |
+			static_cast<uint32_t>(parity_shards);
+		auto it = m_codes.find(key);
+		if (it != m_codes.end())
+			return it->second.get();
+
+		auto rs = std::make_unique<reedsolomon>(data_shards, parity_shards);
+		reedsolomon* raw = rs.get();
+		m_codes.emplace(key, std::move(rs));
+		return raw;
+	}
+
 	bool fec_decode_group::add(uint32_t index, uint16_t original_len,
 		std::string_view data,
 		std::vector<uint8_t>& output)
 	{
-		int total = m_rs.total_shards();
+		int total = m_data_shards + m_parity_shards;
+		if (total <= 0)
+			return false;
+
 		uint32_t fec_id = index / static_cast<uint32_t>(total);
 		uint8_t idx = static_cast<uint8_t>(
 			index % static_cast<uint32_t>(total));
+		return add_shard(fec_id, idx, m_data_shards, m_parity_shards,
+			original_len, data, output);
+	}
 
-		auto now = std::chrono::steady_clock::now();
+	bool fec_decode_group::add_adaptive(uint32_t fec_id, uint8_t pid,
+		uint8_t data_shards, uint8_t parity_shards, uint16_t original_len,
+		std::string_view data,
+		std::vector<uint8_t>& output)
+	{
+		if (data_shards == 0 ||
+			static_cast<int>(data_shards) + parity_shards > afec_max_shards ||
+			pid >= static_cast<uint8_t>(data_shards + parity_shards))
+			return false;
+
+		return add_shard(fec_id, pid, data_shards, parity_shards,
+			original_len, data, output);
+	}
+
+	bool fec_decode_group::add_shard(uint32_t fec_id, uint8_t pid,
+		int data_shards, int parity_shards, uint16_t original_len,
+		std::string_view data,
+		std::vector<uint8_t>& output)
+	{
+		const int total = data_shards + parity_shards;
+		const auto now = std::chrono::steady_clock::now();
 
 		// 该分组已完成, 迟到的冗余分片直接丢弃 (否则会不断为剩余分片
 		// 重新建组, 导致分组表膨胀与线性扫描开销).
@@ -836,7 +949,8 @@ namespace libavpn {
 			auto res = m_groups.emplace(fec_id, group{});
 			g = &res.first->second;
 			g->fec_id = fec_id;
-			g->total = static_cast<uint8_t>(total);
+			g->data_shards = static_cast<uint8_t>(data_shards);
+			g->parity_shards = static_cast<uint8_t>(parity_shards);
 			g->original_len = original_len;
 			g->shard_size = data.size();
 			g->shards.assign(total, {});
@@ -846,6 +960,10 @@ namespace libavpn {
 		else
 		{
 			g = &it->second;
+			// 同一分组的分片必须携带一致的分片数, 否则丢弃.
+			if (g->data_shards != data_shards ||
+				g->parity_shards != parity_shards)
+				return false;
 			// 使用该分组携带的原始长度.
 			if (g->original_len == 0)
 				g->original_len = original_len;
@@ -860,24 +978,25 @@ namespace libavpn {
 		}
 
 		// 去重.
-		if (g->present[idx])
+		if (g->present[pid])
 			return false;
 
-		g->shards[idx].assign(data.begin(), data.end());
-		g->shards[idx].resize(g->shard_size);
-		g->present[idx] = true;
+		g->shards[pid].assign(data.begin(), data.end());
+		g->shards[pid].resize(g->shard_size);
+		g->present[pid] = true;
 		g->received++;
 		g->last_seen = now;
 
 		// 达到足够分片, 尝试恢复.
-		if (g->received >= static_cast<std::size_t>(m_data_shards))
+		if (g->received >= static_cast<std::size_t>(g->data_shards))
 		{
-			if (m_rs.reconstruct(g->shards, g->shard_size))
+			reedsolomon* rs = code(g->data_shards, g->parity_shards);
+			if (rs && rs->reconstruct(g->shards, g->shard_size))
 			{
 				// 恢复成功, 拼接所有数据分片, 并按原始长度去除填充.
 				output.clear();
-				output.reserve(g->shard_size * m_data_shards);
-				for (int d = 0; d < m_data_shards; d++)
+				output.reserve(g->shard_size * g->data_shards);
+				for (int d = 0; d < g->data_shards; d++)
 				{
 					auto& s = g->shards[d];
 					output.insert(output.end(), s.begin(), s.end());
