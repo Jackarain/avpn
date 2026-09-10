@@ -1,4 +1,4 @@
-//
+﻿//
 // avpn_session.cpp
 // ~~~~~~~~~~~~~~~~
 //
@@ -41,6 +41,18 @@ namespace libavpn {
 		constexpr std::string_view kdf_nonce_salt_s2c_info =
 			"avpn-nonce-salt-s2c-v1";
 
+		// FEC 批量聚合: 批量载荷首字节标记 (IP 包首字节为版本号, 不会是 0).
+		constexpr uint8_t fec_batch_marker = 0x00;
+
+		// 批量聚合延迟刷新的最大等待时间.
+		constexpr std::chrono::milliseconds fec_batch_flush_delay{ 2 };
+
+		// 单个批量分组允许聚合的最大包数 (限制延迟).
+		constexpr std::size_t fec_batch_max_packets = 64;
+
+		// 能力协商消息标记 (FEC 批量聚合).
+		constexpr std::array<uint8_t, 4> capability_magic{ 'A', 'V', 'B', '1' };
+
 		// 当前时间 (毫秒).
 		inline uint64_t now_ms()
 		{
@@ -59,6 +71,7 @@ namespace libavpn {
 		, m_tick_timer(ioc)
 		, m_hs_timer(ioc)
 		, m_compressor(compress_type::none)
+		, m_fec_flush_timer(ioc)
 	{
 		// 解析本端静态私钥 (base64 编码的 32 字节).
 		if (!config.private_key_.empty())
@@ -470,6 +483,9 @@ namespace libavpn {
 		// 通知网关登记会话 (替换同公钥旧会话等).
 		if (m_established_handler)
 			m_established_handler();
+
+		// 宣告本端能力 (FEC 批量聚合).
+		send_capability();
 	}
 
 	bool avpn_session::handle_handshake_msg2(std::string_view plaintext)
@@ -498,6 +514,9 @@ namespace libavpn {
 
 		m_established = true;
 		m_last_seen = std::chrono::steady_clock::now();
+
+		// 宣告本端能力 (FEC 批量聚合).
+		send_capability();
 
 		XLOG_INFO << "Handshake established, vaddr: "
 			<< net::ip::address_v4(m_vaddr).to_string()
@@ -715,6 +734,18 @@ namespace libavpn {
 		}
 		case msg_type::keepalive_reply:
 			break;
+		case msg_type::ack:
+		{
+			// 对端能力协商: 声明支持 FEC 批量聚合.
+			if (body.size() >= capability_magic.size() &&
+				std::memcmp(body.data(), capability_magic.data(),
+					capability_magic.size()) == 0)
+			{
+				m_peer_fec_batch = true;
+				m_cap_announce_left = 0;
+			}
+			break;
+		}
 		case msg_type::disconnect:
 			XLOG_INFO << "Peer sent disconnect";
 			close();
@@ -741,7 +772,13 @@ namespace libavpn {
 			std::vector<uint8_t> ip_packet;
 			if (m_fec_decoder->add(seq, len, shard, ip_packet))
 			{
-				deliver_ip_packet(std::move(ip_packet));
+				// 批量聚合载荷以 0x00 标记开头, 需拆分为多个 IP 包.
+				if (!ip_packet.empty() && ip_packet[0] == fec_batch_marker)
+					parse_fec_batch(std::string_view(
+						reinterpret_cast<const char*>(ip_packet.data()),
+						ip_packet.size()));
+				else
+					deliver_ip_packet(std::move(ip_packet));
 			}
 		}
 		else
@@ -795,21 +832,12 @@ namespace libavpn {
 
 		if (m_fec_encoder && m_session_config.data_shards > 1)
 		{
-			// FEC 编码后逐片加密发送.
-			std::vector<std::vector<uint8_t>> frames;
-			if (!m_fec_encoder->encode(++m_fec_id, payload, frames))
-				return;
-
-			for (auto& frame : frames)
-			{
-				std::vector<uint8_t> plaintext;
-				plaintext.reserve(1 + frame.size());
-				plaintext.push_back(static_cast<uint8_t>(msg_type::data));
-				plaintext.insert(plaintext.end(), frame.begin(), frame.end());
-				send_plaintext(key, std::string_view(
-					reinterpret_cast<const char*>(plaintext.data()),
-					plaintext.size()));
-			}
+			// 对端支持时聚合为一批发送, 使分片接近 MTU, 避免逐包拆分
+			// 造成包数放大; 否则按单包拆分以兼容旧版本对端.
+			if (m_peer_fec_batch)
+				append_fec_batch(payload);
+			else
+				encode_and_send_fec(payload);
 		}
 		else
 		{
@@ -832,6 +860,160 @@ namespace libavpn {
 			for (int i = 0; i < copies; i++)
 				send_plaintext(key, frame);
 		}
+	}
+
+	// 将单个载荷 FEC 编码后逐片加密发送.
+	void avpn_session::encode_and_send_fec(std::string_view payload)
+	{
+		if (!m_fec_encoder)
+			return;
+
+		std::vector<std::vector<uint8_t>> frames;
+		if (!m_fec_encoder->encode(++m_fec_id, payload, frames))
+			return;
+
+		const auto& key = send_key();
+		for (auto& frame : frames)
+		{
+			std::vector<uint8_t> plaintext;
+			plaintext.reserve(1 + frame.size());
+			plaintext.push_back(static_cast<uint8_t>(msg_type::data));
+			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
+			send_plaintext(key, std::string_view(
+				reinterpret_cast<const char*>(plaintext.data()),
+				plaintext.size()));
+		}
+	}
+
+	// 批量分组内单个分片的目标大小 (扣除加密/帧头开销后的 MTU).
+	std::size_t avpn_session::fec_batch_shard_target() const
+	{
+		std::size_t overhead = 1 + fec_frame_header_size +
+			crypto::aead_counter_size + crypto::aead_tag_size;
+		if (m_session_config.obfuscate)
+			overhead += obfuscate_max_overhead;
+
+		std::size_t mtu = static_cast<std::size_t>(
+			std::max(576, static_cast<int>(m_session_config.mtu)));
+		if (mtu <= overhead + 64)
+			return 64;
+		return mtu - overhead;
+	}
+
+	std::size_t avpn_session::fec_batch_max_payload() const
+	{
+		std::size_t ds = std::max<std::size_t>(1,
+			m_session_config.data_shards);
+		return fec_batch_shard_target() * ds;
+	}
+
+	// 将一个载荷追加到当前批量分组, 达到阈值或超时后刷新.
+	void avpn_session::append_fec_batch(std::string_view payload)
+	{
+		const std::size_t max_payload = fec_batch_max_payload();
+
+		// 单个载荷本身过大, 直接走单包编码 (内部仍被拆分为多个分片).
+		if (payload.size() + 2 > max_payload)
+		{
+			flush_fec_batch();
+			encode_and_send_fec(payload);
+			return;
+		}
+
+		if (!m_fec_pending.empty() &&
+			m_fec_pending.size() + 2 + payload.size() > max_payload)
+			flush_fec_batch();
+
+		std::size_t len = payload.size();
+		std::size_t off = m_fec_pending.size();
+		m_fec_pending.resize(off + 2 + len);
+		m_fec_pending[off] = static_cast<uint8_t>((len >> 8) & 0xff);
+		m_fec_pending[off + 1] = static_cast<uint8_t>(len & 0xff);
+		std::memcpy(m_fec_pending.data() + off + 2, payload.data(), len);
+		++m_fec_pending_count;
+
+		if (m_fec_pending.size() >= max_payload ||
+			m_fec_pending_count >= fec_batch_max_packets)
+			flush_fec_batch();
+		else
+			arm_fec_flush_timer();
+	}
+
+	void avpn_session::arm_fec_flush_timer()
+	{
+		if (m_fec_flush_armed)
+			return;
+		m_fec_flush_armed = true;
+
+		auto self = shared_from_this();
+		m_fec_flush_timer.expires_after(fec_batch_flush_delay);
+		m_fec_flush_timer.async_wait(
+			[this, self](const boost::system::error_code& ec)
+			{
+				if (ec)
+					return;
+				m_fec_flush_armed = false;
+				flush_fec_batch();
+			});
+	}
+
+	void avpn_session::flush_fec_batch()
+	{
+		if (m_fec_flush_armed)
+		{
+			m_fec_flush_armed = false;
+			boost::system::error_code ec;
+			asio_util::cancel(m_fec_flush_timer, ec);
+		}
+
+		if (m_fec_pending.empty())
+			return;
+
+		std::vector<uint8_t> payload;
+		payload.reserve(m_fec_pending.size() + 1);
+		payload.push_back(fec_batch_marker);
+		payload.insert(payload.end(), m_fec_pending.begin(), m_fec_pending.end());
+
+		m_fec_pending.clear();
+		m_fec_pending_count = 0;
+
+		encode_and_send_fec(std::string_view(
+			reinterpret_cast<const char*>(payload.data()), payload.size()));
+	}
+
+	// 拆分并交付批量分组中的各个 IP 包.
+	void avpn_session::parse_fec_batch(std::string_view payload)
+	{
+		std::size_t pos = 1;
+		while (pos + 2 <= payload.size())
+		{
+			uint16_t len = static_cast<uint16_t>(
+				(static_cast<uint8_t>(payload[pos]) << 8) |
+				static_cast<uint8_t>(payload[pos + 1]));
+			pos += 2;
+			if (len == 0 || pos + len > payload.size())
+				break;
+
+			deliver_ip_packet(std::vector<uint8_t>(
+				payload.begin() + pos, payload.begin() + pos + len));
+			pos += len;
+		}
+	}
+
+	// 发送能力协商消息 (使用预留的 ack 类型, 旧版本对端会忽略).
+	void avpn_session::send_capability()
+	{
+		if (!m_established || m_abort)
+			return;
+
+		std::vector<uint8_t> plaintext;
+		plaintext.reserve(1 + capability_magic.size());
+		plaintext.push_back(static_cast<uint8_t>(msg_type::ack));
+		plaintext.insert(plaintext.end(),
+			capability_magic.begin(), capability_magic.end());
+
+		send_plaintext(send_key(), std::string_view(
+			reinterpret_cast<const char*>(plaintext.data()), plaintext.size()));
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -878,6 +1060,13 @@ namespace libavpn {
 
 			if (!m_established)
 				continue;
+
+			// 能力协商消息重发 (对端为旧版本时不会回应).
+			if (!m_peer_fec_batch && m_cap_announce_left > 0)
+			{
+				send_capability();
+				--m_cap_announce_left;
+			}
 
 			auto now = std::chrono::steady_clock::now();
 			int keepalive = std::max<int>(1, m_session_config.keepalive);
@@ -1289,6 +1478,10 @@ namespace libavpn {
 		boost::system::error_code ec;
 		asio_util::cancel(m_hs_timer, ec);
 		asio_util::cancel(m_tick_timer, ec);
+		asio_util::cancel(m_fec_flush_timer, ec);
+		m_fec_flush_armed = false;
+		m_fec_pending.clear();
+		m_fec_pending_count = 0;
 
 		if (m_tcp_stream)
 		{

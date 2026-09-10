@@ -1,4 +1,4 @@
-//
+﻿//
 // avpn_session.hpp
 // ~~~~~~~~~~~~~~~~
 //
@@ -276,6 +276,20 @@ namespace libavpn {
 		// 发送数据消息 (由 tun_submit 调用).
 		void send_data_message(const std::vector<uint8_t>& ip_packet);
 
+		// 将单个载荷 FEC 编码后逐片发送.
+		void encode_and_send_fec(std::string_view payload);
+
+		// FEC 批量聚合: 多个小载荷合并为一个分组, 使分片接近 MTU.
+		void append_fec_batch(std::string_view payload);
+		void flush_fec_batch();
+		void arm_fec_flush_timer();
+		void parse_fec_batch(std::string_view payload);
+		std::size_t fec_batch_shard_target() const;
+		std::size_t fec_batch_max_payload() const;
+
+		// 发送/处理能力协商消息 (FEC 批量聚合).
+		void send_capability();
+
 		// keepalive/超时 tick.
 		net::awaitable<void> tick();
 		void start_tick();
@@ -400,6 +414,20 @@ namespace libavpn {
 
 		// 握手重发次数.
 		int m_hs_retry{ 0 };
+
+		// 对端已声明支持 FEC 批量聚合 (收到能力协商消息).
+		bool m_peer_fec_batch{ false };
+
+		// 能力协商消息剩余发送次数 (对端为旧版本时不会回应).
+		int m_cap_announce_left{ 4 };
+
+		// 待聚合的批量数据载荷 (不含批量标记字节, 每项为 [len(2)][payload]).
+		std::vector<uint8_t> m_fec_pending;
+		std::size_t m_fec_pending_count{ 0 };
+
+		// 批量聚合延迟刷新定时器.
+		net::steady_timer m_fec_flush_timer;
+		bool m_fec_flush_armed{ false };
 
 		// 虚拟地址分配回调.
 		vaddr_allocator m_vaddr_allocator;
