@@ -221,6 +221,31 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--post_down <cmd>` | 钩子：在 tun 接口拆除后通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--pid_file <path>` | 将进程 PID 写入指定文件（内部使用，由 launcher 设置）。 |
 
+## 性能测试
+
+仓库自带一个基于 Linux 网络命名空间的端到端隧道吞吐测试脚本，可对比不同
+FEC / MTU / 压缩配置，并可通过 netem 注入延迟与丢包：
+
+```
+sudo ./tools/bench_tunnel.sh
+sudo DS=8 PS=2 DUR=10 ./tools/bench_tunnel.sh
+sudo DS=8 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
+```
+
+需要 root 权限，依赖 `ip` / `tc` / `iperf3`。脚本会在两个 netns 之间建立
+veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理；可用环境
+变量 `AVPN` 指定 avpn 可执行文件路径（默认 `build/bin/avpn`）。
+
+本机 x86_64 参考数据（单流 iperf3，MTU 1400）：
+
+| 场景 | FEC 关闭 | FEC 8/2 | FEC 8/4 |
+| --- | --- | --- | --- |
+| 无延迟/无丢包 | ~700 Mbit/s | ~500 Mbit/s | ~420 Mbit/s |
+| 20ms 延迟 + 0.5% 丢包 | ~4 Mbit/s | ~75 Mbit/s | ~85 Mbit/s |
+
+> 高丢包链路下 FEC 对吞吐的提升是数量级的（TCP 会把丢包当作拥塞），
+> 因此移动网络建议保持 FEC 开启；干净链路可适当降低 `parity_shards`。
+
 ## 文档
 
 - [设计文档](doc/design.md)
