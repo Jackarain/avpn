@@ -351,38 +351,68 @@ Message 1 的防重放有两层：
 | `0x02` | `keepalive` | 双向 | 保活请求，body = 8 字节时间戳（小端，毫秒） |
 | `0x03` | `keepalive_reply` | 双向 | 保活回复，body = 对端时间戳原样返回 |
 | `0x04` | `disconnect` | 双向 | 主动断开，body = 1 字节原因码 |
-| `0x05` | `ack` | 预留 | 数据确认（未启用） |
+| `0x05` | `ack` | 双向 | 能力协商（body = `AVB1`，见 §7.3.2） |
 
 ### 7.3 数据消息与 FEC 分片帧
 
-当协商的 `data_shards > 1`（仅 UDP 传输）时，每个 IP 包被编码为
+当协商的 `data_shards > 1`（仅 UDP 传输）时，一个载荷被编码为
 `data_shards + parity_shards` 个分片，每个分片作为一条 `data` 消息发送。
 
-FEC 分片帧（data 消息的 body，8 字节头）：
+FEC 分片帧（data 消息的 body，6 字节头）：
 
 ```
-[ fec_id(4, 小端) | total(1) | index(1) | len(2, 小端) | shard_data ... ]
+[ index(4, 小端) | len(2, 小端) | shard_data ... ]
 ```
 
 | 字段 | 长度 | 说明 |
 |---|---|---|
-| `fec_id` | 4 | 发送方递增的组 ID，每 IP 包一个分组 |
-| `total` | 1 | 总分片数（data_shards + parity_shards） |
-| `index` | 1 | 分片索引（0 ~ total-1） |
-| `len` | 2 | 原始 IP 包长度，用于去除分片填充 |
+| `index` | 4 | 全局分片序号，`fec_id = index / total`，`pid = index % total` |
+| `len` | 2 | 载荷长度，用于去除分片填充 |
 
-接收方按 `fec_id` 收集分片，收到 `data_shards` 片即可用
-Reed-Solomon（GF(2⁸)）恢复出完整 IP 包；超过 3 秒未凑齐的分组被清理。
+接收方按 `index / total` 分组收集分片，收到 `data_shards` 片即可用
+Reed-Solomon（GF(2⁸)）恢复出完整载荷；超过 3 秒未凑齐的分组被清理。
 
 **冗余拷贝模式**：当 `data_shards <= 1` 且 `parity_shards > 0` 时，
 不再使用 RS 编码，改为把整个 IP 包发送 `parity_shards + 1` 份（冗余拷贝）。
+
+### 7.3.1 FEC 批量聚合
+
+逐包拆分会对每个 IP 包产生 `data_shards + parity_shards` 个数据报（例如
+8/4 时为 12 个），在高 PPS 下严重放大包数与 CPU 开销。为此引入批量聚合：
+当对端支持（见 §7.3.2）时，发送方把多个 IP 包合并为一个 FEC 分组的载荷，
+使分片大小接近 MTU，负载与分片数接近 1:1。
+
+批量载荷（作为单个 FEC 分组的输入）：
+
+```
+[ marker(0x00) | { len(2, 小端) | ip_packet } ... ]
+```
+
+- `marker` 固定为 `0x00`；IP 包首字节为版本号（`0x4x`/`0x6x`），因此可无歧义
+  区分批量载荷与旧的单包载荷。
+- 整个载荷按 `ceil(payload / data_shards)` 切分后做 RS 编码，`len` 字段记录
+  批量载荷总长度。
+- 刷新策略：载荷达到 `data_shards × 分片目标大小` 或包数达到 64 时立即发送；
+  否则最多等待 2ms（限制交互式小包的额外延迟）。
+- 收到的批量载荷以 `0x00` 开头时按 `[len][packet]` 逐包拆分并交付；否则按单包
+  处理。旧版本对端不声明能力，始终走单包拆分路径，保持兼容。
+
+### 7.3.2 能力协商
+
+FEC 批量聚合需要收发双方同时支持。会话建立后，双方各发送一条
+`ack(0x05)` 消息，body 为 `AVB1`：
+
+- 收到该消息后置位对端能力标记，后续发送启用批量聚合。
+- 未收到时随 tick 重发，最多 4 次；旧版本对端会忽略未知的 `ack` 消息，
+  此时双方保持单包拆分，行为与旧版本一致。
 
 ### 7.4 发送流水线（tun → 网络）
 
 ```
 tun 读到的 IP 包
   → 压缩（协商为 none 时跳过）
-  → FEC 编码（data_shards>1 时拆分为多片）
+  → FEC 编码（data_shards>1 时：支持批量聚合则合并到一个分组，
+     否则按单包拆分为多片）
   → 组装 data 消息：msg_type(0x01) + [fec_header + shard]
   → AEAD 加密（方向密钥 + 随机 nonce，混淆时以 len_enc 为 AAD）
   → 混淆封装（协商开启时追加 [salt][len_enc][garbage]，见 §5.4）
@@ -396,7 +426,8 @@ UDP 数据报 / TCP 帧
   → 剥离混淆封装（协商开启时，先解出垃圾长度并校验，见 §5.4）
   → AEAD 解密（接收密钥，混淆时以 len_enc 为 AAD），失败静默丢弃
   → 解析 msg_type
-  → data：FEC 解码（按 fec_id 分组、凑够分片重建）或直接取整包
+  → data：FEC 解码（按分组凑够分片重建）；重建载荷以 0x00 开头时
+     拆分为多个 IP 包，否则为单个 IP 包
   → 解压（协商为 none 时跳过）
   → 写入 tun
 ```

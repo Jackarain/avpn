@@ -226,16 +226,16 @@ sequenceDiagram
 | `0x02` | `keepalive` | 保活消息（携带时间戳，用于 RTT） |
 | `0x03` | `keepalive_reply` | 保活回复 |
 | `0x04` | `disconnect` | 主动断开 |
-| `0x05` | `ack` | 数据确认（预留） |
+| `0x05` | `ack` | 能力协商（FEC 批量聚合） |
 
 ### 5.3 发送 / 接收流水线
 
 ```
 发送 (tun → 对端):
-  ip_packet ──► 压缩 ──► FEC 分片 ──► type(1)|body ──► AEAD 加密 ──► UDP/TCP 发送
+  ip_packet ──► 压缩 ──► FEC 聚合/分片 ──► type(1)|body ──► AEAD 加密 ──► UDP/TCP 发送
 
 接收 (对端 → tun):
-  UDP/TCP ──► AEAD 解密 ──► type 分发 ──► FEC 重组 ──► 解压 ──► 交付 tun
+  UDP/TCP ──► AEAD 解密 ──► type 分发 ──► FEC 重组(批量则拆包) ──► 解压 ──► 交付 tun
 ```
 
 > 顺序遵循设计：**先压缩、后加密；先解密、后解压**。压缩在 FEC 之前进行（先压缩减少分片体积）。
@@ -277,10 +277,25 @@ sequenceDiagram
 当 `data_shards > 1` 时，数据消息体为：
 
 ```
-[ fec_id(4, LE) | total(1) | index(1) | len(2, LE) | shard ]
+[ index(4, LE) | len(2, LE) | shard ]
 ```
 
-`fec_frame_header_size = 8` 字节。同一 IP 包的所有分片共享 `fec_id`，接收方按 `fec_id` 收集分片，凑齐 `data_shards` 个即可恢复。
+`fec_frame_header_size = 6` 字节，`fec_id = index / total`，`pid = index % total`。
+接收方按 `fec_id` 收集分片，凑齐 `data_shards` 个即可恢复。
+
+### 6.4.1 批量聚合
+
+逐包拆分会产生 `data_shards + parity_shards` 个数据报（8/4 时 12 个），
+在高 PPS 下成倍放大包数与 CPU 开销。收发双方通过 `ack(0x05)` 消息
+（body = `AVB1`）协商后，发送方改为把多个 IP 包聚合到一个 FEC 分组：
+
+```
+批量载荷 = [ 0x00 | { len(2, LE) | ip_packet } ... ]
+```
+
+分片大小按 `ceil(payload / data_shards)` 计算，接近 MTU，使分片数接近
+数据包数；载荷达到阈值或包数达到 64 立即发送，否则最多等待 2ms。
+接收方重组载荷后按首字节 `0x00` 识别批量并拆分，兼容旧版本对端（走单包拆分）。
 
 ### 6.5 冗余拷贝模式
 
