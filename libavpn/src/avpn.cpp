@@ -822,14 +822,13 @@ namespace libavpn {
 		if (m_abort)
 			return;
 
-		std::string_view sv = data;
 		auto key = endpoint_to_string(remote);
 
 		// 已存在的会话.
 		auto it = m_sessions.find(key);
 		if (it != m_sessions.end())
 		{
-			it->second->on_udp_packet(remote, sv);
+			it->second->on_udp_packet(remote, data);
 			return;
 		}
 
@@ -841,7 +840,7 @@ namespace libavpn {
 				continue;
 			if (session->transport() != transport_type::udp)
 				continue;
-			if (!session->try_decrypt_udp(sv))
+			if (!session->try_decrypt_udp(data))
 				continue;
 
 			// 命中: 迁移会话对端 endpoint.
@@ -854,7 +853,7 @@ namespace libavpn {
 			}
 			XLOG_INFO << "Session endpoint migrated: " << old_key
 				<< " -> " << key;
-			session->on_udp_packet(remote, sv);
+			session->on_udp_packet(remote, data);
 			return;
 		}
 
@@ -897,7 +896,7 @@ namespace libavpn {
 				self->on_session_close(s);
 			});
 
-		bool consumed = session->on_udp_packet(remote, sv);
+		bool consumed = session->on_udp_packet(remote, data);
 
 		if (consumed && session->established())
 		{
