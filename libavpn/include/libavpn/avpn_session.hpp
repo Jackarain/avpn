@@ -301,6 +301,15 @@ namespace libavpn {
 		// 发送/处理能力协商消息 (FEC 批量聚合).
 		void send_capability();
 
+		// 发送/处理 FEC 探测消息: 探测序号用于估算链路丢包,
+		// 回带的丢包标记用于本端发送方向自适应关闭冗余.
+		void send_fec_probe();
+		void handle_fec_probe(std::string_view body);
+
+		// 探测发送协程 (仅在链路活跃时发送).
+		net::awaitable<void> probe_loop();
+		void start_probe_loop();
+
 		// keepalive/超时 tick.
 		net::awaitable<void> tick();
 		void start_tick();
@@ -431,6 +440,27 @@ namespace libavpn {
 
 		// 对端已声明支持自适应 FEC 分组.
 		bool m_peer_fec_adaptive{ false };
+
+		// FEC 探测: 本端发送序号 (下一个).
+		uint32_t m_probe_seq{ 0 };
+
+		// 本端对"对端探测"的丢包统计, 结论通过探测回带.
+		fec_probe_tracker m_probe_tracker;
+
+		// 对端探测显示链路持续无丢包时关闭本端发送方向的冗余分片.
+		bool m_fec_parity_off{ false };
+
+		// 对端最近回带的丢包标记, 用于记录状态变化.
+		uint8_t m_peer_loss_report{ 1 };
+
+		// 最近一次收发数据的时间 (探测仅在链路活跃时发送, 单向流量
+		// 时接收端也必须继续探测, 否则发送端收不到丢包反馈).
+		std::chrono::steady_clock::time_point m_last_data_activity{
+			std::chrono::steady_clock::now() };
+
+		// 探测定时器与启动标记.
+		net::steady_timer m_probe_timer;
+		bool m_probe_started{ false };
 
 		// 能力协商消息剩余发送次数 (对端为旧版本时不会回应).
 		int m_cap_announce_left{ 4 };

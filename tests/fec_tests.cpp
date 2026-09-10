@@ -242,6 +242,69 @@ BOOST_AUTO_TEST_CASE(generator_order)
 	BOOST_CHECK_EQUAL(gf::exp_table[8], 0x1d);
 }
 
+BOOST_AUTO_TEST_CASE(probe_tracker_clean)
+{
+	libavpn::fec_probe_tracker t(4, 2);
+	// 首个探测只建立基准.
+	BOOST_CHECK(!t.on_probe(0));
+	// 未结算前回带保守标记.
+	BOOST_CHECK_EQUAL(t.report(), 1);
+	BOOST_CHECK(!t.on_probe(1));
+	BOOST_CHECK(!t.on_probe(2));
+	// 第 4 个探测结算出净空窗口, 但单个窗口不足以下结论.
+	BOOST_CHECK(t.on_probe(3));
+	BOOST_CHECK_EQUAL(t.last_result(), 0);
+	BOOST_CHECK_EQUAL(t.report(), 1);
+	// 连续第 2 个净空窗口后才报告链路干净.
+	BOOST_CHECK(!t.on_probe(4));
+	BOOST_CHECK(!t.on_probe(5));
+	BOOST_CHECK(!t.on_probe(6));
+	BOOST_CHECK(t.on_probe(7));
+	BOOST_CHECK_EQUAL(t.report(), 0);
+}
+
+BOOST_AUTO_TEST_CASE(probe_tracker_loss)
+{
+	libavpn::fec_probe_tracker t(4, 2);
+	// 0, 1 到达, 2 丢失.
+	BOOST_CHECK(!t.on_probe(0));
+	BOOST_CHECK(!t.on_probe(1));
+	BOOST_CHECK(!t.on_probe(3));
+	// 窗口结算: 中间缺失一个探测.
+	BOOST_CHECK(t.on_probe(4));
+	BOOST_CHECK_EQUAL(t.last_result(), 1);
+	// 净空窗口需连续两个才报告干净.
+	BOOST_CHECK(!t.on_probe(5));
+	BOOST_CHECK(!t.on_probe(6));
+	BOOST_CHECK(!t.on_probe(7));
+	BOOST_CHECK(t.on_probe(8));
+	BOOST_CHECK_EQUAL(t.last_result(), 0);
+	BOOST_CHECK_EQUAL(t.report(), 1);
+	BOOST_CHECK(!t.on_probe(9));
+	BOOST_CHECK(!t.on_probe(10));
+	BOOST_CHECK(!t.on_probe(11));
+	BOOST_CHECK(t.on_probe(12));
+	BOOST_CHECK_EQUAL(t.report(), 0);
+	// 当前窗口出现丢包立即恢复不干净, 无需等结算.
+	BOOST_CHECK(!t.on_probe(13));
+	BOOST_CHECK(!t.on_probe(15));
+	BOOST_CHECK_EQUAL(t.report(), 1);
+}
+
+BOOST_AUTO_TEST_CASE(probe_tracker_reorder_and_duplicate)
+{
+	libavpn::fec_probe_tracker t(3, 1);
+	BOOST_CHECK(!t.on_probe(5));
+	// 迟到探测不计为丢包.
+	BOOST_CHECK(!t.on_probe(4));
+	// 重复探测忽略.
+	BOOST_CHECK(!t.on_probe(5));
+	BOOST_CHECK(!t.on_probe(6));
+	BOOST_CHECK(t.on_probe(7));
+	BOOST_CHECK_EQUAL(t.last_result(), 0);
+	BOOST_CHECK_EQUAL(t.report(), 0);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 //////////////////////////////////////////////////////////////////////////

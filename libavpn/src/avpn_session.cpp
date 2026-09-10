@@ -56,6 +56,15 @@ namespace libavpn {
 		// 能力协商消息标记 (自适应 FEC 分组).
 		constexpr std::array<uint8_t, 4> capability_magic_v2{ 'A', 'V', 'B', '2' };
 
+		// FEC 探测发送间隔 (仅链路活跃时发送).
+		constexpr std::chrono::milliseconds fec_probe_interval{ 100 };
+
+		// 距最近一次数据收发超过该时间则暂停探测.
+		constexpr std::chrono::milliseconds fec_probe_idle{ 2000 };
+
+		// 链路空闲或对端不支持时降低探测轮询频率, 避免持续唤醒.
+		constexpr std::chrono::milliseconds fec_probe_idle_poll{ 1000 };
+
 		// 当前时间 (毫秒).
 		inline uint64_t now_ms()
 		{
@@ -75,6 +84,7 @@ namespace libavpn {
 		, m_hs_timer(ioc)
 		, m_compressor(compress_type::none)
 		, m_fec_flush_timer(ioc)
+		, m_probe_timer(ioc)
 	{
 		// 解析本端静态私钥 (base64 编码的 32 字节).
 		if (!config.private_key_.empty())
@@ -709,6 +719,11 @@ namespace libavpn {
 		msg_type type = static_cast<msg_type>(plaintext[0]);
 		std::string_view body = plaintext.substr(1);
 
+		// 收到数据即视为链路活跃, 单向流量下接收端也要继续探测.
+		if (type == msg_type::data || type == msg_type::data_raw ||
+			type == msg_type::data_afec)
+			m_last_data_activity = std::chrono::steady_clock::now();
+
 		switch (type)
 		{
 		case msg_type::data:
@@ -724,6 +739,9 @@ namespace libavpn {
 			break;
 		case msg_type::data_afec:
 			process_afec_msg(body);
+			break;
+		case msg_type::fec_probe:
+			handle_fec_probe(body);
 			break;
 		case msg_type::keepalive:
 		{
@@ -867,6 +885,8 @@ namespace libavpn {
 	{
 		if (!m_established || m_abort)
 			return;
+
+		m_last_data_activity = std::chrono::steady_clock::now();
 
 		// 先压缩.
 		std::vector<uint8_t> compressed;
@@ -1084,16 +1104,18 @@ namespace libavpn {
 		// 保护的前提下减少数据报数量.
 		const int ds = static_cast<int>(m_session_config.data_shards);
 		const int ps = static_cast<int>(m_session_config.parity_shards);
-		if (m_peer_fec_adaptive && ds + ps <= afec_max_shards)
+		// 对端探测显示链路持续无丢包时关闭冗余分片 (仅影响本端发送方向).
+		const int ps_cfg = m_fec_parity_off ? 0 : ps;
+		if (m_peer_fec_adaptive && ds + ps_cfg <= afec_max_shards)
 		{
 			const std::size_t target = fec_batch_shard_target();
 			int use_ds = static_cast<int>(
 				(payload.size() + target - 1) / target);
 			use_ds = std::clamp(use_ds, 1, std::max(1, ds));
-			const int use_ps = ps > 0
-				? std::clamp((use_ds * ps + ds - 1) / ds, 1, ps)
+			const int use_ps = ps_cfg > 0
+				? std::clamp((use_ds * ps_cfg + ds - 1) / ds, 1, ps_cfg)
 				: 0;
-			if (use_ds < ds || use_ps < ps)
+			if (use_ds < ds || use_ps != ps)
 			{
 				encode_and_send_afec(
 					std::string_view(
@@ -1147,6 +1169,95 @@ namespace libavpn {
 				reinterpret_cast<const char*>(plaintext.data()),
 				plaintext.size()));
 		}
+	}
+
+	// 发送一个 FEC 探测包: [seq(4)][丢包标记(1)].
+	// 丢包标记为本端对"对端探测"的观测结果, 对端据此调整其发送方向冗余.
+	void avpn_session::send_fec_probe()
+	{
+		if (!m_established || m_abort)
+			return;
+
+		std::vector<uint8_t> body;
+		body.reserve(1 + 4 + 1);
+		body.push_back(static_cast<uint8_t>(msg_type::fec_probe));
+		byteorder::put_u32_into(body, m_probe_seq++);
+		body.push_back(m_probe_tracker.report());
+		send_plaintext(send_key(), std::string_view(
+			reinterpret_cast<const char*>(body.data()), body.size()));
+	}
+
+	void avpn_session::handle_fec_probe(std::string_view body)
+	{
+		if (body.size() < 5)
+			return;
+
+		const uint8_t* p = reinterpret_cast<const uint8_t*>(body.data());
+		uint32_t seq = byteorder::get_u32_le(p);
+		uint8_t loss = p[4];
+
+		// 对端反馈其接收方向 (本端发送方向) 的链路质量: 滞回判断在对端
+		// 完成, 这里直接跟随, 有丢包立即恢复配置冗余.
+		if (loss != m_peer_loss_report)
+		{
+			m_peer_loss_report = loss;
+			XLOG_INFO << "FEC peer reports loss=" << static_cast<int>(loss)
+				<< ", vaddr: " << net::ip::address_v4(m_vaddr).to_string();
+		}
+		const bool parity_off = loss == 0;
+		if (parity_off != m_fec_parity_off)
+		{
+			m_fec_parity_off = parity_off;
+			XLOG_INFO << "FEC parity " << (parity_off ? "disabled" : "enabled")
+				<< ", vaddr: " << net::ip::address_v4(m_vaddr).to_string();
+		}
+
+		// 统计对端探测的到达情况 (迟到/重复探测不记为丢包).
+		m_probe_tracker.on_probe(seq);
+	}
+
+	net::awaitable<void> avpn_session::probe_loop()
+	{
+		auto self = shared_from_this();
+		auto interval = fec_probe_interval;
+
+		while (!m_abort)
+		{
+			boost::system::error_code ec;
+			m_probe_timer.expires_after(interval);
+			co_await m_probe_timer.async_wait(net_awaitable[ec]);
+			if (m_abort)
+				break;
+
+			// 仅在链路活跃且对端支持时探测, 空闲时降低轮询频率,
+			// 避免持续唤醒射频.
+			auto now = std::chrono::steady_clock::now();
+			if (!m_established || !m_peer_fec_adaptive ||
+				(now - m_last_data_activity) > fec_probe_idle)
+			{
+				interval = fec_probe_idle_poll;
+				continue;
+			}
+
+			interval = fec_probe_interval;
+			send_fec_probe();
+		}
+		co_return;
+	}
+
+	void avpn_session::start_probe_loop()
+	{
+		if (m_probe_started)
+			return;
+		m_probe_started = true;
+
+		auto self = shared_from_this();
+		net::co_spawn(m_ioc,
+			[this, self]() -> net::awaitable<void>
+			{
+				co_await probe_loop();
+				co_return;
+			}, net::detached);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1240,6 +1351,8 @@ namespace libavpn {
 				co_await tick();
 				co_return;
 			}, net::detached);
+
+		start_probe_loop();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1614,6 +1727,7 @@ namespace libavpn {
 		asio_util::cancel(m_hs_timer, ec);
 		asio_util::cancel(m_tick_timer, ec);
 		asio_util::cancel(m_fec_flush_timer, ec);
+		asio_util::cancel(m_probe_timer, ec);
 		m_fec_flush_armed = false;
 		m_fec_pending.clear();
 		m_fec_pending_count = 0;

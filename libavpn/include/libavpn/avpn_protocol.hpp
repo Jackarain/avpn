@@ -67,6 +67,7 @@ namespace libavpn {
 		ack = 0x05,                // 数据确认消息(预留).
 		data_raw = 0x06,           // 未经 fec 编码的数据消息 (批量过小).
 		data_afec = 0x07,          // 自适应分组大小的 fec 分片帧.
+		fec_probe = 0x08,          // fec 链路探测 (丢包反馈, 用于自适应冗余).
 	};
 
 	// 握手 Message 1 明文载荷:

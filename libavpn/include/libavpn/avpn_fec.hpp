@@ -79,6 +79,73 @@ namespace libavpn {
 	// 自适应分组允许的最大分片数 (防御异常帧).
 	inline constexpr int afec_max_shards = 255;
 
+	// FEC 探测丢包统计: 按固定窗口结算对端探测包的到达情况, 并给出
+	// 链路是否持续干净的结论, 供对端自适应关闭冗余分片.
+	//
+	// 窗口大小为探测包个数 (探测间隔 100ms, 默认窗口约 1.6s). 只要当前
+	// 未结算窗口内出现丢包就立刻报告"不干净", 连续 clean_windows 个窗口
+	// 无丢包后才报告"干净", 避免单个干净窗口误判而反复开关冗余.
+	class fec_probe_tracker
+	{
+	public:
+		explicit fec_probe_tracker(int window = 16, int clean_windows = 8)
+			: m_window(std::max(1, window))
+			, m_clean_needed(std::max(1, clean_windows))
+		{}
+
+		// 收到一个探测序号; 返回本次是否结算出一个新窗口.
+		bool on_probe(uint32_t seq)
+		{
+			if (m_inited)
+			{
+				// 迟到/重复的探测不记为丢包.
+				if (seq < m_expected)
+					return false;
+				if (seq > m_expected)
+					m_lost += static_cast<int>(seq - m_expected);
+			}
+			else
+			{
+				m_inited = true;
+			}
+			m_expected = seq + 1;
+
+			if (++m_seen < m_window)
+				return false;
+
+			m_result = m_lost > 0 ? 1 : 0;
+			if (m_result == 0)
+				++m_clean_streak;
+			else
+				m_clean_streak = 0;
+			m_seen = 0;
+			m_lost = 0;
+			return true;
+		}
+
+		// 最近一个结算窗口的结果: -1 尚未结算, 0 无丢包, 1 有丢包.
+		int last_result() const { return m_result; }
+
+		// 回带给对端的丢包标记: 0=链路持续干净, 1=有丢包或尚未确认.
+		// 当前窗口出现丢包时立即回带 1, 使对端尽快恢复冗余.
+		uint8_t report() const
+		{
+			if (m_lost > 0 || m_clean_streak < m_clean_needed)
+				return 1;
+			return 0;
+		}
+
+	private:
+		int m_window;
+		int m_clean_needed;
+		bool m_inited{ false };
+		uint32_t m_expected{ 0 };
+		int m_seen{ 0 };
+		int m_lost{ 0 };
+		int m_result{ -1 };
+		int m_clean_streak{ 0 };
+	};
+
 	// 一个 IP 数据包的 FEC 编码分组.
 	class fec_encode_group
 	{
