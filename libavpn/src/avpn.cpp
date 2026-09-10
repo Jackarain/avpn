@@ -289,6 +289,16 @@ namespace libavpn {
 			udp_socket_buffer_size), ec);
 		if (ec)
 			XLOG_WARN << "set udp send buffer failed: " << ec.message();
+
+#if defined(__linux__)
+		// 普通 setsockopt 会被 net.core.{r,w}mem_max 截断 (常见仅 212KB),
+		// 而长 RTT 链路的带宽时延积远大于此, 接收队列溢出丢包会直接拖慢
+		// 内层 TCP. 具备 CAP_NET_ADMIN 时用 FORCE 变体突破该上限.
+		int val = udp_socket_buffer_size;
+		int fd = static_cast<int>(socket->native_handle());
+		::setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &val, sizeof(val));
+		::setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &val, sizeof(val));
+#endif
 	}
 
 	// 解析 IPv6 内网子网字符串, 默认 fd00:8888::/64.
