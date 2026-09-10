@@ -545,13 +545,16 @@ namespace libavpn {
 			queue_tcp_frame(key, plaintext);
 	}
 
-	std::string avpn_session::make_nonce(const std::string& salt,
-		uint32_t counter) const
+	std::array<char, crypto::aead_nonce_size> avpn_session::make_nonce(
+		const std::string& salt, uint32_t counter) const
 	{
-		std::string nonce;
-		nonce.reserve(crypto::aead_nonce_size);
-		nonce.append(salt);
-		byteorder::put_u32(nonce, counter);
+		std::array<char, crypto::aead_nonce_size> nonce{};
+		std::size_t n = std::min<std::size_t>(salt.size(), nonce.size());
+		std::memcpy(nonce.data(), salt.data(), n);
+		// 计数器以小端追加在末尾 4 字节.
+		for (int i = 0; i < 4; i++)
+			nonce[nonce.size() - 4 + i] =
+				static_cast<char>((counter >> (i * 8)) & 0xff);
 		return nonce;
 	}
 
@@ -574,7 +577,8 @@ namespace libavpn {
 		}
 
 		auto nonce = make_nonce(send_nonce_salt(), counter);
-		auto ciphertext = crypto::aead_encrypt(key, nonce, plaintext, aad);
+		auto ciphertext = crypto::aead_encrypt(key,
+			std::string_view(nonce.data(), nonce.size()), plaintext, aad);
 		if (ciphertext.empty())
 			return {};
 
@@ -674,8 +678,8 @@ namespace libavpn {
 			wire.size() - crypto::aead_counter_size);
 
 		auto nonce = make_nonce(recv_nonce_salt(), counter);
-		auto plaintext = crypto::aead_decrypt(recv_key(), nonce, ciphertext,
-			len_field);
+		auto plaintext = crypto::aead_decrypt(recv_key(),
+			std::string_view(nonce.data(), nonce.size()), ciphertext, len_field);
 		if (plaintext.empty())
 		{
 			// 解密失败则丢弃.
@@ -849,7 +853,8 @@ namespace libavpn {
 				copies = static_cast<int>(m_session_config.parity_shards) + 1;
 			}
 
-			std::vector<uint8_t> plaintext;
+			auto& plaintext = m_send_scratch;
+			plaintext.clear();
 			plaintext.reserve(1 + payload.size());
 			plaintext.push_back(static_cast<uint8_t>(msg_type::data));
 			plaintext.insert(plaintext.end(), payload.begin(), payload.end());
@@ -875,7 +880,8 @@ namespace libavpn {
 		const auto& key = send_key();
 		for (auto& frame : frames)
 		{
-			std::vector<uint8_t> plaintext;
+			auto& plaintext = m_send_scratch;
+			plaintext.clear();
 			plaintext.reserve(1 + frame.size());
 			plaintext.push_back(static_cast<uint8_t>(msg_type::data));
 			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
@@ -1408,7 +1414,8 @@ namespace libavpn {
 
 		// 用本会话接收密钥尝试解密, 仅判断认证是否成功.
 		auto nonce = make_nonce(recv_nonce_salt(), counter);
-		return !crypto::aead_decrypt(recv_key(), nonce, ciphertext,
+		return !crypto::aead_decrypt(recv_key(),
+			std::string_view(nonce.data(), nonce.size()), ciphertext,
 			len_field).empty();
 	}
 

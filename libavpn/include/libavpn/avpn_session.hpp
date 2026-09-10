@@ -12,6 +12,7 @@
 #define INCLUDE__2025_11_20__AVPN_SESSION_HPP
 
 #include "libavpn/avpn.hpp"
+#include "libavpn/avpn_crypto.hpp"
 #include "libavpn/avpn_protocol.hpp"
 #include "libavpn/avpn_fec.hpp"
 #include "libavpn/avpn_compress.hpp"
@@ -235,8 +236,8 @@ namespace libavpn {
 		}
 
 		// 由会话盐与计数器构造 12 字节 AEAD nonce.
-		std::string make_nonce(const std::string& salt,
-			uint32_t counter) const;
+		std::array<char, crypto::aead_nonce_size> make_nonce(
+			const std::string& salt, uint32_t counter) const;
 
 		// 加密明文帧为线上格式, 按协商配置附加混淆封装.
 		// 返回 [salt][len_enc][garbage][counter][ciphertext] 或
@@ -420,6 +421,9 @@ namespace libavpn {
 
 		// 能力协商消息剩余发送次数 (对端为旧版本时不会回应).
 		int m_cap_announce_left{ 4 };
+
+		// 构造发送明文的复用缓冲区 (避免每包分配).
+		std::vector<uint8_t> m_send_scratch;
 
 		// 待聚合的批量数据载荷 (不含批量标记字节, 每项为 [len(2)][payload]).
 		std::vector<uint8_t> m_fec_pending;
