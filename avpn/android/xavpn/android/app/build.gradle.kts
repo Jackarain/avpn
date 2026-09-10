@@ -26,8 +26,8 @@ android {
         applicationId = "com.jackarain.xavpn"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // VpnService.protect(int) 需要 API 22+, 这里直接使用 23.
-        minSdk = 23
+        // VpnService.protect(int) 需要 API 22+, 跟随 Flutter 默认值 (当前 24).
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
