@@ -206,7 +206,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _mode,
+            initialValue: _mode,
             decoration: const InputDecoration(
               labelText: '模式',
               border: OutlineInputBorder(borderRadius: BorderRadius.zero),
@@ -316,7 +316,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _compress,
+            initialValue: _compress,
             decoration: const InputDecoration(
               labelText: '压缩',
               border: OutlineInputBorder(borderRadius: BorderRadius.zero),
