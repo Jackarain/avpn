@@ -1598,7 +1598,11 @@ namespace libavpn {
 			return;
 
 		const auto& scfg = m_tunnel->negotiated_config();
-		if (!scfg.passbyvpn && scfg.routes.empty())
+		// ignore_push: 忽略网关推送的路由, 仅保留服务器钉住与本地绕过路由.
+		const bool apply_push = !m_config.ignore_push_;
+		const bool has_push = apply_push &&
+			(scfg.passbyvpn || !scfg.routes.empty());
+		if (!has_push && m_config.bypassroutes_.empty())
 			return;
 
 #if defined(__linux__)
@@ -1656,7 +1660,7 @@ namespace libavpn {
 				XLOG_ERR << "pin server route failed: " << nl_err;
 		}
 
-		if (scfg.passbyvpn)
+		if (apply_push && scfg.passbyvpn)
 		{
 			// 用两条 /1 路由 (0.0.0.0/1, 128.0.0.0/1) 覆盖全部 IPv4 地址
 			// 接管流量, 保留系统默认路由作为兜底 (LPM 优先匹配 /1).
@@ -1689,21 +1693,28 @@ namespace libavpn {
 				XLOG_WARN << "add MASQUERADE failed: " << nat_err;
 		}
 
-		for (auto& r : scfg.routes)
+		if (apply_push)
 		{
-			if (r.empty())
-				continue;
-			nl_route_entry rt;
-			if (!parse_route_string(r, rt))
+			for (auto& r : scfg.routes)
 			{
-				XLOG_ERR << "parse push route failed: " << r;
-				continue;
+				if (r.empty())
+					continue;
+				nl_route_entry rt;
+				if (!parse_route_string(r, rt))
+				{
+					XLOG_ERR << "parse push route failed: " << r;
+					continue;
+				}
+				rt.ifname = dev;
+				if (nl_route_replace(rt, nl_err))
+					XLOG_INFO << "Push route: " << r << " dev " << dev;
+				else
+					XLOG_ERR << "push route failed: " << r << ", " << nl_err;
 			}
-			rt.ifname = dev;
-			if (nl_route_replace(rt, nl_err))
-				XLOG_INFO << "Push route: " << r << " dev " << dev;
-			else
-				XLOG_ERR << "push route failed: " << r << ", " << nl_err;
+		}
+		else
+		{
+			XLOG_INFO << "ignore_push enabled, skip gateway pushed routes";
 		}
 
 		// 绕过隧道走物理线路的目标 (更具体的路由优先于默认路由).
