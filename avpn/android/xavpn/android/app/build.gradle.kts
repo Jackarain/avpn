@@ -1,8 +1,8 @@
-import com.android.build.gradle.BaseExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -13,12 +13,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
@@ -44,6 +40,12 @@ android {
                 "proguard-rules.pro",
             )
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
@@ -109,20 +111,24 @@ fun buildXavpnLibs(repoRoot: File, logger: org.gradle.api.logging.Logger) {
 }
 
 fun resolveNdkDir(project: Project): File {
-    val androidExt = project.extensions.findByName("android")
-    if (androidExt is BaseExtension) {
-        runCatching { androidExt.ndkDirectory }.getOrNull()?.takeIf { it.isDirectory }?.let { return it }
-        runCatching { androidExt.sdkDirectory }.getOrNull()?.let { sdk ->
-            findSdkNdk(sdk)?.let { return it }
-        }
-    }
     listOf("ANDROID_NDK_HOME", "ANDROID_NDK_ROOT").forEach { name ->
         System.getenv(name)?.let { path ->
             File(path).takeIf { it.isDirectory }?.let { return it }
         }
     }
-    System.getenv("ANDROID_HOME")?.let { sdk ->
-        findSdkNdk(File(sdk))?.let { return it }
+    val sdkDirs = buildList {
+        listOf("ANDROID_HOME", "ANDROID_SDK_ROOT").forEach { name ->
+            System.getenv(name)?.let { add(File(it)) }
+        }
+        val localProperties = File(project.rootProject.projectDir, "local.properties")
+        if (localProperties.isFile) {
+            val properties = Properties()
+            localProperties.inputStream().use { properties.load(it) }
+            properties.getProperty("sdk.dir")?.let { add(File(it)) }
+        }
+    }
+    sdkDirs.forEach { sdk ->
+        findSdkNdk(sdk)?.let { return it }
     }
     throw GradleException("未找到 NDK: 请通过 SDK Manager 安装 NDK, 或设置 ANDROID_NDK_HOME/ANDROID_NDK_ROOT")
 }
