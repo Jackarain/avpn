@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE avpn_fec_tests
+﻿#define BOOST_TEST_MODULE avpn_fec_tests
 #include <boost/test/unit_test.hpp>
 
 // 直接包含 FEC 实现, 以访问内部 gf/fec_cache 及全部 FEC 组件.
@@ -673,6 +673,32 @@ BOOST_AUTO_TEST_CASE(group_index_derivation)
 	BOOST_REQUIRE(dg.add(3, 32, s, output) == false);
 	BOOST_REQUIRE(dg.add(4, 32, s, output));
 	BOOST_CHECK_EQUAL(output.size(), 32u);
+}
+
+BOOST_AUTO_TEST_CASE(late_shards_after_completion_dropped)
+{
+	// 分组完成后, 其剩余的冗余分片应被直接丢弃, 不得重新建组 (否则分组表
+	// 会随包数无限膨胀, 解码退化为 O(n^2)).
+	// max_live_time = 0 使任何新建的未完成分组在 purge 时立即可见.
+	fec_decode_group dg(2, 2, std::chrono::milliseconds(0));
+	std::vector<uint8_t> shard(8, 0x5a);
+	std::vector<uint8_t> output;
+	std::string_view s(reinterpret_cast<const char*>(shard.data()),
+		shard.size());
+	// 分组 0 (total=4): 两个数据分片天然可恢复.
+	BOOST_REQUIRE(!dg.add(0, 16, s, output));
+	BOOST_REQUIRE(dg.add(1, 16, s, output));
+	// 迟到的冗余分片 2/3 直接丢弃 (修复前 add(3) 会错误地"恢复"出数据).
+	BOOST_CHECK(!dg.add(2, 16, s, output));
+	BOOST_CHECK(!dg.add(3, 16, s, output));
+	// 没有遗留分组.
+	BOOST_CHECK_EQUAL(dg.purge(), 0u);
+
+	// 后续分组不受影响.
+	output.clear();
+	BOOST_REQUIRE(!dg.add(4, 16, s, output));
+	BOOST_REQUIRE(dg.add(5, 16, s, output));
+	BOOST_CHECK_EQUAL(output.size(), 16u);
 }
 
 BOOST_AUTO_TEST_CASE(purge_expired)

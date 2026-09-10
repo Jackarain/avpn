@@ -1,4 +1,4 @@
-//
+﻿//
 // avpn_fec.hpp
 // ~~~~~~~~~~~~
 //
@@ -12,6 +12,9 @@
 #define INCLUDE__2025_11_20__AVPN_FEC_HPP
 
 #include <cstdint>
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
 #include <cstddef>
 #include <vector>
 #include <array>
@@ -116,7 +119,13 @@ namespace libavpn {
 			std::chrono::steady_clock::time_point last_seen;
 		};
 
-		std::vector<group> m_groups;
+		// 按 fec_id 索引, 避免线性扫描造成的 O(n²) 开销.
+		std::unordered_map<uint32_t, group> m_groups;
+
+		// 最近完成的分组 id (丢弃其迟到分片, 避免为剩余冗余分片重复建组).
+		std::unordered_set<uint32_t> m_completed;
+		std::deque<uint32_t> m_completed_order;
+
 		int m_data_shards{ 1 };
 		int m_parity_shards{ 0 };
 		std::size_t m_add_count{ 0 };

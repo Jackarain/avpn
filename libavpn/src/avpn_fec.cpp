@@ -1,4 +1,4 @@
-//
+﻿//
 // avpn_fec.cpp
 // ~~~~~~~~~~~~
 //
@@ -43,6 +43,9 @@ namespace libavpn {
 	// 编码矩阵按 (data_shards, parity_shards) 全局缓存, 避免每个会话重复
 	// 生成 Vandermonde 矩阵; 解码逆矩阵按选中分片位图做 LRU 缓存, 避免
 	// 每次恢复重复进行矩阵求逆.
+	// 已完成分组的去重窗口大小.
+	constexpr std::size_t completed_capacity = 1024;
+
 	namespace fec_cache {
 
 		using matrix = std::vector<std::vector<uint8_t>>;
@@ -816,27 +819,24 @@ namespace libavpn {
 
 		auto now = std::chrono::steady_clock::now();
 
+		// 该分组已完成, 迟到的冗余分片直接丢弃 (否则会不断为剩余分片
+		// 重新建组, 导致分组表膨胀与线性扫描开销).
+		if (m_completed.count(fec_id))
+			return false;
+
 		// 周期性清理过期分组, 避免高丢包环境下分组无限累积导致延迟劣化.
 		if (++m_add_count % 512 == 0)
 			purge();
 
-		// 查找或创建分组.
+		// 查找或创建分组 (按 fec_id 哈希索引).
+		auto it = m_groups.find(fec_id);
 		group* g = nullptr;
-		for (auto& grp : m_groups)
+		if (it == m_groups.end())
 		{
-			if (grp.fec_id == fec_id)
-			{
-				g = &grp;
-				break;
-			}
-		}
-
-		if (!g)
-		{
-			m_groups.push_back(group{});
-			g = &m_groups.back();
+			auto res = m_groups.emplace(fec_id, group{});
+			g = &res.first->second;
 			g->fec_id = fec_id;
-			g->total = total;
+			g->total = static_cast<uint8_t>(total);
 			g->original_len = original_len;
 			g->shard_size = data.size();
 			g->shards.assign(total, {});
@@ -845,6 +845,7 @@ namespace libavpn {
 		}
 		else
 		{
+			g = &it->second;
 			// 使用该分组携带的原始长度.
 			if (g->original_len == 0)
 				g->original_len = original_len;
@@ -884,10 +885,15 @@ namespace libavpn {
 				if (output.size() > g->original_len)
 					output.resize(g->original_len);
 
-				// 移除该分组.
-				m_groups.erase(std::remove_if(m_groups.begin(), m_groups.end(),
-					[fec_id](const group& grp) { return grp.fec_id == fec_id; }),
-					m_groups.end());
+				// 移除该分组并记录, 其迟到分片将被丢弃.
+				m_groups.erase(fec_id);
+				if (m_completed.size() >= completed_capacity)
+				{
+					m_completed.erase(m_completed_order.front());
+					m_completed_order.pop_front();
+				}
+				m_completed.insert(fec_id);
+				m_completed_order.push_back(fec_id);
 
 				return true;
 			}
@@ -899,11 +905,14 @@ namespace libavpn {
 	std::size_t fec_decode_group::purge()
 	{
 		auto now = std::chrono::steady_clock::now();
-		auto before = m_groups.size();
-		m_groups.erase(std::remove_if(m_groups.begin(), m_groups.end(),
-			[&](const group& grp) {
-				return (now - grp.last_seen) > m_max_live_time;
-			}), m_groups.end());
+		std::size_t before = m_groups.size();
+		for (auto it = m_groups.begin(); it != m_groups.end();)
+		{
+			if ((now - it->second.last_seen) > m_max_live_time)
+				it = m_groups.erase(it);
+			else
+				++it;
+		}
 		return before - m_groups.size();
 	}
 
