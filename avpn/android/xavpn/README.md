@@ -28,14 +28,13 @@ Flutter (Dart)                          Android 原生 (Kotlin)                 
 ## 构建
 
 ```sh
-# 1. 编译 libxavpn.so (仓库根目录, 参见 build.android.sh)
+# 1. 编译 libxavpn.so (仓库根目录, 参见 build.android.sh); 脚本会把
+#    libxavpn.so 同步到 jniLibs, 并把 SWIG 生成的 Java 包装类同步到
+#    android/app/src/main/java/com/jackarain/, 无需手工拷贝.
+#    追加第 4 个参数可只编译指定 ABI (如 arm64-v8a).
 ./build.android.sh /root/avpn /opt/android-sdk/ndk/26.3.11579264 linux-x86_64
 
-# 2. 将产物同步到本工程 (或直接手工拷贝)
-#    (libxavpn.so 由 app 构建时自动复制到 jniLibs, 无需手工拷贝)
-cp /root/avpn/outputs/*.java android/app/src/main/java/com/jackarain/
-
-# 3. 构建 APK (构建时自动将 release/<abi>/libxavpn.so 同步到 jniLibs)
+# 2. 构建 APK (构建时自动将 release/<abi>/libxavpn.so 同步到 jniLibs)
 flutter pub get
 flutter build apk --debug
 ```
