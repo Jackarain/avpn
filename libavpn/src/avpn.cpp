@@ -871,7 +871,11 @@ namespace libavpn {
 			[socket](const net::ip::udp::endpoint& ep,
 				std::vector<uint8_t> wire)
 			{
-				socket->async_send_to(net::buffer(wire), ep, net::detached);
+				// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
+				auto buf = std::make_shared<std::vector<uint8_t>>(
+					std::move(wire));
+				socket->async_send_to(net::buffer(*buf), ep,
+					[buf](const boost::system::error_code&, std::size_t) {});
 			});
 
 		session->set_ip_packet_handler(
@@ -1953,9 +1957,13 @@ namespace libavpn {
 			[self = shared_from_this()](const net::ip::udp::endpoint& ep,
 				std::vector<uint8_t> wire)
 			{
-				if (self->m_client_udp)
-					self->m_client_udp->async_send_to(
-						net::buffer(wire), ep, net::detached);
+				if (!self->m_client_udp)
+					return;
+				// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
+				auto buf = std::make_shared<std::vector<uint8_t>>(
+					std::move(wire));
+				self->m_client_udp->async_send_to(net::buffer(*buf), ep,
+					[buf](const boost::system::error_code&, std::size_t) {});
 			});
 
 		m_tunnel->set_ip_packet_handler(
