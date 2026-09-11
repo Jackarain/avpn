@@ -18,6 +18,7 @@
 #include <boost/asio/ip/address_v6.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -28,6 +29,10 @@
 
 #if defined(__linux__)
 #	include <sys/socket.h>
+#	include <netinet/udp.h>
+#	ifndef UDP_SEGMENT
+#		define UDP_SEGMENT 103
+#	endif
 #endif
 
 namespace libavpn {
@@ -299,6 +304,84 @@ namespace libavpn {
 		::setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &val, sizeof(val));
 		::setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &val, sizeof(val));
 #endif
+	}
+
+#if defined(__linux__)
+	// 把一批等长 UDP 帧用 UDP_SEGMENT 合并为一次 sendmsg 提交.
+	//
+	// 隧道数据方向一次 FEC 刷新会产生多个等长帧, 逐帧发送在虚拟化主机
+	// 上会放大内核每包开销 (协议栈与 virtio 发送合计可占单核三成以上).
+	// 合并提交后内核按 segment 大小分段, 每批只需一次系统调用.
+	static bool send_udp_gso(net::ip::udp::socket& socket,
+		const net::ip::udp::endpoint& ep,
+		const std::vector<std::vector<uint8_t>>& frames,
+		std::size_t segment)
+	{
+		std::vector<uint8_t> buf;
+		buf.reserve(segment * frames.size());
+		for (const auto& frame : frames)
+			buf.insert(buf.end(), frame.begin(), frame.end());
+
+		::msghdr msg{};
+		msg.msg_name = const_cast<::sockaddr*>(ep.data());
+		msg.msg_namelen = static_cast<socklen_t>(ep.size());
+
+		::iovec iov{ buf.data(), buf.size() };
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+
+		std::array<char, CMSG_SPACE(sizeof(uint16_t))> control{};
+		msg.msg_control = control.data();
+		msg.msg_controllen = control.size();
+
+		auto* cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = IPPROTO_UDP;
+		cmsg->cmsg_type = UDP_SEGMENT;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(uint16_t));
+		uint16_t value = static_cast<uint16_t>(segment);
+		std::memcpy(CMSG_DATA(cmsg), &value, sizeof(value));
+
+		ssize_t n = ::sendmsg(socket.native_handle(), &msg, MSG_DONTWAIT);
+		return n == static_cast<ssize_t>(buf.size());
+	}
+#endif
+
+	// 提交一批发往同一对端的 UDP 帧.
+	//
+	// 等长帧优先走 GSO 合并提交, 其余情况回退逐帧异步发送.
+	static void send_udp_frames(
+		const std::shared_ptr<net::ip::udp::socket>& socket,
+		const net::ip::udp::endpoint& ep,
+		std::vector<std::vector<uint8_t>> frames)
+	{
+		if (!socket || frames.empty())
+			return;
+
+#if defined(__linux__)
+		// 分段后的外层报文不能超过常见路径 MTU (1500 - IP/UDP 头).
+		const std::size_t segment = frames.front().size();
+		bool uniform = frames.size() > 1 &&
+			segment > 0 && segment + 28 <= 1500;
+		for (const auto& frame : frames)
+		{
+			if (frame.size() != segment)
+			{
+				uniform = false;
+				break;
+			}
+		}
+		if (uniform && send_udp_gso(*socket, ep, frames, segment))
+			return;
+#endif
+
+		for (auto& frame : frames)
+		{
+			// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
+			auto buf = std::make_shared<std::vector<uint8_t>>(
+				std::move(frame));
+			socket->async_send_to(net::buffer(*buf), ep,
+				[buf](const boost::system::error_code&, std::size_t) {});
+		}
 	}
 
 	// 解析 IPv6 内网子网字符串, 默认 fd00:8888::/64.
@@ -897,13 +980,9 @@ namespace libavpn {
 
 		session->set_udp_send_handler(
 			[socket](const net::ip::udp::endpoint& ep,
-				std::vector<uint8_t> wire)
+				std::vector<std::vector<uint8_t>> frames)
 			{
-				// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
-				auto buf = std::make_shared<std::vector<uint8_t>>(
-					std::move(wire));
-				socket->async_send_to(net::buffer(*buf), ep,
-					[buf](const boost::system::error_code&, std::size_t) {});
+				send_udp_frames(socket, ep, std::move(frames));
 			});
 
 		session->set_ip_packet_handler(
@@ -1998,15 +2077,11 @@ namespace libavpn {
 
 		m_tunnel->set_udp_send_handler(
 			[self = shared_from_this()](const net::ip::udp::endpoint& ep,
-				std::vector<uint8_t> wire)
+				std::vector<std::vector<uint8_t>> frames)
 			{
 				if (!self->m_client_udp)
 					return;
-				// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
-				auto buf = std::make_shared<std::vector<uint8_t>>(
-					std::move(wire));
-				self->m_client_udp->async_send_to(net::buffer(*buf), ep,
-					[buf](const boost::system::error_code&, std::size_t) {});
+				send_udp_frames(self->m_client_udp, ep, std::move(frames));
 			});
 
 		m_tunnel->set_ip_packet_handler(

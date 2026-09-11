@@ -330,10 +330,7 @@ namespace libavpn {
 
 		// 握手消息不走加密数据通道, 直接按传输类型发送.
 		if (m_transport == transport_type::udp)
-		{
-			if (m_udp_send_handler)
-				m_udp_send_handler(m_remote_udp, std::move(wire));
-		}
+			send_udp_wire(std::move(wire));
 		else
 		{
 			// TCP: 长度前缀帧.
@@ -485,10 +482,7 @@ namespace libavpn {
 		wire.insert(wire.end(), ciphertext.begin(), ciphertext.end());
 
 		if (m_transport == transport_type::udp)
-		{
-			if (m_udp_send_handler)
-				m_udp_send_handler(m_remote_udp, std::move(wire));
-		}
+			send_udp_wire(std::move(wire));
 		else
 		{
 			if (!m_tcp_stream)
@@ -566,7 +560,26 @@ namespace libavpn {
 		m_upload_bytes += static_cast<int64_t>(plaintext.size());
 
 		if (m_transport == transport_type::udp)
-			encrypt_and_send_udp(key, plaintext);
+		{
+			queue_udp_frame(key, plaintext);
+			flush_udp_batch();
+		}
+		else
+			queue_tcp_frame(key, plaintext);
+	}
+
+	// 同一次逻辑发送产生的多个帧: 先入批, 由调用方最后统一提交,
+	// 使 service 能把这批等长帧合并为一次提交 (UDP GSO).
+	void avpn_session::send_plaintext_batched(const std::string& key,
+		std::string_view plaintext)
+	{
+		if (m_abort)
+			return;
+
+		m_upload_bytes += static_cast<int64_t>(plaintext.size());
+
+		if (m_transport == transport_type::udp)
+			queue_udp_frame(key, plaintext);
 		else
 			queue_tcp_frame(key, plaintext);
 	}
@@ -622,16 +635,41 @@ namespace libavpn {
 		return wire;
 	}
 
-	void avpn_session::encrypt_and_send_udp(const std::string& key,
+	void avpn_session::queue_udp_frame(const std::string& key,
 		std::string_view plaintext)
 	{
+		if (m_abort)
+			return;
+
 		uint32_t counter = m_send_counter++;
 		auto wire = encrypt_frame(key, counter, plaintext);
 		if (wire.empty())
 			return;
 
-		if (m_udp_send_handler)
-			m_udp_send_handler(m_remote_udp, std::move(wire));
+		m_udp_pending.push_back(std::move(wire));
+	}
+
+	void avpn_session::flush_udp_batch()
+	{
+		if (m_udp_pending.empty())
+			return;
+
+		// 同一批帧通常来自同一个 FEC 分组, 大小一致, service 可借助
+		// UDP GSO 把它们合并为一次 sendmsg 提交.
+		if (!m_abort && m_udp_send_handler)
+			m_udp_send_handler(m_remote_udp, std::move(m_udp_pending));
+
+		m_udp_pending.clear();
+	}
+
+	void avpn_session::send_udp_wire(std::vector<uint8_t> wire)
+	{
+		if (m_abort || wire.empty() || !m_udp_send_handler)
+			return;
+
+		std::vector<std::vector<uint8_t>> batch;
+		batch.push_back(std::move(wire));
+		m_udp_send_handler(m_remote_udp, std::move(batch));
 	}
 
 	void avpn_session::queue_tcp_frame(const std::string& key,
@@ -980,7 +1018,8 @@ namespace libavpn {
 				reinterpret_cast<const char*>(plaintext.data()),
 				plaintext.size());
 			for (int i = 0; i < copies; i++)
-				send_plaintext(key, frame);
+				send_plaintext_batched(key, frame);
+			flush_udp_batch();
 		}
 	}
 
@@ -1002,10 +1041,11 @@ namespace libavpn {
 			plaintext.reserve(1 + frame.size());
 			plaintext.push_back(static_cast<uint8_t>(msg_type::data));
 			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
-			send_plaintext(key, std::string_view(
+			send_plaintext_batched(key, std::string_view(
 				reinterpret_cast<const char*>(plaintext.data()),
 				plaintext.size()));
 		}
+		flush_udp_batch();
 	}
 
 	// 按指定分片数做自适应 FEC 编码后逐片加密发送.
@@ -1028,10 +1068,11 @@ namespace libavpn {
 			plaintext.reserve(1 + frame.size());
 			plaintext.push_back(static_cast<uint8_t>(msg_type::data_afec));
 			plaintext.insert(plaintext.end(), frame.begin(), frame.end());
-			send_plaintext(key, std::string_view(
+			send_plaintext_batched(key, std::string_view(
 				reinterpret_cast<const char*>(plaintext.data()),
 				plaintext.size()));
 		}
+		flush_udp_batch();
 	}
 
 	// 批量分组内单个分片的目标大小 (扣除加密/帧头开销后的 MTU).
@@ -1836,6 +1877,7 @@ namespace libavpn {
 		m_fec_flush_armed = false;
 		m_fec_pending.clear();
 		m_fec_pending_count = 0;
+		m_udp_pending.clear();
 
 		if (m_tcp_stream)
 		{

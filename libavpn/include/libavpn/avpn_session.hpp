@@ -72,9 +72,10 @@ namespace libavpn {
 		// 会话建立完成回调 (responder 握手成功后调用, 用于网关登记会话).
 		using established_handler = std::function<void()>;
 
-		// UDP 数据报发送回调 (由 service 提供共享的 udp socket).
+		// UDP 数据报批量发送回调 (由 service 提供共享的 udp socket).
+		// 同一批帧发往同一对端, service 可合并为一次系统调用提交.
 		using udp_send_handler = std::function<void(
-			const net::ip::udp::endpoint&, std::vector<uint8_t>)>;
+			const net::ip::udp::endpoint&, std::vector<std::vector<uint8_t>>)>;
 
 		// 虚拟地址分配回调 (responder 使用).
 		// 参数 requested 为客户端请求的地址 (0 表示不请求), 返回 {vaddr, prefix_length}.
@@ -248,9 +249,19 @@ namespace libavpn {
 		// 加密并发送明文帧 (按传输类型分发).
 		void send_plaintext(const std::string& key, std::string_view plaintext);
 
-		// 加密并发送 UDP 帧.
-		void encrypt_and_send_udp(const std::string& key,
+		// 加密明文帧并入批, 不立即提交 (由调用方统一 flush).
+		void send_plaintext_batched(const std::string& key,
 			std::string_view plaintext);
+
+		// 加密明文帧并暂存到当前 UDP 发送批 (不立即提交).
+		void queue_udp_frame(const std::string& key,
+			std::string_view plaintext);
+
+		// 提交当前 UDP 发送批 (同一次逻辑发送的多个分片合并为一批).
+		void flush_udp_batch();
+
+		// 发送单个已封装好的 UDP 帧 (握手等控制消息).
+		void send_udp_wire(std::vector<uint8_t> wire);
 
 		// 将明文帧推入 TCP 写队列.
 		void queue_tcp_frame(const std::string& key,
@@ -471,6 +482,9 @@ namespace libavpn {
 
 		// 构造发送明文的复用缓冲区 (避免每包分配).
 		std::vector<uint8_t> m_send_scratch;
+
+		// 待提交的 UDP 发送批.
+		std::vector<std::vector<uint8_t>> m_udp_pending;
 
 		// 待聚合的批量数据载荷 (不含批量标记字节, 每项为 [len(2)][payload]).
 		std::vector<uint8_t> m_fec_pending;
