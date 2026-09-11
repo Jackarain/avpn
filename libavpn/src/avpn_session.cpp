@@ -65,6 +65,18 @@ namespace libavpn {
 		// 链路空闲或对端不支持时降低探测轮询频率, 避免持续唤醒.
 		constexpr std::chrono::milliseconds fec_probe_idle_poll{ 1000 };
 
+		// TCP 传输的写合并: 在写之前短暂等待, 把这段时间内到达的多个
+		// 帧合并成一次写入. 小的逐帧写入会让内核按帧生成 TCP 段并逐段
+		// 通知网卡, 在虚拟化环境下每包开销很高; 合并成较大的写入后可
+		// 借助 TSO/GSO 让内核一次提交一个大段, 显著降低每字节开销.
+		constexpr std::chrono::milliseconds tcp_cork_delay{ 2 };
+
+		// 单次 TCP 写入合并的最大字节数 (避免过大的内存分配).
+		constexpr std::size_t tcp_cork_max_bytes = 128 * 1024;
+
+		// TCP 读取缓冲大小: 一次读取可包含多个帧, 减少异步操作次数.
+		constexpr std::size_t tcp_read_chunk = 128 * 1024;
+
 		// 当前时间 (毫秒).
 		inline uint64_t now_ms()
 		{
@@ -82,6 +94,7 @@ namespace libavpn {
 		, m_role(role)
 		, m_tick_timer(ioc)
 		, m_hs_timer(ioc)
+		, m_tcp_cork_timer(ioc)
 		, m_compressor(compress_type::none)
 		, m_fec_flush_timer(ioc)
 		, m_probe_timer(ioc)
@@ -657,12 +670,46 @@ namespace libavpn {
 			{
 				while (!m_abort && !m_tcp_oqe.empty())
 				{
-					auto wire = std::move(m_tcp_oqe.front());
-					m_tcp_oqe.pop_front();
+					// 合并队列中的多个帧: 取走已排队的帧, 若尚未达到
+					// 上限且队列为空, 则等到合并窗口结束再写入.
+					auto deadline = std::chrono::steady_clock::now() +
+						tcp_cork_delay;
+					std::vector<uint8_t> batch;
+					std::size_t bytes = 0;
+
+					for (;;)
+					{
+						while (!m_tcp_oqe.empty() &&
+							bytes < tcp_cork_max_bytes)
+						{
+							auto& wire = m_tcp_oqe.front();
+							bytes += wire.size();
+							batch.insert(batch.end(),
+								wire.begin(), wire.end());
+							m_tcp_oqe.pop_front();
+						}
+
+						if (m_abort ||
+							bytes >= tcp_cork_max_bytes ||
+							std::chrono::steady_clock::now() >= deadline)
+							break;
+
+						// 队列暂时为空: 等到合并窗口结束, 期间到达
+						// 的帧会被下一轮取走.
+						m_tcp_cork_timer.expires_at(deadline);
+						boost::system::error_code tec;
+						co_await m_tcp_cork_timer.async_wait(
+							net_awaitable[tec]);
+						if (m_abort)
+							break;
+					}
+
+					if (batch.empty())
+						break;
 
 					boost::system::error_code ec;
 					co_await net::async_write(*stream,
-						net::buffer(wire), net_awaitable[ec]);
+						net::buffer(batch), net_awaitable[ec]);
 					if (ec)
 						break;
 				}
@@ -1537,30 +1584,88 @@ namespace libavpn {
 
 	net::awaitable<void> avpn_session::tcp_read_loop(tcp::socket& stream)
 	{
+		// 批量读取: 一次读取尽量多的数据再逐帧解析. 逐帧异步读取
+		// (每帧两次读) 在高包速率下会产生大量异步操作和堆分配,
+		// 是 TCP 传输的主要开销之一.
+		std::vector<uint8_t> buf(tcp_read_chunk);
+		std::size_t begin = 0;
+		std::size_t end = 0;
+		auto space = [&]() { return buf.size() - end; };
+
 		while (!m_abort)
 		{
-			std::array<uint8_t, 2> lenbuf;
-			boost::system::error_code ec;
-			co_await net::async_read(stream, net::buffer(lenbuf),
-				net_awaitable[ec]);
-			if (ec || m_abort)
-				break;
+			// 先把已解析部分前移, 为后续读取腾出空间.
+			if (begin > 0)
+			{
+				if (end > begin)
+					std::memmove(buf.data(), buf.data() + begin,
+						end - begin);
+				end -= begin;
+				begin = 0;
+			}
+
+			// 读到至少一个长度头.
+			while (end - begin < 2 && !m_abort)
+			{
+				boost::system::error_code ec;
+				std::size_t n = co_await stream.async_read_some(
+					net::buffer(buf.data() + end, space()),
+					net_awaitable[ec]);
+				if (ec || n == 0)
+				{
+					if (!m_abort)
+						close();
+					co_return;
+				}
+				end += n;
+
+				if (space() == 0)
+				{
+					// 缓冲已满仍无完整数据 (异常帧), 避免死循环.
+					if (!m_abort)
+						close();
+					co_return;
+				}
+			}
 
 			uint16_t len = static_cast<uint16_t>(
-				(static_cast<uint16_t>(lenbuf[0]) << 8) | lenbuf[1]);
+				(static_cast<uint16_t>(buf[begin]) << 8) | buf[begin + 1]);
 			if (len == 0 || len > avpn_max_packet_size)
-				break;
+			{
+				if (!m_abort)
+					close();
+				co_return;
+			}
 
-			std::vector<uint8_t> wire(len);
-			co_await net::async_read(stream, net::buffer(wire),
-				net_awaitable[ec]);
-			if (ec || m_abort)
-				break;
+			// 读到完整帧体.
+			while (end - begin < 2 + static_cast<std::size_t>(len) &&
+				!m_abort)
+			{
+				boost::system::error_code ec;
+				std::size_t n = co_await stream.async_read_some(
+					net::buffer(buf.data() + end, space()),
+					net_awaitable[ec]);
+				if (ec || n == 0)
+				{
+					if (!m_abort)
+						close();
+					co_return;
+				}
+				end += n;
+
+				if (space() == 0)
+				{
+					if (!m_abort)
+						close();
+					co_return;
+				}
+			}
 
 			// 握手期间由 on_udp_packet 处理 Message 1/2,
 			// 建立后处理数据帧.
 			on_udp_packet(m_remote_udp, std::string_view(
-				reinterpret_cast<const char*>(wire.data()), wire.size()));
+				reinterpret_cast<const char*>(buf.data() + begin + 2), len));
+			begin += 2 + static_cast<std::size_t>(len);
 		}
 
 		if (!m_abort)

@@ -432,6 +432,10 @@ namespace libavpn {
 		std::deque<std::vector<uint8_t>> m_tcp_oqe;
 		bool m_tcp_writing{ false };
 
+		// TCP 写合并定时器 (把短时间内的多个帧合并为一次写入,
+		// 使内核能聚合为更大的 TCP 段并利用 TSO/GSO, 降低每包开销).
+		net::steady_timer m_tcp_cork_timer;
+
 		// 握手重发次数.
 		int m_hs_retry{ 0 };
 
