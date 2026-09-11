@@ -20,12 +20,15 @@ namespace libavpn {
 
 	// AEAD 计数器接收重放窗口.
 	// 接受单调递增且位于滑动窗口内的计数器, 拒绝重放与窗口外旧包.
+	//
+	// 窗口用 64 位字位图表示, 位 i 表示计数器 (m_counter_max - i) 已收到.
+	// 新计数器到达时整窗口按位移移动, 逐包开销为常数次字操作.
 	class replay_window
 	{
 	public:
 		explicit replay_window(std::size_t window_size = 1024)
 			: m_window_size(std::max<std::size_t>(1, window_size))
-			, m_window(m_window_size, false)
+			, m_words((m_window_size + 63) / 64, 0)
 		{}
 
 		replay_window(const replay_window&) = delete;
@@ -38,39 +41,25 @@ namespace libavpn {
 			{
 				m_init = true;
 				m_counter_max = counter;
-				m_window.assign(m_window_size, false);
-				m_window[0] = true;
+				std::fill(m_words.begin(), m_words.end(), uint64_t{ 0 });
+				set_bit(0);
 				return true;
 			}
 
 			if (counter > m_counter_max)
 			{
-				uint64_t shift = static_cast<uint64_t>(counter) -
-					m_counter_max;
-				if (shift >= m_window_size)
-				{
-					m_window.assign(m_window_size, false);
-				}
-				else
-				{
-					std::vector<bool> shifted(m_window_size, false);
-					for (std::size_t i = 0;
-						i + shift < m_window_size; i++)
-						shifted[i + shift] = m_window[i];
-					m_window.swap(shifted);
-				}
+				shift_bits(static_cast<std::size_t>(
+					static_cast<uint64_t>(counter) - m_counter_max));
 				m_counter_max = counter;
-				m_window[0] = true;
+				set_bit(0);
 				return true;
 			}
 
 			std::size_t offset = static_cast<std::size_t>(
 				static_cast<uint64_t>(m_counter_max) - counter);
-			if (offset >= m_window_size)
+			if (offset >= m_window_size || get_bit(offset))
 				return false;
-			if (m_window[offset])
-				return false;
-			m_window[offset] = true;
+			set_bit(offset);
 			return true;
 		}
 
@@ -79,13 +68,54 @@ namespace libavpn {
 		{
 			m_counter_max = 0;
 			m_init = false;
-			std::fill(m_window.begin(), m_window.end(), false);
+			std::fill(m_words.begin(), m_words.end(), uint64_t{ 0 });
 		}
 
 	private:
+		void set_bit(std::size_t i)
+		{
+			m_words[i >> 6] |= (uint64_t{ 1 } << (i & 63));
+		}
+
+		bool get_bit(std::size_t i) const
+		{
+			return ((m_words[i >> 6] >> (i & 63)) & 1) != 0;
+		}
+
+		// 全部位向高位偏移 shift (旧计数器对应的偏移量随之增大).
+		void shift_bits(std::size_t shift)
+		{
+			if (shift >= m_window_size)
+			{
+				std::fill(m_words.begin(), m_words.end(), uint64_t{ 0 });
+				return;
+			}
+
+			const std::size_t word_shift = shift >> 6;
+			const unsigned bit_shift = static_cast<unsigned>(shift & 63);
+
+			for (std::size_t i = m_words.size(); i-- > 0;)
+			{
+				uint64_t v = 0;
+				if (i >= word_shift)
+				{
+					v = m_words[i - word_shift] << bit_shift;
+					if (bit_shift != 0 && i > word_shift)
+						v |= m_words[i - word_shift - 1] >>
+							(64 - bit_shift);
+				}
+				m_words[i] = v;
+			}
+
+			// 清除窗口之外的残留位.
+			const std::size_t rem = m_window_size & 63;
+			if (rem != 0)
+				m_words.back() &= (uint64_t{ 1 } << rem) - 1;
+		}
+
 		std::size_t m_window_size{ 1024 };
 		uint32_t m_counter_max{ 0 };
-		std::vector<bool> m_window;
+		std::vector<uint64_t> m_words;
 		bool m_init{ false };
 	};
 
