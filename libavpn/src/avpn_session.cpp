@@ -1158,6 +1158,91 @@ namespace libavpn {
 		return fec_batch_shard_target() * ds;
 	}
 
+	// 单个 raw 数据报允许的最大明文载荷 (不含消息类型字节).
+	std::size_t avpn_session::raw_frame_body_max() const
+	{
+		std::size_t overhead = 1 + crypto::aead_counter_size +
+			crypto::aead_tag_size + 28;
+		if (m_session_config.obfuscate)
+			overhead += obfuscate_max_overhead;
+		if (avpn_max_mtu <= overhead + 64)
+			return 64;
+		return avpn_max_mtu - overhead;
+	}
+
+	// 无冗余分片时把批量分组按 MTU 边界切成数据报直发: 每条数据报尽量
+	// 填满, 既避免 FEC 分片的尾部空隙, 又省去每片的 FEC 帧头.
+	// 单个包超出单帧预算时返回 false, 交给 FEC 分片路径.
+	bool avpn_session::try_send_batch_raw(std::string_view payload)
+	{
+		if (payload.size() < 3 || payload[0] != fec_batch_marker)
+			return false;
+
+		const std::size_t body_max = raw_frame_body_max();
+		if (body_max <= 1)
+			return false;
+		const std::size_t chunk_max = body_max - 1;
+
+		// 载荷由本端聚合生成, 这里仍校验长度字段, 异常时回退.
+		std::vector<std::pair<std::size_t, std::size_t>> packets;
+		packets.reserve(payload.size() / 64 + 1);
+		std::size_t pos = 1;
+		while (pos + 2 <= payload.size())
+		{
+			uint16_t len = static_cast<uint16_t>(
+				(static_cast<uint8_t>(payload[pos]) << 8) |
+				static_cast<uint8_t>(payload[pos + 1]));
+			std::size_t total = 2 + static_cast<std::size_t>(len);
+			if (len == 0 || pos + total > payload.size() ||
+				total > chunk_max)
+				return false;
+			packets.emplace_back(pos, total);
+			pos += total;
+		}
+		if (pos != payload.size() || packets.empty())
+			return false;
+
+		// 单包走裸包格式, 省掉长度前缀与批量标记.
+		if (packets.size() == 1)
+		{
+			send_batch_raw_frame(payload.substr(
+				packets[0].first + 2, packets[0].second - 2), true);
+			flush_udp_batch();
+			return true;
+		}
+
+		std::size_t i = 0;
+		while (i < packets.size())
+		{
+			const std::size_t start = packets[i].first;
+			std::size_t bytes = 0;
+			while (i < packets.size() &&
+				bytes + packets[i].second <= chunk_max)
+			{
+				bytes += packets[i].second;
+				++i;
+			}
+			send_batch_raw_frame(payload.substr(start, bytes), false);
+		}
+		flush_udp_batch();
+		return true;
+	}
+
+	// 发送一条未做 FEC 编码的批量数据报; bare 为单包裸格式.
+	void avpn_session::send_batch_raw_frame(std::string_view chunk, bool bare)
+	{
+		auto& plaintext = m_send_scratch;
+		plaintext.clear();
+		plaintext.reserve(chunk.size() + 2);
+		plaintext.push_back(static_cast<uint8_t>(msg_type::data_raw));
+		if (!bare)
+			plaintext.push_back(fec_batch_marker);
+		plaintext.insert(plaintext.end(), chunk.begin(), chunk.end());
+		send_plaintext_batched(send_key(), std::string_view(
+			reinterpret_cast<const char*>(plaintext.data()),
+			plaintext.size()));
+	}
+
 	// 将一个载荷追加到当前批量分组, 达到阈值或超时后刷新.
 	void avpn_session::append_fec_batch(std::string_view payload)
 	{
@@ -1255,6 +1340,12 @@ namespace libavpn {
 		const int ps = static_cast<int>(m_session_config.parity_shards);
 		// 对端探测显示链路持续无丢包时关闭冗余分片 (仅影响本端发送方向).
 		const int ps_cfg = m_fec_parity_off ? 0 : ps;
+		// 没有冗余分片时不需要 FEC 编码: 按 MTU 边界把批量分组切成
+		// 整包数据报直发, 数据报可填满且省去每片的 FEC 帧头.
+		if (ps_cfg == 0 && try_send_batch_raw(std::string_view(
+				reinterpret_cast<const char*>(payload.data()),
+				payload.size())))
+			return;
 		if (m_peer_fec_adaptive && ds + ps_cfg <= afec_max_shards)
 		{
 			const std::size_t target = fec_batch_shard_target();

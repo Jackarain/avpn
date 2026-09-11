@@ -309,6 +309,11 @@ namespace libavpn {
 		std::size_t fec_batch_shard_target() const;
 		std::size_t fec_batch_max_payload() const;
 
+		// 无冗余分片时把批量分组切成尽量填满 MTU 的数据报直发.
+		std::size_t raw_frame_body_max() const;
+		bool try_send_batch_raw(std::string_view payload);
+		void send_batch_raw_frame(std::string_view chunk, bool bare);
+
 		// 发送/处理能力协商消息 (FEC 批量聚合).
 		void send_capability();
 
