@@ -453,4 +453,184 @@ namespace libavpn::crypto {
 #endif
 	}
 
+	aead_cipher::aead_cipher() = default;
+
+	aead_cipher::~aead_cipher()
+	{
+#if defined(OPENSSL_IS_BORINGSSL)
+		if (m_ctx)
+			EVP_AEAD_CTX_free(static_cast<EVP_AEAD_CTX*>(m_ctx));
+#else
+		if (m_ctx)
+			EVP_CIPHER_CTX_free(static_cast<EVP_CIPHER_CTX*>(m_ctx));
+#endif
+	}
+
+	bool aead_cipher::init(std::string_view key)
+	{
+		if (key.size() != x25519_key_size)
+			return false;
+
+#if defined(OPENSSL_IS_BORINGSSL)
+		auto* ctx = EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
+			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
+			aead_tag_size);
+		if (!ctx)
+			return false;
+
+		if (m_ctx)
+			EVP_AEAD_CTX_free(static_cast<EVP_AEAD_CTX*>(m_ctx));
+
+		m_ctx = ctx;
+#else
+		detail::cipher_ctx_ptr ctx(EVP_CIPHER_CTX_new());
+		if (!ctx)
+			return false;
+
+		if (EVP_EncryptInit_ex(ctx.get(), EVP_chacha20_poly1305(),
+				nullptr, nullptr, nullptr) != 1)
+			return false;
+
+		if (EVP_CIPHER_CTX_ctrl(ctx.get(), EVP_CTRL_AEAD_SET_IVLEN,
+				static_cast<int>(aead_nonce_size), nullptr) != 1)
+			return false;
+
+		// 仅设置密钥, nonce 在每次加解密时单独设置.
+		if (EVP_EncryptInit_ex(ctx.get(), nullptr, nullptr,
+				reinterpret_cast<const unsigned char*>(key.data()),
+				nullptr) != 1)
+			return false;
+
+		if (m_ctx)
+			EVP_CIPHER_CTX_free(static_cast<EVP_CIPHER_CTX*>(m_ctx));
+
+		m_ctx = ctx.release();
+#endif
+		return true;
+	}
+
+	bool aead_cipher::encrypt(std::string_view nonce, std::string_view plaintext,
+		std::string_view aad, uint8_t* out, std::size_t out_size,
+		std::size_t& out_len)
+	{
+		out_len = 0;
+
+		if (!m_ctx || nonce.size() != aead_nonce_size || !out ||
+			out_size < plaintext.size() + aead_tag_size)
+			return false;
+
+#if defined(OPENSSL_IS_BORINGSSL)
+		std::size_t len = 0;
+		if (EVP_AEAD_CTX_seal(static_cast<EVP_AEAD_CTX*>(m_ctx), out, &len,
+				out_size,
+				reinterpret_cast<const unsigned char*>(nonce.data()),
+				nonce.size(),
+				reinterpret_cast<const unsigned char*>(plaintext.data()),
+				plaintext.size(),
+				reinterpret_cast<const unsigned char*>(aad.data()),
+				aad.size()) != 1)
+			return false;
+
+		out_len = len;
+		return true;
+#else
+		auto* ctx = static_cast<EVP_CIPHER_CTX*>(m_ctx);
+
+		// 复用已设置好的密钥, 每包只更新 nonce.
+		if (EVP_EncryptInit_ex(ctx, nullptr, nullptr, nullptr,
+				reinterpret_cast<const unsigned char*>(nonce.data())) != 1)
+			return false;
+
+		int len = 0;
+		if (!aad.empty() && EVP_EncryptUpdate(ctx, nullptr, &len,
+				reinterpret_cast<const unsigned char*>(aad.data()),
+				static_cast<int>(aad.size())) != 1)
+			return false;
+
+		int total = 0;
+		if (!plaintext.empty() && EVP_EncryptUpdate(ctx, out, &len,
+				reinterpret_cast<const unsigned char*>(plaintext.data()),
+				static_cast<int>(plaintext.size())) != 1)
+			return false;
+		total = len;
+
+		int final_len = 0;
+		if (EVP_EncryptFinal_ex(ctx, out + total, &final_len) != 1)
+			return false;
+		total += final_len;
+
+		if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, aead_tag_size,
+				out + total) != 1)
+			return false;
+
+		out_len = static_cast<std::size_t>(total) + aead_tag_size;
+		return true;
+#endif
+	}
+
+	bool aead_cipher::decrypt(std::string_view nonce, std::string_view ciphertext,
+		std::string_view aad, uint8_t* out, std::size_t out_size,
+		std::size_t& out_len)
+	{
+		out_len = 0;
+
+		if (!m_ctx || nonce.size() != aead_nonce_size ||
+			ciphertext.size() < aead_tag_size || !out)
+			return false;
+
+		const std::size_t cipher_len = ciphertext.size() - aead_tag_size;
+		if (out_size < cipher_len)
+			return false;
+
+#if defined(OPENSSL_IS_BORINGSSL)
+		std::size_t len = 0;
+		if (EVP_AEAD_CTX_open(static_cast<EVP_AEAD_CTX*>(m_ctx), out, &len,
+				out_size,
+				reinterpret_cast<const unsigned char*>(nonce.data()),
+				nonce.size(),
+				reinterpret_cast<const unsigned char*>(ciphertext.data()),
+				ciphertext.size(),
+				reinterpret_cast<const unsigned char*>(aad.data()),
+				aad.size()) != 1)
+			return false;
+
+		out_len = len;
+		return true;
+#else
+		auto* ctx = static_cast<EVP_CIPHER_CTX*>(m_ctx);
+
+		if (EVP_DecryptInit_ex(ctx, nullptr, nullptr, nullptr,
+				reinterpret_cast<const unsigned char*>(nonce.data())) != 1)
+			return false;
+
+		// 设置认证标签 (原地解密时标签位于输入缓冲区尾部).
+		if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
+				aead_tag_size,
+				const_cast<unsigned char*>(
+					reinterpret_cast<const unsigned char*>(
+						ciphertext.data() + cipher_len))) != 1)
+			return false;
+
+		int len = 0;
+		if (!aad.empty() && EVP_DecryptUpdate(ctx, nullptr, &len,
+				reinterpret_cast<const unsigned char*>(aad.data()),
+				static_cast<int>(aad.size())) != 1)
+			return false;
+
+		int total = 0;
+		if (cipher_len > 0 && EVP_DecryptUpdate(ctx, out, &len,
+				reinterpret_cast<const unsigned char*>(ciphertext.data()),
+				static_cast<int>(cipher_len)) != 1)
+			return false;
+		total = len;
+
+		int final_len = 0;
+		if (EVP_DecryptFinal_ex(ctx, out + total, &final_len) != 1)
+			return false;
+
+		out_len = static_cast<std::size_t>(total + final_len);
+		return true;
+#endif
+	}
+
 } // namespace libavpn::crypto

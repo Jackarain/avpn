@@ -75,6 +75,44 @@ namespace libavpn {
 		// 输入为 密文+tag, 成功返回明文, 认证失败返回空字符串.
 		std::string aead_decrypt(std::string_view key, std::string_view nonce,
 			std::string_view ciphertext, std::string_view aad = {});
+
+		// 可复用的 AEAD 上下文 (ChaCha20-Poly1305).
+		//
+		// 逐包创建 EVP 上下文并重复设置密钥在高 PPS 下开销显著
+		// (实测每包约占 0.5us), 本类持有单个上下文, 密钥只在 init
+		// 时设置一次, 之后每包仅更新 nonce.
+		class aead_cipher
+		{
+		public:
+			aead_cipher();
+			~aead_cipher();
+
+			aead_cipher(const aead_cipher&) = delete;
+			aead_cipher& operator=(const aead_cipher&) = delete;
+
+			// 使用 32 字节会话密钥初始化, 失败返回 false.
+			bool init(std::string_view key);
+
+			// 加密: 密文+tag 写入 out, 容量需 >= plaintext.size()+aead_tag_size.
+			// 成功返回 true 并通过 out_len 输出写入的字节数.
+			bool encrypt(std::string_view nonce, std::string_view plaintext,
+				std::string_view aad, uint8_t* out, std::size_t out_size,
+				std::size_t& out_len);
+
+			// 解密: ciphertext 为密文+tag, 明文写入 out,
+			// 容量需 >= ciphertext.size()-aead_tag_size.
+			// out 允许与 ciphertext 指向同一缓冲区 (原地解密).
+			// 成功返回 true 并通过 out_len 输出明文长度, 认证失败返回 false.
+			bool decrypt(std::string_view nonce, std::string_view ciphertext,
+				std::string_view aad, uint8_t* out, std::size_t out_size,
+				std::size_t& out_len);
+
+			bool ready() const { return m_ctx != nullptr; }
+
+		private:
+			// EVP_CIPHER_CTX (OpenSSL) 或 EVP_AEAD_CTX (BoringSSL).
+			void* m_ctx{ nullptr };
+		};
 	}
 
 } // namespace libavpn
