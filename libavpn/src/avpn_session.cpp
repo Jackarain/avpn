@@ -1172,7 +1172,9 @@ namespace libavpn {
 
 	// 无冗余分片时把批量分组按 MTU 边界切成数据报直发: 每条数据报尽量
 	// 填满, 既避免 FEC 分片的尾部空隙, 又省去每片的 FEC 帧头.
-	// 单个包超出单帧预算时返回 false, 交给 FEC 分片路径.
+	// 整包超出批量预算时用裸包格式单独发送 (裸包没有批量标记与长度
+	// 前缀, 可比批量分块多承载 3 字节); 超出单帧上限时返回 false, 交给
+	// FEC 分片路径.
 	bool avpn_session::try_send_batch_raw(std::string_view payload)
 	{
 		if (payload.size() < 3 || payload[0] != fec_batch_marker)
@@ -1182,6 +1184,7 @@ namespace libavpn {
 		if (body_max <= 1)
 			return false;
 		const std::size_t chunk_max = body_max - 1;
+		const std::size_t bare_max = body_max;
 
 		// 载荷由本端聚合生成, 这里仍校验长度字段, 异常时回退.
 		std::vector<std::pair<std::size_t, std::size_t>> packets;
@@ -1193,8 +1196,7 @@ namespace libavpn {
 				(static_cast<uint8_t>(payload[pos]) << 8) |
 				static_cast<uint8_t>(payload[pos + 1]));
 			std::size_t total = 2 + static_cast<std::size_t>(len);
-			if (len == 0 || pos + total > payload.size() ||
-				total > chunk_max)
+			if (len == 0 || pos + total > payload.size())
 				return false;
 			packets.emplace_back(pos, total);
 			pos += total;
@@ -1202,27 +1204,37 @@ namespace libavpn {
 		if (pos != payload.size() || packets.empty())
 			return false;
 
-		// 单包走裸包格式, 省掉长度前缀与批量标记.
-		if (packets.size() == 1)
-		{
-			send_batch_raw_frame(payload.substr(
-				packets[0].first + 2, packets[0].second - 2), true);
-			flush_udp_batch();
-			return true;
-		}
-
 		std::size_t i = 0;
 		while (i < packets.size())
 		{
+			// 单个整包超过批量分块预算: 用裸包格式单独发送.
+			if (packets[i].second > chunk_max)
+			{
+				if (packets[i].second - 2 > bare_max)
+					return false;
+				send_batch_raw_frame(payload.substr(
+					packets[i].first + 2, packets[i].second - 2), true);
+				++i;
+				continue;
+			}
+
 			const std::size_t start = packets[i].first;
 			std::size_t bytes = 0;
+			std::size_t count = 0;
 			while (i < packets.size() &&
+				packets[i].second <= chunk_max &&
 				bytes + packets[i].second <= chunk_max)
 			{
 				bytes += packets[i].second;
 				++i;
+				++count;
 			}
-			send_batch_raw_frame(payload.substr(start, bytes), false);
+			// 单包走裸包格式, 省掉长度前缀与批量标记.
+			if (count == 1)
+				send_batch_raw_frame(payload.substr(start + 2,
+					bytes - 2), true);
+			else
+				send_batch_raw_frame(payload.substr(start, bytes), false);
 		}
 		flush_udp_batch();
 		return true;
