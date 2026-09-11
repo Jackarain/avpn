@@ -31,10 +31,14 @@
 
 #if defined(__linux__)
 #	include <linux/if_tun.h>
+#	include <linux/sockios.h>
 #	include <net/if.h>
 #	include <sys/ioctl.h>
 #	include <netinet/in.h>
 #	include <arpa/inet.h>
+#	if !defined(SIOCSIFTXQLEN)
+#		define SIOCSIFTXQLEN 0x8943
+#	endif
 #elif defined(__APPLE__)
 #	include <sys/ioctl.h>
 #	include <sys/kern_control.h>
@@ -51,6 +55,12 @@ namespace libavpn {
 
 #if !defined(_WIN32)
 	namespace {
+#	if defined(__linux__)
+		// tun 发送队列深度 (包). 内核默认 500, 在高带宽时延积链路上
+		// 会因队列溢出丢包, 隧道内的丢包会被内层 TCP 当成路径拥塞.
+		constexpr int tun_tx_queue_len = 4000;
+#	endif
+
 		// 执行命令并捕获标准输出/错误, 避免子进程输出直接上屏.
 		// 返回 wait status (与 system 一致), 失败时返回 -1.
 		int run_cmd_capture(const std::string& cmd, std::string& output)
@@ -340,6 +350,21 @@ namespace libavpn {
 					XLOG_ERR << "SIOCSIFFLAGS failed: " << strerror(errno);
 					ok = false;
 				}
+			}
+		}
+
+		// 放大发送队列深度.
+		if (ok)
+		{
+			ifr.ifr_qlen = tun_tx_queue_len;
+			if (::ioctl(sock, SIOCSIFTXQLEN, &ifr) < 0)
+			{
+				XLOG_WARN << "SIOCSIFTXQLEN failed: " << strerror(errno);
+			}
+			else
+			{
+				XLOG_INFO << "configure tun txqueuelen: " << m_devname
+					<< ", " << tun_tx_queue_len;
 			}
 		}
 
