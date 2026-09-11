@@ -47,6 +47,10 @@ namespace libavpn {
 		// 批量聚合延迟刷新的最大等待时间.
 		constexpr std::chrono::milliseconds fec_batch_flush_delay{ 2 };
 
+		// 距上一次刷新超过该时间说明链路已经空闲: 此时继续等待批量
+		// 定时器只会增加时延, 直接刷新. 只有连续到达的包才需要聚合.
+		constexpr std::chrono::microseconds fec_batch_idle_flush{ 1000 };
+
 		// 单个批量分组允许聚合的最大包数 (限制延迟).
 		constexpr std::size_t fec_batch_max_packets = 64;
 
@@ -1281,10 +1285,18 @@ namespace libavpn {
 		++m_fec_pending_count;
 
 		if (m_fec_pending.size() >= max_payload ||
-			m_fec_pending_count >= fec_batch_max_packets)
+			m_fec_pending_count >= fec_batch_max_packets ||
+			fec_batch_idle())
 			flush_fec_batch();
 		else
 			arm_fec_flush_timer();
+	}
+
+	// 距离上次刷新批量分组已超过空闲阈值.
+	bool avpn_session::fec_batch_idle() const
+	{
+		return std::chrono::steady_clock::now() - m_fec_last_flush >=
+			fec_batch_idle_flush;
 	}
 
 	void avpn_session::arm_fec_flush_timer()
@@ -1316,6 +1328,8 @@ namespace libavpn {
 
 		if (m_fec_pending.empty())
 			return;
+
+		m_fec_last_flush = std::chrono::steady_clock::now();
 
 		std::vector<uint8_t> payload;
 		payload.reserve(m_fec_pending.size() + 1);

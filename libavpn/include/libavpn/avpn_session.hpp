@@ -304,6 +304,7 @@ namespace libavpn {
 		// FEC 批量聚合: 多个小载荷合并为一个分组, 使分片接近 MTU.
 		void append_fec_batch(std::string_view payload);
 		void flush_fec_batch();
+		bool fec_batch_idle() const;
 		void arm_fec_flush_timer();
 		void parse_fec_batch(std::string_view payload);
 		std::size_t fec_batch_shard_target() const;
@@ -502,6 +503,9 @@ namespace libavpn {
 		// 批量聚合延迟刷新定时器.
 		net::steady_timer m_fec_flush_timer;
 		bool m_fec_flush_armed{ false };
+
+		// 最近一次刷新批量分组的时间 (判断链路是否空闲).
+		std::chrono::steady_clock::time_point m_fec_last_flush;
 
 		// 虚拟地址分配回调.
 		vaddr_allocator m_vaddr_allocator;
