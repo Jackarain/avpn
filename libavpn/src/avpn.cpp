@@ -122,6 +122,7 @@ namespace libavpn {
 		cfg.public_key_ = config_string(obj, "public_key");
 		cfg.pkl_ = config_list(obj, "pkl");
 		cfg.mtu_size_ = config_int(obj, "mtu_size", 1450);
+		cfg.udp_pacing_mbps_ = config_int(obj, "udp_pacing_mbps", 0);
 		cfg.keepalive_ = config_int(obj, "keepalive", 60);
 		cfg.pushroutes_ = config_list(obj, "pushroutes");
 		cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
@@ -245,6 +246,7 @@ namespace libavpn {
 		assign_str("public_key", dst.public_key_);
 		assign_list("pkl", dst.pkl_);
 		assign_int("mtu_size", dst.mtu_size_);
+		assign_int("udp_pacing_mbps", dst.udp_pacing_mbps_);
 		assign_int("keepalive", dst.keepalive_);
 		assign_list("pushroutes", dst.pushroutes_);
 		assign_dns("pushdns", dst.pushdns_);
@@ -283,7 +285,8 @@ namespace libavpn {
 	constexpr int udp_socket_buffer_size = 8 * 1024 * 1024;
 
 	void apply_udp_socket_buffers(
-		const std::shared_ptr<net::ip::udp::socket>& socket)
+		const std::shared_ptr<net::ip::udp::socket>& socket,
+		int pacing_bytes_per_sec = 0)
 	{
 		boost::system::error_code ec;
 		socket->set_option(net::socket_base::receive_buffer_size(
@@ -303,6 +306,19 @@ namespace libavpn {
 		int fd = static_cast<int>(socket->native_handle());
 		::setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &val, sizeof(val));
 		::setsockopt(fd, SOL_SOCKET, SO_SNDBUFFORCE, &val, sizeof(val));
+
+		// 外层 UDP 没有拥塞控制, 直接按内层 TCP 的速率发送会在瓶颈
+		// 链路上溢出丢包, 而内层 TCP 会把隧道丢包当成路径丢包. 使用
+		// fq 的 per-socket pacing 把发送速率限制在配置值以内.
+#	ifdef SO_MAX_PACING_RATE
+		if (pacing_bytes_per_sec > 0)
+		{
+			unsigned int rate = static_cast<unsigned int>(
+				pacing_bytes_per_sec);
+			::setsockopt(fd, SOL_SOCKET, SO_MAX_PACING_RATE, &rate,
+				sizeof(rate));
+		}
+#	endif
 #endif
 	}
 
@@ -1198,7 +1214,7 @@ namespace libavpn {
 				continue;
 			}
 			socket->set_option(net::socket_base::reuse_address(true), ec);
-			apply_udp_socket_buffers(socket);
+			apply_udp_socket_buffers(socket, m_config.udp_pacing_mbps_ * 125000);
 			socket->bind(ep, ec);
 			if (ec)
 			{
@@ -1353,7 +1369,7 @@ namespace libavpn {
 			m_client_udp = old;
 			co_return;
 		}
-		apply_udp_socket_buffers(socket);
+		apply_udp_socket_buffers(socket, m_config.udp_pacing_mbps_ * 125000);
 
 		// 尽量复用旧本地端口, 减小服务端迁移代价.
 		if (old)
@@ -2015,7 +2031,7 @@ namespace libavpn {
 				XLOG_ERR << "udp open failed: " << ec.message();
 				return false;
 			}
-			apply_udp_socket_buffers(m_client_udp);
+			apply_udp_socket_buffers(m_client_udp, m_config.udp_pacing_mbps_ * 125000);
 			// 启动握手: 先 protect 对外 socket (Android VpnService,
 			// 避免回环进 tun), 再发起握手.
 			net::co_spawn(m_main_context,

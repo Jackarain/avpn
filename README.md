@@ -202,6 +202,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--public_key <key>` | 本机公钥（base64 编码）。 |
 | `--pkl <key>` | 远端公钥列表（base64 编码），可多次指定。 |
 | `--mtu_size <mtu>` | Tun MTU 大小，默认为 1450。 |
+| `--udp_pacing_mbps <n>` | 外层 UDP 发送限速，单位 Mbit/s，0 表示不限速。发送端内核出口 qdisc 为 `fq` 时通过 `SO_MAX_PACING_RATE` 生效，用于在无拥塞控制的外层避免把瓶颈链路打满。 |
 | `--keepalive <seconds>` | 心跳间隔，单位秒，默认为 60。 |
 | `--pushroutes <route>` | server 端推送给 client 的路由，可多次指定。 |
 | `--bypassroutes <route>` | client 端绕过 VPN 走物理线路的路由（ip/cidr 或主机名），可多次指定。 |
@@ -285,6 +286,17 @@ veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理�
   下行时探测丢包率约 5%（30 个统计窗口中仅 12 个无丢包），冗余会保持
   开启，此时 FEC 确实在修复丢包；只有链路持续干净才会关闭冗余。对端
   为旧版本时不会协商该能力，自动回退到固定冗余。
+- 发送端出口 qdisc 的 per-flow 上限会整批丢掉 GSO 尾包。同一批
+  `UDP_SEGMENT` 帧是一次 `sendmsg` 交给内核的，而 `fq` 默认
+  `flow_limit 100p` 只允许单条流排队 100 个报文，一旦隧道在瓶颈链路
+  上突发，超出部分（通常是本批尾部）会被整体丢弃，FEC 分组因此长期
+  凑不齐分片。千兆内网实测（MTU 1450，FEC 16/0，4 流下行）：`fq`
+  默认配置下 6 秒内 `flows_plimit` 丢包约 3.5 万个，隧道下行只有
+  ~726 Mbit/s 且发送端 TCP 重传约 12 万段；把上限放大后丢包归零，
+  下行提升到 ~853 Mbit/s（物理链路 iperf3 约 936 Mbit/s）。因此隧道
+  发送端建议 `tc qdisc replace dev <iface> root fq flow_limit 10000`
+  （或改用无 per-flow 上限的 `fq_codel`/`mq`），并在瓶颈链路上配合
+  `--udp_pacing_mbps` 把外层速率压在链路能力以内。
 - 网关下行是单核 CPU 瓶颈。低配 VPS（2 vCPU）实测裸 `sendto` 1422
   字节就要 ~27 µs，隧道上下行合计只能跑到 ~60–70 Mbit/s 且网关单核
   跑满，而同一进程内 AEAD 每包仅几微秒。这类主机上瓶颈在内核网络栈

@@ -72,6 +72,10 @@ namespace libavpn {
 		// Tun mtu 大小, 必须让 tun 网卡的 mtu 大小保证能通过物理网络的 mtu 大小.
 		int mtu_size_{ 1450 };
 
+		// 外层 UDP 发送限速 (Mbit/s, 0 表示不限速). 隧道传输没有拥塞控制,
+		// 超过瓶颈链路能力会持续丢包并被内层 TCP 当成路径丢包.
+		int udp_pacing_mbps_{ 0 };
+
 		// 保持网络活动消息间隔.
 		int keepalive_{ 60 };
 
