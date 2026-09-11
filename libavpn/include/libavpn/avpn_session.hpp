@@ -378,6 +378,10 @@ namespace libavpn {
 		std::string m_key_c2s;           // client -> server 加密密钥.
 		std::string m_key_s2c;           // server -> client 加密密钥.
 
+		// 可复用的 AEAD 上下文 (密钥派生后初始化, 每包仅更新 nonce).
+		crypto::aead_cipher m_send_aead;
+		crypto::aead_cipher m_recv_aead;
+
 		// AEAD nonce 会话盐 (每方向独立, 握手时派生).
 		std::string m_nonce_salt_c2s;
 		std::string m_nonce_salt_s2c;

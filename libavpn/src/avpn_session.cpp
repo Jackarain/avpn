@@ -289,6 +289,10 @@ namespace libavpn {
 			m_nonce_salt_c2s.empty() || m_nonce_salt_s2c.empty())
 			return false;
 
+		// 初始化数据方向的可复用 AEAD 上下文, 失败时回退到逐包创建.
+		m_send_aead.init(send_key());
+		m_recv_aead.init(recv_key());
+
 		// 新会话重置发送计数器与接收重放窗口.
 		m_send_counter = 0;
 		m_recv_replay.reset();
@@ -601,37 +605,70 @@ namespace libavpn {
 		uint32_t counter, std::string_view plaintext)
 	{
 		// 混淆开启时, 长度字段作为 AEAD 的 AAD 参与认证, 防篡改.
-		std::array<uint8_t, obfuscate_len_field_size> len_field{};
-		std::string aad;
+		std::string_view aad;
 		bool obf = m_session_config.obfuscate;
 
 		obfuscate_head head;
+		std::size_t obf_overhead = 0;
 		if (obf)
 		{
 			if (!make_obfuscate_head(m_config.obfuscate_key_, head))
 				return {};
-			len_field = head.len_field;
-			aad.assign(reinterpret_cast<const char*>(len_field.data()),
-				len_field.size());
+			aad = std::string_view(
+				reinterpret_cast<const char*>(head.len_field.data()),
+				head.len_field.size());
+			obf_overhead = head.salt.size() + head.len_field.size() +
+				head.garbage.size();
 		}
 
 		auto nonce = make_nonce(send_nonce_salt(), counter);
-		auto ciphertext = crypto::aead_encrypt(key,
-			std::string_view(nonce.data(), nonce.size()), plaintext, aad);
-		if (ciphertext.empty())
-			return {};
+		std::string_view nonce_view(nonce.data(), nonce.size());
 
-		std::vector<uint8_t> wire;
-		wire.reserve((obf ? obfuscate_max_overhead : 0) +
-			crypto::aead_counter_size + ciphertext.size());
+		// 直接加密进线上缓冲区, 省去中间密文缓冲区的分配与一次拷贝.
+		const std::size_t body_offset =
+			obf_overhead + crypto::aead_counter_size;
+		std::vector<uint8_t> wire(body_offset + plaintext.size() +
+			crypto::aead_tag_size);
+
 		if (obf)
 		{
-			wire.insert(wire.end(), head.salt.begin(), head.salt.end());
-			wire.insert(wire.end(), head.len_field.begin(), head.len_field.end());
-			wire.insert(wire.end(), head.garbage.begin(), head.garbage.end());
+			std::size_t off = 0;
+			std::memcpy(wire.data() + off, head.salt.data(), head.salt.size());
+			off += head.salt.size();
+			std::memcpy(wire.data() + off, head.len_field.data(),
+				head.len_field.size());
+			off += head.len_field.size();
+			std::memcpy(wire.data() + off, head.garbage.data(),
+				head.garbage.size());
 		}
-		byteorder::put_u32_into(wire, counter);
-		wire.insert(wire.end(), ciphertext.begin(), ciphertext.end());
+
+		uint8_t* counter_at = wire.data() + obf_overhead;
+		counter_at[0] = static_cast<uint8_t>(counter & 0xff);
+		counter_at[1] = static_cast<uint8_t>((counter >> 8) & 0xff);
+		counter_at[2] = static_cast<uint8_t>((counter >> 16) & 0xff);
+		counter_at[3] = static_cast<uint8_t>((counter >> 24) & 0xff);
+
+		std::size_t body_len = 0;
+		if (m_send_aead.ready())
+		{
+			if (!m_send_aead.encrypt(nonce_view, plaintext, aad,
+					wire.data() + body_offset, wire.size() - body_offset,
+					body_len))
+				return {};
+		}
+		else
+		{
+			// 上下文不可用时回退到逐包创建.
+			auto ciphertext = crypto::aead_encrypt(key, nonce_view,
+				plaintext, aad);
+			if (ciphertext.size() != plaintext.size() + crypto::aead_tag_size)
+				return {};
+			std::memcpy(wire.data() + body_offset, ciphertext.data(),
+				ciphertext.size());
+			body_len = ciphertext.size();
+		}
+
+		wire.resize(body_offset + body_len);
 		return wire;
 	}
 
@@ -776,13 +813,37 @@ namespace libavpn {
 			wire.size() - crypto::aead_counter_size);
 
 		auto nonce = make_nonce(recv_nonce_salt(), counter);
-		auto plaintext = crypto::aead_decrypt(recv_key(),
-			std::string_view(nonce.data(), nonce.size()), ciphertext, len_field);
-		if (plaintext.empty())
+
+		// 原地解密: 所有调用方的 wire 都指向可写的接收缓冲区,
+		// 省去每包的明文缓冲区分配与一次拷贝.
+		auto* plain_at = const_cast<uint8_t*>(
+			reinterpret_cast<const uint8_t*>(ciphertext.data()));
+		std::size_t plain_len = 0;
+
+		if (m_recv_aead.ready())
 		{
-			// 解密失败则丢弃.
-			return true;
+			if (!m_recv_aead.decrypt(
+					std::string_view(nonce.data(), nonce.size()),
+					ciphertext, len_field, plain_at,
+					ciphertext.size() - crypto::aead_tag_size, plain_len))
+			{
+				// 解密失败则丢弃.
+				return true;
+			}
 		}
+		else
+		{
+			auto plaintext = crypto::aead_decrypt(recv_key(),
+				std::string_view(nonce.data(), nonce.size()), ciphertext,
+				len_field);
+			if (plaintext.empty())
+				return true;
+			std::memcpy(plain_at, plaintext.data(), plaintext.size());
+			plain_len = plaintext.size();
+		}
+
+		std::string_view plaintext(
+			reinterpret_cast<const char*>(plain_at), plain_len);
 
 		// 认证通过后更新重放窗口.
 		if (!m_recv_replay.check_and_update(counter))
