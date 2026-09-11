@@ -775,6 +775,13 @@ namespace libavpn {
 	void avpn_service::on_session_close(
 		const std::shared_ptr<avpn_session>& session)
 	{
+		// 清理数据路径的热路径缓存.
+		if (m_last_session == session)
+		{
+			m_last_session.reset();
+			m_last_remote = net::ip::udp::endpoint();
+		}
+
 		// 从 endpoint 索引移除.
 		for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it)
 		{
@@ -900,9 +907,11 @@ namespace libavpn {
 
 	net::awaitable<void> avpn_service::tun_read_loop()
 	{
+		// 复用读取缓冲区, 避免每包一次分配与清零.
+		std::vector<uint8_t> buf(avpn_max_mtu);
+
 		while (!m_abort)
 		{
-			std::vector<uint8_t> buf(avpn_max_mtu);
 			boost::system::error_code ec;
 			std::size_t n = co_await m_tundev->async_read_some(
 				net::buffer(buf), net_awaitable[ec]);
@@ -918,8 +927,8 @@ namespace libavpn {
 			n -= 4;
 #endif
 
-			buf.resize(n);
-			route_tun_packet(std::move(buf));
+			route_tun_packet(std::vector<uint8_t>(
+				buf.begin(), buf.begin() + n));
 		}
 
 		co_return;
@@ -951,12 +960,22 @@ namespace libavpn {
 		if (m_abort)
 			return;
 
+		// 热路径: 数据报几乎总是来自同一对端.
+		if (m_last_session && remote == m_last_remote &&
+			!m_last_session->aborted())
+		{
+			m_last_session->on_udp_packet(remote, data);
+			return;
+		}
+
 		auto key = endpoint_to_string(remote);
 
 		// 已存在的会话.
 		auto it = m_sessions.find(key);
 		if (it != m_sessions.end())
 		{
+			m_last_remote = remote;
+			m_last_session = it->second;
 			it->second->on_udp_packet(remote, data);
 			return;
 		}
@@ -980,6 +999,8 @@ namespace libavpn {
 				m_sessions.erase(old_key);
 				m_sessions[key] = session;
 			}
+			m_last_remote = remote;
+			m_last_session = session;
 			XLOG_INFO << "Session endpoint migrated: " << old_key
 				<< " -> " << key;
 			session->on_udp_packet(remote, data);
@@ -1027,6 +1048,8 @@ namespace libavpn {
 		{
 			// 握手成功, 登记会话.
 			m_sessions[key] = session;
+			m_last_remote = remote;
+			m_last_session = session;
 			auto peer_pub = session->peer_public_key();
 			if (!peer_pub.empty())
 			{
@@ -2197,6 +2220,8 @@ namespace libavpn {
 				session->close();
 		}
 		m_sessions.clear();
+		m_last_session.reset();
+		m_last_remote = net::ip::udp::endpoint();
 
 		if (m_tunnel)
 		{

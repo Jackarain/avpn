@@ -351,6 +351,11 @@ namespace libavpn {
 		// gateway: 按对端静态公钥索引的会话表 (网络切换后识别用).
 		std::map<std::string, std::shared_ptr<avpn_session>> m_sessions_by_pubkey;
 
+		// gateway: 最近一个活跃会话的缓存 (数据路径上避免每包构造 endpoint
+		// 字符串并查表).
+		net::ip::udp::endpoint m_last_remote;
+		std::shared_ptr<avpn_session> m_last_session;
+
 		// client: 唯一会话.
 		std::shared_ptr<avpn_session> m_tunnel;
 
