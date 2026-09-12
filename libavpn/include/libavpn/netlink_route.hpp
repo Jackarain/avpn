@@ -41,6 +41,10 @@ namespace libavpn {
 	// 将路由表项格式化为类似 "default via 192.168.1.1 dev eth0 metric 100" 的文本.
 	std::string nl_route_to_string(const nl_route_entry& rt);
 
+	// 将指定接口的根 qdisc 替换为 fq (等同 tc qdisc replace dev X root fq).
+	// fq 会按流平滑出队, 避免内核把 TCP 突发一次性压入 tun 的发送环形队列.
+	bool nl_qdisc_replace_fq(const std::string& ifname, std::string& err);
+
 } // namespace libavpn
 
 #endif // INCLUDE__2026_08_19__NETLINK_ROUTE_HPP

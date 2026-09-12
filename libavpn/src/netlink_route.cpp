@@ -3,6 +3,7 @@
 #if defined(__linux__)
 
 #include <linux/rtnetlink.h>
+#include <linux/pkt_sched.h>
 #include <net/if.h>
 
 #include <arpa/inet.h>
@@ -384,6 +385,38 @@ namespace {
 		return s;
 	}
 
+	bool nl_qdisc_replace_fq(const std::string& ifname, std::string& err)
+	{
+		unsigned int ifindex = ::if_nametoindex(ifname.c_str());
+		if (ifindex == 0)
+		{
+			err = std::strerror(errno);
+			return false;
+		}
+
+		int fd = nl_open();
+		if (fd < 0)
+		{
+			err = std::strerror(errno);
+			return false;
+		}
+
+		struct { struct nlmsghdr n; struct tcmsg t; char buf[256]; } req;
+		std::memset(&req, 0, sizeof(req));
+		req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg));
+		req.n.nlmsg_type = RTM_NEWQDISC;
+		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK |
+			NLM_F_CREATE | NLM_F_REPLACE;
+		req.t.tcm_family = AF_UNSPEC;
+		req.t.tcm_ifindex = static_cast<int>(ifindex);
+		req.t.tcm_parent = TC_H_ROOT;
+		addattr_l(&req.n, sizeof(req), TCA_KIND, "fq", sizeof("fq"));
+
+		bool ok = nl_change(fd, &req.n, err);
+		::close(fd);
+		return ok;
+	}
+
 } // namespace libavpn
 
 #else // !defined(__linux__)
@@ -408,6 +441,13 @@ namespace libavpn {
 	{
 		(void)out;
 		err = "netlink route not supported on this platform";
+		return false;
+	}
+
+	bool nl_qdisc_replace_fq(const std::string& ifname, std::string& err)
+	{
+		(void)ifname;
+		err = "netlink qdisc not supported on this platform";
 		return false;
 	}
 

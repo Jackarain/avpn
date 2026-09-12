@@ -10,6 +10,7 @@
 
 #include "libavpn/avpn_tun.hpp"
 #include "libavpn/logging.hpp"
+#include "libavpn/netlink_route.hpp"
 
 #include <boost/asio/ip/address_v4.hpp>
 
@@ -58,7 +59,45 @@ namespace libavpn {
 #	if defined(__linux__)
 		// tun 发送队列深度 (包). 内核默认 500, 在高带宽时延积链路上
 		// 会因队列溢出丢包, 隧道内的丢包会被内层 TCP 当成路径拥塞.
-		constexpr int tun_tx_queue_len = 4000;
+		// 队列深度需要覆盖链路带宽时延积 (1Gbps/140ms 约 1.2 万包).
+		constexpr int tun_tx_queue_len = 16384;
+
+		// 只放大队列并不足够: 默认的 fq_codel 不做流间调度也不平滑出队,
+		// 内层 TCP 在慢启动或丢包恢复时会一次压入上千个包, 瞬间打满队列.
+		// fq 按流限量出队, 把突发摊到多个出队时刻, 队列只需覆盖单轮突发.
+		void tune_linux_tun_queue(const std::string& dev)
+		{
+			int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+			if (sock < 0)
+			{
+				XLOG_WARN << "tun queue tuning socket failed: "
+					<< strerror(errno);
+				return;
+			}
+
+			struct ifreq ifr;
+			std::memset(&ifr, 0, sizeof(ifr));
+			std::strncpy(ifr.ifr_name, dev.c_str(), IFNAMSIZ - 1);
+			ifr.ifr_qlen = tun_tx_queue_len;
+			if (::ioctl(sock, SIOCSIFTXQLEN, &ifr) < 0)
+			{
+				XLOG_WARN << "SIOCSIFTXQLEN failed: " << strerror(errno);
+			}
+			else
+			{
+				XLOG_INFO << "configure tun txqueuelen: " << dev
+					<< ", " << tun_tx_queue_len;
+			}
+
+			::close(sock);
+
+			std::string err;
+			if (!nl_qdisc_replace_fq(dev, err))
+			{
+				XLOG_WARN << "replace tun qdisc with fq failed: " << dev
+					<< ", " << err;
+			}
+		}
 #	endif
 
 		// 执行命令并捕获标准输出/错误, 避免子进程输出直接上屏.
@@ -212,6 +251,18 @@ namespace libavpn {
 			m_devname = "ptun";
 			m_opened = true;
 			m_external_fd = true;
+#if defined(__linux__)
+			// 外部 fd (如 Android VpnService) 的地址/MTU 由调用方配置,
+			// 但发送侧队列调优仍需按真实设备名执行.
+			struct ifreq ifr;
+			std::memset(&ifr, 0, sizeof(ifr));
+			if (::ioctl(config.ptun_fd_, TUNGETIFF, &ifr) == 0 &&
+				ifr.ifr_name[0] != '\0')
+			{
+				m_devname = ifr.ifr_name;
+				tune_linux_tun_queue(m_devname);
+			}
+#endif
 			return true;
 		}
 
@@ -353,22 +404,12 @@ namespace libavpn {
 			}
 		}
 
-		// 放大发送队列深度.
-		if (ok)
-		{
-			ifr.ifr_qlen = tun_tx_queue_len;
-			if (::ioctl(sock, SIOCSIFTXQLEN, &ifr) < 0)
-			{
-				XLOG_WARN << "SIOCSIFTXQLEN failed: " << strerror(errno);
-			}
-			else
-			{
-				XLOG_INFO << "configure tun txqueuelen: " << m_devname
-					<< ", " << tun_tx_queue_len;
-			}
-		}
-
 		::close(sock);
+
+		// 调优发送侧队列深度与 qdisc.
+		if (ok)
+			tune_linux_tun_queue(m_devname);
+
 		return ok;
 #elif defined(__APPLE__)
 		// 使用 ioctl 配置 utun (参考 avpn tundev_macos_service, 需要 root).
