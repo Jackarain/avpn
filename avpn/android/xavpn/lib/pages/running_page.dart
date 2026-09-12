@@ -24,7 +24,12 @@ class _RunningPageState extends State<RunningPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(length: 2, vsync: this);
   final StorageService _storage = StorageService();
-  final List<Map<String, dynamic>> _logs = [];
+  // 单一日志文本框: 与 webui 一致, 整段日志放入一个只读文本框,
+  // 可自由跨行选择, 滚动/自动滚动不会取消文本选择.
+  final List<String> _logLines = [];
+  final TextEditingController _logTextController = TextEditingController();
+  final ScrollController _logScrollController = ScrollController();
+  bool _autoScroll = true;
   String _stateMessage = '';
   Map<String, dynamic>? _status;
   bool _busy = false;
@@ -43,6 +48,7 @@ class _RunningPageState extends State<RunningPage>
   @override
   void initState() {
     super.initState();
+    _tabs.addListener(_onTabChanged);
     AppSession.instance.addListener(_onSession);
     _bindServerStreams(AppSession.instance.server);
     _watchdog = Timer.periodic(
@@ -124,13 +130,33 @@ class _RunningPageState extends State<RunningPage>
     }
   }
 
-  static const int _maxLogLines = 500;
+  /// 单日文本框显示的最大行数 (与 webui 上限一致).
+  static const int _maxLogLines = 2000;
+
+  String _fmtLogLine(Map<String, dynamic> entry) {
+    // launcher_log 上报的整行文本已含时间戳与级别前缀, 无结构化时间时
+    // 原样展示, 不再附加无意义的时间戳.
+    final time = entry['time'] as int? ?? 0;
+    final message = entry['message'] as String? ?? '';
+    return time > 0 ? '[${_fmtTimeMs(time)}] $message' : message;
+  }
 
   void _addLog(Map<String, dynamic> entry) {
-    _logs.add(entry);
-    if (_logs.length > _maxLogLines) {
-      _logs.removeRange(0, _logs.length - _maxLogLines);
+    _logLines.add(_fmtLogLine(entry));
+    if (_logLines.length > _maxLogLines) {
+      _logLines.removeRange(0, _logLines.length - _maxLogLines);
     }
+  }
+
+  /// 重建日志文本框文本, 保留既有文本选择 (追加/裁剪头部不影响选中内容,
+  /// 选中超出新长度时回退到末尾).
+  void _rebuildLogText() {
+    final text = _logLines.join('\n');
+    var sel = _logTextController.selection;
+    if (sel.start > text.length) {
+      sel = TextSelection.collapsed(offset: text.length);
+    }
+    _logTextController.value = TextEditingValue(text: text, selection: sel);
   }
 
   void _onLog(Map<String, dynamic> log) {
@@ -145,8 +171,41 @@ class _RunningPageState extends State<RunningPage>
             _addLog({'time': 0, 'level': 1, 'message': line});
           }
         }
+        _rebuildLogText();
+        _autoScrollToBottom();
       });
     }
+  }
+
+  /// 自动滚动: 开启且原本处于底部时跟随新日志, 用户手动上滚 (进行选择)
+  /// 时不强制拉回, 避免打断选择.
+  void _autoScrollToBottom() {
+    if (!_autoScroll || !_logScrollController.hasClients) return;
+    final p = _logScrollController.position;
+    if (!p.hasContentDimensions) return;
+    if (p.maxScrollExtent > 0 && p.pixels < p.maxScrollExtent - 4) return;
+    // 文本更新后布局完成再滚动到末尾, 否则 maxScrollExtent 仍是旧值,
+    // 无法真正到达最新日志.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_logScrollController.hasClients) return;
+      final pos = _logScrollController.position;
+      if (pos.hasContentDimensions && pos.maxScrollExtent > 0) {
+        pos.jumpTo(pos.maxScrollExtent);
+      }
+    });
+  }
+
+  /// 切到日志页时, 自动滚动开启则直接滚到末尾 (日志在状态页期间可能
+  /// 已积压).
+  void _onTabChanged() {
+    if (_tabs.index != 1 || !_autoScroll) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_logScrollController.hasClients) return;
+      final pos = _logScrollController.position;
+      if (pos.hasContentDimensions && pos.maxScrollExtent > 0) {
+        pos.jumpTo(pos.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -156,7 +215,10 @@ class _RunningPageState extends State<RunningPage>
     _statusSub?.cancel();
     _logSub?.cancel();
     _nativeEventsSub?.cancel();
+    _tabs.removeListener(_onTabChanged);
     _tabs.dispose();
+    _logTextController.dispose();
+    _logScrollController.dispose();
     super.dispose();
   }
 
@@ -184,12 +246,22 @@ class _RunningPageState extends State<RunningPage>
         title: const Text('运行控制台'),
         actions: [
           IconButton(
-            onPressed: _logs.isEmpty ? null : _copyAllLogs,
+            onPressed: _logLines.isEmpty ? null : _copyLogs,
             icon: const Icon(Icons.copy_all),
-            tooltip: '复制全部日志',
+            tooltip: '复制选中的日志; 未选中时复制全部',
           ),
           IconButton(
-            onPressed: _logs.isEmpty ? null : _clearLogs,
+            onPressed:
+                _logLines.isEmpty
+                    ? null
+                    : () => setState(() => _autoScroll = !_autoScroll),
+            icon: Icon(
+              _autoScroll ? Icons.vertical_align_bottom : Icons.do_not_disturb,
+            ),
+            tooltip: _autoScroll ? '自动滚动: 开' : '自动滚动: 关',
+          ),
+          IconButton(
+            onPressed: _logLines.isEmpty ? null : _clearLogs,
             icon: const Icon(Icons.delete_sweep),
             tooltip: '清空日志',
           ),
@@ -397,47 +469,53 @@ class _RunningPageState extends State<RunningPage>
   }
 
   Widget _buildLogTab() {
-    if (_logs.isEmpty) {
+    if (_logLines.isEmpty) {
       return const Center(child: Text('暂无日志'));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: _logs.length,
-      itemBuilder: (context, i) {
-        final log = _logs[i];
-        final level = log['level'] as int? ?? 1;
-        final message = log['message'] as String? ?? '';
-        final time = log['time'] as int? ?? 0;
-        final color = switch (level) {
-          0 => Colors.grey,
-          2 => Colors.orange,
-          3 => Colors.red,
-          _ => Theme.of(context).colorScheme.onSurface,
-        };
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: SelectableText(
-            '[${_fmtTimeMs(time)}] $message',
-            style: TextStyle(fontSize: 12, color: color),
-          ),
-        );
-      },
+    // 单一只读文本框承载全部日志: 可自由跨行选择文本, 滚动/自动滚动
+    // 不会取消已选文本. 与 webui 日志行为一致.
+    return Scrollbar(
+      controller: _logScrollController,
+      child: TextField(
+        controller: _logTextController,
+        scrollController: _logScrollController,
+        readOnly: true,
+        maxLines: null,
+        minLines: null,
+        keyboardType: TextInputType.multiline,
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          isCollapsed: true,
+          contentPadding: EdgeInsets.all(12),
+        ),
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
     );
   }
 
   void _clearLogs() {
-    setState(() => _logs.clear());
+    _logLines.clear();
+    setState(() => _logTextController.clear());
   }
 
-  Future<void> _copyAllLogs() async {
-    final text = _logs
-        .map((log) => '[${_fmtTimeMs(log['time'] as int? ?? 0)}] '
-            '${log['message'] as String? ?? ''}')
-        .join('\n');
+  /// 复制日志: 有文本选择时复制选中部分, 否则复制全部.
+  Future<void> _copyLogs() async {
+    final sel = _logTextController.selection;
+    var text = '';
+    var copiedSelected = false;
+    final full = _logTextController.text;
+    if (!sel.isCollapsed && sel.isValid && sel.end <= full.length) {
+      text = full.substring(sel.start, sel.end);
+      copiedSelected = text.trim().isNotEmpty;
+    }
+    if (!copiedSelected) text = full;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制全部日志到剪贴板')),
+      SnackBar(content: Text(copiedSelected ? '已复制选中的日志到剪贴板' : '已复制全部日志到剪贴板')),
     );
   }
 
