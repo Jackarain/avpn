@@ -47,6 +47,14 @@ JAVA_DIR=${ANDROID_APP_DIR}/src/main/java/com/jackarain
 # 源码目录的绝对路径, 用于识别其它仓库遗留的构建目录.
 AVPN_ABS=$(cd "${AVPN_PATH}" && pwd)
 
+# swig 升级后构建目录中缓存的 SWIG_DIR 会失效 (find_package(SWIG) 仅在未
+# 设置时探测库路径), 导致 swig 找不到 swig.swg 而编译失败, 这里显式传入
+# 当前 swig 库路径, 使旧构建目录可直接复用.
+SWIG_DIR_OPT=""
+if command -v swig >/dev/null 2>&1; then
+    SWIG_DIR_OPT="-DSWIG_DIR=$(swig -swiglib)"
+fi
+
 for ARCH in "${ARCHITECTURES[@]}"
 do
     # 构建目录来自其它源码路径时 CMake 会配置失败, 先清理再重新生成.
@@ -54,7 +62,7 @@ do
         echo "clean stale build dir: android/$ARCH"
         rm -rf android/$ARCH
     fi
-    cmake -S ${AVPN_PATH} -B android/$ARCH -DCMAKE_TOOLCHAIN_FILE=${NDK_PATH}/build/cmake/android.toolchain.cmake -DANDROID_ABI=${ARCH} -DANDROID_PLATFORM=android-19 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DENABLE_USE_OPENSSL=OFF -DENABLE_USE_BORINGSSL=ON -G Ninja
+    cmake -S ${AVPN_PATH} -B android/$ARCH -DCMAKE_TOOLCHAIN_FILE=${NDK_PATH}/build/cmake/android.toolchain.cmake -DANDROID_ABI=${ARCH} -DANDROID_PLATFORM=android-19 -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DENABLE_USE_OPENSSL=OFF -DENABLE_USE_BORINGSSL=ON ${SWIG_DIR_OPT} -G Ninja
     cmake --build android/$ARCH
     mkdir -p release/$ARCH
     # 桌面端可执行文件 (非 Android 场景).
