@@ -360,11 +360,56 @@ namespace libavpn {
 		ssize_t n = ::sendmsg(socket.native_handle(), &msg, MSG_DONTWAIT);
 		return n == static_cast<ssize_t>(buf.size());
 	}
+
+	// 提交一批不等长的 UDP 帧, 返回已提交的帧数.
+	//
+	// 等长帧可以由 GSO 合并为一次提交, 不等长帧若逐帧异步发送会退化成
+	// 每帧一次系统调用; 这里用 sendmmsg 把整批合并为少量系统调用.
+	// socket 发送缓冲写满时返回已成功提交的部分, 由调用方补发剩余帧.
+	static std::size_t send_udp_frames_batch(
+		net::ip::udp::socket& socket,
+		const net::ip::udp::endpoint& ep,
+		const std::vector<std::vector<uint8_t>>& frames)
+	{
+		constexpr std::size_t batch_max = 64;
+		std::array<::iovec, batch_max> iov{};
+		std::array<::mmsghdr, batch_max> msgs{};
+
+		std::size_t done = 0;
+		while (done < frames.size())
+		{
+			const std::size_t count = std::min(batch_max,
+				frames.size() - done);
+			std::memset(msgs.data(), 0, sizeof(::mmsghdr) * count);
+			for (std::size_t i = 0; i < count; i++)
+			{
+				const auto& frame = frames[done + i];
+				iov[i].iov_base = const_cast<uint8_t*>(frame.data());
+				iov[i].iov_len = frame.size();
+				msgs[i].msg_hdr.msg_name =
+					const_cast<::sockaddr*>(ep.data());
+				msgs[i].msg_hdr.msg_namelen =
+					static_cast<socklen_t>(ep.size());
+				msgs[i].msg_hdr.msg_iov = &iov[i];
+				msgs[i].msg_hdr.msg_iovlen = 1;
+			}
+
+			int n = ::sendmmsg(socket.native_handle(), msgs.data(),
+				static_cast<unsigned int>(count), MSG_DONTWAIT);
+			if (n <= 0)
+				break;
+			done += static_cast<std::size_t>(n);
+			if (static_cast<std::size_t>(n) < count)
+				break;
+		}
+		return done;
+	}
 #endif
 
 	// 提交一批发往同一对端的 UDP 帧.
 	//
-	// 等长帧优先走 GSO 合并提交, 其余情况回退逐帧异步发送.
+	// 等长帧优先走 GSO 合并提交, 其余情况用 sendmmsg 批量提交,
+	// 未能提交的帧再回退逐帧异步发送.
 	static void send_udp_frames(
 		const std::shared_ptr<net::ip::udp::socket>& socket,
 		const net::ip::udp::endpoint& ep,
@@ -373,6 +418,7 @@ namespace libavpn {
 		if (!socket || frames.empty())
 			return;
 
+		std::size_t sent = 0;
 #if defined(__linux__)
 		// 分段后的外层报文不能超过常见路径 MTU (1500 - IP/UDP 头).
 		const std::size_t segment = frames.front().size();
@@ -388,10 +434,18 @@ namespace libavpn {
 		}
 		if (uniform && send_udp_gso(*socket, ep, frames, segment))
 			return;
+
+		if (frames.size() > 1)
+		{
+			sent = send_udp_frames_batch(*socket, ep, frames);
+			if (sent >= frames.size())
+				return;
+		}
 #endif
 
-		for (auto& frame : frames)
+		for (; sent < frames.size(); sent++)
 		{
+			auto& frame = frames[sent];
 			// 缓冲区必须存活到发送完成, 否则异步等待期间会变成悬垂指针.
 			auto buf = std::make_shared<std::vector<uint8_t>>(
 				std::move(frame));
