@@ -9,13 +9,8 @@ add_library(libavpn STATIC)
 
 target_sources(libavpn
 	PRIVATE
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/async_connect.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/default_cert.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/fileop.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/ipip.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/logging.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/socks_io.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/strutil.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/httpc/httpc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/use_awaitable.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/xxhash.hpp
