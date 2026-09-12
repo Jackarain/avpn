@@ -45,128 +45,11 @@
 #include <boost/config.hpp>
 
 #include <string>
-#include <string_view>
-#include <iterator>
-#include <algorithm>
-#include <optional>
 #include <iostream>
 #include <sstream>
-#include <memory>
 #include <ios>
 
-
 //////////////////////////////////////////////////////////////////////////
-
-namespace details {
-
-	inline bool is_space(const char c)
-	{
-		if (c == ' ' ||
-			c == '\f' ||
-			c == '\n' ||
-			c == '\r' ||
-			c == '\t' ||
-			c == '\v')
-			return true;
-		return false;
-	}
-
-	inline std::string_view string_trim(std::string_view sv)
-	{
-		const char* b = sv.data();
-		const char* e = b + sv.size();
-
-		for (; b != e; b++)
-		{
-			if (!is_space(*b))
-				break;
-		}
-
-		for (; e != b; )
-		{
-			if (!is_space(*(--e)))
-			{
-				++e;
-				break;
-			}
-		}
-
-		return std::string_view(b, e - b);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-inline bool parse_endpoint_string(std::string_view str,
-	std::string& host, std::string& port, bool& ipv6only)
-{
-	ipv6only = false;
-
-	auto address_string = details::string_trim(str);
-	auto it = address_string.begin();
-
-	bool is_ipv6_address = *it == '[';
-	if (is_ipv6_address)
-	{
-		auto host_end = std::find(it, address_string.end(), ']');
-		if (host_end == address_string.end())
-			return false;
-
-		it++;
-		for (auto first = it; first != host_end; first++)
-			host.push_back(*first);
-
-		std::advance(it, host_end - it);
-		it++;
-	}
-	else
-	{
-		auto host_end = std::find(it, address_string.end(), ':');
-		if (host_end == address_string.end())
-			return false;
-
-		for (auto first = it; first != host_end; first++)
-			host.push_back(*first);
-
-		// Skip host.
-		std::advance(it, host_end - it);
-	}
-
-	if (*it != ':')
-		return false;
-
-	it++;
-	for (; it != address_string.end(); it++)
-	{
-		if (*it >= '0' && *it <= '9')
-		{
-			port.push_back(*it);
-			continue;
-		}
-
-		break;
-	}
-
-	if (it != address_string.end())
-	{
-#ifdef __cpp_lib_to_address
-		auto opt = std::string_view(
-			std::to_address(it), address_string.end() - it);
-#else
-		auto opt = std::string(it, address_string.end());
-#endif
-		if (opt == "ipv6only" || opt == "-ipv6only" ||
-			opt == "v6only" || opt == "-v6only")
-			ipv6only = true;
-	}
-
-	return true;
-}
-
-
-
-//////////////////////////////////////////////////////////////////////////
-
 
 inline int platform_init()
 {
@@ -174,15 +57,6 @@ inline int platform_init()
 	/* Disable the "application crashed" popup. */
 	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
 		SEM_NOOPENFILEERRORBOX);
-
-#if defined(DEBUG) ||defined(_DEBUG)
-	//	_CrtDumpMemoryLeaks();
-	// 	int flags = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-	// 	flags |= _CRTDBG_LEAK_CHECK_DF;
-	// 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
-	// 	_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
-	// 	_CrtSetDbgFlag(flags);
-#endif
 
 #if !defined(__MINGW32__)
 	_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);

@@ -61,8 +61,9 @@ public:
 
 	// 启动监听。listen_addr 形如 "0.0.0.0:18080"。
 	// https 为 true 时使用 ssl_dir 中的证书。启动协程化 accept 循环后立即返回。
+	// host/port 返回解析后的监听地址，供生成控制通道地址使用。
 	bool start(const std::string& listen_addr, bool https, const std::string& ssl_dir,
-		std::string& err);
+		std::string& host, int& port, std::string& err);
 
 	// 关闭监听与活动连接，使挂起的协程自然退出（不停止 ioc）。
 	void stop();

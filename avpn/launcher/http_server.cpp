@@ -233,32 +233,6 @@ response make_error(http::status status, const std::string& msg)
 	return make_text_response(status, msg + "\n");
 }
 
-// 任意值转 int64（供 handler 使用）。
-std::int64_t as_int(const json::value& v)
-{
-	if (v.is_int64())
-		return v.as_int64();
-	if (v.is_uint64())
-		return static_cast<std::int64_t>(v.as_uint64());
-	if (v.is_double())
-		return static_cast<std::int64_t>(v.as_double());
-	if (v.is_bool())
-		return v.as_bool() ? 1 : 0;
-	if (v.is_string()) {
-		try {
-			return std::stoll(std::string(v.as_string()));
-		} catch (...) {}
-	}
-	return 0;
-}
-
-std::string as_str(const json::value& v)
-{
-	if (v.is_string())
-		return std::string(v.as_string());
-	return {};
-}
-
 // ---- 证书加载 ----
 
 bool looks_like_private_key(const std::string& data)
@@ -612,7 +586,7 @@ http_server::~http_server()
 }
 
 bool http_server::start(const std::string& listen_addr, bool https,
-	const std::string& ssl_dir, std::string& err)
+	const std::string& ssl_dir, std::string& host, int& port, std::string& err)
 {
 	// 解析 host:port。
 	auto colon = listen_addr.rfind(':');
@@ -620,12 +594,13 @@ bool http_server::start(const std::string& listen_addr, bool https,
 		err = "invalid --listen address: " + listen_addr;
 		return false;
 	}
-	std::string host = listen_addr.substr(0, colon);
+	host = listen_addr.substr(0, colon);
 	std::string port_str = listen_addr.substr(colon + 1);
-	int port = 0;
 	try {
 		port = std::stoi(port_str);
-	} catch (...) {}
+	} catch (...) {
+		port = 0;
+	}
 	if (port <= 0 || port > 65535) {
 		err = "invalid --listen port: " + port_str;
 		return false;
@@ -1051,7 +1026,7 @@ net::awaitable<response> http_server::route(const http::request<http::string_bod
 				co_return make_error(http::status::bad_request, "invalid body: " + ec.message());
 			}
 			const auto& obj = jv.as_object();
-			std::string name = as_str(obj.if_contains("name") ? obj.at("name") : json::value());
+			std::string name = to_string_value(obj.if_contains("name") ? obj.at("name") : json::value());
 			json::object config;
 			if (auto c = obj.if_contains("config"); c && c->is_object())
 				config = c->as_object();
@@ -1107,7 +1082,7 @@ net::awaitable<response> http_server::route(const http::request<http::string_bod
 				if (ec || !jv.is_object())
 					co_return make_error(http::status::bad_request, "invalid body: " + ec.message());
 				const auto& obj = jv.as_object();
-				std::string name = as_str(obj.if_contains("name") ? obj.at("name") : json::value());
+				std::string name = to_string_value(obj.if_contains("name") ? obj.at("name") : json::value());
 				std::optional<bool> autostart;
 				if (auto a = obj.if_contains("autostart"); a && a->is_bool())
 					autostart = a->as_bool();

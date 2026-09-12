@@ -107,7 +107,6 @@ inline bool rfc3339_parse(const std::string& s, time_point& out)
 			q++;
 
 	// 构造时间点（UTC）。
-	auto days = std::chrono::days(0);
 	std::tm utc{};
 	utc.tm_year = y - 1900;
 	utc.tm_mon = mo - 1;

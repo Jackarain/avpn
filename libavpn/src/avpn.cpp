@@ -879,7 +879,6 @@ namespace libavpn {
 #endif
 
 		auto buf = std::make_shared<std::vector<uint8_t>>(std::move(ip_packet));
-		boost::system::error_code ignore_ec;
 		m_tundev->async_write_some(net::buffer(*buf),
 			[buf](const boost::system::error_code&, std::size_t) {});
 	}
@@ -1759,13 +1758,13 @@ namespace libavpn {
 			target : target.substr(0, slash);
 
 		boost::system::error_code ec;
-		auto v4 = net::ip::make_address_v4(host, ec);
+		net::ip::make_address_v4(host, ec);
 		if (!ec)
 		{
 			out.push_back(target);
 			return out;
 		}
-		auto v6 = net::ip::make_address_v6(host, ec);
+		net::ip::make_address_v6(host, ec);
 		if (!ec)
 		{
 			out.push_back(target);

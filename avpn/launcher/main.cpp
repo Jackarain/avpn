@@ -97,22 +97,6 @@ std::string find_in_path(const std::string& exe)
 	return {};
 }
 
-// 解析监听地址与端口。
-bool parse_listen_addr(const std::string& listen_addr, std::string& host, int& port)
-{
-	auto colon = listen_addr.rfind(':');
-	if (colon == std::string::npos)
-		return false;
-	host = listen_addr.substr(0, colon);
-	std::string port_str = listen_addr.substr(colon + 1);
-	try {
-		port = std::stoi(port_str);
-	} catch (...) {
-		return false;
-	}
-	return port > 0 && port <= 65535;
-}
-
 } // namespace
 
 int main(int argc, char** argv)
@@ -197,14 +181,6 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// 解析监听地址与端口（端口用于生成传给 avpn 的控制通道地址）。
-	std::string host;
-	int port = 0;
-	if (!parse_listen_addr(listen_addr, host, port)) {
-		std::fprintf(stderr, "invalid --listen address: %s\n", listen_addr.c_str());
-		return 1;
-	}
-
 	fs::path work_dir = fs::current_path();
 
 	// 实例管理器。
@@ -218,8 +194,11 @@ int main(int argc, char** argv)
 	// HTTP 服务（WebUI 静态资源内嵌于可执行文件，从内存提供）。
 	// 优雅退出时 run() 返回意味着无挂起协程，server 在 ioc 存活时析构。
 	http_server server(mgr, ioc, webui_user, webui_password, build_version());
+	// 解析监听地址与端口（端口用于生成传给 avpn 的控制通道地址）。
+	std::string host;
+	int port = 0;
 	std::string err;
-	if (!server.start(listen_addr, https, ssl_dir, err)) {
+	if (!server.start(listen_addr, https, ssl_dir, host, port, err)) {
 		std::fprintf(stderr, "%s\n", err.c_str());
 		return 1;
 	}

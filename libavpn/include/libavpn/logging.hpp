@@ -1756,15 +1756,6 @@ public:
 			return *this;
 		switch (v.c_encoding())
 		{
-#ifndef __cpp_lib_char8_t
-		case 0:	out_ = "Sunday"; break;
-		case 1:	out_ = "Monday"; break;
-		case 2:	out_ = "Tuesday"; break;
-		case 3:	out_ = "Wednesday"; break;
-		case 4:	out_ = "Thursday"; break;
-		case 5:	out_ = "Friday"; break;
-		case 6:	out_ = "Saturday"; break;
-#else
 		case 0:	out_ = logger_aux__::from_u8string(u8"周日"); break;
 		case 1:	out_ = logger_aux__::from_u8string(u8"周一"); break;
 		case 2:	out_ = logger_aux__::from_u8string(u8"周二"); break;
@@ -1772,7 +1763,6 @@ public:
 		case 4:	out_ = logger_aux__::from_u8string(u8"周四"); break;
 		case 5:	out_ = logger_aux__::from_u8string(u8"周五"); break;
 		case 6:	out_ = logger_aux__::from_u8string(u8"周六"); break;
-#endif
 		}
 		return *this;
 	}
@@ -1780,14 +1770,9 @@ public:
 	{
 		if (!global_logging___)
 			return *this;
-#if 0
-		xlogger::format_to(std::back_inserter(out_),
-			"{:04}", static_cast<int>(v));
-#else
 		xlogger::format_to(std::back_inserter(out_),
 			"{:04}{}", static_cast<int>(v),
 				logger_aux__::from_u8string(u8"年"));
-#endif
 		return *this;
 	}
 	inline logger___& operator<<(const std::chrono::month& v)
@@ -1796,20 +1781,6 @@ public:
 			return *this;
 		switch (static_cast<unsigned int>(v))
 		{
-#ifndef __cpp_lib_char8_t
-		case  1: out_ = "January"; break;
-		case  2: out_ = "February"; break;
-		case  3: out_ = "March"; break;
-		case  4: out_ = "April"; break;
-		case  5: out_ = "May"; break;
-		case  6: out_ = "June"; break;
-		case  7: out_ = "July"; break;
-		case  8: out_ = "August"; break;
-		case  9: out_ = "September"; break;
-		case 10: out_ = "October"; break;
-		case 11: out_ = "November"; break;
-		case 12: out_ = "December"; break;
-#else
 		case  1: out_ = logger_aux__::from_u8string(u8"01月"); break;
 		case  2: out_ = logger_aux__::from_u8string(u8"02月"); break;
 		case  3: out_ = logger_aux__::from_u8string(u8"03月"); break;
@@ -1822,7 +1793,6 @@ public:
 		case 10: out_ = logger_aux__::from_u8string(u8"10月"); break;
 		case 11: out_ = logger_aux__::from_u8string(u8"11月"); break;
 		case 12: out_ = logger_aux__::from_u8string(u8"12月"); break;
-#endif
 		}
 		return *this;
 	}
@@ -1830,14 +1800,9 @@ public:
 	{
 		if (!global_logging___)
 			return *this;
-#ifndef __cpp_lib_char8_t
-		xlogger::format_to(std::back_inserter(out_),
-			"{:02}", static_cast<int>(v));
-#else
 		xlogger::format_to(std::back_inserter(out_),
 			"{:02}{}", static_cast<unsigned int>(v),
 				logger_aux__::from_u8string(u8"日"));
-#endif
 		return *this;
 	}
 #endif

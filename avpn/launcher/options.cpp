@@ -155,6 +155,8 @@ std::int64_t to_int_value(const json::value& v)
 		return static_cast<std::int64_t>(v.as_uint64());
 	if (v.is_double())
 		return static_cast<std::int64_t>(v.as_double());
+	if (v.is_bool())
+		return v.as_bool() ? 1 : 0;
 	if (v.is_string()) {
 		// std::from_chars 的浮点重载在 macOS 上不可用（macOS 26 才引入），
 		// 改用 strtod 实现相同语义：解析出有效数字即视为成功。

@@ -18,6 +18,46 @@ namespace libavpn {
 
 	using namespace byteorder;
 
+	namespace
+	{
+		// 解析 "host:port", 供 udp/tcp endpoint 共用.
+		bool parse_host_port(std::string_view addr, net::ip::address& ip, uint16_t& port)
+		{
+			boost::system::error_code ec;
+			auto pos = addr.rfind(':');
+			if (pos == std::string_view::npos)
+				return false;
+
+			auto host = addr.substr(0, pos);
+			auto port_str = addr.substr(pos + 1);
+
+			int value = 0;
+			try
+			{
+				value = std::stoi(std::string(port_str));
+			}
+			catch (...)
+			{
+				return false;
+			}
+			if (value < 0 || value > 65535)
+				return false;
+
+			ip = net::ip::make_address(std::string(host), ec);
+			if (ec)
+				return false;
+
+			port = static_cast<uint16_t>(value);
+			return true;
+		}
+
+		template <typename Endpoint>
+		std::string endpoint_string(const Endpoint& ep)
+		{
+			return ep.address().to_string() + ":" + std::to_string(ep.port());
+		}
+	} // namespace
+
 	std::string serialize_handshake_msg1(const handshake_msg1& msg)
 	{
 		std::string out;
@@ -273,72 +313,34 @@ namespace libavpn {
 
 	bool parse_endpoint(std::string_view addr, net::ip::udp::endpoint& ep)
 	{
-		boost::system::error_code ec;
-		auto pos = addr.rfind(':');
-		if (pos == std::string_view::npos)
+		net::ip::address ip;
+		uint16_t port = 0;
+		if (!parse_host_port(addr, ip, port))
 			return false;
 
-		auto host = addr.substr(0, pos);
-		auto port_str = addr.substr(pos + 1);
-
-		int port = 0;
-		try
-		{
-			port = std::stoi(std::string(port_str));
-		}
-		catch (...)
-		{
-			return false;
-		}
-		if (port < 0 || port > 65535)
-			return false;
-
-		auto ip = net::ip::make_address(std::string(host), ec);
-		if (ec)
-			return false;
-
-		ep = net::ip::udp::endpoint(ip, static_cast<uint16_t>(port));
+		ep = net::ip::udp::endpoint(ip, port);
 		return true;
 	}
 
 	bool parse_endpoint(std::string_view addr, net::ip::tcp::endpoint& ep)
 	{
-		boost::system::error_code ec;
-		auto pos = addr.rfind(':');
-		if (pos == std::string_view::npos)
+		net::ip::address ip;
+		uint16_t port = 0;
+		if (!parse_host_port(addr, ip, port))
 			return false;
 
-		auto host = addr.substr(0, pos);
-		auto port_str = addr.substr(pos + 1);
-
-		int port = 0;
-		try
-		{
-			port = std::stoi(std::string(port_str));
-		}
-		catch (...)
-		{
-			return false;
-		}
-		if (port < 0 || port > 65535)
-			return false;
-
-		auto ip = net::ip::make_address(std::string(host), ec);
-		if (ec)
-			return false;
-
-		ep = net::ip::tcp::endpoint(ip, static_cast<uint16_t>(port));
+		ep = net::ip::tcp::endpoint(ip, port);
 		return true;
 	}
 
 	std::string endpoint_to_string(const net::ip::udp::endpoint& ep)
 	{
-		return ep.address().to_string() + ":" + std::to_string(ep.port());
+		return endpoint_string(ep);
 	}
 
 	std::string endpoint_to_string(const net::ip::tcp::endpoint& ep)
 	{
-		return ep.address().to_string() + ":" + std::to_string(ep.port());
+		return endpoint_string(ep);
 	}
 
 } // namespace libavpn

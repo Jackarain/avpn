@@ -111,19 +111,19 @@ namespace {
 	{
 		auto backend = detect_backend();
 		std::string out;
-		int ret = -1;
 
 		if (backend == nat_backend::iptables)
 		{
 			// -D 删除, 规则不存在时返回非零, 视为成功.
-			ret = run_cmd_capture("iptables -t nat -D POSTROUTING -o " + dev +
+			int ret = run_cmd_capture("iptables -t nat -D POSTROUTING -o " + dev +
 				" -j MASQUERADE 2>/dev/null", out);
 			return ret == 0 || ret == 256;
 		}
-		else if (backend == nat_backend::nft)
+
+		if (backend == nat_backend::nft)
 		{
 			// 删除所有匹配规则 (按 handle), 链不存在或无匹配视为成功.
-			ret = run_cmd_capture(
+			run_cmd_capture(
 				"for h in $(nft -a list chain ip nat postrouting 2>/dev/null | "
 				"awk '/oifname \"" + dev + "\" masquerade/{print $NF}'); do "
 				"nft delete rule ip nat postrouting handle $h; done", out);

@@ -37,41 +37,6 @@ namespace {
 
 const char* kInstancesFile = "instances.json";
 
-// 任意值转 int64。
-std::int64_t as_int64(const json::value& v)
-{
-	if (v.is_int64())
-		return v.as_int64();
-	if (v.is_uint64())
-		return static_cast<std::int64_t>(v.as_uint64());
-	if (v.is_double())
-		return static_cast<std::int64_t>(v.as_double());
-	if (v.is_bool())
-		return v.as_bool() ? 1 : 0;
-	if (v.is_string()) {
-		try {
-			return std::stoll(std::string(v.as_string()));
-		} catch (...) {}
-	}
-	return 0;
-}
-
-// 任意值转字符串。
-std::string as_string(const json::value& v)
-{
-	if (v.is_string())
-		return std::string(v.as_string());
-	if (v.is_bool())
-		return v.as_bool() ? "true" : "false";
-	if (v.is_int64())
-		return std::to_string(v.as_int64());
-	if (v.is_uint64())
-		return std::to_string(v.as_uint64());
-	if (v.is_double())
-		return json::serialize(v);
-	return {};
-}
-
 // 随机 hex 字符串（crypto 强度，跨平台：OpenSSL RAND_bytes）。
 std::string random_hex(std::size_t bytes)
 {
@@ -100,7 +65,7 @@ std::vector<std::string> config_list(const json::object& cfg, const char* key)
 		return out;
 	if (it->value().is_array()) {
 		for (const auto& v : it->value().as_array())
-			out.push_back(as_string(v));
+			out.push_back(to_string_value(v));
 	} else if (it->value().is_string()) {
 		out.push_back(std::string(it->value().as_string()));
 	}
@@ -757,7 +722,7 @@ boost::json::value manager::summaries()
 			const auto& rep = in->last_report_.as_object();
 			if (auto t = rep.if_contains("ts"); t && t->is_int64() && t->as_int64() != 0) {
 				if (auto a = rep.if_contains("active_connections"); a)
-					s.active_ = static_cast<int>(as_int64(*a));
+					s.active_ = static_cast<int>(to_int_value(*a));
 				if (auto r = rep.if_contains("rates"); r && r->is_object()) {
 					if (auto rx = r->as_object().if_contains("rx_rate_bps"); rx && rx->is_double())
 						s.rx_rate_ = rx->as_double();
@@ -917,7 +882,7 @@ void manager::handle_notify(const instance_ptr& in, const std::string& method,
 		if (in->logs_ && params.is_object()) {
 			if (auto l = params.as_object().if_contains("lines"); l && l->is_array()) {
 				for (const auto& line : l->as_array())
-					in->logs_->add(as_string(line));
+					in->logs_->add(to_string_value(line));
 			}
 		}
 		return;
