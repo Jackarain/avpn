@@ -251,17 +251,18 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.29.3
+          flutter-version: 3.47.3
           cache: true
 
       - name: Install NDK, cmake, ninja and swig
         run: |
           sudo apt install -y cmake ninja-build swig
-          sdkmanager --install "ndk;27.0.12077973"
+          # NDK 版本需与 flutter.ndkVersion 一致.
+          sdkmanager --install "ndk;28.2.13676358"
 
       - name: Build libxavpn.so
         run: |
-          ./build.android.sh "$GITHUB_WORKSPACE" "$ANDROID_HOME/ndk/27.0.12077973" linux-x86_64
+          ./build.android.sh "$GITHUB_WORKSPACE" "$ANDROID_HOME/ndk/28.2.13676358" linux-x86_64
 
       - name: Build Android apk
         working-directory: avpn/android/xavpn
