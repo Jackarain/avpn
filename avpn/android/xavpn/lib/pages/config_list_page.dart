@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -42,54 +41,71 @@ class _ConfigListPageState extends State<ConfigListPage> {
 
     final session = AppSession.instance;
     session.beginRun(configId);
+
     // 同进程内 Activity 重建时可能已有控制通道, 直接复用.
     var server = session.server;
     if (server == null) {
+      server = LauncherServer();
+      var bound = true;
       try {
-        server = LauncherServer();
         await server.start(port: port);
-        session.server = server;
       } catch (_) {
-        // 原端口被占用等情况下控制通道暂不可用, 不影响 VPN 本身运行.
-        if (mounted) setState(() {});
+        // 原端口被占用 (旧控制端尚未释放等): 换随机端口后让原生端重连.
+        bound = false;
+      }
+      session.attachServer(server);
+      await _restoreConfigSnapshot(server, configId);
+      if (!bound && !await session.recoverControlChannel()) {
+        await _abandonResume();
         return;
       }
+    } else {
+      await _restoreConfigSnapshot(server, configId);
     }
 
-    // 等待 avpn 经控制通道连上; 未连上说明服务已不在运行, 清理状态.
-    if (!await _waitLauncherConnected(server)) {
-      await _storage.clearRunState();
-      session.endRun();
+    // 等待 avpn 经控制通道连上; 连不上时尝试拉起一次原生服务.
+    if (!await session.waitForChannel() &&
+        !await session.recoverControlChannel()) {
+      await _abandonResume();
       return;
     }
-
-    // 恢复 vpnConfig 快照, vaddr 下发时据此建立 tun.
-    final configs = await _storage.loadConfigs();
-    for (final c in configs) {
-      if (c.id == configId) {
-        server.setVpnConfig(jsonDecode(jsonEncode(c.toJson())));
-        break;
-      }
-    }
-    server.connectionStream.listen((c) => session.setConnected(c));
     if (mounted) setState(() {});
   }
 
-  /// 等待 avpn 控制通道连接 (最长 [timeout]), 判定服务是否存活.
-  Future<bool> _waitLauncherConnected(
-    LauncherServer server, {
-    Duration timeout = const Duration(seconds: 5),
-  }) async {
-    if (server.connected) return true;
-    final completer = Completer<bool>();
-    final sub = server.connectionStream.listen((c) {
-      if (c && !completer.isCompleted) completer.complete(true);
-    });
-    try {
-      return await completer.future.timeout(timeout, onTimeout: () => false);
-    } finally {
-      await sub.cancel();
+  /// 恢复配置快照: vaddr 下发时据此建立 tun; 控制通道恢复时据此重启原生服务.
+  Future<void> _restoreConfigSnapshot(
+    LauncherServer server,
+    String configId,
+  ) async {
+    final configs = await _storage.loadConfigs();
+    for (final c in configs) {
+      if (c.id == configId) {
+        final json =
+            jsonDecode(jsonEncode(c.toJson())) as Map<String, dynamic>;
+        server.setVpnConfig(json);
+        AppSession.instance.beginRun(configId, configJson: jsonEncode(json));
+        break;
+      }
     }
+  }
+
+  /// 控制通道无法恢复: 停掉原生服务并清理运行状态, 避免界面停在运行中.
+  Future<void> _abandonResume() async {
+    final session = AppSession.instance;
+    final server = session.server;
+    session.detachServer();
+    try {
+      await server?.close();
+    } catch (_) {
+      // 关闭控制端失败不影响后续清理.
+    }
+    try {
+      await VpnChannel.stop();
+    } catch (_) {
+      // 原生服务可能已退出.
+    }
+    await _storage.clearRunState();
+    session.endRun();
   }
 
   @override
@@ -140,9 +156,8 @@ class _ConfigListPageState extends State<ConfigListPage> {
       if (server == null) {
         server = LauncherServer();
         await server.start();
-        session.server = server;
       }
-      server.connectionStream.listen((c) => session.setConnected(c));
+      session.attachServer(server);
 
       final fullJson = jsonEncode(config.toJson());
       // 设置 vpnConfig 快照: 握手后 vaddr 下发时据此建立 VpnService tun.

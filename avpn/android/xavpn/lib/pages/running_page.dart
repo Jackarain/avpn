@@ -30,27 +30,25 @@ class _RunningPageState extends State<RunningPage>
   bool _busy = false;
   bool _testing = false;
   String _testResult = '';
-  bool _connected = false;
+  // 控制通道守护: 未连接时按间隔尝试恢复, 连续失败后给出错误提示.
+  bool _recovering = false;
+  int _recoverAttempts = 0;
+  String _channelError = '';
+  Timer? _watchdog;
+  LauncherServer? _boundServer;
   StreamSubscription<Map<String, dynamic>>? _statusSub;
   StreamSubscription<Map<String, dynamic>>? _logSub;
-  StreamSubscription<bool>? _connSub;
   StreamSubscription<Map<String, dynamic>>? _nativeEventsSub;
-
-  LauncherServer? get _server => AppSession.instance.server;
 
   @override
   void initState() {
     super.initState();
-    final server = _server;
-    if (server != null) {
-      _connSub = server.connectionStream.listen((c) {
-        if (mounted) setState(() => _connected = c);
-      });
-      _statusSub = server.statusStream.listen((s) {
-        if (mounted) setState(() => _status = s);
-      });
-      _logSub = server.logStream.listen(_onLog);
-    }
+    AppSession.instance.addListener(_onSession);
+    _bindServerStreams(AppSession.instance.server);
+    _watchdog = Timer.periodic(
+      const Duration(seconds: 6),
+      (_) => _watchChannel(),
+    );
     // 事件通道 (native vpn_state; 日志已全部经 WS 控制通道上报).
     _nativeEventsSub = VpnChannel.events().listen((e) {
       if (e['type'] == 'vpn_state') {
@@ -69,7 +67,61 @@ class _RunningPageState extends State<RunningPage>
     }, onError: (Object _) {
       // 引擎分离等场景下事件流中断, 状态仍由 WS 控制通道维持.
     });
-    _connected = server?.connected ?? false;
+  }
+
+  /// 订阅控制通道数据流; 服务实例可能在运行中重建, 需重新绑定.
+  void _bindServerStreams(LauncherServer? server) {
+    _statusSub?.cancel();
+    _logSub?.cancel();
+    _statusSub = null;
+    _logSub = null;
+    _boundServer = server;
+    if (server == null) return;
+    _statusSub = server.statusStream.listen((s) {
+      if (mounted) setState(() => _status = s);
+    });
+    _logSub = server.logStream.listen(_onLog);
+  }
+
+  void _onSession() {
+    if (!mounted) return;
+    final server = AppSession.instance.server;
+    if (!identical(_boundServer, server)) _bindServerStreams(server);
+    setState(() {});
+  }
+
+  /// 控制通道守护: avpn 始终连不上时尝试拉起原生服务, 超过上限提示错误,
+  /// 避免界面永久停在「等待 avpn 连接控制通道...」.
+  Future<void> _watchChannel() async {
+    if (!mounted || _recovering) return;
+    final session = AppSession.instance;
+    if (!session.running || session.connected) {
+      _recoverAttempts = 0;
+      if (_channelError.isNotEmpty && mounted) {
+        setState(() => _channelError = '');
+      }
+      return;
+    }
+    if (_recoverAttempts >= 3) {
+      _watchdog?.cancel();
+      if (mounted) setState(() => _channelError = '控制通道连接失败, 请停止后重试');
+      return;
+    }
+    _recoverAttempts++;
+    _recovering = true;
+    try {
+      final ok = await session.recoverControlChannel(
+        timeout: const Duration(seconds: 8),
+      );
+      if (mounted && ok) {
+        setState(() {
+          _channelError = '';
+          _recoverAttempts = 0;
+        });
+      }
+    } finally {
+      _recovering = false;
+    }
   }
 
   static const int _maxLogLines = 500;
@@ -99,9 +151,10 @@ class _RunningPageState extends State<RunningPage>
 
   @override
   void dispose() {
+    _watchdog?.cancel();
+    AppSession.instance.removeListener(_onSession);
     _statusSub?.cancel();
     _logSub?.cancel();
-    _connSub?.cancel();
     _nativeEventsSub?.cancel();
     _tabs.dispose();
     super.dispose();
@@ -172,7 +225,10 @@ class _RunningPageState extends State<RunningPage>
     if (!running) {
       color = Colors.orange;
       text = '未运行';
-    } else if (_connected) {
+    } else if (_channelError.isNotEmpty) {
+      color = Colors.red;
+      text = _channelError;
+    } else if (AppSession.instance.connected) {
       color = Colors.green;
       text = '控制通道已连接';
     } else {
