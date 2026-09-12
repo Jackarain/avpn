@@ -20,8 +20,6 @@
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
-#include <boost/asio/cancellation_signal.hpp>
-#include <boost/asio/cancellation_type.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/error.hpp>
@@ -155,6 +153,9 @@ public:
 	// 注意：底层 tinyrpc 的调用不支持取消，不能用 awaitable_operators 的 ||
 	// （它要等所有分支完成才返回，RPC 分支挂起会导致整体永久挂起）。
 	// 这里改为：RPC 完成时取消定时器立即返回，定时器先触发则返回超时。
+	//
+	// 定时器与结果状态都由 shared_ptr 持有：RPC 后台协程与等待方都可能先
+	// 结束，任何一方提前销毁都不能影响另一方仍在使用的对象。
 	net::awaitable<rpc_result> async_call(const std::string& method,
 		const json::value& params, std::chrono::milliseconds timeout)
 	{
@@ -167,14 +168,15 @@ public:
 			bool done_ = false;
 			boost::system::error_code ec_;
 			json::object resp_;
+			// 超时定时器：由本状态与后台协程共享持有。
+			std::shared_ptr<net::steady_timer> timer_;
 		};
 		auto st = std::make_shared<race_state>();
-		net::steady_timer timer(ex, timeout);
-		auto cancel_sig = std::make_shared<net::cancellation_signal>();
+		st->timer_ = std::make_shared<net::steady_timer>(ex, timeout);
 
 		// 后台 RPC 分支：完成后记录结果并取消定时器，唤醒等待的调用者。
 		net::co_spawn(ex,
-			[sess = std::move(sess), st, method, params, cancel_sig]() mutable -> net::awaitable<void>
+			[sess = std::move(sess), st, method, params]() mutable -> net::awaitable<void>
 			{
 				boost::system::error_code ec;
 				json::object resp;
@@ -189,22 +191,20 @@ public:
 				}
 				// 在 io_context 上串行记录结果（单线程，与超时判断互斥）。
 				net::dispatch(co_await net::this_coro::executor,
-					[st, resp = std::move(resp), ec, cancel_sig]() mutable {
+					[st, resp = std::move(resp), ec]() mutable {
 						if (!st->done_) {
 							st->done_ = true;
 							st->ec_ = ec;
 							st->resp_ = std::move(resp);
-							cancel_sig->emit(net::cancellation_type::all);
+							st->timer_->cancel();
 						}
 					});
 			}, net::detached);
 
-		// 等待定时器；RPC 完成时会取消定时器。
-		auto slot = cancel_sig->slot();
-		slot.assign([&timer](net::cancellation_type_t) { timer.cancel(); });
+		// 等待超时定时器；RPC 先完成时会取消该定时器。
 		boost::system::error_code tec;
-		co_await timer.async_wait(net::redirect_error(net::use_awaitable, tec));
-		slot.clear();
+		co_await st->timer_->async_wait(
+			net::redirect_error(net::use_awaitable, tec));
 
 		if (!st->done_) {
 			// 定时器先触发：超时。

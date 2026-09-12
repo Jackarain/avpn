@@ -137,6 +137,10 @@ public:
 
 	std::vector<std::string> ids();
 
+	// 进入关闭流程: 之后不再自动重启实例 (避免关闭过程中重新拉起进程,
+	// 造成进程泄漏或与停止流程竞态).
+	void begin_shutdown();
+
 	// ---- CRUD ----
 
 	// 创建新实例（默认配置 = 注册表默认值）。err 非空表示失败。
@@ -227,6 +231,8 @@ private:
 
 	std::mutex m_mu_;
 	std::map<std::string, instance_ptr> m_instances_;
+	// 关闭流程已开始标记.
+	std::atomic<bool> m_shutdown_{ false };
 
 	std::string m_data_dir_;
 	std::string m_avpn_path_;

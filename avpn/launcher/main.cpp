@@ -249,6 +249,9 @@ int main(int argc, char** argv)
 		terminator.remove(SIGINT);
 		terminator.remove(SIGTERM);
 		std::fprintf(stderr, "[info] received signal, shutting down\n");
+		// 先禁止自动重启: 子进程同样会收到信号并退出, 若不禁止,
+		// 退出处理会立刻拉起新进程, 与停止流程竞态且会留下孤儿进程.
+		mgr->begin_shutdown();
 		// 关闭监听与所有连接：连接协程随即自行完成。
 		server.stop();
 		if (!no_kill_on_exit) {

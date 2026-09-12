@@ -49,6 +49,20 @@ namespace jsonrpc
 
   using coroutine_type = std::function<net::awaitable<void>(json::object)>;
 
+  // 兜底包装: 协程内未捕获异常不能逃逸到 detached 完成处理器, 否则
+  // 会触发 std::terminate. 连接级异常一律按该次处理失败丢弃.
+  template <class Op>
+  net::awaitable<void> guarded_coro(Op op)
+  {
+    try
+    {
+      co_await op();
+    }
+    catch (...)
+    {
+    }
+  }
+
   namespace detail
   {
     template <typename T, typename = void>
@@ -393,11 +407,11 @@ namespace jsonrpc
       // 通过 shared_from_this 持有自身, 保证 dispatch 协程执行期间本服务存活.
       auto self = this->shared_from_this();
       net::co_spawn(stream_.get_executor(),
-        [self, obj = std::move(obj)]() mutable -> net::awaitable<void>
+        guarded_coro([self, obj = std::move(obj)]() mutable -> net::awaitable<void>
         {
           co_await self->dispatch_impl(std::move(obj));
           co_return;
-        }, net::detached);
+        }), net::detached);
     }
 
     // 获取底层的 stream 流对象, 该对象可以用于直接进行 stream 操作.
@@ -746,11 +760,11 @@ namespace jsonrpc
           if (!running_.load())
             co_return; // 如果服务已经停止, 则退出协程
 
-          net::co_spawn(executor, [self = this->shared_from_this(), obj = std::move(obj)]() mutable -> net::awaitable<void>
+          net::co_spawn(executor, guarded_coro([self = this->shared_from_this(), obj = std::move(obj)]() mutable -> net::awaitable<void>
           {
             co_await self->dispatch_impl(std::move(obj));
             co_return;
-          }, net::detached);
+          }), net::detached);
         }
 
         // 连接已断开, 完成所有挂起的 RPC 调用.
@@ -962,11 +976,11 @@ namespace jsonrpc
 
           // 直接调用协程来处理写入消息
           net::co_spawn(self->stream_.get_executor(),
-            [self]() mutable -> net::awaitable<void>
+            guarded_coro([self]() mutable -> net::awaitable<void>
             {
               co_await self->write_messages();
               co_return;
-            }, net::detached);
+            }), net::detached);
         });
     }
 

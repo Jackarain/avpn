@@ -532,9 +532,17 @@ void manager::wait_exit(const std::string& id)
 	}
 }
 
+void manager::begin_shutdown()
+{
+	m_shutdown_.store(true);
+}
+
 bool manager::should_auto_restart(const instance_ptr& in)
 {
 	std::lock_guard<std::mutex> lock(m_mu_);
+	// 关闭流程中不再自动重启: 与停止流程竞态时会重新拉起进程.
+	if (m_shutdown_.load())
+		return false;
 	if (in->stopping_)
 		return false;
 	if (!m_instances_.count(in->id_))

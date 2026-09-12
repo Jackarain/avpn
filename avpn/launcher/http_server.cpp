@@ -61,6 +61,19 @@ inline constexpr std::chrono::seconds kCertExpiredRetryInterval{ 30 };
 
 namespace {
 
+// 兜底包装: 连接/服务协程内未捕获异常不能逃逸到 detached 完成处理器,
+// 否则 boost.asio 会调用 std::terminate 直接终止进程.
+net::awaitable<void> guard_coro(net::awaitable<void> op)
+{
+	try
+	{
+		co_await std::move(op);
+	}
+	catch (...)
+	{
+	}
+}
+
 using response = http::response<http::string_body>;
 
 // ---- 小工具 ----
@@ -669,10 +682,10 @@ bool http_server::start(const std::string& listen_addr, bool https,
 	m_stopped_ = false;
 	m_https_ = https;
 	// 协程化的 accept 循环（挂在共享 io_context 上）。
-	net::co_spawn(m_ioc_, accept_loop(), net::detached);
+	net::co_spawn(m_ioc_, guard_coro(accept_loop()), net::detached);
 	// 证书过期自动热更新（仅 https 模式）.
 	if (https)
-		net::co_spawn(m_ioc_, certificate_check_loop(), net::detached);
+		net::co_spawn(m_ioc_, guard_coro(certificate_check_loop()), net::detached);
 	return true;
 }
 
@@ -733,7 +746,7 @@ net::awaitable<void> http_server::accept_loop()
 		boost::system::error_code sec;
 		sock.set_option(net::socket_base::keep_alive(true), sec);
 		// 每个连接一个协程，挂在共享 io_context 上处理。
-		net::co_spawn(ex, handle_connection(std::move(sock)), net::detached);
+		net::co_spawn(ex, guard_coro(handle_connection(std::move(sock))), net::detached);
 	}
 }
 
