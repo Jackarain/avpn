@@ -1948,11 +1948,10 @@ namespace libavpn {
 		if (!m_established || m_abort)
 			return;
 
-		net::post(m_ioc,
-			[self = shared_from_this(), pkt = std::move(ip_packet)]() mutable
-			{
-				self->send_data_message(pkt);
-			});
+		// 调用方运行在本会话的 io_context 线程上, 直接发送即可. 经 net::post
+		// 转发会让每个包多一轮事件循环 (处理队列非空时 epoll_wait 立即返回),
+		// 在高包速率下这点开销会直接压低吞吐.
+		send_data_message(ip_packet);
 	}
 
 	bool avpn_session::try_decrypt_udp(std::string_view data) const
