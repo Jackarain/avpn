@@ -287,7 +287,7 @@ xcode/
 .cache/
 
 # generated windows resource file
-avpn/avpn/src/resource/avpn.rc
+apps/avpn/src/resource/avpn.rc
 
 # wintun.dll 构建必需, 覆盖上面的 [Bb]in/ 忽略规则.
 !third_party/wintun/bin/
@@ -299,8 +299,8 @@ avpn/avpn/src/resource/avpn.rc
 /outputs/
 
 # 豁免 Android 客户端预编译的 x86/x86_64 JNI 库 (根规则 [Xx]86/ 会误伤).
-!avpn/android/xavpn/android/app/src/main/jniLibs/x86/
-!avpn/android/xavpn/android/app/src/main/jniLibs/x86_64/
+!apps/android/xavpn/android/app/src/main/jniLibs/x86/
+!apps/android/xavpn/android/app/src/main/jniLibs/x86_64/
 
 # SWIG 构建产物 (cmake 构建时在源码目录生成).
-avpn/android/libavpn/xavpn_wrap.cxx
+apps/android/libavpn/xavpn_wrap.cxx

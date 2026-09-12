@@ -36,7 +36,7 @@ tun 由隧道转发）；**未** `addRoute` 的地址走系统物理网络直连
 | 绕过中国大陆 | `bypassCn=true` | 非中国且非保留段（`0.0.0.0/0` 的补集） | 中国/私有段直连，其余走隧道 |
 | 自定义路由 | `bypassCn=false` 且 `routes` 非空 | 用户填写的 CIDR 列表 | 仅列出的网段走隧道 |
 
-实现见 `avpn/android/xavpn/lib/services/launcher_server.dart` 的
+实现见 `apps/android/xavpn/lib/services/launcher_server.dart` 的
 `_handleVaddr()`（收到服务端下发的 `vaddr` 后按 `bypassCn` 计算路由并建立
 tun）。
 
@@ -148,9 +148,9 @@ DNS 请求进入 tun
 
 | 模块 | 文件 |
 |---|---|
-| 路由计算（bypassCn / 中国段补集） | `avpn/android/xavpn/lib/services/cn_ip_list.dart` |
-| 建立 tun 时按配置选择路由/DNS | `avpn/android/xavpn/lib/services/launcher_server.dart` |
-| 配置字段定义与校验 | `avpn/android/xavpn/lib/models/vpn_config.dart` |
+| 路由计算（bypassCn / 中国段补集） | `apps/android/xavpn/lib/services/cn_ip_list.dart` |
+| 建立 tun 时按配置选择路由/DNS | `apps/android/xavpn/lib/services/launcher_server.dart` |
+| 配置字段定义与校验 | `apps/android/xavpn/lib/models/vpn_config.dart` |
 | tun 53 拦截与分流决策 | `libavpn/src/dns_proxy.cpp` |
 | gfwlist 解析 | `libavpn/include/libavpn/dns_proxy.hpp`、`libavpn/src/dns_proxy.cpp` |
 | DoH 查询与 Basic 认证 | `libavpn/src/dns_proxy.cpp`（`doh_query`） |

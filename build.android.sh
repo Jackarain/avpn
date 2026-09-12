@@ -42,7 +42,7 @@ echo "HOST_TAG: ${HOST_TAG}"
 echo "ARCHITECTURES: ${ARCHITECTURES[*]}"
 
 # Android 客户端工程 (Flutter), 存在时把编译产物同步过去.
-ANDROID_APP_DIR=${AVPN_PATH}/avpn/android/xavpn/android/app
+ANDROID_APP_DIR=${AVPN_PATH}/apps/android/xavpn/android/app
 JAVA_DIR=${ANDROID_APP_DIR}/src/main/java/com/jackarain
 # 源码目录的绝对路径, 用于识别其它仓库遗留的构建目录.
 AVPN_ABS=$(cd "${AVPN_PATH}" && pwd)

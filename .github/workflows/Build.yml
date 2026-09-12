@@ -265,7 +265,7 @@ jobs:
           ./build.android.sh "$GITHUB_WORKSPACE" "$ANDROID_HOME/ndk/28.2.13676358" linux-x86_64
 
       - name: Build Android apk
-        working-directory: avpn/android/xavpn
+        working-directory: apps/android/xavpn
         run: |
           flutter pub get
           flutter build apk --release
@@ -275,4 +275,4 @@ jobs:
         with:
           name: avpn-android_apk
           path: |
-            avpn/android/xavpn/build/app/outputs/flutter-apk/app-release.apk
+            apps/android/xavpn/build/app/outputs/flutter-apk/app-release.apk
