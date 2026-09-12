@@ -21,6 +21,7 @@
 #include <boost/url.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -45,6 +46,8 @@ namespace libavpn {
 	inline constexpr std::chrono::milliseconds k_status_interval{ 2000 };
 	// 连接失败后的重连间隔.
 	inline constexpr std::chrono::seconds k_reconnect_base{ 3 };
+// 单次连接 (解析/建连/握手) 的超时上限.
+	inline constexpr std::chrono::seconds k_connect_timeout{ 10 };
 
 	vpn_launcher::vpn_launcher(io_context_pool& ioc_pool,
 		const service_config& config, std::weak_ptr<avpn_service> service)
@@ -85,7 +88,27 @@ namespace libavpn {
 
 		boost::system::error_code ec;
 
-		std::visit([&ec, this](auto& sess)
+		close_session();
+		asio_util::cancel(m_timer, ec);
+
+		// 中止在途连接: 连接/握手阶段的 socket 不属于会话, 不会因会话关闭而
+		// 结束, 必须显式关闭. 关闭动作投递到 main io_context 执行, 避免跨线程
+		// 操作 socket, 也保证本函数立即返回.
+		connect_cancel_fn cancel;
+		{
+			std::lock_guard<std::mutex> lock(m_connect_mu_);
+			cancel = m_connect_cancel_;
+		}
+		if (cancel)
+			net::post(m_main_context,
+				[cancel = std::move(cancel)]() mutable { cancel(); });
+	}
+
+	void vpn_launcher::close_session()
+	{
+		boost::system::error_code ec;
+
+		std::visit([&ec](auto& sess)
 			{
 				if (!sess)
 					return;
@@ -98,8 +121,39 @@ namespace libavpn {
 				auto& ws_stream = sess->stream();
 				beast::get_lowest_layer(ws_stream).close(ec);
 			}, m_session);
+	}
 
-		asio_util::cancel(m_timer, ec);
+	void vpn_launcher::set_connect_cancel(std::shared_ptr<connect_cancel_fn> action)
+	{
+		std::lock_guard<std::mutex> lock(m_connect_mu_);
+		m_connect_cancel_ = [action] { (*action)(); };
+	}
+
+	void vpn_launcher::clear_connect_cancel()
+	{
+		std::lock_guard<std::mutex> lock(m_connect_mu_);
+		m_connect_cancel_ = nullptr;
+	}
+
+	void vpn_launcher::abort_connect()
+	{
+		connect_cancel_fn cancel;
+		{
+			std::lock_guard<std::mutex> lock(m_connect_mu_);
+			cancel = m_connect_cancel_;
+		}
+		if (cancel)
+			cancel();
+	}
+
+	vpn_launcher::connect_scope::~connect_scope()
+	{
+		self.clear_connect_cancel();
+		if (deadline)
+		{
+			boost::system::error_code ec;
+			asio_util::cancel(*deadline, ec);
+		}
 	}
 
 	net::awaitable<void> vpn_launcher::worker()
@@ -108,7 +162,12 @@ namespace libavpn {
 		{
 			if (co_await connect())
 			{
-				co_await serve();
+				// stop() 与连接完成可能并发: 已中止时立刻关闭刚建立的会话,
+				// 否则 serve() 会挂在会话读上, io_context 无法退出.
+				if (m_abort)
+					close_session();
+				else
+					co_await serve();
 			}
 
 			if (m_abort)
@@ -161,8 +220,32 @@ namespace libavpn {
 			target += "?" + std::string(enc_query.data(), enc_query.size());
 
 		auto executor = co_await net::this_coro::executor;
-		tcp::resolver resolver(executor);
-		auto results = co_await resolver.async_resolve(host, port, net_awaitable[ec]);
+
+		// 在途连接必须可中止: 对端接受 TCP 连接却不回应握手时, 协程会一直挂在
+		// 未完成的异步操作上, io_context 无法退出 (上层 join 永久阻塞), 之后
+		// 再也无法重连控制通道. 各阶段把当前 socket/解析器的关闭动作写入
+		// cancel_action, 由 stop() 或连接超时触发.
+		auto cancel_action = std::make_shared<connect_cancel_fn>();
+		auto resolver = std::make_shared<tcp::resolver>(executor);
+		*cancel_action = [resolver] { resolver->cancel(); };
+		set_connect_cancel(cancel_action);
+
+		// 连接与握手总超时 (兜底): 到点中止本次尝试, 进入下一轮重连.
+		auto deadline = std::make_shared<net::steady_timer>(executor, k_connect_timeout);
+		std::weak_ptr<vpn_launcher> weak = shared_from_this();
+		net::co_spawn(executor,
+			[weak, deadline]() -> net::awaitable<void>
+			{
+				boost::system::error_code tec;
+				co_await deadline->async_wait(net_awaitable[tec]);
+				if (tec)
+					co_return;
+				if (auto self = weak.lock())
+					self->abort_connect();
+			}, net::detached);
+		connect_scope scope{ *this, deadline };
+
+		auto results = co_await resolver->async_resolve(host, port, net_awaitable[ec]);
 		if (ec)
 		{
 			XLOG_WARN << "Failed to resolve launcher " << m_config.launcher_
@@ -182,10 +265,16 @@ namespace libavpn {
 			if (!m_ssl_ctx)
 				m_ssl_ctx = std::make_unique<net::ssl::context>(net::ssl::context::tls_client);
 
-			auto ws_stream = wss(executor, *m_ssl_ctx);
+			auto ws_stream = std::make_shared<wss>(executor, *m_ssl_ctx);
+			*cancel_action = [resolver, ws_stream]
+				{
+					boost::system::error_code cec;
+					resolver->cancel();
+					beast::get_lowest_layer(*ws_stream).close(cec);
+				};
 
 			co_await net::async_connect(
-				beast::get_lowest_layer(ws_stream), results, net_awaitable[ec]);
+				beast::get_lowest_layer(*ws_stream), results, net_awaitable[ec]);
 			if (ec)
 			{
 				XLOG_WARN << "Failed to connect to launcher " << m_config.launcher_
@@ -194,13 +283,13 @@ namespace libavpn {
 			}
 
 			// TLS 握手. 证书不做校验: 控制通道凭 URL 信任端点, 便于自签名证书部署.
-			auto& ssl_stream = ws_stream.next_layer();
+			auto& ssl_stream = ws_stream->next_layer();
 			ssl_stream.set_verify_mode(net::ssl::verify_none, ec);
 			if (ec)
 			{
 				XLOG_WARN << "TLS setup failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
-				beast::get_lowest_layer(ws_stream).close(ec);
+				beast::get_lowest_layer(*ws_stream).close(ec);
 				co_return false;
 			}
 
@@ -222,36 +311,42 @@ namespace libavpn {
 			{
 				XLOG_WARN << "TLS handshake failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
-				beast::get_lowest_layer(ws_stream).close(ec);
+				beast::get_lowest_layer(*ws_stream).close(ec);
 				co_return false;
 			}
 
-			ws_stream.set_option(stream_base::decorator(decorator));
+			ws_stream->set_option(stream_base::decorator(decorator));
 
-			co_await ws_stream.async_handshake(host, target, net_awaitable[ec]);
+			co_await ws_stream->async_handshake(host, target, net_awaitable[ec]);
 			if (ec)
 			{
 				XLOG_WARN << "WebSocket handshake failed with launcher " << m_config.launcher_
 					<< ", error: " << ec.message();
-				beast::get_lowest_layer(ws_stream).close(ec);
+				beast::get_lowest_layer(*ws_stream).close(ec);
 				co_return false;
 			}
 
-			ws_stream.binary(true);
-			ws_stream.read_message_max(16 * 1024 * 1024);
+			ws_stream->binary(true);
+			ws_stream->read_message_max(16 * 1024 * 1024);
 
 			m_session.emplace<1>(
-				std::make_unique<jsonrpc::jsonrpc_session<wss>>(std::move(ws_stream)));
+				std::make_unique<jsonrpc::jsonrpc_session<wss>>(std::move(*ws_stream)));
 			m_session_closed = false;
 
 			XLOG_DBG << "Launcher connected: " << m_config.launcher_;
 			co_return true;
 		}
 
-		auto ws_stream = ws(executor);
+		auto ws_stream = std::make_shared<ws>(executor);
+		*cancel_action = [resolver, ws_stream]
+			{
+				boost::system::error_code cec;
+				resolver->cancel();
+				beast::get_lowest_layer(*ws_stream).close(cec);
+			};
 
 		co_await net::async_connect(
-			beast::get_lowest_layer(ws_stream), results, net_awaitable[ec]);
+			beast::get_lowest_layer(*ws_stream), results, net_awaitable[ec]);
 		if (ec)
 		{
 			XLOG_WARN << "Failed to connect to launcher " << m_config.launcher_
@@ -259,22 +354,24 @@ namespace libavpn {
 			co_return false;
 		}
 
-		ws_stream.set_option(stream_base::decorator(decorator));
+		ws_stream->set_option(stream_base::decorator(decorator));
 
-		co_await ws_stream.async_handshake(host, target, net_awaitable[ec]);
+		co_await ws_stream->async_handshake(host, target, net_awaitable[ec]);
 		if (ec)
 		{
 			XLOG_WARN << "WebSocket handshake failed with launcher " << m_config.launcher_
 				<< ", error: " << ec.message();
-			beast::get_lowest_layer(ws_stream).close(ec);
+			beast::get_lowest_layer(*ws_stream).close(ec);
 			co_return false;
 		}
 
-		ws_stream.binary(true);
-		ws_stream.read_message_max(16 * 1024 * 1024);
+		ws_stream->binary(true);
+		ws_stream->read_message_max(16 * 1024 * 1024);
+
+		co_await net::post(executor, net::use_awaitable);
 
 		m_session.emplace<0>(
-			std::make_unique<jsonrpc::jsonrpc_session<ws>>(std::move(ws_stream)));
+			std::make_unique<jsonrpc::jsonrpc_session<ws>>(std::move(*ws_stream)));
 		m_session_closed = false;
 
 		XLOG_DBG << "Launcher connected: " << m_config.launcher_;

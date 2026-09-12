@@ -17,7 +17,9 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <variant>
 
 namespace libavpn {
@@ -58,6 +60,34 @@ namespace libavpn {
 		// 在已建立的会话上运行: 注册实例、状态上报循环、处理请求.
 		// 连接断开或 stop 时返回.
 		net::awaitable<void> serve();
+		// 在途连接的取消动作 (关闭 socket / 取消地址解析).
+		using connect_cancel_fn = std::function<void()>;
+
+		// 登记在途连接的取消动作, 供 stop() 与连接超时中止本次连接.
+		void set_connect_cancel(std::shared_ptr<connect_cancel_fn> action);
+
+		// 关闭当前会话 (取消挂起 RPC, 关闭底层 socket).
+		void close_session();
+
+		// 撤销登记: 连接协程结束 (含失败返回) 时必须调用.
+		void clear_connect_cancel();
+
+		// 中止在途连接; 须在 main io_context 线程执行.
+		void abort_connect();
+
+		// 连接协程作用域守卫: 结束时撤销登记并停止超时定时器.
+		struct connect_scope
+		{
+			vpn_launcher& self;
+			std::shared_ptr<net::steady_timer> deadline;
+
+			connect_scope(vpn_launcher& s, std::shared_ptr<net::steady_timer> t)
+				: self(s), deadline(std::move(t))
+			{
+			}
+
+			~connect_scope();
+		};
 
 		// 上报实例注册信息与状态.
 		void send_register();
@@ -84,6 +114,10 @@ namespace libavpn {
 		std::unique_ptr<net::ssl::context> m_ssl_ctx;
 
 		net::steady_timer m_timer{ m_ioc_pool.main_io_context() };
+
+		// 在途连接的取消动作与保护锁 (stop 可能来自其它线程).
+		std::mutex m_connect_mu_;
+		connect_cancel_fn m_connect_cancel_;
 
 		// 会话是否已关闭 (由 closed_callback 置位).
 		std::atomic_bool m_session_closed{ false };
