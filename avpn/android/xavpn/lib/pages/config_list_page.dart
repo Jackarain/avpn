@@ -22,6 +22,7 @@ class _ConfigListPageState extends State<ConfigListPage> {
   List<VpnConfig> _configs = [];
   bool _loading = true;
   bool _busy = false;
+  String _gitHash = '';
 
   @override
   void initState() {
@@ -29,6 +30,10 @@ class _ConfigListPageState extends State<ConfigListPage> {
     AppSession.instance.addListener(_onSession);
     _reload();
     _tryResumeSession();
+    // 顶部显示 libxavpn 编译时记录的 git commit hash.
+    VpnChannel.buildVersion().then((v) {
+      if (mounted && v.isNotEmpty) setState(() => _gitHash = v);
+    });
   }
 
   /// 界面重建 (Activity 重新打开) 时, 若 VPN 仍在同一进程运行,
@@ -298,6 +303,18 @@ class _ConfigListPageState extends State<ConfigListPage> {
       appBar: AppBar(
         title: const Text('aVPN 配置'),
         actions: [
+          if (_gitHash.isNotEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  _gitHash,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           if (session.running) ...[
             IconButton(
               tooltip: '运行控制台',

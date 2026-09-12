@@ -44,6 +44,10 @@ class MainActivity : FlutterActivity() {
                         XavpnVpnService.requestStop(this)
                         result.success(true)
                     }
+                    // libxavpn 编译时记录的 git commit hash 前 6 位.
+                    "build_version" -> {
+                        result.success(XavpnBridge.buildVersion())
+                    }
                     // 控制通道 protect 请求: 放行 libavpn 的对外 socket.
                     "protect" -> {
                         val fd = call.argument<Int>("fd") ?: -1

@@ -73,6 +73,9 @@ object XavpnBridge {
 
     fun stop() = xavpn.stop()
 
+    /** 返回 libxavpn 编译时记录的 git commit hash 前 6 位. */
+    fun buildVersion(): String = xavpn.build_version()
+
     private fun rename(cfg: JSONObject, old: String, new: String) {
         if (cfg.has(old)) {
             cfg.put(new, cfg.remove(old))
