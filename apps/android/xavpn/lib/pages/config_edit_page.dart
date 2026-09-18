@@ -194,346 +194,289 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
         actions: [TextButton(onPressed: _save, child: const Text('保存'))],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          _section('基本'),
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(
-              labelText: '名称',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+          _section('基本', [
+            _textField(_name, label: '名称', hint: '如 家庭网关 / 公司服务器'),
+            _dropdown<String>(
+              value: _mode,
+              label: '模式',
+              items: const [
+                DropdownMenuItem(value: 'client', child: Text('客户端 (Client)')),
+                DropdownMenuItem(value: 'gateway', child: Text('网关 (Gateway)')),
+              ],
+              onChanged: (v) => setState(() => _mode = v ?? 'client'),
             ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _mode,
-            decoration: const InputDecoration(
-              labelText: '模式',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'client', child: Text('客户端 (Client)')),
-              DropdownMenuItem(value: 'gateway', child: Text('网关 (Gateway)')),
-            ],
-            onChanged: (v) => setState(() => _mode = v ?? 'client'),
-          ),
-          const SizedBox(height: 12),
-          if (!isGateway) ...[
-            TextField(
-              controller: _nexthop,
-              decoration: const InputDecoration(
-                labelText: 'Nexthop 服务器',
-                hintText: '例如 1.2.3.4:19090 或 tcp://1.2.3.4:19090',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            if (!isGateway)
+              _textField(
+                _nexthop,
+                label: 'Nexthop 服务器',
+                hint: '如 1.2.3.4:19090 或 tcp://1.2.3.4:19090',
               ),
+          ], subtitle: isGateway ? '网关模式无需填写 nexthop' : '客户端需填写对端服务器地址'),
+          _section('密钥', [
+            _textField(_privateKey, label: '本端私钥 private_key'),
+            _textField(
+              _publicKey,
+              label: '对端公钥 public_key',
+              hint: '服务器/网关的公钥 (base64), 客户端必填',
             ),
-            const SizedBox(height: 12),
-          ],
-
-          _section('密钥'),
-          TextField(
-            controller: _privateKey,
-            decoration: const InputDecoration(
-              labelText: '本端私钥 private_key',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            _textField(_pkl, label: '对端公钥列表 pkl (每行一个)', maxLines: 3),
+          ], subtitle: '本端私钥与对端公钥'),
+          _section('传输参数', [
+            _pair(
+              _numberField(_mtu, label: 'MTU'),
+              _numberField(_keepalive, label: 'Keepalive (s)'),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _publicKey,
-            decoration: const InputDecoration(
-              labelText: '对端公钥 public_key',
-              hintText: '服务器/网关的公钥 (base64), 客户端必填',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            _pair(
+              _numberField(_dataShards, label: 'FEC 数据份数'),
+              _numberField(_parityShards, label: 'FEC 冗余份数'),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _pkl,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: '对端公钥列表 pkl (每行一个)',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            _dropdown<String>(
+              value: _compress,
+              label: '压缩',
+              items: const [
+                DropdownMenuItem(value: '', child: Text('不压缩')),
+                DropdownMenuItem(value: 'deflate', child: Text('deflate')),
+                DropdownMenuItem(value: 'lz4', child: Text('lz4')),
+                DropdownMenuItem(value: 'zstd', child: Text('zstd')),
+              ],
+              onChanged: (v) => setState(() => _compress = v ?? ''),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          _section('传输参数'),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _mtu,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'MTU',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
+            _textField(
+              _obfuscate,
+              label: '混淆密钥 obfuscate_key',
+              hint: '两端一致时启用数据特征混淆',
+            ),
+          ], subtitle: '链路 MTU、保活、纠删码与压缩'),
+          _section('虚拟子网', [
+            _textField(
+              _subnet,
+              label: '虚拟子网 subnet',
+              hint: '如 10.10.0.0/16, 客户端需与服务端一致',
+              onChanged: (_) => setState(() {}),
+            ),
+            _readonlyField('TUN 地址 (自动推导)', _tunPreview().$1),
+          ], subtitle: '客户端取网络地址+2, 网关取网络地址+1'),
+          if (isGateway)
+            _section('网关监听', [
+              _textField(
+                _udpListen,
+                label: 'UDP 监听 (每行一个)',
+                hint: '如 0.0.0.0:19090',
+                maxLines: 2,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _keepalive,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Keepalive (s)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
+              _textField(_tcpListen, label: 'TCP 监听 (每行一个)', maxLines: 2),
+            ], subtitle: '网关对外提供服务的监听地址'),
+          if (isGateway)
+            _section('网关推送与选项', [
+              _textField(
+                _pushroutes,
+                label: '推送路由 pushroutes (每行一个)',
+                hint: '下发给客户端的路由',
+                maxLines: 2,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _dataShards,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'FEC 数据份数',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
+              _numberField(_pushdns, label: '推送 DNS pushdns'),
+              _switch(
+                title: 'passbyvpn (默认全局出口)',
+                value: _passbyvpn,
+                onChanged: (v) => setState(() => _passbyvpn = v),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _parityShards,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'FEC 冗余份数',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-                  ),
-                ),
+              _switch(
+                title: 'ignore_push (忽略推送路由/DNS)',
+                value: _ignorePush,
+                onChanged: (v) => setState(() => _ignorePush = v),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _compress,
-            decoration: const InputDecoration(
-              labelText: '压缩',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              _switch(
+                title: 'c2c (允许客户端互访)',
+                value: _c2c,
+                onChanged: (v) => setState(() => _c2c = v),
+              ),
+            ], subtitle: '下发给客户端的路由/DNS 与网关行为开关'),
+          _section('路由与 DNS', [
+            _textField(
+              _routes,
+              label: 'VPN 路由 routes (每行一个 CIDR)',
+              hint: '默认 0.0.0.0/0 全隧道; 也可只加 10.9.0.0/16 等',
+              maxLines: 3,
             ),
-            items: const [
-              DropdownMenuItem(value: '', child: Text('不压缩')),
-              DropdownMenuItem(value: 'deflate', child: Text('deflate')),
-              DropdownMenuItem(value: 'lz4', child: Text('lz4')),
-              DropdownMenuItem(value: 'zstd', child: Text('zstd')),
-            ],
-            onChanged: (v) => setState(() => _compress = v ?? ''),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _obfuscate,
-            decoration: const InputDecoration(
-              labelText: '混淆密钥 obfuscate_key',
-              hintText: '两端一致时启用数据特征混淆',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          _section('虚拟子网'),
-          TextField(
-            controller: _subnet,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: '虚拟子网 subnet',
-              hintText: '如 10.10.0.0/16, 客户端需与服务端一致',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          if (isGateway) ...[
-            _section('网关监听'),
-            TextField(
-              controller: _udpListen,
+            _textField(_dns, label: 'DNS 服务器 (每行一个)', maxLines: 2),
+            _textField(
+              _bypassroutes,
+              label: '绕过 VPN 路由 bypassroutes (每行一个)',
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'UDP 监听 (每行一个, 如 0.0.0.0:19090)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+            ),
+            _switch(
+              title: '绕过中国大陆 (中国 IP 直连)',
+              subtitle: '拉取中国 IP 段, 仅非中国流量接入 VPN; 启用后每次启动自动更新缓存',
+              value: _bypassCn,
+              onChanged: (v) => setState(() => _bypassCn = v),
+            ),
+          ], subtitle: 'Android VpnService 建立 tun 时使用的路由与 DNS'),
+          _section('DNS 拦截分流', [
+            _switch(
+              title: '启用 DNS 拦截分流',
+              subtitle:
+                  '拦截 tun 上 53 端口 DNS: 命中 gfwlist 的域名走 DoH 加密解析, '
+                  '其余直连国内 DNS',
+              value: _dnsIntercept,
+              onChanged: (v) => setState(() => _dnsIntercept = v),
+            ),
+            if (_dnsIntercept) ...[
+              _textField(
+                _dohUrl,
+                label: 'DoH 服务地址',
+                hint: '如 https://1.1.1.1/dns-query',
+                keyboardType: TextInputType.url,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _tcpListen,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'TCP 监听 (每行一个)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              _textField(
+                _directDns,
+                label: '直连 DNS 服务器',
+                hint: '如 114.114.114.114',
               ),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('passbyvpn (默认全局出口)'),
-              value: _passbyvpn,
-              onChanged: (v) => setState(() => _passbyvpn = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            SwitchListTile(
-              title: const Text('ignore_push (忽略推送路由/DNS)'),
-              value: _ignorePush,
-              onChanged: (v) => setState(() => _ignorePush = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            SwitchListTile(
-              title: const Text('c2c (允许客户端互访)'),
-              value: _c2c,
-              onChanged: (v) => setState(() => _c2c = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _pushroutes,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: '推送路由 pushroutes (每行一个)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+              _textField(
+                _gfwlistUrl,
+                label: 'gfwlist 下载地址',
+                hint: '默认 GitHub gfwlist, 每日自动更新并缓存',
+                keyboardType: TextInputType.url,
+                maxLines: 2,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _pushdns,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: '推送 DNS pushdns',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          _section('Android VpnService'),
-          SwitchListTile(
-            title: const Text('绕过中国大陆 (中国 IP 直连)'),
-            subtitle: const Text(
-              '拉取中国 IP 段, 仅非中国流量接入 VPN; '
-              '启用后每次启动自动更新缓存',
-            ),
-            value: _bypassCn,
-            onChanged: (v) => setState(() => _bypassCn = v),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 12),
-          _section('DNS 拦截分流'),
-          SwitchListTile(
-            title: const Text('启用 DNS 拦截分流'),
-            subtitle: const Text(
-              '拦截 tun 上 53 端口 DNS: 命中 gfwlist 的域名走 DoH '
-              '加密解析, 其余直连国内 DNS',
-            ),
-            value: _dnsIntercept,
-            onChanged: (v) => setState(() => _dnsIntercept = v),
-            contentPadding: EdgeInsets.zero,
-          ),
-          if (_dnsIntercept) ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: _dohUrl,
+            ],
+          ], subtitle: '命中 gfwlist 的域名走 DoH, 其余直连'),
+          _section('测试连接', [
+            _textField(
+              _testUrl,
+              label: '测试 URL',
+              hint: '如 https://google.com',
               keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: 'DoH 服务地址',
-                hintText: '如 https://1.1.1.1/dns-query',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _directDns,
-              decoration: const InputDecoration(
-                labelText: '直连 DNS 服务器',
-                hintText: '如 114.114.114.114',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _gfwlistUrl,
-              keyboardType: TextInputType.url,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'gfwlist 下载地址',
-                hintText: '默认 GitHub gfwlist, 每日自动更新并缓存',
-                border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          // TUN 地址/前缀由 subnet 自动推导 (客户端=网络地址+2, 网关=网络地址+1),
-          // 只读展示, 避免手工填写与服务端 subnet 不一致.
-          InputDecorator(
-            decoration: const InputDecoration(
-              labelText: 'TUN 地址 (自动推导)',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
-            child: Text(_tunPreview().$1),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _routes,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'VPN 路由 routes (每行一个 CIDR)',
-              hintText: '默认 0.0.0.0/0 全隧道; 也可只加 10.9.0.0/16 等',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _dns,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'DNS 服务器 (每行一个)',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _bypassroutes,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: '绕过 VPN 路由 bypassroutes (每行一个)',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          _section('测试连接'),
-          TextField(
-            controller: _testUrl,
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: '测试 URL',
-              hintText: '如 https://google.com, 用于运行页测量 VPN 延迟',
-              border: OutlineInputBorder(borderRadius: BorderRadius.zero),
-            ),
-          ),
-          const SizedBox(height: 24),
+          ], subtitle: '运行页据此测量 VPN 延迟'),
         ],
       ),
     );
   }
 
-  Widget _section(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
+  /// 分组卡片: 同类配置集中放置, 子项之间统一留白.
+  Widget _section(String title, List<Widget> children, {String? subtitle}) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              children[i],
+            ],
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _textField(
+    TextEditingController controller, {
+    required String label,
+    String? hint,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? formatters,
+    ValueChanged<String>? onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      inputFormatters: formatters,
+      onChanged: onChanged,
+      decoration: InputDecoration(labelText: label, hintText: hint),
+    );
+  }
+
+  Widget _numberField(
+    TextEditingController controller, {
+    required String label,
+  }) {
+    return _textField(
+      controller,
+      label: label,
+      keyboardType: TextInputType.number,
+      formatters: [FilteringTextInputFormatter.digitsOnly],
+    );
+  }
+
+  /// 只读展示 (外观与输入框一致).
+  Widget _readonlyField(String label, String value) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+      ),
+      child: Text(value),
+    );
+  }
+
+  Widget _dropdown<T>({
+    required T value,
+    required String label,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(labelText: label),
+      items: items,
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _switch({
+    required String title,
+    String? subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return SwitchListTile(
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      value: value,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
+    );
+  }
+
+  /// 并排两个等宽控件, 列间距与表单纵向间距一致.
+  Widget _pair(Widget left, Widget right) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: left),
+        const SizedBox(width: 12),
+        Expanded(child: right),
+      ],
     );
   }
 }
