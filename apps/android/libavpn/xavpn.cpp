@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -37,6 +39,71 @@ std::shared_ptr<std::atomic<bool>> g_io_finished;
 // OS 回收.
 std::vector<std::unique_ptr<libavpn::io_context_pool>> g_zombie_pools;
 std::vector<std::shared_ptr<libavpn::avpn_service>> g_zombie_services;
+
+// 退役对象回收: io_context 停线程后, 其对象中可能仍残留停止时挂起的协程
+// 帧 (如控制通道的 ws 读/关闭协程), 析构 io_context 需逐个销毁这些帧,
+// 实测可能耗时数百毫秒到数秒. 若在停止线程同步析构, 会阻塞后续启停
+// (界面表现为点停止卡顿). 退役对象移入队列, 由独立回收线程异步析构:
+// 停止线程只做同步必须项 (停止服务与 io 线程), 用户立即点开始即可创建
+// 新实例, 互不影响. 编译期开关 XAVPN_SYNC_DESTROY 关闭回收线程, 改为
+// 停止线程同步析构, 用于对比验证. 默认不定义, 即启用回收线程.
+#ifndef XAVPN_SYNC_DESTROY
+struct retired_objects
+{
+	std::unique_ptr<libavpn::io_context_pool> pool;
+	std::shared_ptr<libavpn::avpn_service> service;
+};
+
+std::mutex g_retire_mutex;
+std::condition_variable g_retire_cv;
+std::deque<retired_objects> g_retired;
+std::atomic<bool> g_retire_done{ false };
+
+void retire_objects(std::unique_ptr<libavpn::io_context_pool> pool,
+	std::shared_ptr<libavpn::avpn_service> service)
+{
+	{
+		std::lock_guard<std::mutex> lk(g_retire_mutex);
+		g_retired.emplace_back(
+			retired_objects{ std::move(pool), std::move(service) });
+	}
+	g_retire_cv.notify_one();
+}
+
+void reaper_main()
+{
+	for (;;)
+	{
+		retired_objects objs;
+		{
+			std::unique_lock<std::mutex> lk(g_retire_mutex);
+			g_retire_cv.wait(lk, []()
+				{
+					return !g_retired.empty() || g_retire_done.load();
+				});
+			if (g_retired.empty())
+				return;
+			objs = std::move(g_retired.front());
+			g_retired.pop_front();
+		}
+		// 析构在本线程执行: 可能耗时 (清理残留协程帧/慢析构成员), 不影响
+		// 停止与下一次启动. 先释放服务再释放池: 服务持有池的引用.
+		objs.service.reset();
+		objs.pool.reset();
+	}
+}
+
+std::once_flag g_reaper_once;
+
+void ensure_reaper()
+{
+	std::call_once(g_reaper_once, []()
+		{
+			// 进程退出时随 OS 回收, 无需 join.
+			std::thread(reaper_main).detach();
+		});
+}
+#endif // !XAVPN_SYNC_DESTROY
 
 // 有界等待 io 线程结束; 返回 false 表示超时 (io_context 可能已卡死).
 bool wait_io_finished(const std::shared_ptr<std::atomic<bool>>& flag,
@@ -86,10 +153,19 @@ void stop_locked()
 		if (g_service)
 			g_zombie_services.push_back(std::move(g_service));
 	}
-	else
+	else if (g_io_pool || g_service)
 	{
+#ifdef XAVPN_SYNC_DESTROY
+		// 开关模式: 对象析构 (io_context 清理残留协程帧等) 在本线程
+		// 同步执行, 正常路径下残留帧极少, 用于对比验证.
 		g_service.reset();
 		g_io_pool.reset();
+#else
+		// 正常路径: 对象析构 (io_context 清理残留协程帧等) 可能耗时,
+		// 移到后台回收线程执行, 停止线程不被阻塞, 也不影响下一次启动.
+		ensure_reaper();
+		retire_objects(std::move(g_io_pool), std::move(g_service));
+#endif
 	}
 	g_io_finished.reset();
 }
