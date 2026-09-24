@@ -55,8 +55,51 @@ flutter build apk --debug
 
 ```sh
 flutter analyze
-flutter test   # 配置序列化/校验/存储、WS JSON-RPC 协议、列表页交互
+flutter test   # 配置序列化/校验/存储、WS JSON-RPC 协议、列表页交互、自更新协议
 ```
+
+## 自动更新
+
+应用启动后(延迟 3s)在后台检查更新, 顶部工具栏的 `检查更新` 按钮可手动触发.
+更新源是站点发布目录里的安装包, 以及同一目录的 JSON 列表(每项带整文件 SHA-1):
+
+```
+https://www.jackarain.org/download/avpn-release.apk
+https://www.jackarain.org/download/?q=json&hash=1
+```
+
+发布方式: 构建 `app-release.apk` 后重命名为 `avpn-release.apk` 上传到该地址; 客户端按发布
+目录里 `avpn-release.apk` 的整文件 SHA-1 判断有无更新, 因此重新构建或重新上传就会提示,
+不强制递增版本号.
+
+版本号: 只写在 `pubspec.yaml` 的 `version: 1.0.0+N`(N 即 `versionCode`), 本地与 CI 都按它
+构建, 不要另外传 `--build-number`(否则两种构建来源产出的 versionCode 不一致, 用户装过高
+号的那份就再也装不上低号的包). 客户端不靠版本号判断有无更新, 但 `versionCode` 决定能否
+覆盖安装: 新包必须 >= 已安装版本, 低于时系统会拒绝降级安装.
+
+流程:
+
+1. **查询**: 取发布目录列表(`?q=json&hash=1`), 找到 `filename` 为 `avpn-release.apk` 的那项,
+   用它的 `hash`(整文件 SHA-1)、`filesize` 与 `last_write_time`. 列表本身只有数百字节,
+   检查几乎不耗流量.
+2. **比对**: 列表里的 hash 与本机记录(已安装或「跳过此版本」)不同即视为有更新; 另外会
+   计算已安装 APK 的整包 SHA-1, 与列表值一致时(刚装完或首次检查)不下载也能确认是最新.
+3. **下载**: 落地到应用私有外部目录 `update/avpn-release.apk`, 弹进度条显示百分比与速度, 可取消.
+4. **校验**: 计算下载包的整包 SHA-1, 必须与列表里的 `hash` 一致(传输截断或被换成别的包
+   都会挡在这里); 再读包内 `versionCode` 与签名证书 SHA-256: `versionCode` 小于当前版本
+   时系统会拒绝降级安装, 签名不一致则需要卸载重装, 两种情况都提前说明而不是让系统安装器
+   报出难以理解的失败.
+5. **安装**: 经 `FileProvider` 交给系统安装器(`REQUEST_INSTALL_PACKAGES`), Android 8.0+
+   未授权时会跳到「安装未知应用」页, 授权后返回即可继续. 安装会终止应用进程, 因此发起
+   安装时先记录「待核对」的 hash, 下次启动发现已安装包的 SHA-1 与记录一致才记为已处理;
+   用户若在系统安装器里取消, 记录会被丢弃, 之后仍会再次提示该版本.
+
+已知限制:
+
+- 只要发布目录上的包内容变了(哪怕只是重新构建)就会提示更新; 想低频发版就只在需要时上传新包.
+- 只支持自签名分发: 换签名密钥后旧包必须先卸载(签名不同系统会拒绝覆盖安装);
+  上架 Google Play 的版本不能自带更新(政策限制).
+- 检查只拉数百字节的列表 JSON, 不下载安装包; 自动检查 24h 内只做一次, VPN 运行中不做自动检查.
 
 ## 注意事项
 

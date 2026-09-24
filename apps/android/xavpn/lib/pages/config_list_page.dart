@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import '../services/app_session.dart';
 import '../services/storage_service.dart';
 import '../services/vpn_channel.dart';
 import '../services/launcher_server.dart';
+import '../widgets/update_flow.dart';
 import 'config_edit_page.dart';
 import 'running_page.dart';
 
@@ -24,6 +26,9 @@ class _ConfigListPageState extends State<ConfigListPage> {
   bool _busy = false;
   String _gitHash = '';
 
+  /// 启动后延迟检查更新的定时器 (延时是为了不拖慢首屏).
+  Timer? _updateTimer;
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,9 @@ class _ConfigListPageState extends State<ConfigListPage> {
     // 顶部显示 libxavpn 编译时记录的 git commit hash.
     VpnChannel.buildVersion().then((v) {
       if (mounted && v.isNotEmpty) setState(() => _gitHash = v);
+    });
+    _updateTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) unawaited(autoCheckUpdate(context));
     });
   }
 
@@ -115,6 +123,7 @@ class _ConfigListPageState extends State<ConfigListPage> {
 
   @override
   void dispose() {
+    _updateTimer?.cancel();
     AppSession.instance.removeListener(_onSession);
     super.dispose();
   }
@@ -303,6 +312,11 @@ class _ConfigListPageState extends State<ConfigListPage> {
       appBar: AppBar(
         title: const Text('aVPN 配置'),
         actions: [
+          IconButton(
+            tooltip: '检查更新',
+            onPressed: _busy ? null : () => unawaited(checkUpdateNow(context)),
+            icon: const Icon(Icons.system_update_alt),
+          ),
           if (_gitHash.isNotEmpty)
             Center(
               child: Padding(

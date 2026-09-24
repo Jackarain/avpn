@@ -23,6 +23,9 @@ class MainActivity : FlutterActivity() {
 
     private var pendingPrepare: MethodChannel.Result? = null
 
+    /** 自更新通道 (持工作线程), 引擎销毁时回收. */
+    private var updateChannel: UpdateChannel? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -90,6 +93,16 @@ class MainActivity : FlutterActivity() {
                     XavpnEvents.setSink(null)
                 }
             })
+
+        // 更新包的版本/签名读取与安装.
+        updateChannel = UpdateChannel(this).also { it.attach(flutterEngine) }
+    }
+
+    /** 界面/引擎销毁: 回收自更新通道的工作线程 (已提交的任务继续跑完). */
+    override fun onDestroy() {
+        updateChannel?.close()
+        updateChannel = null
+        super.onDestroy()
     }
 
     private fun handlePrepare(result: MethodChannel.Result) {
