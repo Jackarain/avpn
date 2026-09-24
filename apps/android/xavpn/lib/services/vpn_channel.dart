@@ -86,6 +86,14 @@ class VpnChannel {
     return fd;
   }
 
+  /// 关闭未成功注入 libavpn 的 tun fd.
+  ///
+  /// 注入失败或被停止流程中断时 fd 未被 native 接管, 必须关闭, 否则
+  /// VpnService tun 设备残留, 影响后续建立.
+  static Future<void> closeTunFd(int fd) async {
+    await _channel.invokeMethod('close_tun_fd', {'fd': fd});
+  }
+
   /// 原生事件: {"type":"log"|"vpn_state", ...}.
   static Stream<Map<String, dynamic>> events() {
     return _events.receiveBroadcastStream().map(

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'cn_ip_list.dart';
 import 'vpn_channel.dart';
 
@@ -158,7 +160,8 @@ class LauncherServer {
     if (cfg['bypassCn'] == true) {
       // 绕过中国大陆: 仅非中国段接入 VPN, 中国段走系统物理网络直连.
       final cn = await CnIpList.update();
-      routes = CnIpList.vpnRoutes(cn);
+      // 补集运算涉及上万条 CIDR, 放独立 isolate 计算, 避免阻塞 UI.
+      routes = await compute(CnIpList.vpnRoutes, cn);
       if (routes.isEmpty) {
         // 无缓存且拉取失败时回退用户配置路由.
         routes = _strList(cfg['routes']);
@@ -179,9 +182,24 @@ class LauncherServer {
         dns: dns,
         session: cfg['name'] as String? ?? 'aVPN',
       );
-      final result = await call('set_tun_fd', {'ptun_fd': fd});
-      if (result['ok'] != true) {
-        _logLocal('set_tun_fd 失败: ${result['error']}');
+      var injected = false;
+      try {
+        final result = await call('set_tun_fd', {'ptun_fd': fd});
+        if (result['ok'] == true) {
+          injected = true;
+        } else {
+          _logLocal('set_tun_fd 失败: ${result['error']}');
+        }
+      } catch (e) {
+        _logLocal('注入 TUN 失败: $e');
+      } finally {
+        // 注入失败/被停止流程中断时 fd 未被 native 接管, 必须关闭,
+        // 否则 VpnService tun 设备残留.
+        if (!injected) {
+          try {
+            await VpnChannel.closeTunFd(fd);
+          } catch (_) {}
+        }
       }
     } catch (e) {
       _logLocal('建立 TUN 失败: $e');

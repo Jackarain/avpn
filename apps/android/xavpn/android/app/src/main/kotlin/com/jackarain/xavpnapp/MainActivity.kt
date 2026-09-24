@@ -6,12 +6,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
     companion object {
@@ -25,6 +27,9 @@ class MainActivity : FlutterActivity() {
 
     /** 自更新通道 (持工作线程), 引擎销毁时回收. */
     private var updateChannel: UpdateChannel? = null
+
+    /** VpnService 建立 (含逐条 addRoute) 在后台线程执行, 避免阻塞主线程. */
+    private val tunExecutor = Executors.newSingleThreadExecutor()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -96,16 +101,37 @@ class MainActivity : FlutterActivity() {
                         if (instance == null) {
                             result.error("NO_SERVICE", "VpnService 未运行", null)
                         } else {
-                            try {
-                                result.success(
-                                    instance.establishTun(
-                                        address, prefix, mtu, routes, dns, session
+                            // VpnService 建立与 addRoute 在后台线程执行: bypassCn
+                            // 时路由多达上万条, 主线程同步执行会阻塞 UI 造成卡顿.
+                            tunExecutor.execute {
+                                try {
+                                    result.success(
+                                        instance.establishTun(
+                                            address, prefix, mtu, routes, dns, session
+                                        )
                                     )
-                                )
-                            } catch (e: Exception) {
-                                result.error("ESTABLISH_FAILED", e.message, null)
+                                } catch (e: Exception) {
+                                    result.error("ESTABLISH_FAILED", e.message, null)
+                                }
                             }
                         }
+                    }
+                    // 关闭未成功注入 native 的 tun fd. 不能依赖服务实例:
+                    // 停止流程可能已销毁服务, 此时 instance 为 null; fd 为
+                    // 普通文件描述符, 直接在进程内关闭.
+                    "close_tun_fd" -> {
+                        val fd = call.argument<Int>("fd") ?: -1
+                        val ok = if (fd >= 0) {
+                            try {
+                                ParcelFileDescriptor.adoptFd(fd).close()
+                                true
+                            } catch (_: Throwable) {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                        result.success(ok)
                     }
                     else -> result.notImplemented()
                 }
@@ -128,6 +154,7 @@ class MainActivity : FlutterActivity() {
 
     /** 界面/引擎销毁: 回收自更新通道的工作线程 (已提交的任务继续跑完). */
     override fun onDestroy() {
+        tunExecutor.shutdown()
         updateChannel?.close()
         updateChannel = null
         super.onDestroy()
