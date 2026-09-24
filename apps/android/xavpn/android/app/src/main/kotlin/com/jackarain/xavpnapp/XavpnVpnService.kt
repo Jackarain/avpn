@@ -253,6 +253,17 @@ class XavpnVpnService : VpnService() {
         stopSelf()
     }
 
+    /**
+     * VPN 被撤销 (用户在系统设置里断开, 或另一个 VPN 应用接管): 系统已关闭
+     * 本服务的 tun, 必须停掉 avpn 与前台服务并让界面复位, 否则应用仍显示
+     * 运行中而流量不再经隧道.
+     */
+    override fun onRevoke() {
+        worker.post { teardownAndStop() }
+        XavpnEvents.emitVpnState("revoked", "VPN 已被系统撤销, 连接已停止")
+        super.onRevoke()
+    }
+
     override fun onDestroy() {
         if (instance === this) instance = null
         // 通知 Flutter 停止已完成(实例已销毁): 取走回调并清空, 使下一次
