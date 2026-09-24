@@ -56,6 +56,27 @@ class XavpnVpnService : VpnService() {
                 Intent(context, XavpnVpnService::class.java).setAction(ACTION_STOP)
             )
         }
+
+        /** 服务实例代次: 每次新实例 onCreate 递增, 旧实例 onDestroy 据此判断是否让位. */
+        @Volatile
+        private var generation = 0L
+
+        /** 停止完成回调: MainActivity 的 stop MethodChannel 据此在实例销毁
+         *  (onDestroy) 后再返回, 使 Flutter 停止流程与 native teardown 同步. */
+        @Volatile
+        private var onStopComplete: (() -> Unit)? = null
+
+        /** 注册停止完成回调; 已有未决回调时返回 false(并发 stop 兜底). */
+        fun registerStopCallback(cb: () -> Unit): Boolean {
+            if (onStopComplete != null) return false
+            onStopComplete = cb
+            return true
+        }
+
+        /** 丢弃未决回调: 停止请求提交失败时避免其后续被误触发. */
+        fun clearStopCallback() {
+            onStopComplete = null
+        }
     }
 
     private val workerThread = HandlerThread("xavpn-worker").apply { start() }
@@ -64,8 +85,12 @@ class XavpnVpnService : VpnService() {
     @Volatile
     private var started = false
 
+    /** 本实例的代次: onCreate 时领取, teardown 据此判断是否已被新实例接管. */
+    private var myGeneration = 0L
+
     override fun onCreate() {
         super.onCreate()
+        myGeneration = ++generation
         instance = this
     }
 
@@ -208,10 +233,15 @@ class XavpnVpnService : VpnService() {
     /** 停止 avpn 并释放资源; 幂等, 可重复调用. tun fd 由 libavpn 持有并关闭. */
     private fun teardown() {
         if (started) {
-            try {
-                XavpnBridge.stop()
-            } catch (_: Throwable) {
-                // 忽略停止时的异常.
+            // 代次检查: 快速 停止->再运行 时若已有新实例接管 (其 start 流程会
+            // 停旧启新), 本实例不得再停 avpn, 否则会误停新实例刚启动的服务,
+            // 表现为重新启动后 VPN 无法正常工作.
+            if (myGeneration == generation) {
+                try {
+                    XavpnBridge.stop()
+                } catch (_: Throwable) {
+                    // 忽略停止时的异常.
+                }
             }
             started = false
         }
@@ -225,11 +255,21 @@ class XavpnVpnService : VpnService() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
-        // 工作线程可能正持有资源, 排队清理后退出.
-        worker.post {
-            teardown()
-            workerThread.quitSafely()
+        // 通知 Flutter 停止已完成(实例已销毁): 取走回调并清空, 使下一次
+        // 连接由新实例执行, 避免 establish_tun 时实例已销毁导致 TUN 失败.
+        val cb = onStopComplete
+        onStopComplete = null
+        try {
+            cb?.invoke()
+        } catch (_: Throwable) {
         }
+        // 注意: 这里不再 teardown() 停止 avpn. 复用同一服务实例快速启停时,
+        // 旧实例的 onDestroy 若 teardown 会误停队列中刚启动的新服务(started
+        // 指向新服务, 同实例代次未变), 表现为快速启停后 avpn 刚启动就被停,
+        // 控制通道永远连不上. avpn 的停止统一由显式 ACTION_STOP
+        // (teardownAndStop) 与下一次启动的防御性 teardown 负责, onDestroy
+        // 只回收工作线程.
+        worker.post { workerThread.quitSafely() }
         super.onDestroy()
     }
 }

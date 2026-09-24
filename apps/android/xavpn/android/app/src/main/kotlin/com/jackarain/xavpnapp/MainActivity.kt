@@ -44,8 +44,36 @@ class MainActivity : FlutterActivity() {
                         handleRestart(config, port, result)
                     }
                     "stop" -> {
-                        XavpnVpnService.requestStop(this)
-                        result.success(true)
+                        // 等待 VpnService 实例销毁(onDestroy)后再返回:
+                        // 使 Flutter 侧停止流程与 native teardown 的真实
+                        // 生命周期同步, 避免下一次 START 提交到正在销毁的
+                        // 旧实例(VpnService 未运行, establish_tun 失败).
+                        // 正常情况下 onDestroy 在停止请求后立即触发, 回调
+                        // 在数百毫秒内完成, 不会明显卡顿.
+                        val registered = XavpnVpnService.registerStopCallback {
+                            runOnUiThread {
+                                try {
+                                    result.success(true)
+                                } catch (_: Throwable) {
+                                    // result 已失效(如 Flutter 侧超时), 忽略.
+                                }
+                            }
+                        }
+                        if (!registered) {
+                            // 已有未决的 stop 回调(并发 stop 的兜底):
+                            // 立即返回, 避免本 result 永久挂起.
+                            result.success(true)
+                        }
+                        try {
+                            XavpnVpnService.requestStop(this)
+                        } catch (e: Exception) {
+                            // 请求提交失败: 仅当本次注册了回调时才丢弃并回错,
+                            // 否则会误清他人的未决回调或重复应答(result 已发).
+                            if (registered) {
+                                XavpnVpnService.clearStopCallback()
+                                result.error("STOP_FAILED", e.message, null)
+                            }
+                        }
                     }
                     // libxavpn 编译时记录的 git commit hash 前 6 位.
                     "build_version" -> {

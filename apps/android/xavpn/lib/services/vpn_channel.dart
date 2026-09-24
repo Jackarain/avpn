@@ -29,8 +29,15 @@ class VpnChannel {
   }
 
   /// 停止 VpnService 并调用 xavpn.stop().
+  ///
+  /// native 端在服务实例完全销毁 (onDestroy) 后才完成该调用, 使 Flutter
+  /// 的停止流程与服务的真实生命周期同步: 否则下一次 connect 的 START 可能
+  /// 提交到正在销毁的旧实例, 导致 VpnService 未运行、establish_tun 失败
+  /// (TUN 创建失败无法使用). 带超时保护, 防止服务销毁异常时永久阻塞.
   static Future<void> stop() async {
-    await _channel.invokeMethod('stop');
+    await _channel
+        .invokeMethod('stop')
+        .timeout(const Duration(seconds: 8), onTimeout: () => null);
   }
 
   /// 返回 libxavpn 编译时记录的 git commit hash 前 6 位.
