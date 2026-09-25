@@ -90,6 +90,9 @@ namespace libavpn {
 
 		close_session();
 		asio_util::cancel(m_timer, ec);
+		// 唤醒状态上报循环: 定时器若为 serve() 内的局部对象则无法取消,
+		// 停止时 io_context 要等满一个上报周期才能退出 (表现为停止卡顿).
+		asio_util::cancel(m_status_timer, ec);
 
 		// 中止在途连接: 连接/握手阶段的 socket 不属于会话, 不会因会话关闭而
 		// 结束, 必须显式关闭. 关闭动作投递到 main io_context 执行, 避免跨线程
@@ -484,13 +487,11 @@ namespace libavpn {
 				send_status();
 
 				// 状态上报循环: 连接断开或 stop 时退出.
-				auto ex = co_await net::this_coro::executor;
-				net::steady_timer timer(ex);
 				boost::system::error_code sec;
 				while (!m_abort && !m_session_closed)
 				{
-					timer.expires_after(k_status_interval);
-					co_await timer.async_wait(net_awaitable[sec]);
+					m_status_timer.expires_after(k_status_interval);
+					co_await m_status_timer.async_wait(net_awaitable[sec]);
 					if (m_abort || m_session_closed)
 						break;
 					send_status();

@@ -115,6 +115,10 @@ namespace libavpn {
 
 		net::steady_timer m_timer{ m_ioc_pool.main_io_context() };
 
+		// 状态上报循环使用的定时器. 必须是成员: 局部定时器无法被 stop()
+		// 取消, 停止时 io_context 需等满一个上报周期才能退出.
+		net::steady_timer m_status_timer{ m_ioc_pool.main_io_context() };
+
 		// 在途连接的取消动作与保护锁 (stop 可能来自其它线程).
 		std::mutex m_connect_mu_;
 		connect_cancel_fn m_connect_cancel_;
