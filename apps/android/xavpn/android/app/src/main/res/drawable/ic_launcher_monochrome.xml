@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 单色图标层：盾牌描边 + 「V」字标，供系统主题化着色。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineJoin="round"
+        android:pathData="M54,35.9 C60.1,35.9 66.4,38.0 72,41.2 L72,54.73 C72,64.3 64.1,70.9 54,75 C43.9,70.9 36,64.3 36,54.73 L36,41.2 C41.6,38.0 47.9,35.9 54,35.9 Z"/>
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M47.4,45.6 L54,62.4 L60.6,45.6"/>
+</vector>

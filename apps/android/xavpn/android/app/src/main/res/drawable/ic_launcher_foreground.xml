@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标前景：白色盾牌 + 「V」字标，控制在 66dp 安全区内。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,33.6 C60.4,33.6 67.03,35.74 73,39.2 L73,54.73 C73,65.03 64.59,72.12 54,76.4 C43.41,72.12 35,65.03 35,54.73 L35,39.2 C40.97,35.74 47.6,33.6 54,33.6 Z"/>
+    <path
+        android:strokeColor="#1B2FB4"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M46.4,44.3 L54,63.43 L61.6,44.3"/>
+</vector>

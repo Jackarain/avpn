@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  aVPN logo source.
+
+  设计说明：圆角方形底 + 白色盾牌 + 盾内「V」字标。
+  盾牌取自 VPN 的安全/加密语义，「V」取自 aVPN 首字母，两臂自盾顶向盾底
+  收拢，形似流量汇入加密隧道；白色盾面在蓝色渐变底上保证 26px 小尺寸下
+  依然清晰。底图渐变、高光与字标配色如下，导出的 PNG 由本文件生成。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A8CFF"/>
+      <stop offset="1" stop-color="#1B2FB4"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCE5FF"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3E6FF0"/>
+      <stop offset="1" stop-color="#16289F"/>
+    </linearGradient>
+    <radialGradient id="gloss" cx="0.3" cy="0.18" r="0.95">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#gloss)"/>
+  <path d="M512 236 C 606 236 704 268 792 320 L 792 552 C 792 706 668 812 512 876 C 356 812 232 706 232 552 L 232 320 C 320 268 418 236 512 236 Z" fill="url(#shield)"/>
+  <path d="M 400 396 L 512 682 L 624 396" fill="none" stroke="url(#mark)" stroke-width="88" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
