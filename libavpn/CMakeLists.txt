@@ -34,7 +34,6 @@ target_sources(libavpn
 
 	${CMAKE_CURRENT_SOURCE_DIR}/src/httpc.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lib_asio_beast.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_log.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ipip.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn.cpp

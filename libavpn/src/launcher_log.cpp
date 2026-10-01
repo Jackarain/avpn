@@ -9,14 +9,13 @@
 //
 // 日志转发到 launcher 控制通道的队列实现。
 //
-// 日志经 logging.hpp 的 logger_tag 钩子转发到 log_hook_forward, 在其中写入
-// 本队列 (可能来自多个线程, logger_writer__ 内部已有全局锁, 此处再加互斥保证
-// 队列安全), 由 vpn_launcher 控制通道上报时调用 launcher_log_drain 批量取出
-// 并通过 RPC notify "log" 发送给 launcher。
+// 日志经 launcher_log.hpp 中定义的 logger_tag 钩子采集 (可能来自多个
+// 线程, logger_writer__ 内部已有全局锁, 此处再加互斥保证队列安全),
+// 由 vpn_launcher 控制通道上报时调用 launcher_log_drain 批量取出并通过
+// RPC notify "log" 发送给 launcher。
 //
 
 #include "libavpn/launcher_log.hpp"
-#include "libavpn/logging.hpp"
 
 #include <atomic>
 #include <deque>

@@ -9,6 +9,7 @@
 #define INCLUDE__2025_11_20__AVPN_HPP
 
 #include "libavpn/io_context_pool.hpp"
+#include "libavpn/launcher_log.hpp"
 #include "libavpn/netlink_route.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/udp.hpp>
