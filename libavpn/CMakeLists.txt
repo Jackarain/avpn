@@ -11,7 +11,6 @@ target_sources(libavpn
 	PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/ipip.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/logging.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/httpc/httpc.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/use_awaitable.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/xxhash.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn.hpp
@@ -32,7 +31,6 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/netlink_route.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/nat_rule.hpp
 
-	${CMAKE_CURRENT_SOURCE_DIR}/src/httpc.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lib_asio_beast.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_log.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ipip.cpp
@@ -91,6 +89,7 @@ target_link_libraries(libavpn
 	Boost::scope
 	Boost::system
 
+	httpc::httpc
 	fmt
 	${ZLIB_LIBRARIES}
 	${OPENSSL_LIBRARIES}

@@ -522,6 +522,18 @@ set(FMT_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fmt/include)
 set(FMT_LIBRARIES fmt)
 
 ################################################################################
+# 使用 httpc（第三方 C++20 HTTP 客户端库）
+
+# 复用宿主已构建的 Boost/OpenSSL 目标；asio/beast 的独立编译符号由 libavpn
+# 内的 lib_asio_beast.cpp 提供，避免重复编译与符号冲突；不生成安装规则.
+set(HTTPC_INSTALL OFF)
+set(HTTPC_SEPARATE_COMPILATION OFF)
+set(HTTPC_BUILD_EXAMPLES OFF)
+set(HTTPC_BUILD_TESTS OFF)
+add_subdirectory(third_party/httpc)
+set_property(TARGET httpc PROPERTY FOLDER "third_party/httpc")
+
+################################################################################
 # 添加 avpn 项目
 
 add_subdirectory(libavpn)
