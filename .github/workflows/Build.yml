@@ -151,7 +151,7 @@ jobs:
       image: alpine:3.20.1
     steps:
       - name: Install packages
-        run: apk add bash git nasm yasm pkgconfig build-base clang cmake ninja linux-headers
+        run: apk add bash git nasm yasm perl pkgconfig build-base clang cmake ninja linux-headers
 
       - uses: actions/checkout@v6
 
