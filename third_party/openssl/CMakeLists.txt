@@ -5,6 +5,17 @@ project(openssl C)
 
 option(SHARED_OPENSSL "build shared openssl lib" OFF)
 
+# 上层 add_compile_options 注入的 MSVC 专用参数（如 /utf-8）会传播到
+# 汇编语言，nasm 会将其当作输入文件而报错；这里把目录级编译选项
+# 限制为 C/CXX，汇编源不受影响
+get_directory_property(_openssl_dir_options COMPILE_OPTIONS)
+if(_openssl_dir_options)
+    set_property(DIRECTORY PROPERTY COMPILE_OPTIONS "")
+    foreach(_openssl_option IN LISTS _openssl_dir_options)
+        add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:${_openssl_option}>")
+    endforeach()
+endif()
+
 # ==================== 目标架构检测 ====================
 # 交叉编译（如 MinGW）时 CMAKE_SYSTEM_PROCESSOR 可能为空，
 # 同时参考编译器三元组（CMAKE_C_COMPILER(_TARGET)）避免误判
@@ -2588,12 +2599,20 @@ set_target_properties(ssl PROPERTIES FOLDER "third_party/openssl")
 target_include_directories(crypto PUBLIC ${OPENSSL_INCLUDES})
 target_include_directories(ssl PUBLIC ${OPENSSL_INCLUDES})
 
-# 编译宏仅应用于 C 源：汇编源不参与 C 预处理，接收 -D 会触发
-# -Wunused-command-line-argument；INTERFACE 部分仍向下游使用者传播。
+# 宏只挂到 C 源文件上：VS/MSBuild 生成器不会为 NASM 项按语言过滤
+# target 级宏，宏会被一并送给 nasm 而导致解析失败；INTERFACE 部分
+# 仍向下游使用者传播。
 function(openssl_target_defines _target)
     if(ARGC GREATER 1)
         target_compile_definitions(${_target} INTERFACE ${ARGN})
-        target_compile_definitions(${_target} PRIVATE "$<$<COMPILE_LANGUAGE:C>:${ARGN}>")
+        get_target_property(_openssl_target_srcs ${_target} SOURCES)
+        set(_openssl_c_srcs "")
+        foreach(_openssl_src IN LISTS _openssl_target_srcs)
+            if(_openssl_src MATCHES "[.]c$")
+                list(APPEND _openssl_c_srcs "${_openssl_src}")
+            endif()
+        endforeach()
+        set_property(SOURCE ${_openssl_c_srcs} APPEND PROPERTY COMPILE_DEFINITIONS ${ARGN})
     endif()
 endfunction()
 
