@@ -9,7 +9,7 @@ import 'vpn_channel.dart';
 
 /// 本地 JSON-RPC over WebSocket 控制服务端.
 ///
-/// 作为 libavpn launcher 的控制端: avpn 启动后会主动连接
+/// 作为 libxavpn launcher 的控制端: avpn 启动后会主动连接
 /// ws://127.0.0.1:port, 注册实例并持续上报 status/log/vaddr;
 /// 本端可向其发起 get_status / update_config / set_tun_fd / shutdown 等
 /// RPC 请求, 并响应 avpn 的 protect 请求 (放行对外 socket).
@@ -138,7 +138,7 @@ class LauncherServer {
     try {
       switch (method) {
         case 'protect':
-          // 放行 libavpn 对外 socket, 避免流量回环进 tun.
+          // 放行 libxavpn 对外 socket, 避免流量回环进 tun.
           final fd = (params['fd'] as num?)?.toInt() ?? -1;
           _reply(id, {'ok': await VpnChannel.protect(fd)});
         default:
@@ -149,7 +149,7 @@ class LauncherServer {
     }
   }
 
-  /// 处理 vaddr 通知: 用服务端下发的地址建立 tun, 再注入 libavpn.
+  /// 处理 vaddr 通知: 用服务端下发的地址建立 tun, 再注入 libxavpn.
   Future<void> _handleVaddr(Map<String, dynamic> params) async {
     final address = params['ip'] as String? ?? '';
     final prefix = (params['prefix'] as num?)?.toInt() ?? 24;
@@ -259,7 +259,7 @@ class LauncherServer {
         case 'register':
           _registerCtrl.add(params);
         case 'vaddr':
-          // 服务端下发的 tun 地址: 建立 VpnService tun 并注入 libavpn.
+          // 服务端下发的 tun 地址: 建立 VpnService tun 并注入 libxavpn.
           unawaited(_handleVaddr(params));
       }
     } else if (msg.containsKey('id')) {

@@ -84,7 +84,7 @@ class MainActivity : FlutterActivity() {
                     "build_version" -> {
                         result.success(XavpnBridge.buildVersion())
                     }
-                    // 控制通道 protect 请求: 放行 libavpn 的对外 socket.
+                    // 控制通道 protect 请求: 放行 libxavpn 的对外 socket.
                     "protect" -> {
                         val fd = call.argument<Int>("fd") ?: -1
                         result.success(XavpnVpnService.instance?.protectSocket(fd) ?: false)

@@ -1,6 +1,6 @@
 # xavpn — aVPN Android 客户端 (Flutter)
 
-基于 `libavpn` 编译出的 `libxavpn.so`, 通过 Android `VpnService` 建立 TUN,
+基于 `apps/android/libxavpn` 编译出的 `libxavpn.so`, 通过 Android `VpnService` 建立 TUN,
 在同一个进程内直接调用 `xavpn.start(json)` 运行 aVPN.
 
 ## 架构
@@ -9,14 +9,14 @@
 Flutter (Dart)                          Android 原生 (Kotlin)                 libxavpn.so (C++)
 ┌────────────────────────┐  MethodChannel ┌─────────────────────────┐  JNI   ┌──────────────────────┐
 │ 配置管理/存储/UI        │ ──────────────▶ │ MainActivity            │ ─────▶ │ xavpn.start(json)     │
-│ 本地 WS 控制端 (Dart)   │                │ VpnService (TUN+protect)│        │ libavpn 服务          │
+│ 本地 WS 控制端 (Dart)   │                │ VpnService (TUN+protect)│        │ libxavpn 服务         │
 │ LauncherServer       │ ◀── ws jsonrpc ─┤                         │ ◀───── │ launcher 客户端     │
 └────────────────────────┘                └─────────────────────────┘        └──────────────────────┘
 ```
 
 - **配置**: 多条配置以 JSON 存于 SharedPreferences; 启动时经 json 传入 `libxavpn.so`.
 - **TUN**: `VpnService.establish()` 返回的 fd 经 `ptun_fd` 字段注入 json, 同进程直接使用.
-- **protect**: `libavpn` 创建 nexthop 对外 socket 时回调 `setProtectCallback`,
+- **protect**: `libxavpn` 创建 nexthop 对外 socket 时回调 `setProtectCallback`,
   Kotlin 侧调用 `VpnService.protect(fd)` 放行, 避免流量回环进入 TUN.
 - **控制通道**: Flutter 内置本地 WS 服务 (`127.0.0.1:<port>`), 经 `launcher`
   字段交给 avpn, avpn 主动连接并上报 `register/status/log`;

@@ -18,7 +18,7 @@ object XavpnBridge {
     }
 
     /**
-     * 启动 avpn: 将 Flutter 下发的 UI 配置 (camelCase) 翻译为 libavpn 配置
+     * 启动 avpn: 将 Flutter 下发的 UI 配置 (camelCase) 翻译为 libxavpn 配置
      * (snake_case) 后调用 xavpn.start. tun fd 不在启动时传入, 由握手后
      * 服务端下发的 vaddr 建立 VpnService tun 再经控制通道 set_tun_fd 注入.
      *
@@ -27,7 +27,7 @@ object XavpnBridge {
      */
     fun start(config: String, launcherPort: Int): Int {
         val cfg = JSONObject(config)
-        // camelCase (Flutter) -> snake_case (libavpn).
+        // camelCase (Flutter) -> snake_case (libxavpn).
         rename(cfg, "privateKey", "private_key")
         rename(cfg, "publicKey", "public_key")
         rename(cfg, "mtuSize", "mtu_size")

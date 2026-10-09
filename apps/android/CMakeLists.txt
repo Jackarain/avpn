@@ -1,1 +1,1 @@
-﻿add_subdirectory(libavpn)
+﻿add_subdirectory(libxavpn)

@@ -303,4 +303,4 @@ apps/avpn/src/resource/avpn.rc
 !apps/android/xavpn/android/app/src/main/jniLibs/x86_64/
 
 # SWIG 构建产物 (cmake 构建时在源码目录生成).
-apps/android/libavpn/xavpn_wrap.cxx
+apps/android/libxavpn/xavpn_wrap.cxx

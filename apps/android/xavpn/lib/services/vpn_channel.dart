@@ -63,7 +63,7 @@ class VpnChannel {
     return ok ?? false;
   }
 
-  /// 以服务端下发的 vaddr 建立 VpnService tun, 返回注入 libavpn 的 fd.
+  /// 以服务端下发的 vaddr 建立 VpnService tun, 返回注入 libxavpn 的 fd.
   static Future<int> establishTun({
     required String address,
     required int prefix,
@@ -86,7 +86,7 @@ class VpnChannel {
     return fd;
   }
 
-  /// 关闭未成功注入 libavpn 的 tun fd.
+  /// 关闭未成功注入 libxavpn 的 tun fd.
   ///
   /// 注入失败或被停止流程中断时 fd 未被 native 接管, 必须关闭, 否则
   /// VpnService tun 设备残留, 影响后续建立.

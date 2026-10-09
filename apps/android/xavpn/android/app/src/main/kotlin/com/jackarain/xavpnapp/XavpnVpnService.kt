@@ -17,9 +17,9 @@ import androidx.core.content.ContextCompat
  * VpnService: 以服务端下发的 vaddr 创建 TUN 设备、放行 nexthop socket,
  * 并持有 libxavpn.so 生命周期.
  *
- * 启动时先经 XavpnBridge 启动 libavpn (无 tun), 握手后 libavpn 通过
+ * 启动时先经 XavpnBridge 启动 libxavpn (无 tun), 握手后 libxavpn 通过
  * 控制通道 WebSocket 下发 vaddr, Flutter 收到后调用 establishTun 在此
- * 建立 VpnService tun 并 detach fd, 再经控制通道 set_tun_fd 注入 libavpn.
+ * 建立 VpnService tun 并 detach fd, 再经控制通道 set_tun_fd 注入 libxavpn.
  * protect 同样经控制通道请求到达 (onProtectSocket), 由本服务放行,
  * 避免对外 socket 流量回环进 tun.
  *
@@ -165,7 +165,7 @@ class XavpnVpnService : VpnService() {
     }
 
     /**
-     * 以服务端下发的 vaddr 建立 VpnService tun, detach 返回 fd (由 libavpn
+     * 以服务端下发的 vaddr 建立 VpnService tun, detach 返回 fd (由 libxavpn
      * 持有并负责关闭). 地址/路由/MTU 在此一次性配置, 后续不可更改.
      *
      * @param address 服务端握手下发的 tun 地址.
@@ -230,7 +230,7 @@ class XavpnVpnService : VpnService() {
         return host to prefix
     }
 
-    /** 停止 avpn 并释放资源; 幂等, 可重复调用. tun fd 由 libavpn 持有并关闭. */
+    /** 停止 avpn 并释放资源; 幂等, 可重复调用. tun fd 由 libxavpn 持有并关闭. */
     private fun teardown() {
         if (started) {
             // 代次检查: 快速 停止->再运行 时若已有新实例接管 (其 start 流程会
