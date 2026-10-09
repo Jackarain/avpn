@@ -50,7 +50,7 @@ tun）。
 - 保留/私有段固定直连：`10.0.0.0/8`、`192.168.0.0/16`、`127.0.0.0/8`、
   `169.254.0.0/16`、`100.64.0.0/10` 等。
 
-实现见 `avpn/android/xavpn/lib/services/cn_ip_list.dart`。
+实现见 `apps/android/xavpn/lib/services/cn_ip_list.dart`。
 
 ### 2.4 系统 DNS 默认走隧道
 
