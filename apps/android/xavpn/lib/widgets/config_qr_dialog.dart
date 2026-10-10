@@ -1,0 +1,67 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../models/vpn_config.dart';
+import '../services/config_share.dart';
+import 'qr_code_view.dart';
+
+/// 弹出显示配置二维码的对话框.
+Future<void> showConfigQrDialog(BuildContext context, VpnConfig config) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _ConfigQrDialog(config: config),
+  );
+}
+
+class _ConfigQrDialog extends StatelessWidget {
+  const _ConfigQrDialog({required this.config});
+
+  final VpnConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    // 二维码尽量占满弹窗宽度, 同时避免高度不足时溢出 (留出名称与内边距).
+    final media = MediaQuery.sizeOf(context);
+    final side =
+        math
+            .min(media.width - 64, media.height - 160)
+            .clamp(160.0, 420.0)
+            .toDouble();
+    return Dialog(
+      // 整个弹窗保持白底, 深色主题下二维码仍有足够对比度.
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.all(16),
+      // 点击弹窗内任意位置关闭.
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).pop(),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: side,
+                height: side,
+                child: QrCodeView(
+                  data: encodeConfigShare(config),
+                  size: side,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                config.name,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(color: Colors.black87),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

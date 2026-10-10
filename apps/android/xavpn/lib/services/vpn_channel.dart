@@ -100,4 +100,12 @@ class VpnChannel {
       (e) => Map<String, dynamic>.from(e as Map),
     );
   }
+
+  /// 打开系统相册选择一张图片, 返回其本地文件路径; 取消则返回 null.
+  ///
+  /// mobile_scanner 的 analyzeImage 只接受文件路径, 因此原生端会把选中的
+  /// 图片复制到 cache 目录后再返回路径.
+  static Future<String?> pickImage() {
+    return _channel.invokeMethod<String>('pick_image');
+  }
 }

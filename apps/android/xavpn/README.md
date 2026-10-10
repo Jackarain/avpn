@@ -51,11 +51,18 @@ flutter build apk --debug
 - 运行时注入 (无需手填): `ptun_fd`, `launcher`.
 - 保存前做基础校验 (客户端需 nexthop、网关需 subnet、MTU/keepalive 范围等).
 
+## 配置分享与扫码
+
+- 分享: 配置列表里选某条配置的「分享」, 弹出二维码; 内容为 `xavpn1:` 前缀的
+  deflate + base64url 压缩 JSON, 供另一台设备扫码导入.
+- 扫码: 「添加配置」→「扫码添加」, 相机实时识别, 也可点右上角从相册选图识别;
+  识别成功即以新 id 保存为一条配置.
+
 ## 测试
 
 ```sh
 flutter analyze
-flutter test   # 配置序列化/校验/存储、WS JSON-RPC 协议、列表页交互、自更新协议
+flutter test   # 配置序列化/校验/存储、WS JSON-RPC 协议、列表页交互、配置分享编解码与二维码、自更新协议
 ```
 
 ## 自动更新
