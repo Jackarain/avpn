@@ -1,8 +1,22 @@
 import 'dart:convert';
+import 'dart:io' show ZLibCodec, ZLibOption;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xavpn/models/vpn_config.dart';
 import 'package:xavpn/services/config_share.dart';
+
+/// 旧版 (v1) 无字典 deflate 编码, 用于验证向后兼容.
+String _encodeV1(VpnConfig config) {
+  final json = jsonEncode({
+    'type': 'xavpn-config',
+    'version': 1,
+    'config': config.toJson(),
+  });
+  final packed = ZLibCodec(
+    level: ZLibOption.maxLevel,
+  ).encode(utf8.encode(json));
+  return 'xavpn1:${base64Url.encode(packed)}';
+}
 
 void main() {
   test('编码后可原样解回', () {
@@ -31,11 +45,38 @@ void main() {
     expect(decoded.toJson(), config.toJson());
   });
 
+  test('当前编码带 v2 字典前缀', () {
+    final config = VpnConfig(id: 'id-2', name: 'x', nexthop: 'a:1');
+    expect(encodeConfigShare(config).startsWith('xavpn2:'), isTrue);
+  });
+
+  test('兼容旧版 v1 (无字典) 二维码', () {
+    final config = VpnConfig(id: 'id-3', name: '旧版', nexthop: 'b:2');
+    expect(decodeConfigShare(_encodeV1(config)).name, '旧版');
+  });
+
+  test('字典压缩比无字典更小', () {
+    final config = VpnConfig(
+      id: 'id-4',
+      name: '我的节点',
+      mode: 'client',
+      nexthop: 'node-42.vpn.example.org:19090',
+      privateKey: 'kR8mQ2xVn0pZ7cT4wL9bY6dH1sA3fG5jU2oI8eN4rM=',
+      publicKey: 'Zq1wE5rT9yU3iO7pA2sD6fG0hJ4kL8xV1bN5mQ9zC3v=',
+      bypassCn: true,
+      dnsIntercept: true,
+    );
+    expect(
+      encodeConfigShare(config).length,
+      lessThan(_encodeV1(config).length),
+    );
+  });
+
   test('明文 JSON 也可解析', () {
-    final config = VpnConfig(id: 'id-2', name: '家庭', nexthop: '1.2.3.4:1');
+    final config = VpnConfig(id: 'id-5', name: '家庭', nexthop: '1.2.3.4:1');
     final raw = jsonEncode({
       'type': 'xavpn-config',
-      'version': 1,
+      'version': 2,
       'config': config.toJson(),
     });
     expect(decodeConfigShare(raw).name, '家庭');
@@ -50,7 +91,7 @@ void main() {
 
   test('内容损坏抛出 FormatException', () {
     expect(
-      () => decodeConfigShare('xavpn1:这不是合法的-base64'),
+      () => decodeConfigShare('xavpn2:这不是合法的-base64'),
       throwsFormatException,
     );
   });

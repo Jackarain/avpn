@@ -53,8 +53,10 @@ flutter build apk --debug
 
 ## 配置分享与扫码
 
-- 分享: 配置列表里选某条配置的「分享」, 弹出二维码; 内容为 `xavpn1:` 前缀的
-  deflate + base64url 压缩 JSON, 供另一台设备扫码导入.
+- 分享: 配置列表里选某条配置的「分享」, 弹出二维码; 内容为 `xavpn2:` 前缀的
+  deflate (预共享字典) + base64url 压缩 JSON, 供另一台设备扫码导入;
+  字典取自 `lib/services/config_share_dict.dart` (典型配置正文拼接, 以 base64 密钥字段为主),
+  解码兼容旧版 `xavpn1:` (无字典).
 - 扫码: 「添加配置」→「扫码添加」, 相机实时识别, 也可点右上角从相册选图识别;
   识别成功即以新 id 保存为一条配置.
 
