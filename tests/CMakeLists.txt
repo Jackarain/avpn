@@ -14,6 +14,10 @@ add_executable(datapath_tests
 	datapath_tests.cpp
 )
 
+add_executable(resolv_conf_tests
+	resolv_conf_tests.cpp
+)
+
 target_include_directories(dns_packet_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -28,6 +32,15 @@ target_include_directories(protocol_v2_tests PRIVATE
 target_include_directories(datapath_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_include_directories(resolv_conf_tests PRIVATE
+	${CMAKE_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(resolv_conf_tests PRIVATE
+	Boost::unit_test_framework
 )
 
 target_link_libraries(dns_packet_tests PRIVATE
@@ -97,7 +110,9 @@ else()
 endif()
 set_property(TARGET protocol_v2_tests PROPERTY CXX_STANDARD 20)
 set_property(TARGET datapath_tests PROPERTY CXX_STANDARD 20)
+set_property(TARGET resolv_conf_tests PROPERTY CXX_STANDARD 20)
 
 add_test(NAME dns_packet_tests COMMAND dns_packet_tests)
 add_test(NAME protocol_v2_tests COMMAND protocol_v2_tests)
 add_test(NAME datapath_tests COMMAND datapath_tests)
+add_test(NAME resolv_conf_tests COMMAND resolv_conf_tests)

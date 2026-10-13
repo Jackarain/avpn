@@ -6,6 +6,7 @@
 #include "libavpn/use_awaitable.hpp"
 #include "libavpn/logging.hpp"
 #include "libavpn/nat_rule.hpp"
+#include "libavpn/resolv_conf.hpp"
 #include "libavpn/vpn_launcher.hpp"
 #include "libavpn/dns_proxy.hpp"
 
@@ -145,7 +146,24 @@ namespace libavpn {
 		cfg.keepalive_ = config_int(obj, "keepalive", 60);
 		cfg.pushroutes_ = config_list(obj, "pushroutes");
 		cfg.hint_ = config_bool(obj, "hint", false);
-		cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
+		// pushdns 允许写 "10.9.0.53", 也允许写地址的整数形式.
+		cfg.pushdns_ = 0;
+		if (auto it = obj.find("pushdns"); it != obj.end())
+		{
+			const auto& v = it->value();
+			if (v.is_string())
+			{
+				uint32_t dns = 0;
+				if (parse_ipv4(v.as_string(), dns))
+					cfg.pushdns_ = dns;
+				else
+					XLOG_WARN << "Bad pushdns in config: " << v.as_string();
+			}
+			else
+			{
+				cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
+			}
+		}
 		cfg.passbyvpn_ = config_bool(obj, "passbyvpn", false);
 		cfg.bypassroutes_ = config_list(obj, "bypassroutes");
 		cfg.ignore_push_ = config_bool(obj, "ignore_push", false);
@@ -786,6 +804,12 @@ namespace libavpn {
 		obj["ip"] = net::ip::address_v4(m_tunnel->vaddr()).to_string();
 		obj["prefix"] = m_tunnel->prefix_length();
 		obj["mtu"] = m_tunnel->mtu();
+
+		// 网关推送的 DNS 交给宿主应用 (Android 用 VpnService.Builder 配上).
+		const auto& scfg = m_tunnel->negotiated_config();
+		if (!m_config.ignore_push_ && scfg.pushdns != 0)
+			obj["dns"] = net::ip::address_v4(scfg.pushdns).to_string();
+
 		launcher->notify("vaddr", obj);
 		XLOG_INFO << "Notify app vaddr: " << obj["ip"].as_string();
 	}
@@ -1799,6 +1823,9 @@ namespace libavpn {
 				// 应用 gateway 推送的路由 (passbyvpn / pushroutes).
 				setup_system_routes();
 
+				// 应用 gateway 推送的 DNS.
+				apply_system_dns();
+
 				// hook: 接口配置完成后执行 (重连不销毁
 				// tun, 因此仅执行一次).
 				if (!m_post_up_done_)
@@ -2117,6 +2144,104 @@ namespace libavpn {
 		}
 	}
 
+	void avpn_service::apply_system_dns()
+	{
+#if defined(__linux__)
+		if (!m_tunnel)
+			return;
+
+		// Android VpnService 等外部 fd 模式下, DNS 由宿主应用随 tun 一起配,
+		// 这里不动系统解析器.
+		if (m_config.ptun_fd_ >= 0 || m_config.utun_fd_ >= 0)
+			return;
+
+		// 忽略推送时保持系统解析器原样.
+		if (m_config.ignore_push_)
+			return;
+
+		const auto& scfg = m_tunnel->negotiated_config();
+		if (scfg.pushdns == 0)
+			return;
+
+		const std::string dns = net::ip::address_v4(scfg.pushdns).to_string();
+		const std::string dev = m_tundev ?
+			m_tundev->device_name() : std::string();
+
+		// resolv.conf 由 systemd-resolved 托管时改文件会被它立刻盖掉, 改链路级
+		// DNS: 查询才会真的交给推送的地址, 而且 tun 一消失设置就自动没了.
+		if (!dev.empty() && resolv_conf_is_systemd_managed())
+		{
+			std::string err;
+			if (!resolved_set_dns(dev, dns, err))
+			{
+				XLOG_WARN << "Set systemd-resolved dns failed: " << err;
+				return;
+			}
+			m_dns_modified = true;
+			m_dns_resolved_backend = true;
+			m_dns_resolved_dev = dev;
+			XLOG_INFO << "System resolver uses pushed dns: " << dns
+				<< " (resolvectl " << dev << ")";
+			return;
+		}
+
+		std::string err;
+		std::string original;
+		if (!resolv_conf_read(resolv_conf_default_path, original, err))
+		{
+			XLOG_WARN << "Read system resolver config failed: " << err;
+			return;
+		}
+
+		const std::string merged = resolv_conf_merge(original, dns);
+		if (merged == original)
+			return;
+
+		if (!resolv_conf_write(resolv_conf_default_path, merged, err))
+		{
+			XLOG_WARN << "Write system resolver config failed: " << err;
+			return;
+		}
+
+		// 只记第一次改动前的内容, 重连时推送的 DNS 变了也能还原成原样.
+		if (!m_dns_modified)
+		{
+			m_saved_resolv_conf = std::move(original);
+			m_dns_modified = true;
+		}
+		XLOG_INFO << "System resolver uses pushed dns: " << dns
+			<< " (" << resolv_conf_default_path << ")";
+#endif
+	}
+
+	void avpn_service::restore_system_dns()
+	{
+#if defined(__linux__)
+		if (!m_dns_modified)
+			return;
+		m_dns_modified = false;
+
+		if (m_dns_resolved_backend)
+		{
+			m_dns_resolved_backend = false;
+
+			std::string err;
+			if (!resolved_revert(m_dns_resolved_dev, err))
+				XLOG_WARN << "Revert systemd-resolved dns failed: " << err;
+			m_dns_resolved_dev.clear();
+			return;
+		}
+
+		std::string err;
+		if (!resolv_conf_write(resolv_conf_default_path,
+			m_saved_resolv_conf, err))
+		{
+			XLOG_WARN << "Restore system resolver config failed: " << err;
+		}
+		m_saved_resolv_conf.clear();
+#endif
+	}
+
 	void avpn_service::restore_system_routes()
 	{
 		if (!m_routes_modified)
@@ -2304,6 +2429,7 @@ namespace libavpn {
 				// 重连成功后由 wait_handshake_and_setup_tun 重新接管.
 				self->m_tunnel.reset();
 				self->restore_system_routes();
+				self->restore_system_dns();
 			});
 
 		return true;
@@ -2402,8 +2528,9 @@ namespace libavpn {
 			run_hook_cmd(m_config.pre_down_, m_tundev ?
 				m_tundev->device_name() : m_config.ifdev_);
 
-		// 恢复被修改的系统路由.
+		// 恢复被修改的系统路由与解析器配置.
 		restore_system_routes();
+		restore_system_dns();
 
 		// 关闭 UDP socket.
 		for (auto& socket : m_udp_sockets)

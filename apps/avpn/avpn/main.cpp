@@ -32,6 +32,7 @@
 #include "libavpn/ipip.hpp"
 #include "libavpn/avpn.hpp"
 #include "libavpn/avpn_crypto.hpp"
+#include "libavpn/avpn_protocol.hpp"
 
 #include "main.hpp"
 
@@ -105,6 +106,7 @@ int main(int argc, char** argv)
 	std::string log_dir;
 	bool disable_logs = false;
 	std::string pid_file;
+	std::string pushdns_text;
 
 	service_config cfg{};
 
@@ -130,7 +132,7 @@ int main(int argc, char** argv)
 		("keepalive", po::value<int>(&cfg.keepalive_)->value_name("seconds"), "Keepalive interval in seconds.")
 		("pushroutes", po::value<std::vector<std::string>>(&cfg.pushroutes_)->value_name("route"), "Routes pushed to client.")
 		("bypassroutes", po::value<std::vector<std::string>>(&cfg.bypassroutes_)->value_name("route"), "Routes bypassing vpn on client (ip/cidr or hostname).")
-		("pushdns", po::value<uint32_t>(&cfg.pushdns_)->value_name("ip"), "DNS pushed to client.")
+		("pushdns", po::value<std::string>(&pushdns_text)->value_name("ip"), "DNS pushed to client (dotted IPv4 like 10.9.0.53, or address as integer).")
 		("passbyvpn", po::value<bool>(&cfg.passbyvpn_)->value_name("bool"), "Use gateway as default route.")
 		("ignore_push", po::value<bool>(&cfg.ignore_push_)->value_name("bool"), "Ignore pushed routes/dns.")
 		("c2c", po::value<bool>(&cfg.c2c_)->value_name("bool"), "Allow client to client communication.")
@@ -201,6 +203,13 @@ and/or open issues at https://github.com/Jackarain/proxy)"
 		auto cfg_file = po::parse_config_file(config.c_str(), desc, false);
 		po::store(cfg_file, vm);
 		po::notify(vm);
+	}
+
+	// pushdns 支持点分写法与整数写法 (命令行/配置文件都走这里).
+	if (!pushdns_text.empty() && !parse_ipv4(pushdns_text, cfg.pushdns_))
+	{
+		std::cerr << "Bad pushdns value: " << pushdns_text << std::endl;
+		return EXIT_FAILURE;
 	}
 
 	if (disable_logs && log_dir.empty())

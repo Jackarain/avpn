@@ -264,10 +264,10 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 - 每帧为 `[len(2, BE) | 帧头(4) | AEAD]` 的 TCP 流式帧。
 - 使用 `m_tcp_oqe` 写队列 + `start_tcp_write` 协程泵串行写出，保证帧边界完整。
 - 接收端 `tcp_read_loop` 读取长度前缀后按帧分发（握手/数据）。
-- 数据面优化（设计目标，当前为后续增强）：
+- 数据面优化（设计目标，当前为后续增强，见 §15）：
   - IP 包为 TCP 且为 SYN 时，为该 TCP 流创建**专用 TCP socket** 传输，避免 TCP-in-TCP。
   - IP 包为 UDP 时，按目标 Address 建立**独立 TCP socket** 传输。
-  - `ip_proto()` / `is_tcp_syn()` 解析函数已实现；当前实现使用单一加密控制流承载全部数据。
+  - 当前所有数据都走这一条加密控制流（相当于 TCP-in-TCP），上述拆分尚未接线。
 
 ### 8.3 内核协同与批量优化
 
@@ -422,6 +422,33 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 
 详细原理与实现见 `doc/avpn_wintun.md`。
 
+### 11.2 客户端系统路由与 DNS
+
+客户端握手成功后，网关推送的路由与 DNS 由 `wait_handshake_and_setup_tun()` 落地
+（`setup_system_routes()` / `apply_system_dns()`），会话结束或进程退出时再还原
+（`restore_system_routes()` / `restore_system_dns()`）。配了 `ignore_push_` 时两样
+都不落地。
+
+- **路由**（Linux，走 netlink，`netlink_route.cpp`）：`pushroutes_` 逐条写入路由表，
+  `passbyvpn` 时把默认路由拆成 `0.0.0.0/1` + `128.0.0.0/1` 两条更具体的路由指向
+  tun（不删原默认路由，`bypassroutes_` 与服务器地址仍走物理网卡）；`bypassroutes_`
+  用物理默认网关钉住，域名目标定期重新解析（`bypass_route_refresh_loop()`）。
+- **DNS**（Linux，`resolv_conf.cpp`）：按系统解析器由谁管分两条路走。
+  - **systemd-resolved**（`/etc/resolv.conf` 是指向 `/run/systemd/resolve/` 的符号
+    链接）：改文件会被守护进程立刻盖掉，所以走
+    `resolvectl dns <tun> <地址>` + `resolvectl domain <tun> '~.'` 配链路级 DNS
+    （不设 `~.` 这个路由域的话，物理链路的 DNS 仍然优先）；会话结束
+    `resolvectl revert <tun>` 撤销，tun 消失时设置本来也会跟着没。
+  - **其它情况**（`/etc/resolv.conf` 是普通文件）：把推送的地址插到 `nameserver`
+    列表最前面，原来的 nameserver 与 `search` / `options` 等行原样留在后面当后备，
+    会话中解析照旧可用；文件就地截断写，保留原 inode 与权限。只记第一次改动前的
+    内容，重连时推送地址变了也能还原，叠加应用不会重复插入（同样的地址只留一条）。
+  - 走哪条路都记在日志里（`System resolver uses pushed dns: <地址> (resolvectl avpn0)`
+    或 `(/etc/resolv.conf)`），出问题时一眼能看出改的是哪儿。
+  - `resolv_conf_merge()` 是纯函数，单独用 `tests/resolv_conf_tests.cpp` 覆盖。
+- **外部 tun fd 模式**（Android `VpnService` 等）：系统路由与 DNS 都由宿主应用随
+  tun 一起配，核心只把推送的 DNS 放进 `vaddr` 通知（`notify_vaddr()`）交给应用。
+
 ---
 
 ## 12. 服务架构
@@ -465,7 +492,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `pkl_` | 远端公钥白名单（base64 列表） |
 | `mtu_size_` | tun MTU |
 | `keepalive_` | 保活间隔（秒） |
-| `pushroutes_` / `pushdns_` | 网关推送的路由 / DNS |
+| `pushroutes_` / `pushdns_` | 网关推送的路由 / DNS；`pushdns_` 是 IPv4 地址的数值（命令行与配置文件里写 `10.9.0.53` 或整数都认） |
 | `passbyvpn_` | 是否默认全局出口（网关需配置 NAT） |
 | `ignore_push_` | 是否忽略推送的 route/dns |
 | `c2c_` | 是否允许客户端间通信 |
@@ -489,19 +516,18 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 
 ## 15. 已知限制与后续工作
 
-1. **TCP 按流拆分**：`ip_proto()` / `is_tcp_syn()` 已实现，但 TCP 按 SYN 流建立专用连接、按 Address 建立独立 UDP 传输连接的优化尚未接线，当前 TCP 使用单一加密控制流。
-2. **推送 DNS 的应用**：`pushroutes_` 与 `passbyvpn` 由客户端经 netlink 写入系统路由表
-   （`setup_system_routes()`）；网关推送的 DNS 地址只在 `session_params.pushdns` 里存着，
-   尚未交给客户端使用。
-3. **压缩算法**：`deflate` 与 `lz4` 已实现，`zstd` 为预留接口。
-4. **多线程**：`io_context_pool` 已提供，当前服务逻辑运行在主 context，可扩展至多 context 提升吞吐。
-5. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
+1. **TCP 按流拆分**：TCP 传输下内层 TCP 目前仍走 TCP-in-TCP（单一加密控制流）。
+   按 SYN 为每条内层 TCP 流建专用外层连接、按目标地址为内层 UDP 建独立连接的优化
+   （见 §8.2）还没接线，配套的 IP 头解析函数也还没写。
+2. **压缩算法**：`deflate` 与 `lz4` 已实现，`zstd` 为预留接口。
+3. **多线程**：`io_context_pool` 已提供，当前服务逻辑运行在主 context，可扩展至多 context 提升吞吐。
+4. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
    `async_read_some`（当前 `tun_read_loop` 单协程满足）；多协程并发读取会对
    `head` 竞争。
-6. **容器聚合**：机会性聚合已接线——从 tun 一次收下的一批包按会话合并提交，能塞进
+5. **容器聚合**：机会性聚合已接线——从 tun 一次收下的一批包按会话合并提交，能塞进
    一帧的按容器装上，不为攒包等待（一次最多 `tun_batch_max` = 32 个，见
    `doc/protocol_v2.md` §2.4）。开纠错时，聚合会把同组里较短的片补到最长片的长度，
    聚合度越大，这部分放大越多。
-7. **外层发送背压的平台差异**：Linux 上已按外层未发送字节数（`SIOCOUTQ`）做背压
+6. **外层发送背压的平台差异**：Linux 上已按外层未发送字节数（`SIOCOUTQ`）做背压
    （见 §8.3）；wintun/其它平台拿不到这个计数，等同于没有背压，出口 qdisc 带
    per-flow 上限时仍要靠系统侧配置（见 §8.3）。

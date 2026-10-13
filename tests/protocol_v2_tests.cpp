@@ -294,6 +294,8 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	p.roam_cookie = { { 1, 2, 3, 4, 5, 6, 7, 8 } };
 	p.cookie_beacon_k = 32;
 	p.transport = 1;
+	p.pushdns = 0x0a090035;   // 10.9.0.53
+	p.passbyvpn = true;
 
 	std::string wire;
 	append_params(wire, p);
@@ -323,6 +325,8 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	BOOST_CHECK(q.roam_cookie == p.roam_cookie);
 	BOOST_CHECK_EQUAL(q.cookie_beacon_k, p.cookie_beacon_k);
 	BOOST_CHECK_EQUAL(int(q.transport), int(p.transport));
+	BOOST_CHECK_EQUAL(q.pushdns, p.pushdns);
+	BOOST_CHECK_EQUAL(q.passbyvpn, p.passbyvpn);
 
 	// 默认参数也要能编解码.
 	session_params d;
@@ -332,6 +336,30 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	BOOST_REQUIRE(parse_params(dw, dd));
 	BOOST_CHECK_EQUAL(dd.mtu, d.mtu);
 	BOOST_CHECK_EQUAL(int(dd.fec_total), 1);
+}
+
+BOOST_AUTO_TEST_CASE(pushdns_value_parsing)
+{
+	// 点分写法与整数写法都要认, 结果都是地址的主机字节序数值.
+	const uint32_t want = net::ip::make_address_v4("10.9.0.53").to_uint();
+
+	uint32_t v = 0;
+	BOOST_REQUIRE(parse_ipv4("10.9.0.53", v));
+	BOOST_CHECK_EQUAL(v, want);
+
+	BOOST_REQUIRE(parse_ipv4("168362037", v));
+	BOOST_CHECK_EQUAL(v, want);
+
+	BOOST_REQUIRE(parse_ipv4("0.0.0.0", v));
+	BOOST_CHECK_EQUAL(v, 0u);
+
+	// 空、越界、带掩码、IPv6 都要拒绝.
+	BOOST_CHECK(!parse_ipv4("", v));
+	BOOST_CHECK(!parse_ipv4("10.9.0.256", v));
+	BOOST_CHECK(!parse_ipv4("4294967296", v));
+	BOOST_CHECK(!parse_ipv4("10.9.0.53/24", v));
+	BOOST_CHECK(!parse_ipv4("::1", v));
+	BOOST_CHECK(!parse_ipv4("10.9.0.53 ", v));
 }
 
 BOOST_AUTO_TEST_CASE(compression_negotiation)

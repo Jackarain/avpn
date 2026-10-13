@@ -279,6 +279,9 @@ namespace libavpn {
 		// 应用 gateway 推送的路由 (passbyvpn / pushroutes).
 		void setup_system_routes();
 
+		// 应用 gateway 推送的 DNS (Linux 改系统解析器配置).
+		void apply_system_dns();
+
 		// 周期刷新绕过路由 (域名解析结果可能变化).
 		net::awaitable<void> bypass_route_refresh_loop();
 
@@ -287,6 +290,9 @@ namespace libavpn {
 
 		// 恢复握手前保存的默认路由.
 		void restore_system_routes();
+
+		// 恢复握手前保存的解析器配置.
+		void restore_system_dns();
 
 		// 路由一个 tun 读取到的 IP 包.
 		// 解析一个 tun 包该交给哪个会话 (客户端 DNS 拦截也在这里做);
@@ -410,6 +416,18 @@ namespace libavpn {
 
 		// client: 是否已修改系统路由.
 		bool m_routes_modified{ false };
+
+		// client: 改系统解析器之前保存的配置内容.
+		std::string m_saved_resolv_conf;
+
+		// client: 是否已改过系统解析器.
+		bool m_dns_modified{ false };
+
+		// client: 是否走 systemd-resolved (resolvectl) 配的链路 DNS.
+		bool m_dns_resolved_backend{ false };
+
+		// client: 走 resolvectl 时配的是哪个链路.
+		std::string m_dns_resolved_dev;
 
 		// client: 绕过路由使用的物理网关.
 		std::string m_bypass_phys_via;

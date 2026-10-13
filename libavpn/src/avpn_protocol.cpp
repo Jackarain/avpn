@@ -81,6 +81,34 @@ namespace libavpn {
 		}
 	}
 
+	bool parse_ipv4(std::string_view text, uint32_t& out)
+	{
+		if (text.empty())
+			return false;
+
+		boost::system::error_code ec;
+		auto addr = net::ip::make_address_v4(std::string(text), ec);
+		if (!ec)
+		{
+			out = addr.to_uint();
+			return true;
+		}
+
+		// 也认十进制整数写法 (与 JSON 配置、老命令兼容).
+		if (text.find_first_not_of("0123456789") != std::string_view::npos)
+			return false;
+
+		unsigned long long v = 0;
+		for (char c : text)
+		{
+			v = v * 10 + static_cast<unsigned>(c - '0');
+			if (v > 0xffffffffull)
+				return false;
+		}
+		out = static_cast<uint32_t>(v);
+		return true;
+	}
+
 	bool parse_endpoint(std::string_view addr, net::ip::udp::endpoint& ep)
 	{
 		net::ip::address ip;

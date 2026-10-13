@@ -42,6 +42,9 @@ namespace libavpn {
 	compress_type compress_type_from_string(std::string_view name);
 	std::string_view compress_type_to_string(compress_type type);
 
+	// 解析 IPv4: 支持 "10.9.0.53" 与十进制整数 (地址的主机字节序数值).
+	bool parse_ipv4(std::string_view text, uint32_t& out);
+
 	// 解析 "ip:port" 形式的地址为 udp/tcp endpoint.
 	bool parse_endpoint(std::string_view addr, net::ip::udp::endpoint& ep);
 	bool parse_endpoint(std::string_view addr, net::ip::tcp::endpoint& ep);

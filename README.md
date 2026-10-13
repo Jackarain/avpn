@@ -206,7 +206,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--keepalive <seconds>` | 心跳间隔，单位秒，默认为 60。 |
 | `--pushroutes <route>` | server 端推送给 client 的路由，可多次指定。 |
 | `--bypassroutes <route>` | client 端绕过 VPN 走物理线路的路由（ip/cidr 或主机名），可多次指定。 |
-| `--pushdns <ip>` | server 端推送给 client 的 DNS。 |
+| `--pushdns <ip>` | server 端推送给 client 的 DNS，写 `10.9.0.53` 或整数都认。client 侧：systemd-resolved 托管时用 `resolvectl` 配链路 DNS，否则把地址插到 `/etc/resolv.conf` 最前面（原有 nameserver 留作后备，会话结束还原）；Android 侧交给 VpnService 配置。 |
 | `--passbyvpn` | 使用 gateway 作为默认路由，client 所有流量经 server 转发（gateway 需做 NAT）。 |
 | `--ignore_push` | 忽略 server 推送的路由和 DNS。 |
 | `--c2c` | 是否允许 client 之间通过虚拟子网通信，默认关闭。 |

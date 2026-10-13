@@ -35,6 +35,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_wintun.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/netlink_route.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/nat_rule.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/resolv_conf.hpp
 
 	${CMAKE_CURRENT_SOURCE_DIR}/src/lib_asio_beast.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_log.cpp
@@ -57,6 +58,7 @@ target_sources(libavpn
 	$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_wintun.cpp>
 	${CMAKE_CURRENT_SOURCE_DIR}/src/netlink_route.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/nat_rule.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/resolv_conf.cpp
 )
 
 target_include_directories(libavpn
