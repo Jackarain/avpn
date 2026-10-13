@@ -292,6 +292,8 @@ namespace libavpn {
 		// 客户端只表达"想要什么", 最终取值由网关在回复里定.
 		req.params.compress = static_cast<uint8_t>(
 			compress_type_from_string(m_config.compress_));
+		req.params.tag_len = negotiate_tag_len(
+			static_cast<uint8_t>(m_config.tag_len_));
 		req.params.obfuscate = !m_config.obfuscate_key_.empty();
 		req.params.obfuscate_key_hash =
 			obfuscate_key_hash(m_config.obfuscate_key_);
@@ -381,6 +383,7 @@ namespace libavpn {
 			<< ", mtu: " << m_params.mtu
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
 			<< static_cast<int>(m_params.fec_total)
+			<< ", tag_len: " << static_cast<int>(m_params.tag_len)
 			<< ", compress: " << compress_type_to_string(
 				static_cast<compress_type>(m_params.compress));
 		return true;
@@ -478,7 +481,7 @@ namespace libavpn {
 		session_params p;
 
 		// 认证标签: 客户端要 12 就给 12, 其余情况用 16.
-		p.tag_len = wish.tag_len == 12 ? 12 : 16;
+		p.tag_len = negotiate_tag_len(wish.tag_len);
 
 		// 纠错: 数据片 2 片以上才开; T 必须是 2 的幂且能整除数 2^32.
 		const int ds = m_config.data_shards_;
@@ -636,6 +639,7 @@ namespace libavpn {
 			<< ", mtu: " << m_params.mtu
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
 			<< static_cast<int>(m_params.fec_total)
+			<< ", tag_len: " << static_cast<int>(m_params.tag_len)
 			<< ", compress: " << compress_type_to_string(
 				static_cast<compress_type>(m_params.compress));
 	}

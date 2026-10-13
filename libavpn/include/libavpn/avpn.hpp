@@ -80,6 +80,10 @@ namespace libavpn {
 		// 保持网络活动消息间隔.
 		int keepalive_{ 60 };
 
+		// 数据帧的认证标签长度, 只支持 16 与 12 (12 每帧省 4 字节).
+		// 作为 client 时在握手里表达这个愿望, 最终取值由 gateway 决定.
+		int tag_len_{ 16 };
+
 		// 当 avpn 作为 gateway 时, 推送路由给 client 端.
 		std::vector<std::string> pushroutes_;
 

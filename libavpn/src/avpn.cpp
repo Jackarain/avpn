@@ -144,6 +144,7 @@ namespace libavpn {
 		cfg.mtu_size_ = config_int(obj, "mtu_size", 1450);
 		cfg.udp_pacing_mbps_ = config_int(obj, "udp_pacing_mbps", 0);
 		cfg.keepalive_ = config_int(obj, "keepalive", 60);
+		cfg.tag_len_ = config_int(obj, "tag_len", 16);
 		cfg.pushroutes_ = config_list(obj, "pushroutes");
 		cfg.hint_ = config_bool(obj, "hint", false);
 		// pushdns 允许写 "10.9.0.53", 也允许写地址的整数形式.
@@ -286,6 +287,7 @@ namespace libavpn {
 		assign_int("mtu_size", dst.mtu_size_);
 		assign_int("udp_pacing_mbps", dst.udp_pacing_mbps_);
 		assign_int("keepalive", dst.keepalive_);
+		assign_int("tag_len", dst.tag_len_);
 		assign_list("pushroutes", dst.pushroutes_);
 		assign_dns("pushdns", dst.pushdns_);
 		assign_bool("passbyvpn", dst.passbyvpn_);
@@ -2599,6 +2601,7 @@ namespace libavpn {
 		restart = restart || m_config.data_shards_ != old.data_shards_;
 		restart = restart || m_config.parity_shards_ != old.parity_shards_;
 		restart = restart || m_config.compress_ != old.compress_;
+		restart = restart || m_config.tag_len_ != old.tag_len_;
 		restart = restart || m_config.obfuscate_key_ != old.obfuscate_key_;
 
 		// keepalive 可热更新: 立即应用到活动会话.

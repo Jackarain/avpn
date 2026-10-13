@@ -498,6 +498,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `pkl_` | 远端公钥白名单（base64 列表） |
 | `mtu_size_` | tun MTU |
 | `keepalive_` | 保活间隔（秒） |
+| `tag_len_` | 数据帧认证标签长度（16 或 12，默认 16）；客户端在握手请求里表达，网关按 §5 的规则定夺 |
 | `pushroutes_` / `pushdns_` | 网关推送的路由 / DNS；`pushdns_` 是 IPv4 地址的数值（命令行与配置文件里写 `10.9.0.53` 或整数都认） |
 | `passbyvpn_` | 是否默认全局出口（网关需配置 NAT） |
 | `ignore_push_` | 是否忽略推送的 route/dns |

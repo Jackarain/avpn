@@ -338,6 +338,29 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	BOOST_CHECK_EQUAL(int(dd.fec_total), 1);
 }
 
+BOOST_AUTO_TEST_CASE(tag_len_negotiation)
+{
+	// 客户端在握手里表达愿望, 网关按规则定夺: 要 12 就给 12, 其余一律 16.
+	BOOST_CHECK_EQUAL(int(negotiate_tag_len(12)), 12);
+	BOOST_CHECK_EQUAL(int(negotiate_tag_len(16)), 16);
+	BOOST_CHECK_EQUAL(int(negotiate_tag_len(0)), 16);
+	BOOST_CHECK_EQUAL(int(negotiate_tag_len(8)), 16);
+	BOOST_CHECK_EQUAL(int(negotiate_tag_len(255)), 16);
+
+	// 短标签每帧少 4 字节, 片长上限相应宽 4 字节.
+	BOOST_CHECK_EQUAL(wire_payload_limit(12, false),
+		wire_payload_limit(16, false) + 4);
+
+	// 谈成的 tag_len 只有 12 / 16 两个合法取值, 参数能原样往返.
+	session_params p;
+	p.tag_len = negotiate_tag_len(12);
+	std::string wire;
+	append_params(wire, p);
+	session_params q;
+	BOOST_REQUIRE(parse_params(wire, q));
+	BOOST_CHECK_EQUAL(int(q.tag_len), 12);
+}
+
 BOOST_AUTO_TEST_CASE(pushdns_value_parsing)
 {
 	// 点分写法与整数写法都要认, 结果都是地址的主机字节序数值.

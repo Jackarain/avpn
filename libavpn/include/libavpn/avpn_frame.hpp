@@ -66,6 +66,13 @@ namespace libavpn {
 		return limit;
 	}
 
+	// 认证标签长度只支持 16 与 12 (短标签省 4 字节, 留给伪造的概率是 2^-96).
+	// 客户端在握手里表达愿望, 网关按这条规则定夺: 要 12 就给 12, 其余一律 16.
+	inline uint8_t negotiate_tag_len(uint8_t wish)
+	{
+		return wish == 12 ? 12 : 16;
+	}
+
 	// 明文里装的东西.
 	enum class frame_kind : uint8_t
 	{

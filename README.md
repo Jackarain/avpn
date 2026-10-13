@@ -204,6 +204,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--mtu_size <mtu>` | Tun MTU 大小，默认为 1450。 |
 | `--udp_pacing_mbps <n>` | 外层 UDP 发送限速，单位 Mbit/s，0 表示不限速。发送端内核出口 qdisc 为 `fq` 时通过 `SO_MAX_PACING_RATE` 生效，用于在无拥塞控制的外层避免把瓶颈链路打满。 |
 | `--keepalive <seconds>` | 心跳间隔，单位秒，默认为 60。 |
+| `--tag_len <12\|16>` | 数据帧认证标签长度，默认 16；写 12 时每帧省 4 字节（片长上限与内层 MTU 相应放宽 4 字节）。由客户端在握手时表达，网关据此定夺，会话内不变。 |
 | `--pushroutes <route>` | server 端推送给 client 的路由，可多次指定。 |
 | `--bypassroutes <route>` | client 端绕过 VPN 走物理线路的路由（ip/cidr 或主机名），可多次指定。 |
 | `--pushdns <ip>` | server 端推送给 client 的 DNS，写 `10.9.0.53` 或整数都认。client 侧：systemd-resolved 托管时用 `resolvectl` 配链路 DNS，否则把地址插到 `/etc/resolv.conf` 最前面（原有 nameserver 留作后备，会话结束还原）；Android 侧交给 VpnService 配置。 |
