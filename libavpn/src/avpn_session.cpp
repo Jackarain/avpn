@@ -443,11 +443,12 @@ namespace libavpn {
 			reinterpret_cast<const char*>(req.client_id.data()),
 			req.client_id.size());
 
+		// 先把对端地址定下来, 回复才能发回请求来的那个地址.
+		m_remote_udp = remote;
 		send_handshake_msg2(matched, req);
 		if (!m_established)
 			return false;
 
-		m_remote_udp = remote;
 		return true;
 	}
 
