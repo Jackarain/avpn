@@ -88,6 +88,8 @@ namespace libavpn {
 	// 严格解析: 任何一处不合法都返回 false, 由调用方丢弃整帧.
 	bool parse_container(std::string_view plaintext,
 		std::vector<std::string_view>& entries);
+	// 容器真正占用的字节数 (末尾的补零不算); 不合法返回 0.
+	std::size_t container_size(std::string_view plaintext);
 
 	// 次代 / 计数器 / 组号 / 片号.
 	inline uint64_t global_seq(uint32_t epoch, uint32_t counter)

@@ -172,54 +172,80 @@ namespace libavpn {
 			out.append(e.data(), e.size());
 	}
 
+	namespace {
+
+		// 走一遍容器里的条目: entries 非空就收下每个条目, total 非空就给出
+		// 容器真正占用的字节数 (末尾多余的字节是补零, 不算在内).
+		// 任何一处不合法都返回 false.
+		bool walk_container(std::string_view plaintext,
+			std::vector<std::string_view>* entries, std::size_t* total)
+		{
+			if (entries)
+				entries->clear();
+			if (plaintext.size() < 2)
+				return false;
+			if (static_cast<uint8_t>(plaintext[0]) != container_marker)
+				return false;
+
+			const std::size_t count = static_cast<uint8_t>(plaintext[1]);
+			std::size_t pos = 2;
+			if (entries)
+				entries->reserve(count);
+
+			for (std::size_t i = 0; i < count; i++)
+			{
+				const std::size_t remain = plaintext.size() - pos;
+				if (remain == 0)
+					return false;
+
+				const uint8_t first = static_cast<uint8_t>(plaintext[pos]);
+				const uint8_t version = static_cast<uint8_t>(first >> 4);
+				std::size_t len = 0;
+				if (version == 4 || version == 6)
+				{
+					len = ip_packet_size(
+						bytes_of(plaintext.data() + pos), remain);
+					if (len == 0)
+						return false;
+				}
+				else
+				{
+					// 其余按控制条目解析; 剩余不足或长度越界都判整帧丢弃.
+					if (remain < control_header_size)
+						return false;
+					if (!valid_control_code(first))
+						return false;
+					const uint16_t body =
+						get_u16(bytes_of(plaintext.data() + pos) + 1);
+					if (control_header_size + body > remain)
+						return false;
+					len = control_header_size + body;
+				}
+
+				if (entries)
+					entries->push_back(plaintext.substr(pos, len));
+				pos += len;
+			}
+
+			if (total)
+				*total = pos;
+			return true;
+		}
+
+	} // namespace
+
 	bool parse_container(std::string_view plaintext,
 		std::vector<std::string_view>& entries)
 	{
-		entries.clear();
-		if (plaintext.size() < 2)
-			return false;
-		if (static_cast<uint8_t>(plaintext[0]) != container_marker)
-			return false;
+		return walk_container(plaintext, &entries, nullptr);
+	}
 
-		const std::size_t count =
-			static_cast<uint8_t>(plaintext[1]);
-		std::size_t pos = 2;
-		entries.reserve(count);
-
-		for (std::size_t i = 0; i < count; i++)
-		{
-			const std::size_t remain = plaintext.size() - pos;
-			if (remain == 0)
-				return false;
-
-			const uint8_t first = static_cast<uint8_t>(plaintext[pos]);
-			const uint8_t version = static_cast<uint8_t>(first >> 4);
-			if (version == 4 || version == 6)
-			{
-				const std::size_t len = ip_packet_size(
-					bytes_of(plaintext.data() + pos), remain);
-				if (len == 0)
-					return false;
-				entries.push_back(plaintext.substr(pos, len));
-				pos += len;
-				continue;
-			}
-
-			// 其余按控制条目解析; 剩余不足或长度越界都判整帧丢弃.
-			if (remain < control_header_size)
-				return false;
-			const uint8_t code = first;
-			if (!valid_control_code(code))
-				return false;
-			const uint16_t len = get_u16(bytes_of(plaintext.data() + pos) + 1);
-			if (control_header_size + len > remain)
-				return false;
-			entries.push_back(
-				plaintext.substr(pos, control_header_size + len));
-			pos += control_header_size + len;
-		}
-
-		return true;
+	std::size_t container_size(std::string_view plaintext)
+	{
+		std::size_t total = 0;
+		if (!walk_container(plaintext, nullptr, &total))
+			return 0;
+		return total;
 	}
 
 	bool session_params::valid() const

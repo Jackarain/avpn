@@ -26,6 +26,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_rs.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_fec.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_frame.hpp
+	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_fec_v2.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_keys.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_replay.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_obfuscate.hpp
@@ -48,6 +49,7 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_rs.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_fec.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_frame.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_fec_v2.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_keys.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_obfuscate.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_session.cpp
