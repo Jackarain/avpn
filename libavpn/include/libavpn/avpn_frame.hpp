@@ -77,6 +77,12 @@ namespace libavpn {
 	// 容器标记.
 	inline constexpr uint8_t container_marker = 0x00;
 
+	// 容器头部: 标记(1) + 条目数(1).
+	inline constexpr std::size_t container_header_size = 2;
+
+	// 一个容器最多装多少个条目 (条目数只有 1 字节).
+	inline constexpr std::size_t container_max_entries = 255;
+
 	// 控制消息码.
 	inline constexpr uint8_t control_keepalive = 0x02;
 	inline constexpr uint8_t control_keepalive_reply = 0x03;
@@ -114,6 +120,15 @@ namespace libavpn {
 	// 容器编解码. entries 里每一项都是一段独立内容 (IP 包或控制消息).
 	void append_container(std::string& out,
 		const std::vector<std::string_view>& entries);
+	// 同上, 但只取 [from, from + count) 这一段 (机会性聚合时省一次拷贝).
+	void append_container(std::string& out,
+		const std::vector<std::string_view>& entries,
+		std::size_t from, std::size_t count);
+	// 机会性聚合: 从 packets[from] 起, 把能塞进一帧的包按容器装进 out,
+	// 返回装进去的包数; 只装得下 1 个包时不做容器封装 (省下容器头).
+	// 这里只处理已经拿在手里的包, 不为攒包等待 (见 doc/protocol_v2.md 2.4).
+	std::size_t pack_packets(const std::vector<std::string_view>& packets,
+		std::size_t from, std::size_t payload_limit, std::string& out);
 	// 严格解析: 任何一处不合法都返回 false, 由调用方丢弃整帧.
 	bool parse_container(std::string_view plaintext,
 		std::vector<std::string_view>& entries);

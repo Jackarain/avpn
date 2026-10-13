@@ -93,12 +93,21 @@ namespace libavpn {
 #endif
 		}
 
+		// 非阻塞地再读一个包 (批量收包用): 读到返回字节数, 没数据返回 0 且
+		// ec 为 would_block. wintun 只有异步接口, 一律返回 0.
+		std::size_t try_read_some(const net::mutable_buffer& buffer,
+			boost::system::error_code& ec);
+
 	private:
 		net::io_context& m_ioc;
 #if defined(_WIN32)
 		wintun_tun_device m_wintun;
 #else
 		net::posix::stream_descriptor m_stream;
+
+		// 把一个已经在非阻塞模式下的 fd 交给 asio 管. asio 自己的状态里
+		// 也得知道这一点: 不然同步读会一直 poll 等下去 (见 try_read_some).
+		bool assign_fd(int fd, boost::system::error_code& ec);
 #endif
 		std::string m_devname;
 		bool m_opened{ false };

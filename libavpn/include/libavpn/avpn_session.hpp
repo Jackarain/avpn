@@ -125,6 +125,13 @@ namespace libavpn {
 		// 从 tun 提交一个 IP 数据包, 发送到对端.
 		void tun_submit(std::vector<uint8_t> ip_packet);
 
+		// 从 tun 提交一批 IP 数据包 (按顺序, 属于本会话): 能塞进一帧的
+		// 会按容器聚合, 省下每包 20 字节的封装. 只聚合已经拿在手里的包,
+		// 不为攒包等待 (见 doc/protocol_v2.md 2.4).
+		void tun_submit_batch(
+			const std::vector<std::vector<uint8_t>>& packets,
+			std::size_t from, std::size_t count);
+
 		// 主动断开并发送 disconnect 控制消息.
 		void disconnect();
 
@@ -212,6 +219,12 @@ namespace libavpn {
 
 		// 写一个明文 (IP 包或控制消息); roam 为 true 时做成漫游帧.
 		void send_plaintext(std::string_view plaintext, bool roam = false);
+
+		// 把一批 IP 包按需要拆成若干帧发出 (能塞进一帧的按容器聚合).
+		void send_ip_batch(bool roam);
+
+		// 该不该顺带一次漫游凭证 (一直在发却收不到下行时).
+		bool nudge_cookie() const;
 
 		// 按传输类型把线上帧排队发送.
 		void queue_frame(std::string_view frame);
@@ -301,6 +314,9 @@ namespace libavpn {
 
 		// 排队等发送的 UDP 帧.
 		std::vector<std::vector<uint8_t>> m_udp_pending;
+
+		// 一批待聚合的 IP 包 (复用缓冲, 免得每批分配).
+		std::vector<std::string_view> m_batch_packets;
 
 		// 漫游凭证.
 		std::array<uint8_t, handshake_hint_size> m_roam_cookie{};

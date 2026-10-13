@@ -176,6 +176,79 @@ BOOST_AUTO_TEST_CASE(container_roundtrip_and_strictness)
 	BOOST_CHECK(!parse_container(std::string("\x01\x00", 2), out));
 }
 
+BOOST_AUTO_TEST_CASE(pack_packets_opportunistic_aggregation)
+{
+	const auto p40 = make_ipv4(40);
+	const auto p60 = make_ipv4(60);
+	const auto p1200 = make_ipv4(1200);
+	std::vector<std::string_view> packets{ p40, p60, p1200 };
+
+	std::string out;
+	// 一片只装得下两个: 容器 = 头 2 + 40 + 60.
+	BOOST_CHECK_EQUAL(pack_packets(packets, 0, 102, out), 2u);
+	BOOST_CHECK_EQUAL(out.size(), 102u);
+	std::vector<std::string_view> entries;
+	BOOST_REQUIRE(parse_container(out, entries));
+	BOOST_REQUIRE_EQUAL(entries.size(), 2u);
+	BOOST_CHECK(entries[0] == p40);
+	BOOST_CHECK(entries[1] == p60);
+
+	// 少 1 字节就只装得下第一个: 单包不做容器封装, 一个字节都不多花.
+	BOOST_CHECK_EQUAL(pack_packets(packets, 0, 101, out), 1u);
+	BOOST_CHECK(out == p40);
+
+	// 从中间开始装.
+	BOOST_CHECK_EQUAL(pack_packets(packets, 1, 62, out), 1u);
+	BOOST_CHECK(out == p60);
+
+	// 第一个包就超过一片: 原样交出去, 由上层按老路径丢掉.
+	BOOST_CHECK_EQUAL(pack_packets(packets, 2, 1000, out), 1u);
+	BOOST_CHECK(out == p1200);
+
+	// 起点越界 / 空输入.
+	BOOST_CHECK_EQUAL(pack_packets(packets, 3, 1500, out), 0u);
+	BOOST_CHECK(out.empty());
+
+	// 一批包按顺序被切成若干帧: 顺序不变, 一个不丢.
+	std::size_t pos = 0;
+	std::size_t frames = 0;
+	std::vector<std::string> restored;
+	while (pos < packets.size())
+	{
+		const std::size_t used = pack_packets(packets, pos, 102, out);
+		BOOST_REQUIRE(used > 0);
+		if (used == 1)
+		{
+			// 只装得下一个包时不做容器封装, 出来就是那个包.
+			restored.emplace_back(out);
+		}
+		else
+		{
+			std::vector<std::string_view> got;
+			BOOST_REQUIRE(parse_container(out, got));
+			for (auto v : got)
+				restored.emplace_back(v);
+		}
+		pos += used;
+		frames++;
+	}
+	BOOST_CHECK_EQUAL(frames, 2u);  // 前两个合成一帧, 大包自己一帧.
+	BOOST_REQUIRE_EQUAL(restored.size(), 3u);
+	BOOST_CHECK(restored[0] == p40);
+	BOOST_CHECK(restored[1] == p60);
+	BOOST_CHECK(restored[2] == p1200);
+
+	// 条目数只有 1 字节: 一次最多装 255 个.
+	std::vector<std::string> tiny(300, make_ipv4(20));
+	std::vector<std::string_view> many;
+	for (auto& t : tiny)
+		many.push_back(t);
+	BOOST_CHECK_EQUAL(pack_packets(many, 0, 20 * 300 + 2, out),
+		container_max_entries);
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(out[1]),
+		static_cast<uint8_t>(container_max_entries));
+}
+
 BOOST_AUTO_TEST_CASE(seq_arithmetic_across_wrap)
 {
 	BOOST_CHECK_EQUAL(global_seq(0, 5), 5u);

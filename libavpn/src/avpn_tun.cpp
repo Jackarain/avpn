@@ -242,7 +242,7 @@ namespace libavpn {
 			if (flags >= 0)
 				::fcntl(config.ptun_fd_, F_SETFL, flags | O_NONBLOCK);
 
-			m_stream.assign(config.ptun_fd_, ec);
+			if (!assign_fd(config.ptun_fd_, ec))
 			if (ec)
 			{
 				XLOG_ERR << "assign ptun_fd failed: " << ec.message();
@@ -273,7 +273,7 @@ namespace libavpn {
 			if (flags >= 0)
 				::fcntl(config.utun_fd_, F_SETFL, flags | O_NONBLOCK);
 
-			m_stream.assign(config.utun_fd_, ec);
+			if (!assign_fd(config.utun_fd_, ec))
 			if (ec)
 			{
 				XLOG_ERR << "assign utun_fd failed: " << ec.message();
@@ -291,7 +291,7 @@ namespace libavpn {
 		if (fd < 0)
 			return false;
 
-		m_stream.assign(fd, ec);
+		if (!assign_fd(fd, ec))
 		if (ec)
 		{
 			::close(fd);
@@ -319,6 +319,38 @@ namespace libavpn {
 		m_stream.close(ec);
 #endif
 		m_opened = false;
+	}
+
+	std::size_t tun_device::try_read_some(const net::mutable_buffer& buffer,
+		boost::system::error_code& ec)
+	{
+#if defined(_WIN32)
+		// wintun 只有异步接口, 不参与批量收包.
+		ec = net::error::would_block;
+		return 0;
+#else
+		if (!m_opened)
+		{
+			ec = net::error::bad_descriptor;
+			return 0;
+		}
+		ec.clear();
+		// 描述符一直是非阻塞的: 没排队的包时这里返回 would_block.
+		return m_stream.read_some(buffer, ec);
+#endif
+	}
+
+	bool tun_device::assign_fd(int fd, boost::system::error_code& ec)
+	{
+		m_stream.assign(fd, ec);
+		if (ec)
+			return false;
+
+		// fd 已经是非阻塞的 (上面刚设过); 这里让 asio 的状态也知道, 免得
+		// 同步读走进 poll(-1) 一直等.
+		boost::system::error_code nec;
+		m_stream.non_blocking(true, nec);
+		return !nec;
 	}
 
 	bool tun_device::configure(uint32_t vaddr, uint8_t prefix, int mtu)

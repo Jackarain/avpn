@@ -991,12 +991,64 @@ namespace libavpn {
 		if (!m_established || m_abort || ip_packet.empty())
 			return;
 
-		// 一直在发却收不到下行: 这一帧顺带 cookie, 让对端尽快跟上换网.
-		const bool nudge = m_datapath.has_roam_cookie() &&
-			(std::chrono::steady_clock::now() - m_last_rx >= no_rx_nudge);
-		send_plaintext(std::string_view(
+		m_batch_packets.clear();
+		m_batch_packets.emplace_back(
 			reinterpret_cast<const char*>(ip_packet.data()),
-			ip_packet.size()), nudge);
+			ip_packet.size());
+		send_ip_batch(nudge_cookie());
+	}
+
+	void avpn_session::tun_submit_batch(
+		const std::vector<std::vector<uint8_t>>& packets,
+		std::size_t from, std::size_t count)
+	{
+		if (!m_established || m_abort || count == 0 ||
+			from >= packets.size())
+		{
+			return;
+		}
+
+		count = std::min(count, packets.size() - from);
+		m_batch_packets.clear();
+		m_batch_packets.reserve(count);
+		for (std::size_t i = 0; i < count; i++)
+		{
+			const auto& packet = packets[from + i];
+			if (packet.empty())
+				continue;
+			m_batch_packets.emplace_back(
+				reinterpret_cast<const char*>(packet.data()),
+				packet.size());
+		}
+		send_ip_batch(nudge_cookie());
+	}
+
+	bool avpn_session::nudge_cookie() const
+	{
+		// 一直在发却收不到下行: 顺带一次 cookie, 让对端尽快跟上换网.
+		return m_datapath.has_roam_cookie() &&
+			(std::chrono::steady_clock::now() - m_last_rx >= no_rx_nudge);
+	}
+
+	void avpn_session::send_ip_batch(bool roam)
+	{
+		if (m_batch_packets.empty())
+			return;
+
+		// 一片装得下的包按容器聚合; 装不下的接着装下一帧, 顺序不变.
+		const std::size_t limit = m_params.shard_limit();
+		std::string frame;
+		std::size_t pos = 0;
+		while (pos < m_batch_packets.size())
+		{
+			const std::size_t used =
+				pack_packets(m_batch_packets, pos, limit, frame);
+			if (used == 0)
+				break;
+			// 漫游帧只在第一个帧上带 (一批里带一次就够).
+			send_plaintext(frame, roam && pos == 0);
+			pos += used;
+		}
 	}
 
 	// ------------------------------------------------------------------

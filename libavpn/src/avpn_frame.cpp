@@ -180,10 +180,57 @@ namespace libavpn {
 	void append_container(std::string& out,
 		const std::vector<std::string_view>& entries)
 	{
+		append_container(out, entries, 0, entries.size());
+	}
+
+	void append_container(std::string& out,
+		const std::vector<std::string_view>& entries, std::size_t from,
+		std::size_t count)
+	{
 		out.push_back(static_cast<char>(container_marker));
-		out.push_back(static_cast<char>(entries.size() & 0xff));
-		for (auto& e : entries)
-			out.append(e.data(), e.size());
+		out.push_back(static_cast<char>(count & 0xff));
+		for (std::size_t i = from; i < from + count; i++)
+			out.append(entries[i].data(), entries[i].size());
+	}
+
+	std::size_t pack_packets(const std::vector<std::string_view>& packets,
+		std::size_t from, std::size_t payload_limit, std::string& out)
+	{
+		out.clear();
+		if (from >= packets.size() ||
+			payload_limit < container_header_size)
+			return 0;
+
+		// 先看能连着装几个: 一个包时不加容器头, 两个以上才按容器算长度.
+		std::size_t used = 0;
+		std::size_t body = 0;
+		while (from + used < packets.size() &&
+			used < container_max_entries)
+		{
+			const std::size_t size = packets[from + used].size();
+			if (used == 0)
+			{
+				if (size > payload_limit)
+					break;
+			}
+			else if (container_header_size + body + size > payload_limit)
+			{
+				break;
+			}
+			body += size;
+			used++;
+		}
+
+		// 只装得下一个 (或第一个就超过一片): 不做容器封装, 原样交出去;
+		// 超过一片的包由上层按老路径丢掉.
+		if (used <= 1)
+		{
+			out.assign(packets[from].data(), packets[from].size());
+			return 1;
+		}
+
+		append_container(out, packets, from, used);
+		return used;
 	}
 
 	namespace {

@@ -911,85 +911,108 @@ namespace libavpn {
 			[buf](const boost::system::error_code&, std::size_t) {});
 	}
 
-	void avpn_service::route_tun_packet(std::vector<uint8_t> ip_packet)
+	// macOS 的 utun 每个数据包前面多 4 字节地址族头部, 剥掉之后才是原始
+	// IP 包; 其它平台原样返回. 连头都不够长时返回 0 (这个包丢掉).
+	static std::size_t tun_strip_packet_header(std::vector<uint8_t>& buf,
+		std::size_t n)
+	{
+#if defined(__APPLE__)
+		if (n < 4)
+			return 0;
+		std::memmove(buf.data(), buf.data() + 4, n - 4);
+		return n - 4;
+#else
+		(void)buf;
+		return n;
+#endif
+	}
+
+	avpn_session* avpn_service::tun_packet_target(
+		const std::vector<uint8_t>& ip_packet)
 	{
 		if (ip_packet.size() < 20)
-			return;
+			return nullptr;
 
 		// 解析目标 IP.
 		uint32_t dst = 0;
-		uint8_t version = (ip_packet[0] >> 4) & 0x0f;
+		const uint8_t version =
+			static_cast<uint8_t>(ip_packet[0] >> 4) & 0x0f;
 		if (version == 4)
 		{
-			if (ip_packet.size() < 20)
-				return;
 			std::memcpy(&dst, ip_packet.data() + 16, 4);
 			dst = ntohl(dst);
 		}
 		else if (version == 6)
 		{
 			if (ip_packet.size() < 40)
-				return;
-
-			// client 模式: 先做 DNS 拦截, 其余转发给唯一会话.
-			if (m_tunnel)
-			{
-				if (m_dns_proxy &&
-					m_dns_proxy->on_tun_packet(ip_packet))
-					return;
-				m_tunnel->tun_submit(std::move(ip_packet));
-				return;
-			}
-
-			// gateway 模式: IPv6 内网 (默认 fd00:8888::/64) 目标地址低 32 位即虚拟地址.
+				return nullptr;
+			// IPv6 内网 (默认 fd00:8888::/64) 目标地址低 32 位即虚拟地址.
 			std::memcpy(&dst, ip_packet.data() + 24 + 12, 4);
 			dst = ntohl(dst);
-
-			auto session = find_session(dst);
-			if (session)
-			{
-				session->tun_submit(std::move(ip_packet));
-				return;
-			}
-
-			net::ip::address_v6::bytes_type bytes{};
-			std::memcpy(bytes.data(), ip_packet.data() + 24, 16);
-			XLOG_DBG << "Drop tun packet, no route to: "
-				<< net::ip::address_v6(bytes).to_string();
-			return;
 		}
 		else
 		{
-			return;
+			return nullptr;
 		}
 
 		// client 模式: 先做 DNS 拦截, 其余转发给唯一会话.
 		if (m_tunnel)
 		{
-			if (m_dns_proxy &&
-				m_dns_proxy->on_tun_packet(ip_packet))
-				return;
-			m_tunnel->tun_submit(std::move(ip_packet));
-			return;
+			if (m_dns_proxy && m_dns_proxy->on_tun_packet(ip_packet))
+				return nullptr;
+			return m_tunnel.get();
 		}
 
 		// gateway 模式: 根据目标虚拟地址路由到对应会话.
 		auto session = find_session(dst);
 		if (session)
-		{
-			session->tun_submit(std::move(ip_packet));
-			return;
-		}
+			return session.get();
 
 		// 目标为 gateway 自身, 或未找到会话, 丢弃.
-		XLOG_DBG << "Drop tun packet, no route to: "
-			<< net::ip::address_v4(dst).to_string();
+		if (version == 6)
+		{
+			net::ip::address_v6::bytes_type bytes{};
+			std::memcpy(bytes.data(), ip_packet.data() + 24, 16);
+			XLOG_DBG << "Drop tun packet, no route to: "
+				<< net::ip::address_v6(bytes).to_string();
+		}
+		else
+		{
+			XLOG_DBG << "Drop tun packet, no route to: "
+				<< net::ip::address_v4(dst).to_string();
+		}
+		return nullptr;
+	}
+
+	void avpn_service::dispatch_tun_batch(
+		std::vector<std::vector<uint8_t>>& batch)
+	{
+		if (batch.empty())
+			return;
+
+		// 连续属于同一个会话的包合成一次提交, 由会话按容器聚合.
+		std::size_t begin = 0;
+		avpn_session* session = tun_packet_target(batch[0]);
+		for (std::size_t i = 1; i <= batch.size(); i++)
+		{
+			avpn_session* next = i < batch.size()
+				? tun_packet_target(batch[i]) : nullptr;
+			if (next == session)
+				continue;
+
+			if (session)
+				session->tun_submit_batch(batch, begin, i - begin);
+			begin = i;
+			session = next;
+		}
 	}
 
 	net::awaitable<void> avpn_service::tun_read_loop()
 	{
 		// 复用读取缓冲区, 避免每包一次分配与清零.
 		std::vector<uint8_t> buf(avpn_max_mtu);
+		std::vector<std::vector<uint8_t>> batch;
+		batch.reserve(tun_batch_max);
 
 		while (!m_abort)
 		{
@@ -999,17 +1022,28 @@ namespace libavpn {
 			if (ec || m_abort)
 				break;
 
-#if defined(__APPLE__)
-			// macOS utun 每个数据包前置 4 字节地址族头部, 剥离后
-			// 才是原始 IP 数据包.
-			if (n < 4)
+			n = tun_strip_packet_header(buf, n);
+			if (n == 0)
 				continue;
-			std::memmove(buf.data(), buf.data() + 4, n - 4);
-			n -= 4;
-#endif
+			batch.emplace_back(buf.begin(), buf.begin() + n);
 
-			route_tun_packet(std::vector<uint8_t>(
-				buf.begin(), buf.begin() + n));
+			// 顺手把已经排在 tun 里的包一起收走: 这些包本来就在手里, 合到
+			// 一帧里能省下每包 20 字节的封装, 也不必为攒包多等一微秒.
+			while (batch.size() < tun_batch_max)
+			{
+				boost::system::error_code tec;
+				std::size_t m = m_tundev->try_read_some(
+					net::buffer(buf), tec);
+				if (tec || m == 0)
+					break;
+				m = tun_strip_packet_header(buf, m);
+				if (m == 0)
+					continue;
+				batch.emplace_back(buf.begin(), buf.begin() + m);
+			}
+
+			dispatch_tun_batch(batch);
+			batch.clear();
 		}
 
 		co_return;

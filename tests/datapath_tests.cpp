@@ -320,6 +320,69 @@ BOOST_AUTO_TEST_CASE(fec_mode_data_shard_is_delivered_at_once)
 	}
 }
 
+BOOST_AUTO_TEST_CASE(container_aggregation_survives_fec_loss)
+{
+	session_params params;
+	params.fec_total = 16;
+	params.fec_data = 12;
+	pipe_pair p;
+	p.start(params);
+
+	// 每个数据片装一个容器 (3 个小包); 容器长短不一, 组里短的片会被补零.
+	constexpr std::size_t per_container = 3;
+	std::vector<std::string> originals;
+	std::vector<std::string> frames;
+
+	for (std::size_t g = 0; g < params.fec_data; g++)
+	{
+		std::vector<std::string> members;
+		std::vector<std::string_view> entries;
+		for (std::size_t k = 0; k < per_container; k++)
+		{
+			members.push_back(ipv4_payload(
+				60 + g * 7 + k * 11, static_cast<uint8_t>(g + k)));
+			originals.push_back(members.back());
+		}
+		for (auto& m : members)
+			entries.push_back(m);
+
+		std::string container;
+		append_container(container, entries);
+
+		// 最后一片凑满一组时会连冗余片一起出来.
+		auto fs = p.client.seal(container, g);
+		BOOST_REQUIRE(!fs.empty());
+		for (auto& f : fs)
+			frames.push_back(std::move(f));
+	}
+	BOOST_REQUIRE_EQUAL(frames.size(), params.fec_total);
+
+	// 丢 4 片数据 (正好是冗余片的数), 剩下的靠冗余片还原.
+	std::vector<std::string> got;
+	for (std::size_t i = 0; i < frames.size(); i++)
+	{
+		if (i < params.fec_data && i % 3 == 0)
+			continue;
+		for (auto& d : p.gateway.on_frame(frames[i], i))
+			got.push_back(std::move(d));
+	}
+	BOOST_REQUIRE_EQUAL(got.size(), params.fec_data);
+
+	// 每片解出来是一个容器, 按容器规则拆回原来的小包.
+	std::multiset<std::string> delivered;
+	for (auto& plain : got)
+	{
+		std::vector<std::string_view> entries;
+		BOOST_REQUIRE(parse_container(plain, entries));
+		BOOST_CHECK_EQUAL(entries.size(), per_container);
+		for (auto v : entries)
+			delivered.emplace(v);
+	}
+	BOOST_REQUIRE_EQUAL(delivered.size(), originals.size());
+	for (const auto& o : originals)
+		BOOST_CHECK_EQUAL(delivered.count(o), 1);
+}
+
 BOOST_AUTO_TEST_CASE(roaming_frames_are_bound_to_cookie)
 {
 	session_params params;

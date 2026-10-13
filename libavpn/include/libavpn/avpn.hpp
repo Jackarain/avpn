@@ -257,6 +257,10 @@ namespace libavpn {
 		// 客户端 TCP 连接.
 		net::awaitable<void> client_tcp_connect();
 
+		// 一次从 tun 里接连收下来的包数上限: 只把已经排在 tun 里的包一起
+		// 收走, 不为攒包等待 (见 doc/protocol_v2.md 2.4).
+		static constexpr std::size_t tun_batch_max = 32;
+
 		// tun 读取循环: 从 tun 读取 IP 包并转发给相应会话.
 		net::awaitable<void> tun_read_loop();
 
@@ -276,7 +280,12 @@ namespace libavpn {
 		void restore_system_routes();
 
 		// 路由一个 tun 读取到的 IP 包.
-		void route_tun_packet(std::vector<uint8_t> ip_packet);
+		// 解析一个 tun 包该交给哪个会话 (客户端 DNS 拦截也在这里做);
+		// 没找到返回空. 指针只在本次分发里用, 会话由 service 持有.
+		avpn_session* tun_packet_target(const std::vector<uint8_t>& ip_packet);
+
+		// 把一次从 tun 收下的一批包按会话分组提交.
+		void dispatch_tun_batch(std::vector<std::vector<uint8_t>>& batch);
 
 		// 将 IP 包写入 tun 设备.
 		void write_to_tun(std::vector<uint8_t> ip_packet);

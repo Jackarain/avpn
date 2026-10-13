@@ -843,7 +843,7 @@ net::awaitable<void> dns_proxy::doh_query(
 
 
 
-bool dns_proxy::on_tun_packet(std::vector<uint8_t> ip_packet)
+bool dns_proxy::on_tun_packet(const std::vector<uint8_t>& ip_packet)
 {
 	if (!m_enabled.load() || m_abort.load())
 		return false;
@@ -880,7 +880,7 @@ bool dns_proxy::on_tun_packet(std::vector<uint8_t> ip_packet)
 			m_doh_inflight++;
 			auto self = shared_from_this();
 			net::co_spawn(m_ioc,
-				[self, pkt = std::move(ip_packet), qname]() mutable
+				[self, pkt = ip_packet, qname]() mutable
 					-> net::awaitable<void>
 				{
 					struct inflight_guard

@@ -82,7 +82,9 @@ public:
 
 	// 处理 tun 中读到的 IP 包 (仅 UDP/53), 返回 true 表示已消费拦截.
 	// 须在 io_context 线程调用.
-	bool on_tun_packet(std::vector<uint8_t> ip_packet);
+	// 看一眼是不是要拦截的 DNS 查询; 拦下 (返回 true) 就自己处理.
+	// 收引用, 免得每个包都白拷一份.
+	bool on_tun_packet(const std::vector<uint8_t>& ip_packet);
 
 private:
 	dns_proxy(net::io_context& ioc, const config& cfg,
