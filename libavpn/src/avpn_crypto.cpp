@@ -472,9 +472,15 @@ namespace libavpn::crypto {
 			return false;
 
 #if defined(OPENSSL_IS_BORINGSSL)
+		// BoringSSL 的 ChaCha20-Poly1305 只有 16 字节标签.
+		if (m_tag_len != aead_tag_size)
+			return false;
+#endif
+
+#if defined(OPENSSL_IS_BORINGSSL)
 		auto* ctx = EVP_AEAD_CTX_new(EVP_aead_chacha20_poly1305(),
 			reinterpret_cast<const unsigned char*>(key.data()), key.size(),
-			aead_tag_size);
+			m_tag_len);
 		if (!ctx)
 			return false;
 
@@ -509,6 +515,15 @@ namespace libavpn::crypto {
 		return true;
 	}
 
+	bool aead_cipher::set_tag_len(std::size_t tag_len)
+	{
+		if (tag_len != 12 && tag_len != aead_tag_size)
+			return false;
+
+		m_tag_len = tag_len;
+		return true;
+	}
+
 	bool aead_cipher::encrypt(std::string_view nonce, std::string_view plaintext,
 		std::string_view aad, uint8_t* out, std::size_t out_size,
 		std::size_t& out_len)
@@ -516,7 +531,7 @@ namespace libavpn::crypto {
 		out_len = 0;
 
 		if (!m_ctx || nonce.size() != aead_nonce_size || !out ||
-			out_size < plaintext.size() + aead_tag_size)
+			out_size < plaintext.size() + m_tag_len)
 			return false;
 
 #if defined(OPENSSL_IS_BORINGSSL)
@@ -559,11 +574,14 @@ namespace libavpn::crypto {
 			return false;
 		total += final_len;
 
+		// 先拿到完整标签, 再按需要截断 (省几个字节).
+		unsigned char tag[aead_tag_size];
 		if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, aead_tag_size,
-				out + total) != 1)
+				tag) != 1)
 			return false;
 
-		out_len = static_cast<std::size_t>(total) + aead_tag_size;
+		std::memcpy(out + total, tag, m_tag_len);
+		out_len = static_cast<std::size_t>(total) + m_tag_len;
 		return true;
 #endif
 	}
@@ -578,7 +596,10 @@ namespace libavpn::crypto {
 			ciphertext.size() < aead_tag_size || !out)
 			return false;
 
-		const std::size_t cipher_len = ciphertext.size() - aead_tag_size;
+		if (ciphertext.size() < m_tag_len)
+			return false;
+
+		const std::size_t cipher_len = ciphertext.size() - m_tag_len;
 		if (out_size < cipher_len)
 			return false;
 
@@ -605,7 +626,7 @@ namespace libavpn::crypto {
 
 		// 设置认证标签 (原地解密时标签位于输入缓冲区尾部).
 		if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,
-				aead_tag_size,
+				static_cast<int>(m_tag_len),
 				const_cast<unsigned char*>(
 					reinterpret_cast<const unsigned char*>(
 						ciphertext.data() + cipher_len))) != 1)

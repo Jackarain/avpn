@@ -60,6 +60,9 @@ namespace libavpn {
 		// 本组已经用掉几个数据片; 0 表示当前没有半满的组.
 		uint32_t used() const { return m_used; }
 
+		// 本组第一片对应的计数器.
+		uint32_t group_base() const { return m_base; }
+
 		// 收一个数据片, 把这次该发的片追加到 out: 先是它自己, 凑够时再跟 ps 片冗余.
 		// 内容超过单片上限返回 false (调用方应丢掉这个包).
 		bool push(std::string_view payload, uint64_t now_ms,

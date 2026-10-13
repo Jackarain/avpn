@@ -93,6 +93,11 @@ namespace libavpn {
 			// 使用 32 字节会话密钥初始化, 失败返回 false.
 			bool init(std::string_view key);
 
+			// 认证标签长度, 取 12 或 16 (默认 16); 失败返回 false.
+			// 截断标签只在 OpenSSL 下支持, BoringSSL 只认 16.
+			bool set_tag_len(std::size_t tag_len);
+			std::size_t tag_len() const { return m_tag_len; }
+
 			// 加密: 密文+tag 写入 out, 容量需 >= plaintext.size()+aead_tag_size.
 			// 成功返回 true 并通过 out_len 输出写入的字节数.
 			bool encrypt(std::string_view nonce, std::string_view plaintext,
@@ -112,6 +117,9 @@ namespace libavpn {
 		private:
 			// EVP_CIPHER_CTX (OpenSSL) 或 EVP_AEAD_CTX (BoringSSL).
 			void* m_ctx{ nullptr };
+
+			// 认证标签长度.
+			std::size_t m_tag_len{ aead_tag_size };
 		};
 	}
 

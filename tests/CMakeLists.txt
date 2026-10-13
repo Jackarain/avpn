@@ -1,4 +1,4 @@
-if (NOT ENABLE_BUILD_TESTS)
+﻿if (NOT ENABLE_BUILD_TESTS)
 	return()
 endif()
 
@@ -18,6 +18,10 @@ add_executable(protocol_v2_tests
 	protocol_v2_tests.cpp
 )
 
+add_executable(datapath_tests
+	datapath_tests.cpp
+)
+
 target_include_directories(fec_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -35,6 +39,11 @@ target_include_directories(dns_packet_tests PRIVATE
 )
 
 target_include_directories(protocol_v2_tests PRIVATE
+	${CMAKE_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_include_directories(datapath_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -99,6 +108,26 @@ target_link_libraries(obfuscate_tests PRIVATE
 	${OPENSSL_LIBRARIES}
 )
 
+target_link_libraries(datapath_tests PRIVATE
+	Boost::unit_test_framework
+	Boost::thread
+	Boost::date_time
+	Boost::program_options
+	Boost::filesystem
+	Boost::signals2
+	Boost::nowide
+	Boost::url
+	Boost::json
+	Boost::uuid
+	Boost::asio
+	Boost::beast
+	Boost::scope
+
+	fmt
+	${ZLIB_LIBRARIES}
+	${OPENSSL_LIBRARIES}
+)
+
 target_link_libraries(protocol_v2_tests PRIVATE
 	Boost::unit_test_framework
 	Boost::thread
@@ -129,8 +158,10 @@ else()
 	set_property(TARGET dns_packet_tests PROPERTY CXX_STANDARD 20)
 endif()
 set_property(TARGET protocol_v2_tests PROPERTY CXX_STANDARD 20)
+set_property(TARGET datapath_tests PROPERTY CXX_STANDARD 20)
 
 add_test(NAME fec_tests COMMAND fec_tests)
 add_test(NAME obfuscate_tests COMMAND obfuscate_tests)
 add_test(NAME dns_packet_tests COMMAND dns_packet_tests)
 add_test(NAME protocol_v2_tests COMMAND protocol_v2_tests)
+add_test(NAME datapath_tests COMMAND datapath_tests)
