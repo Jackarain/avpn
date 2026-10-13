@@ -24,13 +24,11 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_protocol.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_compress.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_rs.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_fec.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_frame.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_fec_v2.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_datapath.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_keys.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_replay.hpp
-	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_obfuscate.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_session.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_tun.hpp
 	${CMAKE_CURRENT_SOURCE_DIR}/include/libavpn/avpn_wintun.hpp
@@ -48,12 +46,10 @@ target_sources(libavpn
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_protocol.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_compress.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_rs.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_fec.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_frame.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_fec_v2.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_datapath.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_keys.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_obfuscate.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_session.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_tun.cpp
 	$<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_SOURCE_DIR}/src/avpn_wintun.cpp>
@@ -80,7 +76,7 @@ target_compile_definitions(libavpn
 	-DFORCE_USE_FMT_FORMAT
 )
 
-# MSVC x64: avpn_fec.cpp 中的 AVX2 intrinsics 需要 /arch:AVX2 编译.
+# MSVC x64: avpn_rs.cpp 中的 AVX2 intrinsics 需要 /arch:AVX2 编译.
 if (MSVC)
 	target_compile_options(libavpn PRIVATE /arch:AVX2)
 endif()

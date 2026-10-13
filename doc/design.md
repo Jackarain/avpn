@@ -11,10 +11,10 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 
 **核心设计目标：**
 
-- 整个握手过程（Message 1 / Message 2）在网络传输时**完全加密**，不包含任何明文的协议头、ID 或可识别的指纹。
-- 数据通道使用 AEAD 对称加密（ChaCha20-Poly1305），无任何明文协议。
-- 支持 UDP + FEC 纠删码与 TCP 两种传输，适配不同网络环境。
-- 支持压缩（握手时协商，先压缩后加密）。
+- 握手报文在网络传输时**完全加密**，不包含任何明文的可识别指纹。
+- 数据帧只有 4 字节明文帧头加认证标签，其余载荷全部经 AEAD 加密（ChaCha20-Poly1305）。
+- 支持 UDP + 纠错冗余与 TCP 两种传输，适配不同网络环境。
+- 客户端换网（源 IP / 端口变化）无感知：不重新握手、不中断会话、虚拟地址不变。
 
 ### 配置示例
 
@@ -38,10 +38,10 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 └───┬──────────┬───────────┬───────────┬───────────┬─────────┬────────┘
     │          │           │           │           │         │
 ┌───▼───┐ ┌────▼────┐ ┌────▼────┐ ┌────▼────┐ ┌────▼────┐ ┌──▼─────┐
-│crypto │ │protocol │ │compress │ │  fec    │ │  tun    │ │ 日志   │
-│OpenSSL│ │序列化/  │ │zlib     │ │RS GF(2⁸)│ │Linux/mac│ │xlogger │
-│X25519 │ │endpoint │ │deflate  │ │编码/重建│ │OS utun  │ │        │
-│AEAD   │ │解析     │ │         │ │         │ │         │ │        │
+│crypto │ │ frame   │ │compress │ │ fec_v2  │ │  tun    │ │ 日志   │
+│OpenSSL│ │ header  │ │zlib     │ │RS GF(2⁸)│ │Linux/mac│ │xlogger │
+│X25519 │ │ hs/param│ │deflate  │ │ group   │ │OS utun  │ │        │
+│AEAD   │ │ key/rep │ │         │ │         │ │         │ │        │
 │HKDF   │ │         │ │         │ │         │ │         │ │        │
 └───────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
 ```
@@ -49,11 +49,16 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 | 模块 | 文件 | 职责 |
 |---|---|---|
 | `avpn_service` | `avpn.cpp` / `avpn.hpp` | 服务调度、监听、会话管理、DDoS 防护、虚拟地址分配 |
-| `avpn_session` | `avpn_session.cpp/.hpp` | 单会话：握手、密钥派生、数据通路、保活/断开、UDP/TCP 传输 |
+| `avpn_session` | `avpn_session.cpp/.hpp` | 单会话：握手、密钥派生、数据通路、漫游、保活/断开、UDP/TCP 传输 |
 | `avpn_crypto` | `avpn_crypto.cpp/.hpp` | OpenSSL/BoringSSL 封装：X25519、ChaCha20-Poly1305、HKDF-SHA256、base64 |
-| `avpn_protocol` | `avpn_protocol.cpp/.hpp` | 协议常量、报文结构、序列化、endpoint 解析 |
+| `avpn_frame` | `avpn_frame.cpp/.hpp` | 帧头/次代/组号算术、明文分类、容器、控制消息、会话参数 TLV、握手报文 |
+| `avpn_keys` | `avpn_keys.cpp/.hpp` | 握手密钥与会话主密钥派生、按次代派生数据面密钥、nonce 构造 |
+| `avpn_replay` | `avpn_replay.hpp` | 64 位全局序号重放窗口 |
+| `avpn_rs` | `avpn_rs.cpp/.hpp` | Reed-Solomon 纠删码（GF(2⁸)）与 SIMD 批量查表 |
+| `avpn_fec_v2` | `avpn_fec_v2.cpp/.hpp` | 纠错分组：一包一片、凑够数据片出冗余片、按需还原 |
+| `avpn_datapath` | `avpn_datapath.cpp/.hpp` | 数据面：封包/收包、次代推断、重放过滤、漫游帧 |
+| `avpn_protocol` | `avpn_protocol.cpp/.hpp` | 常量（mtu、包大小、压缩类型）与 endpoint 解析 |
 | `avpn_compress` | `avpn_compress.cpp/.hpp` | 压缩抽象（zlib deflate） |
-| `avpn_fec` | `avpn_fec.cpp/.hpp` | Reed-Solomon 纠删码（GF(2⁸)）与分片编解码 |
 | `avpn_tun` | `avpn_tun.cpp/.hpp` | tun 设备抽象（Linux `/dev/net/tun`、macOS utun、Windows wintun、fd 透传） |
 | 基础设施 | `io_context_pool.hpp` / `logging.hpp` | 线程池与日志（xlogger） |
 
@@ -61,184 +66,81 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 
 ## 3. 密钥体系
 
+密钥与密钥派生的字节级定义见 `doc/protocol_v2.md` 第 3 章；本节只列实现要点。
+
 ### 3.1 密钥材料
 
 | 密钥 | 说明 |
 |---|---|
 | `(SPriv, SPub)` | 静态长期密钥对（X25519），双方预先交换公钥 |
-| `(TPriv, TPub)` | 握手时生成的临时密钥对，每次握手随机 |
-| `K_temp` | 临时握手密钥（加密 Message 1） |
-| `K_resp` | 响应密钥（加密 Message 2） |
-| `K_session` | 会话密钥，派生 `key_c2s` / `key_s2c` 双向密钥 |
+| `(EPriv, EPub)` | 握手时生成的临时密钥对，每次握手随机 |
+| `K_temp` / `K_resp` | 两把握手密钥，由双方**静态密钥**派生，分别加密握手请求与回复 |
+| `K_master` | 会话主密钥，由四次 X25519 派生 |
+| `K_e` | 数据面密钥，由 `K_master` 按次代派生；同一次代内不变 |
 
 ### 3.2 密钥派生（HKDF-SHA256）
 
-所有派生均使用 `HKDF-SHA256`，info 字符串约定如下：
+全部派生都用 HKDF-SHA256：
 
 ```cpp
-kdf_temp_info  = "avpn-handshake-temp-v1"
-kdf_resp_info  = "avpn-handshake-resp-v1"
-kdf_session_master_info = "avpn-session-master-v1"
-kdf_c2s_info   = "avpn-session-c2s-v1"
-kdf_s2c_info   = "avpn-session-s2c-v1"
+// 握手密钥: 共享秘密来自双方静态密钥
+shared    = X25519(my_static_priv, peer_static_pub)
+K_temp    = HKDF-SHA256(ikm = shared, info = "avpn-hs-temp-v2", L = 32)
+K_resp    = HKDF-SHA256(ikm = shared, info = "avpn-hs-resp-v2", L = 32)
+
+// 会话主密钥: 四次 X25519, 静态×静态做盐
+ikm       = sort(dh_se, dh_es, dh_ee) 拼接
+K_master  = HKDF-SHA256(ikm = ikm, salt = dh_ss, info = "avpn-master-v2", L = 32)
+
+// 数据面密钥: 按次代派生, 方向用用途标签区分
+K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
+                        info = "avpn-datakey-v2" + "c2s"/"s2c", L = 32)
 ```
 
-**Message 1 临时密钥：**
-
-$$K_{temp} = \text{HKDF}(ECDH(SPriv_C, SPub_S),\ \text{salt}=\varnothing,\ \text{"avpn-handshake-temp-v1"},\ 32)$$
-
-网关端遍历白名单中每个 `SPub_C`，计算 `ECDH(SPriv_S, SPub_C)` 得到对应 `K_temp` 尝试解密。
-
-**Message 2 响应密钥：**
-
-由于客户端在收到 `TPubS` 之前无法计算完整的会话密钥，Message 2 使用独立的 `K_resp`：
-
-$$
-K_{resp} = \text{HKDF}\big(ECDH(TPriv_C, SPub_S),\ \text{salt}=ECDH(SPriv_C, SPub_S),\ \text{"avpn-handshake-resp-v1"},\ 32\big)
-$$
-
-服务端对应：
-
-$$
-K_{resp} = \text{HKDF}\big(ECDH(SPriv_S, TPub_C),\ \text{salt}=ECDH(SPriv_S, SPub_C),\ \text{"avpn-handshake-resp-v1"},\ 32\big)
-$$
-
-**会话密钥（四次 DH + 排序拼接）：**
-
-$$
-\begin{aligned}
-dh_{ss} &= ECDH(\text{my static}, \text{peer static}) \\
-dh_{se} &= ECDH(\text{my static}, \text{peer eph}) \\
-dh_{es} &= ECDH(\text{my eph}, \text{peer static}) \\
-dh_{ee} &= ECDH(\text{my eph}, \text{peer eph}) \\
-\\
-ikm &= \text{sort}(dh_{se},\ dh_{es},\ dh_{ee}) \text{ 拼接} \\
-master &= \text{HKDF}(ikm,\ \text{salt}=dh_{ss},\ \text{"avpn-session-master-v1"},\ 32) \\
-key_{c2s} &= \text{HKDF}(master,\ \varnothing,\ \text{"avpn-session-c2s-v1"},\ 32) \\
-key_{s2c} &= \text{HKDF}(master,\ \varnothing,\ \text{"avpn-session-s2c-v1"},\ 32)
-\end{aligned}
-$$
-
-> `dh_se/dh_es/dh_ee` 排序后拼接，保证两端在本地视角不同的情况下计算出相同的 `ikm`。
-> 客户端用 `key_c2s` 加密、`key_s2c` 解密；服务端相反。AEAD 认证失败直接丢弃，无任何明文反馈。
+- `dh_ss` 是静态×静态，`dh_se` 是静态×临时，`dh_es` 是临时×静态，`dh_ee` 是临时×临时；
+  后三个按字典序排序后拼接，保证两端在本地视角不同时算出相同的 `ikm`。
+- 客户端用 `c2s` 加密、`s2c` 解密，网关相反；AEAD 认证失败直接丢弃，无任何明文反馈。
+- 次代回绕换钥时只重算 `K_e`，主密钥与握手密钥不变。
 
 ---
 
 ## 4. 握手协议（1-RTT）
 
-### 4.1 线格式
+握手报文的完整字节布局、字段与参数表见 `doc/protocol_v2.md` §2.2。实现要点：
 
-所有握手包均为：
-
-```
-[ nonce(12) | ciphertext ]
-```
-
-即 12 字节随机 nonce + ChaCha20-Poly1305 密文（含 16 字节 tag）。网络传输中**没有任何明文标识**，网关收到数据报后须用白名单密钥逐一尝试解密（见 `try_decrypt_handshake_msg1`）。
-
-### 4.2 Message 1（C → S）
-
-明文载荷：
-
-```
-[ TPubC(32) | timestamp(8, LE 毫秒) | client_id(32) ]
-```
-
-| 字段 | 大小 | 说明 |
-|---|---|---|
-| `TPubC` | 32 | 客户端临时公钥 |
-| `timestamp` | 8 | 当前毫秒时间戳，用于防重放 |
-| `client_id` | 32 | 客户端随机身份 ID |
-
-用 `K_temp` 加密整个载荷。
-
-### 4.3 Message 2（S → C）
-
-明文载荷：
-
-```
-[ TPubS(32) | session_config ... ]
-```
-
-`session_config` 为协商的会话配置（见 `session_config` 结构体），包含：
-
-- `compress`：压缩算法（none/deflate/lz4/zstd）
-- `data_shards` / `parity_shards`：FEC 参数
-- `keepalive`：保活间隔（秒）
-- `mtu`：tun MTU
-- `vaddr`：网关分配的虚拟地址
-- `prefix_length`：子网前缀长度
-- `passbyvpn`：是否默认全局出口
-- `pushdns`：推送的 DNS
-- `routes`：推送的路由列表
-
-用 `K_resp` 加密整个载荷。
-
-### 4.4 握手时序
-
-```mermaid
-sequenceDiagram
-    participant C as 客户端 (initiator)
-    participant S as 网关 (responder)
-
-    Note over C: 生成 TPrivC/TPubC<br/>K_temp = HKDF(ECDH(SPrivC, SPubS))
-    C->>S: [nonce | E(K_temp, TPubC|ts|client_id)]
-    Note over S: 遍历白名单 SPubC<br/>K_temp = HKDF(ECDH(SPrivS, SPubC))<br/>尝试解密 → 认证成功
-    Note over S: 生成 TPrivS/TPubS<br/>计算 K_session<br/>K_resp = HKDF(ECDH(SPrivS,TPubC), salt=ECDH(SPrivS,SPubC))
-    S-->>C: [nonce | E(K_resp, TPubS|config)]
-    Note over C: 计算 K_session<br/>用 K_resp 解密并提取 TPubS<br/>握手完成
-    Note over C,S: 数据通道：E(K_session, compress(ip_packet)) 双向
-```
-
-### 4.5 握手失败与重试
-
-- **initiator**：发送 Message 1 后启动 `m_hs_timer` 重发定时器，最多重发 5 次（`m_hs_retry > 5` 判定握手超时并关闭）。UDP 与 TCP 传输均适用。
-- **responder**：收到 Message 1 后通过 DDoS 防护校验，认证成功才回复 Message 2。
-- 解密失败或 AEAD 认证失败的数据报直接丢弃，不产生任何响应（避免被用于探测）。
-
-### 4.6 防重放
-
-- **时钟窗口**：Message 1 的 `timestamp` 必须在当前时间 ±30 秒内，超出直接丢弃。
-- **单调性检查**：按对端静态公钥记录最近接受的时间戳（`m_msg1_ts`），拒绝时间戳不回退的握手。
+- 请求最前面是 8 字节 `hint`（客户端静态公钥的哈希前缀，可选）：网关据此一步查到白名单
+  项；不带（填 0）时网关逐个白名单项试解密。
+- 请求明文含版本、临时公钥、时间戳、客户端标识、期望虚拟地址与参数；回复明文含网关临时
+  公钥与参数。两个方向共用同一条 `session_params` 参数表，网关在回复里定下本会话最终值。
+- initiator 发送请求后启动重发定时器，最多重发 5 次（间隔 5 秒），超时关闭；responder 只有
+  认证成功才回复，解密失败的数据报直接丢弃，不产生任何响应。
+- 防重放：请求带毫秒时间戳，网关按对端静态公钥记录最近接受值，拒绝不回退的重复请求。
 
 ---
 
 ## 5. 数据通道协议
 
-### 5.1 帧格式
+数据帧的完整定义见 `doc/protocol_v2.md` §2.3~§2.5 与第 3 章。实现要点：
 
-会话建立后，每个数据帧均为：
+- 每帧最前面是 4 字节固定帧头（32 位小端计数器），明文传输；`nonce = 帧头 || 0×8`，
+  帧头不再进密文。
+- 计数器从 0 数到 2^32 算一个次代，一旦回绕就进入下一个次代并换钥；次代不写进报文，
+  接收端用最近两个次代推断（最多试 2 个）。全局序号 `g = 次代 × 2^32 + 计数器` 进 64 位
+  重放窗口，既挡重放也定出纠错分组身份（`g ÷ T`）。
+- 帧内明文靠首字节分类：`0x4x` / `0x6x` = IP 包（IPv4 / IPv6），`0x00` = 容器（一帧装多个
+  条目），其它 = 控制消息 `[消息码(1), 长度(2), 内容]`；类型不额外占字节。
+- 漫游帧在帧头前多带 8 字节 `roam_cookie`（握手时下发，同时作为 AEAD 的 AAD）；网关在
+  解密之前就能按 cookie O(1) 认出会话，用于换网重绑与保活。
 
-```
-[ nonce(12) | ciphertext ]
-```
-
-- **UDP**：每个帧即一个 UDP 数据报正文。
-- **TCP**：帧前加 2 字节大端长度前缀，构成 TCP 流式帧。
-
-### 5.2 加密消息类型
-
-数据帧解密后的明文首字节为消息类型（`msg_type`），类型不暴露在网络中：
-
-| 值 | 类型 | 说明 |
-|---|---|---|
-| `0x01` | `data` | 数据消息（可含 FEC 分片） |
-| `0x02` | `keepalive` | 保活消息（携带时间戳，用于 RTT） |
-| `0x03` | `keepalive_reply` | 保活回复 |
-| `0x04` | `disconnect` | 主动断开 |
-| `0x05` | `ack` | 能力协商（FEC 批量聚合） |
-
-### 5.3 发送 / 接收流水线
+发送 / 接收流水线：
 
 ```
 发送 (tun → 对端):
-  ip_packet ──► 压缩 ──► FEC 聚合/分片 ──► type(1)|body ──► AEAD 加密 ──► UDP/TCP 发送
+  ip_packet ──► 纠错分组(一包一片, 满了补冗余片) ──► 帧头 + AEAD 加密 ──► UDP/TCP 发送
 
 接收 (对端 → tun):
-  UDP/TCP ──► AEAD 解密 ──► type 分发 ──► FEC 重组(批量则拆包) ──► 解压 ──► 交付 tun
+  UDP/TCP ──► 按帧头解密(判次代/挡重放) ──► 纠错还原(收齐 ds 片) ──► 交付 tun
 ```
-
-> 顺序遵循设计：**先压缩、后加密；先解密、后解压**。压缩在 FEC 之前进行（先压缩减少分片体积）。
 
 ---
 
@@ -247,9 +149,12 @@ sequenceDiagram
 ### 6.1 Reed-Solomon 编码
 
 - 基于 **GF(2⁸)**，本原多项式 `0x11d`。
-- `reedsolomon(data_shards, parity_shards)`：`data` 分片经 Vandermonde 生成矩阵编码为 `parity` 分片。
-- **系统形式（systematic form）**：编码矩阵经行变换化为 `[I | P]`，编码时数据分片原样保留，仅附加校验分片，避免编码矩阵重复计算，且便于直接选取未丢失分片重建。
-- **重建**：任意选取 `data_shards` 个未丢失的分片，构建子矩阵并求逆（高斯-约当消元），恢复全部数据分片并重算缺失的冗余分片。最多可容忍 `parity_shards` 个分片丢失。
+- `reedsolomon(data_shards, parity_shards)`：`data` 分片经 Vandermonde 生成矩阵编码为
+  `parity` 分片。
+- **系统形式（systematic form）**：编码矩阵经行变换化为 `[I | P]`，编码时数据分片原样
+  保留，仅附加校验分片。
+- **重建**：任意选取 `data_shards` 个未丢失的分片，构建子矩阵并求逆，恢复全部数据分片。
+  最多可容忍 `parity_shards` 个分片丢失。
 
 ### 6.2 GF(2⁸) 查表与 SIMD 优化
 
@@ -265,84 +170,27 @@ sequenceDiagram
 
 - **x86-64**：SSSE3 / AVX2，`pshufb` 并行查表（16/32 字节每次）。
 - **aarch64**：NEON，`vqtbl1q` 并行查表。
-- **分派策略**：GCC/Clang 使用 per-function `target` attribute + `__builtin_cpu_supports` 运行时检测；MSVC 无 per-function attribute，整个 TU 以 `/arch:AVX2` 编译，用 `__cpuid` 运行时分派，不支持 AVX2/SSSE3 时回退标量查表。
+- **分派策略**：GCC/Clang 使用 per-function `target` attribute + `__builtin_cpu_supports`
+  运行时检测；MSVC 无 per-function attribute，整个 TU 以 `/arch:AVX2` 编译，用 `__cpuid`
+  运行时分派，不支持 AVX2/SSSE3 时回退标量查表。
 
 ### 6.3 矩阵缓存
 
-- **编码矩阵缓存**：按 `(data_shards, parity_shards)` 全局缓存系统形式编码矩阵，避免每个会话重复生成 Vandermonde 矩阵。
-- **逆矩阵 LRU 缓存**：按 `(data_shards, parity_shards, 选中分片位图)` 缓存解码子矩阵的逆（容量 64），避免每次恢复重复高斯-约当消元。
+- **编码矩阵缓存**：按 `(data_shards, parity_shards)` 全局缓存系统形式编码矩阵，避免每个
+  会话重复生成 Vandermonde 矩阵。
+- **逆矩阵 LRU 缓存**：按 `(data_shards, parity_shards, 选中分片位图)` 缓存解码子矩阵的逆
+  （容量 64），避免每次恢复重复高斯-约当消元。
 
-### 6.4 分片帧格式
+### 6.4 纠错分组
 
-当 `data_shards > 1` 时，数据消息体为：
+一个 IP 包就是一个数据片，收到即发（不等凑齐）：
 
-```
-[ index(4, LE) | len(2, LE) | shard ]
-```
-
-`fec_frame_header_size = 6` 字节，`fec_id = index / total`，`pid = index % total`。
-接收方按 `fec_id` 收集分片，凑齐 `data_shards` 个即可恢复。
-
-### 6.4.1 批量聚合
-
-逐包拆分会产生 `data_shards + parity_shards` 个数据报（8/4 时 12 个），
-在高 PPS 下成倍放大包数与 CPU 开销。收发双方通过 `ack(0x05)` 消息
-（body = `AVB1`）协商后，发送方改为把多个 IP 包聚合到一个 FEC 分组：
-
-```
-批量载荷 = [ 0x00 | { len(2, LE) | ip_packet } ... ]
-```
-
-分片大小按 `ceil(payload / data_shards)` 计算，接近 MTU，使分片数接近
-数据包数；载荷达到阈值或包数达到 64 立即发送，否则最多等待 2ms。
-接收方重组载荷后按首字节 `0x00` 识别批量并拆分，兼容旧版本对端（走单包拆分）。
-
-### 6.4.2 自适应分组
-
-固定分组在批量未填满时会放大数据报数量：载荷不足 `data_shards` 片时，
-未用的数据分片补零后仍各占一个数据报。例如 FEC 8/4 下两个满 MTU 报文
-（约 2.8KB）会被编码成 12 个约 280 字节的小分片，数据报数量放大约 6 倍。
-
-自适应分组按载荷大小选取数据分片数 `k = ceil(payload / 分片目标)`，冗余
-分片数同比缩小为 `ceil(k * parity_shards / data_shards)`，在保留 FEC 保护
-的前提下把数据报数量降到 `k + 冗余`。netns 实测（MTU 1400，FEC 8/4，UDP
-注入）中低速率下外层数据报数量减少约一半（放大倍数 8.0/8.0/5.3 →
-3.3/3.3/2.7），满分组时与固定分组一致；2% 丢包下 UDP 接收 goodput 未见
-变化。该能力通过能力协商启用，对端为旧版本时自动回退到固定分组格式。
-
-### 6.4.3 干净链路关闭冗余
-
-FEC 冗余在干净链路上是纯开销：FEC 8/4 会把外层数据报数量放大约 1.5 倍。
-能力协商通过后启用轻量链路探测：
-
-- 每 100ms 发送一个探测包，且仅在链路有数据收发时发送；空闲链路停止
-  探测，避免持续唤醒射频。
-- 接收端按窗口统计探测丢包并把“链路是否持续干净”回带，发送端据此在
-  干净链路上只发数据分片，出现丢包立即恢复冗余。
-- 为避免单个窗口误判，需要连续 8 个窗口（约 13s）无丢包才关闭冗余；
-  判据偏保守，只有链路持续干净才会关闭。
-
-netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外层数据报
-放大倍数由 1.51 降到 1.01，注入 5% 丢包后约 2s 回到 1.45，移除丢包后约
-13s 再次关闭，上行/下行行为一致。真机满载下行时探测丢包率约 5%（30 个
-统计窗口中仅 12 个无丢包），冗余保持开启。对端为旧版本时不协商该能力，
-自动回退到固定冗余。
-
-### 6.4.4 未满分组的取舍
-
-包数放大是 FEC 的固有代价，不能靠“未满分组也直发”消除：实测（netns，
-20ms RTT + 0.5% 丢包，FEC 8/4）把未满分组改为按包边界直发后，吞吐从
-~130/110 Mbit/s 掉到 ~9 Mbit/s。丢包链路上内层 TCP 对丢包极其敏感，FEC 的
-容错收益远大于包数开销，因此只有能装进单个数据报的分组才走 `data_raw`，
-其余一律编码发送。
-
-### 6.5 冗余拷贝模式
-
-当 `data_shards == 1` 且 `parity_shards > 0` 时，不进行 RS 编码，而是将整个包发送 `parity_shards + 1` 份拷贝（即 1 份原始 + `parity_shards` 份冗余）。
-
-### 6.6 过期清理
-
-`fec_decode_group::purge()` 定期清理超过 3 秒未凑齐的过期分组，防止内存膨胀。
+- 每攒够 `ds` 个数据片，立即算出 `ps = T − ds` 个冗余片并一起发出；`T = 1` 表示不开纠错，
+  退化为整帧模式。
+- 参与运算时短的片用 0 补齐到组内最长数据片的长度；补出来的 0 不进报文，只有冗余片按该
+  长度发送。
+- 接收端数据片立即投递并留一份缓存，收齐任意 `ds` 片即可还原缺失片；超时仍未凑齐就整组
+  丢弃。
 
 ---
 
@@ -360,8 +208,8 @@ netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外�
 
 ### 8.1 UDP 传输
 
-- 每帧一个 UDP 数据报，正文为 `[nonce | ciphertext]`。
-- 支持 FEC 纠删码，适用于丢包率高的网络环境。
+- 每帧一个 UDP 数据报，正文为 `[帧头(4) | AEAD]`（见 §5）。
+- 支持纠错冗余（§6），适用于丢包率高的网络环境。
 - 网关侧共享一个 UDP socket（`udp_send_handler` 由 service 注入），多会话复用。
 - **并发接收**：每个 UDP socket 启动 `udp_receive_concurrency` 个并发接收协程
   （`clamp(hardware_concurrency, 2, 16)`，参考 avpn 的 `global_op_concurrency`）。
@@ -370,7 +218,7 @@ netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外�
 
 ### 8.2 TCP 传输
 
-- 每帧为 `[len(2, BE) | nonce | ciphertext]` 的 TCP 流式帧。
+- 每帧为 `[len(2, BE) | 帧头(4) | AEAD]` 的 TCP 流式帧。
 - 使用 `m_tcp_oqe` 写队列 + `start_tcp_write` 协程泵串行写出，保证帧边界完整。
 - 接收端 `tcp_read_loop` 读取长度前缀后按帧分发（握手/数据）。
 - 数据面优化（设计目标，当前为后续增强）：
@@ -393,12 +241,12 @@ netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外�
   30.2 Mbit/s 提升到 34.3 Mbit/s（最好一次 43.7），网关单核占用由 53–61%
   降到 44–50%。
 - **tun 收包内联处理**：tun 收包不再二次投递到事件循环，省掉每包一次队列
-  调度；链路空闲时立即冲刷 FEC 批次，不再为凑分片额外等待。
+  调度；纠错模式下数据片收到即发，不攒批等待。
 - **出口 qdisc 与限速**：发送端出口 qdisc 的 per-flow 上限会整批丢掉 GSO
   尾包。同一批 `UDP_SEGMENT` 帧是一次 `sendmsg` 交给内核的，而 `fq` 默认
   `flow_limit 100p` 只允许单条流排队 100 个报文，隧道在瓶颈链路上突发时
-  超出部分（通常是本批尾部）会被整体丢弃，FEC 分组因此长期凑不齐分片。
-  千兆内网实测（MTU 1450，FEC 16/0，4 流下行）：`fq` 默认配置下 6 秒内
+  超出部分（通常是本批尾部）会被整体丢弃，接收端因此长期凑不齐 `ds` 片。
+  千兆内网实测（MTU 1450，4 流下行）：`fq` 默认配置下 6 秒内
   `flows_plimit` 丢包约 3.5 万个，隧道下行只有 ~726 Mbit/s 且发送端 TCP
   重传约 12 万段；把上限放大后丢包归零，下行提升到 ~853 Mbit/s（物理链路
   iperf3 约 936 Mbit/s）。因此发送端建议
@@ -425,7 +273,8 @@ netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外�
 
 - 每 `keepalive` 秒发送加密 `keepalive` 消息（携带发送时间戳），对端回复 `keepalive_reply`（回显时间戳）。
 - 收到任何有效数据（含 keepalive/reply）均刷新 `m_last_seen`。
-- 超时判定：`now - m_last_seen > keepalive × 3` 秒 → 判定对端失联，关闭会话并释放资源。
+- 超时判定：`now - m_last_seen > 120` 秒（`peer_idle_timeout`）→ 判定对端失联，
+  关闭会话并释放资源。
 
 ### 9.3 主动断开
 
@@ -438,20 +287,20 @@ netns 实测（MTU 1400，FEC 8/4，5 Mbit/s UDP 注入）：干净链路上外�
 
 ### 9.5 网络切换无感知
 
-客户端物理网络变化（如 wifi → 移动网络）会导致本地出口地址/端口变化，avpn 通过
-服务端会话迁移与客户端 socket 重建实现无感切换：
+客户端物理网络变化（如 Wi-Fi → 移动网络）会让出口地址/端口变，avpn 靠“漫游帧 + 漫游凭证”
+做到无感切换：
 
-- **服务端会话迁移**：网关除 `m_sessions`（endpoint → session）外，另维护
-  `m_sessions_by_pubkey`（对端静态公钥 → session）。收到未知 endpoint 的 UDP 数据报时，
-  遍历已建立会话用各自接收密钥尝试 AEAD 解密（`try_decrypt_udp`），命中即认为是对端
-  网络切换后的数据，更新会话对端 endpoint（`update_remote_udp`）并迁移 `m_sessions`
-  索引，数据流不中断、无需重新握手。
-- **客户端监控与重建**：`client_network_monitor` 每 2 秒探测到服务器的本地出口源地址
-  （`local_source_address`，临时 socket connect 做路由探测），发现变化后调用
-  `renew_client_udp`：关闭旧 socket、新建 UDP socket（尽量复用旧本地端口）、重新启动
-  接收循环，并立即发送一次 keepalive 使服务端尽快迁移。
-- 会话密钥与 vaddr 均不依赖 IP，迁移后保持原有 vaddr，tun 配置无需变更。
-- 客户端重启（同公钥新握手）时，网关关闭同公钥旧会话并替换（`Replacing old session`）。
+- 握手时网关给每个会话下发一个 8 字节 `roam_cookie`；客户端换网后发的报文最前面带上它
+  （漫游帧），并把它作为 AEAD 的 AAD 一起校验。
+- 网关除 `m_sessions`（endpoint → session）外，另维护 `m_sessions_by_cookie`（cookie →
+  session）。来自陌生 endpoint 的报文先按最前面的 8 字节查表，命中且 cookie 校验通过就把
+  该会话的远端 endpoint 改到新地址（`update_remote_udp`）并迁移 `m_sessions` 索引，数据流
+  不中断、无需重新握手。
+- 客户端由 `client_network_monitor` 定期探测出口地址变化，变化后 `renew_client_udp` 重建
+  UDP socket 并调用 `notify_network_changed` 立即补发一个漫游保活；此外每 `cookie_beacon_K`
+  帧数据帧顺带一次 cookie，一直收不到下行时也会自动补发。
+- 会话密钥与 vaddr 都不依赖 IP，迁移后虚拟地址不变、tun 配置无需变更。
+- 客户端重启（同公钥重新握手）时，网关关闭同公钥旧会话并替换（`Replacing old session`）。
 
 ### 9.6 带宽统计
 
@@ -560,8 +409,9 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `ignore_push_` | 是否忽略推送的 route/dns |
 | `c2c_` | 是否允许客户端间通信 |
 | `subnet_` | VPN 子网（如 `10.0.0.0/16`） |
-| `data_shards_` / `parity_shards_` | FEC 参数（`data_shards_==1` 时 `parity_shards_` 为发包倍数） |
+| `data_shards_` / `parity_shards_` | 纠错参数：`T = data_shards_ + parity_shards_` 须为 2 的幂，`ds = data_shards_`；`ds < 2` 时不开纠错 |
 | `compress_` | 压缩算法（`deflate`/`lz4`/`zstd`，空为不压缩） |
+| `hint_` | 握手是否附带静态公钥哈希前缀（O(1) 查白名单，代价是公钥可被关联） |
 
 ---
 
@@ -570,7 +420,8 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 - 握手包无任何明文指纹，网关仅通过 AEAD 认证 + 白名单遍历识别对端，无法从线路上区分握手与数据包。
 - 所有控制消息（keepalive/disconnect）均使用会话密钥加密。
 - AEAD 认证失败一律静默丢弃，不产生可观测差异。
-- Message 1 防重放（时钟窗口 + 单调时间戳），DDoS 防护（限速 + 失败封锁）无需 2-RTT。
+- 握手请求防重放（按对端记录最近接受的时间戳，拒绝回退或重复），DDoS 防护（限速 +
+  失败封锁）无需 2-RTT。
 - 解压设置最大输出限制，防止解压炸弹。
 
 ---
@@ -578,7 +429,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 ## 15. 已知限制与后续工作
 
 1. **TCP 按流拆分**：`ip_proto()` / `is_tcp_syn()` 已实现，但 TCP 按 SYN 流建立专用连接、按 Address 建立独立 UDP 传输连接的优化尚未接线，当前 TCP 使用单一加密控制流。
-2. **客户端路由应用**：`pushroutes_` / `pushdns_` 已协商并存储在 `session_config`，尚未写入操作系统路由表。
+2. **客户端路由应用**：`pushroutes_` / `pushdns_` 已协商并存储在 `session_params`，尚未写入操作系统路由表。
 3. **压缩算法**：仅 `deflate` 已实现，`lz4`/`zstd` 为预留接口。
 4. **多线程**：`io_context_pool` 已提供，当前服务逻辑运行在主 context，可扩展至多 context 提升吞吐。
 5. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
