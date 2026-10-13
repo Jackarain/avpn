@@ -141,7 +141,7 @@ int main(int argc, char** argv)
 		("v6_subnet", po::value<std::string>(&cfg.v6_subnet_)->value_name("fd00:8888::/64"), "Vpn ipv6 subnet.")
 		("data_shards", po::value<int>(&cfg.data_shards_)->value_name("n"), "Fec data shards (data+parity must be 2/4/8/16, data >= 2).")
 		("parity_shards", po::value<int>(&cfg.parity_shards_)->value_name("n"), "Fec parity shards (at least 1 to enable fec).")
-		("compress", po::value<std::string>(&cfg.compress_)->value_name("deflate|lz4|zstd"), "Compression algorithm (deflate or lz4; both ends must set the same).")
+		("compress", po::value<std::string>(&cfg.compress_)->value_name("deflate|lz4"), "Compression algorithm (deflate or lz4; both ends must set the same).")
 		("obfuscate_key", po::value<std::string>(&cfg.obfuscate_key_)->value_name("string"), "Obfuscation key string (adds 22-70 bytes per frame and lowers the inner MTU; both ends must set the same key).")
 		("pre_up", po::value<std::string>(&cfg.pre_up_)->value_name("cmd"), "Shell command run before tun is brought up (%i = interface name).")
 		("post_up", po::value<std::string>(&cfg.post_up_)->value_name("cmd"), "Shell command run after tun is configured (%i = interface name).")
@@ -263,7 +263,13 @@ and/or open issues at https://github.com/Jackarain/proxy)"
 			});
 
 	// 启动服务.
-	service->start();
+	// 配置有错 (地址写错、压缩算法没实现等等) 时直接退出, 不要挂着什么都不做.
+	if (!service->start())
+	{
+		std::cerr << "avpn service start failed, see logs for details"
+			<< std::endl;
+		return EXIT_FAILURE;
+	}
 
 	// 写入 pid 文件 (供 launcher 重启后据此清理残余进程); 正常退出时删除.
 	if (!pid_file.empty())

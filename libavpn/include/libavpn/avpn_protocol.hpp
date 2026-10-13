@@ -42,6 +42,10 @@ namespace libavpn {
 	compress_type compress_type_from_string(std::string_view name);
 	std::string_view compress_type_to_string(compress_type type);
 
+	// 这个算法当前实现了没有. 参数值 3 (zstd) 在协议里是保留值: 认得出名字,
+	// 但还没有实现, 配置里写了它就直接拒绝, 免得两端"谈成了"却一个字节都没压.
+	bool compress_supported(compress_type type);
+
 	// 解析 IPv4: 支持 "10.9.0.53" 与十进制整数 (地址的主机字节序数值).
 	bool parse_ipv4(std::string_view text, uint32_t& out);
 

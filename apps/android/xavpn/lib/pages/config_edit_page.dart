@@ -239,7 +239,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                 DropdownMenuItem(value: '', child: Text('不压缩')),
                 DropdownMenuItem(value: 'deflate', child: Text('deflate')),
                 DropdownMenuItem(value: 'lz4', child: Text('lz4')),
-                DropdownMenuItem(value: 'zstd', child: Text('zstd')),
               ],
               onChanged: (v) => setState(() => _compress = v ?? ''),
             ),

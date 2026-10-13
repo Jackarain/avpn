@@ -2456,6 +2456,16 @@ namespace libavpn {
 		m_abort = false;
 		m_started_at = std::time(nullptr);
 
+		// 压缩算法只认 deflate 与 lz4: 名字写错或者写了还没实现的 zstd 时
+		// 直接拒绝启动, 而不是静默地一个字节都不压.
+		if (!m_config.compress_.empty() &&
+			!compress_supported(compress_type_from_string(m_config.compress_)))
+		{
+			XLOG_ERR << "Unsupported compression: " << m_config.compress_
+				<< " (supported: deflate, lz4)";
+			return false;
+		}
+
 		// hook: tun 接口启用前执行 (此时接口尚未创建,
 		// %i 替换为配置的接口名, 未配置时原样保留).
 		run_hook_cmd(m_config.pre_up_, m_config.ifdev_);

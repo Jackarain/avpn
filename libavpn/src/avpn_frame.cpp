@@ -104,9 +104,7 @@ namespace libavpn {
 			return compress_type::none;
 
 		// 有实现的算法才谈得成, 其余算法谈成了也压不了.
-		if (wish == compress_type::deflate || wish == compress_type::lz4)
-			return wish;
-		return compress_type::none;
+		return compress_supported(wish) ? wish : compress_type::none;
 	}
 
 	frame_kind classify_payload(std::string_view plaintext)

@@ -411,6 +411,16 @@ BOOST_AUTO_TEST_CASE(compression_negotiation)
 	BOOST_CHECK(negotiate_compress(ct::lz4, ct::deflate) == ct::none);
 	BOOST_CHECK(negotiate_compress(ct::zstd, ct::zstd) == ct::none);
 
+	// zstd 是协议里的保留值: 名字认得出, 但还没实现, 配置里写了它直接拒绝.
+	BOOST_CHECK(compress_type_from_string("zstd") == ct::zstd);
+	BOOST_CHECK(!compress_supported(ct::zstd));
+	BOOST_CHECK(compress_type_from_string("lz4") == ct::lz4);
+	BOOST_CHECK(compress_supported(ct::lz4));
+	BOOST_CHECK(compress_supported(ct::deflate));
+	BOOST_CHECK(!compress_supported(ct::none));
+	// 不认识的名字当成不压缩.
+	BOOST_CHECK(compress_type_from_string("gzip") == ct::none);
+
 	// 压缩条目的首字节不能和 IP 包 / 容器撞车.
 	BOOST_CHECK(compressed_marker != container_marker);
 	BOOST_CHECK(classify_payload(std::string(1,

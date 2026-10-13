@@ -30,7 +30,7 @@ void main() {
       pkl: ['a', 'b'],
       mtuSize: 1400,
       keepalive: 30,
-      compress: 'zstd',
+      compress: 'lz4',
       subnet: '10.8.0.0/24',
       routes: ['0.0.0.0/1', '128.0.0.0/1'],
       dns: ['1.1.1.1'],

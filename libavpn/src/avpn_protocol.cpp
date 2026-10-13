@@ -81,6 +81,11 @@ namespace libavpn {
 		}
 	}
 
+	bool compress_supported(compress_type type)
+	{
+		return type == compress_type::deflate || type == compress_type::lz4;
+	}
+
 	bool parse_ipv4(std::string_view text, uint32_t& out)
 	{
 		if (text.empty())

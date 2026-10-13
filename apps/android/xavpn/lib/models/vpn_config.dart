@@ -65,7 +65,7 @@ class VpnConfig {
   int keepalive;
   int dataShards;
   int parityShards;
-  String compress; // '' | deflate | lz4 | zstd
+  String compress; // '' | deflate | lz4
   String obfuscateKey;
 
   // ---- gateway ----

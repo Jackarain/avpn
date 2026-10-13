@@ -131,7 +131,8 @@ namespace libavpn {
 		// 为 1 则为 2 倍发包, 最大 5 倍.
 		int parity_shards_{ 0 };
 
-		// 压缩选项, 指定压缩算法, 可以指定的压缩算法: deflate, lz4, zstd, 默认为空不压缩.
+		// 压缩选项, 指定压缩算法, 当前实现了 deflate 与 lz4 (zstd 是协议里的保留值,
+		// 还没实现, 写了会被拒绝), 默认为空不压缩.
 		std::string compress_;
 
 		// 数据特征混淆密钥串, 非空时启用混淆.
