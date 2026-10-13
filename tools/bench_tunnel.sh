@@ -8,23 +8,24 @@
 #
 # 用法 (需要 root, 依赖 ip / tc / iperf3):
 #   sudo ./tools/bench_tunnel.sh
-#   sudo DS=8 PS=2 DUR=10 ./tools/bench_tunnel.sh
-#   sudo DS=8 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
+#   sudo DS=12 PS=4 DUR=10 ./tools/bench_tunnel.sh
+#   sudo DS=12 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
 #
 # 可配置环境变量:
 #   AVPN       avpn 可执行文件 (默认 build/bin/avpn)
-#   DS / PS    FEC data/parity shards (默认 8/4, DS=1 PS=0 关闭 FEC)
+#   DS / PS    FEC data/parity shards (默认 12/4, DS=1 PS=0 关闭 FEC);
+#              DS+PS 须为 2/4/8/16 且 DS>=2, PS>=1, 否则退化为整帧模式
 #   MTU        tun MTU (默认 1400)
 #   DUR        iperf3 测试时长, 秒 (默认 8)
 #   LOSS       netem 丢包率, 如 0.5% (默认不注入)
 #   DELAY      netem 单向延迟, 如 20ms (默认不注入)
-#   COMPRESS   压缩算法 deflate/lz4/zstd (默认关闭)
-#   OBF        混淆密钥 (默认关闭)
+#   COMPRESS   压缩算法 deflate/lz4/zstd (预留, 当前版本不生效)
+#   OBF        混淆密钥 (预留, 当前版本不生效)
 #
 set -u
 
 AVPN=${AVPN:-build/bin/avpn}
-DS=${DS:-8}
+DS=${DS:-12}
 PS=${PS:-4}
 MTU=${MTU:-1400}
 DUR=${DUR:-8}
@@ -32,6 +33,16 @@ LOSS=${LOSS:-}
 DELAY=${DELAY:-}
 COMPRESS=${COMPRESS:-}
 OBF=${OBF:-}
+
+# 总片数不满足纠错条件时 avpn 侧会退化为整帧模式, 这里先提示一下.
+TOTAL=$((DS + PS))
+FEC_ON=1
+[ "$DS" -lt 2 ] || [ "$PS" -lt 1 ] && FEC_ON=0
+case "$TOTAL" in
+	2 | 4 | 8 | 16) ;;
+	*) FEC_ON=0 ;;
+esac
+[ "$FEC_ON" -eq 0 ] && echo "提示: DS=$DS PS=$PS 不满足纠错条件, 将退化为整帧模式" >&2
 
 NS_GW=avpnbench-gw
 NS_EP=avpnbench-ep

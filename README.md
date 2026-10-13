@@ -120,14 +120,14 @@ ninja
 
 ```sh
 avpn.exe --ifdev wintun --subnet 10.9.0.0/16 --udp_listen 0.0.0.0:19090 \
-	--private_key <key> --pkl <peer-pubkey> --data_shards 5 --parity_shards 2
+	--private_key <key> --pkl <peer-pubkey> --data_shards 12 --parity_shards 4
 ```
 
 客户端 (Windows):
 
 ```sh
 avpn.exe --ifdev wintun --nexthop <server-ip>:19090 \
-	--private_key <key> --pkl <peer-pubkey> --data_shards 5 --parity_shards 2
+	--private_key <key> --pkl <peer-pubkey> --data_shards 12 --parity_shards 4
 ```
 
 Linux 下使用相同的参数，只需将 `--ifdev wintun` 替换为 `--ifdev tun0`。
@@ -212,10 +212,10 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--c2c` | 是否允许 client 之间通过虚拟子网通信，默认关闭。 |
 | `--subnet <网段>` | 指定虚拟子网网段，格式如 10.8.0.0/16。 |
 | `--v6_subnet <网段>` | 指定 IPv6 虚拟子网网段，默认为 fd00:8888::/64。 |
-| `--data_shards <n>` | FEC 数据分片数，默认 0 不启用 FEC；为 1 时退化为按倍数冗余发包。 |
-| `--parity_shards <n>` | FEC 冗余分片数，即最多可丢失的数据包数量；data_shards 为 1 时表示发包倍数（最大 5 倍）。 |
-| `--compress <algo>` | 启用数据压缩，可选算法：deflate、lz4、zstd。 |
-| `--obfuscate_key <key>` | 数据特征混淆密钥串，非空时启用混淆（两端需配置相同密钥）；开启后加密帧外层填充随机垃圾数据打乱包长。 |
+| `--data_shards <n>` | 纠错数据片数；与 `--parity_shards` 之和必须为 2、4、8、16，且不小于 2，才开启纠错，否则退化为整帧模式。 |
+| `--parity_shards <n>` | 纠错冗余片数，即一组里最多能补回的丢包片数，至少为 1 才开启纠错。 |
+| `--compress <algo>` | 预留：数据压缩算法（deflate、lz4、zstd），当前版本尚未实现，配置后不生效。 |
+| `--obfuscate_key <key>` | 预留：数据特征混淆密钥，当前版本尚未实现，配置后不生效。 |
 | `--pre_up <cmd>` | 钩子：在 tun 接口启用前通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--post_up <cmd>` | 钩子：在 tun 接口配置完成后通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--pre_down <cmd>` | 钩子：在 tun 接口拆除前通过 shell 执行，支持 `%i` 替换为接口名。 |
@@ -229,23 +229,25 @@ FEC / MTU / 压缩配置，并可通过 netem 注入延迟与丢包：
 
 ```
 sudo ./tools/bench_tunnel.sh
-sudo DS=8 PS=2 DUR=10 ./tools/bench_tunnel.sh
-sudo DS=8 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
+sudo DS=12 PS=4 DUR=10 ./tools/bench_tunnel.sh
+sudo DS=12 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
 ```
 
 需要 root 权限，依赖 `ip` / `tc` / `iperf3`。脚本会在两个 netns 之间建立
 veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理；可用环境
-变量 `AVPN` 指定 avpn 可执行文件路径（默认 `build/bin/avpn`）。
+变量 `AVPN` 指定 avpn 可执行文件路径（默认 `build/bin/avpn`）。纠错总片数
+`T = DS + PS` 只能取 2、4、8、16，且 `DS ≥ 2`、`PS ≥ 1` 才会生效，其余取值
+下 avpn 会自动退化为整帧模式。
 
-本机 x86_64 参考数据（单流 iperf3，MTU 1400）：
+本机 x86_64 参考数据（单流 iperf3，MTU 1400，上行 / 下行 Mbit/s）：
 
-| 场景 | FEC 关闭 | FEC 8/2 | FEC 8/4 |
-| --- | --- | --- | --- |
-| 无延迟/无丢包 | ~700 Mbit/s | ~500 Mbit/s | ~420 Mbit/s |
-| 20ms 延迟 + 0.5% 丢包 | ~4 Mbit/s | ~75 Mbit/s | ~115/~155 Mbit/s |
+| 场景 | 整帧模式 | 纠错 12/4 |
+| --- | --- | --- |
+| 无延迟/无丢包 | 952 / 968 | 839 / 809 |
+| 2% 丢包 | 265 / 308 | 727 / 742 |
 
 > 高丢包链路下 FEC 对吞吐的提升是数量级的（TCP 会把丢包当作拥塞），
-> 因此移动网络建议保持 FEC 开启；干净链路可适当降低 `parity_shards`。
+> 因此移动网络建议保持 FEC 开启；干净链路可以关掉纠错省下冗余名额。
 
 ### 长 RTT 与高速链路调优
 
@@ -254,8 +256,8 @@ veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理�
 使用要点：
 
 - 收发 socket 缓冲会按带宽时延积显式放大，长 RTT 链路上无需再手工调整。
-- FEC 采用自适应分组：只有能装进单个数据报的批量走 `data_raw`，其余一律
-  编码发送；干净链路上经能力协商自动关闭冗余，出现丢包立即恢复。
+- 纠错收包即发：一个 IP 包占一个数据片，从虚拟网卡读到就立刻加密发出，
+  同时留一份；凑够 `ds` 片后立刻算出冗余片发出，不额外攒包等待。
 - 外层 UDP 支持 GSO 批量与 `sendmmsg` 合并，TCP 传输合并读写以减少每帧
   开销；瓶颈链路上建议配合 `--udp_pacing_mbps` 限速。
 - 高速率下建议加长 tun 队列并把 qdisc 设为 `fq` 且放宽 per-flow 上限
@@ -263,5 +265,6 @@ veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理�
 
 ## 文档
 
+- [协议文档](doc/protocol_v2.md)
 - [设计文档](doc/design.md)
 - [wintun 实现原理](doc/avpn_wintun.md)
