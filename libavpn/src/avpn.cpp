@@ -28,8 +28,10 @@
 #include <thread>
 
 #if defined(__linux__)
+#	include <sys/ioctl.h>
 #	include <sys/socket.h>
 #	include <netinet/udp.h>
+#	include <linux/sockios.h>
 #	ifndef UDP_SEGMENT
 #		define UDP_SEGMENT 103
 #	endif
@@ -1007,15 +1009,51 @@ namespace libavpn {
 		}
 	}
 
+	std::size_t avpn_service::udp_send_backlog() const
+	{
+#if defined(__linux__)
+		std::size_t worst = 0;
+		auto probe = [&worst](const std::shared_ptr<net::ip::udp::socket>& s)
+		{
+			if (!s || !s->is_open())
+				return;
+			int queued = 0;
+			if (::ioctl(s->native_handle(), SIOCOUTQ, &queued) == 0 &&
+				queued > 0)
+				worst = std::max(worst, static_cast<std::size_t>(queued));
+		};
+		probe(m_client_udp);
+		for (const auto& s : m_udp_sockets)
+			probe(s);
+		return worst;
+#else
+		return 0;
+#endif
+	}
+
 	net::awaitable<void> avpn_service::tun_read_loop()
 	{
 		// 复用读取缓冲区, 避免每包一次分配与清零.
 		std::vector<uint8_t> buf(avpn_max_mtu);
 		std::vector<std::vector<uint8_t>> batch;
 		batch.reserve(tun_batch_max);
+		net::steady_timer backlog_timer(m_main_context);
 
 		while (!m_abort)
 		{
+			// 外层排队太深就先停一停再读: 接着读只会把包堆在自己手里,
+			// 出口 qdisc 反而成批丢掉排不下的那部分, 内层 TCP 会看到莫名
+			// 其妙的丢包 (见 doc/design.md 8.3). 等内核排空再继续.
+			while (!m_abort &&
+				udp_send_backlog() > udp_backlog_high_water)
+			{
+				boost::system::error_code wec;
+				backlog_timer.expires_after(std::chrono::microseconds(100));
+				co_await backlog_timer.async_wait(net_awaitable[wec]);
+			}
+			if (m_abort)
+				break;
+
 			boost::system::error_code ec;
 			std::size_t n = co_await m_tundev->async_read_some(
 				net::buffer(buf), net_awaitable[ec]);

@@ -261,6 +261,15 @@ namespace libavpn {
 		// 收走, 不为攒包等待 (见 doc/protocol_v2.md 2.4).
 		static constexpr std::size_t tun_batch_max = 32;
 
+		// 外层 UDP 已经交给内核、还没发出去的字节数 (取各发送 socket 里最大
+		// 的那个); 平台不支持时返回 0.
+		std::size_t udp_send_backlog() const;
+
+		// 外层排队超过这个字节数就先不读 tun. 内核排队太深时, 出口 qdisc 的
+		// per-flow 上限会把排不下的尾部成批丢掉 (见 doc/design.md 8.3), 压在
+		// 64 KB (约 43 个满长报文) 以内离常见的 100 个报文上限还有余量.
+		static constexpr std::size_t udp_backlog_high_water = 64 * 1024;
+
 		// tun 读取循环: 从 tun 读取 IP 包并转发给相应会话.
 		net::awaitable<void> tun_read_loop();
 
