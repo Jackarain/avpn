@@ -2,6 +2,7 @@
 #include <boost/test/unit_test.hpp>
 
 // 直接包含 FEC 实现, 以访问内部 gf/fec_cache 及全部 FEC 组件.
+#include "../libavpn/src/avpn_rs.cpp"
 #include "../libavpn/src/avpn_fec.cpp"
 #include "libavpn/replay_window.hpp"
 
