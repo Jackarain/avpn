@@ -19,8 +19,10 @@
 #   DUR        iperf3 测试时长, 秒 (默认 8)
 #   LOSS       netem 丢包率, 如 0.5% (默认不注入)
 #   DELAY      netem 单向延迟, 如 20ms (默认不注入)
-#   COMPRESS   压缩算法 deflate/lz4/zstd (预留, 当前版本不生效)
+#   RATE       netem 限速, 如 100mbit (默认不限速); 用来验证压缩省带宽的效果
+#   COMPRESS   压缩算法 (当前只实现 deflate, 两端需一致)
 #   OBF        混淆密钥 (预留, 当前版本不生效)
+#   IPERF_ARGS iperf3 客户端附加参数, 如 --repeating-payload (默认空)
 #
 set -u
 
@@ -31,8 +33,10 @@ MTU=${MTU:-1400}
 DUR=${DUR:-8}
 LOSS=${LOSS:-}
 DELAY=${DELAY:-}
+RATE=${RATE:-}
 COMPRESS=${COMPRESS:-}
 OBF=${OBF:-}
+IPERF_ARGS=${IPERF_ARGS:-}
 
 # 总片数不满足纠错条件时 avpn 侧会退化为整帧模式, 这里先提示一下.
 TOTAL=$((DS + PS))
@@ -87,6 +91,7 @@ ip netns exec "$NS_EP" ip link set lo up
 NETEM=""
 [ -n "$DELAY" ] && NETEM="$NETEM delay $DELAY"
 [ -n "$LOSS" ] && NETEM="$NETEM loss $LOSS"
+[ -n "$RATE" ] && NETEM="$NETEM rate $RATE"
 if [ -n "$NETEM" ]; then
 	ip netns exec "$NS_GW" tc qdisc add dev veth-gw root netem $NETEM
 	ip netns exec "$NS_EP" tc qdisc add dev veth-ep root netem $NETEM
@@ -137,10 +142,10 @@ fi
 ip netns exec "$NS_GW" iperf3 -s -B "$GW_TUN" -D >/dev/null 2>&1
 sleep 1
 
-echo "== FEC=$DS/$PS mtu=$MTU dur=${DUR}s loss='${LOSS:-0}' delay='${DELAY:-0}' compress='${COMPRESS:-none}'"
+echo "== FEC=$DS/$PS mtu=$MTU dur=${DUR}s loss='${LOSS:-0}' delay='${DELAY:-0}' rate='${RATE:-0}' compress='${COMPRESS:-none}'"
 echo "-- upload (endpoint -> gateway)"
-ip netns exec "$NS_EP" iperf3 -c "$GW_TUN" -t "$DUR" -f m -O 1 \
+ip netns exec "$NS_EP" iperf3 -c "$GW_TUN" -t "$DUR" -f m -O 1 $IPERF_ARGS \
 	| grep -E "sender|receiver"
 echo "-- download (gateway -> endpoint)"
-ip netns exec "$NS_EP" iperf3 -c "$GW_TUN" -t "$DUR" -f m -R -O 1 \
+ip netns exec "$NS_EP" iperf3 -c "$GW_TUN" -t "$DUR" -f m -R -O 1 $IPERF_ARGS \
 	| grep -E "sender|receiver"

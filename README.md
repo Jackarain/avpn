@@ -214,7 +214,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--v6_subnet <网段>` | 指定 IPv6 虚拟子网网段，默认为 fd00:8888::/64。 |
 | `--data_shards <n>` | 纠错数据片数；与 `--parity_shards` 之和必须为 2、4、8、16，且不小于 2，才开启纠错，否则退化为整帧模式。 |
 | `--parity_shards <n>` | 纠错冗余片数，即一组里最多能补回的丢包片数，至少为 1 才开启纠错。 |
-| `--compress <algo>` | 预留：数据压缩算法（deflate、lz4、zstd），当前版本尚未实现，配置后不生效。 |
+| `--compress <algo>` | 启用数据压缩，当前支持 deflate；两端都配置成同一个算法才生效，只压压得动的 IP 包。 |
 | `--obfuscate_key <key>` | 预留：数据特征混淆密钥，当前版本尚未实现，配置后不生效。 |
 | `--pre_up <cmd>` | 钩子：在 tun 接口启用前通过 shell 执行，支持 `%i` 替换为接口名。 |
 | `--post_up <cmd>` | 钩子：在 tun 接口配置完成后通过 shell 执行，支持 `%i` 替换为接口名。 |

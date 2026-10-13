@@ -33,6 +33,13 @@ namespace libavpn {
 			p[3] = static_cast<uint8_t>((v >> 24) & 0xff);
 		}
 
+		// 小端读 16 位长度 (压缩条目的长度字段).
+		inline uint16_t read_len16(const uint8_t* p)
+		{
+			return static_cast<uint16_t>(p[0]) |
+				static_cast<uint16_t>(p[1] << 8);
+		}
+
 	} // namespace
 
 	datapath::datapath() = default;
@@ -61,6 +68,10 @@ namespace libavpn {
 		m_rx_has_last = false;
 
 		m_replay.reset();
+
+		// 压缩算法由握手谈定; 只压 IP 包, 压不小就还发原始包.
+		m_compressor.set_type(static_cast<compress_type>(params.compress));
+		m_cmp_buf.clear();
 
 		m_fec_tx.configure(params.fec_total, params.fec_data,
 			static_cast<uint32_t>(params.shard_limit()),
@@ -172,6 +183,60 @@ namespace libavpn {
 		return frame;
 	}
 
+	bool datapath::compress_payload(std::string_view plaintext, std::string& out)
+	{
+		out.clear();
+		if (!m_compressor.enabled() ||
+			classify_payload(plaintext) != frame_kind::ip)
+		{
+			return false;
+		}
+
+		// 太短或一眼看上去压不动 (随机数据、已加密、压过的媒体流) 就别压了.
+		if (!looks_compressible(plaintext))
+			return false;
+
+		if (!m_compressor.compress(plaintext, m_cmp_buf))
+			return false;
+
+		// 压后数据加 3 字节条目头还不见得比原包小, 那就不值得压.
+		if (m_cmp_buf.size() + control_header_size >= plaintext.size())
+			return false;
+
+		out.reserve(control_header_size + m_cmp_buf.size());
+		out.push_back(static_cast<char>(compressed_marker));
+		out.push_back(static_cast<char>(m_cmp_buf.size() & 0xff));
+		out.push_back(static_cast<char>((m_cmp_buf.size() >> 8) & 0xff));
+		out.append(reinterpret_cast<const char*>(m_cmp_buf.data()),
+			m_cmp_buf.size());
+		return true;
+	}
+
+	bool datapath::decompress_payload(std::string_view plaintext,
+		std::string& out)
+	{
+		out.clear();
+		if (plaintext.size() < control_header_size)
+			return false;
+
+		const std::size_t len = read_len16(
+			reinterpret_cast<const uint8_t*>(plaintext.data()) + 1);
+		if (control_header_size + len > plaintext.size())
+			return false;
+
+		// 解压后最多是一个满长包, 防止对端拿"解压炸弹"撑爆内存.
+		if (!m_compressor.decompress(
+			plaintext.substr(control_header_size, len), m_cmp_buf,
+			m_params.shard_limit()))
+		{
+			return false;
+		}
+
+		out.assign(reinterpret_cast<const char*>(m_cmp_buf.data()),
+			m_cmp_buf.size());
+		return !out.empty();
+	}
+
 	std::vector<std::string> datapath::seal(std::string_view plaintext,
 		uint64_t now_ms, bool roam)
 	{
@@ -179,8 +244,14 @@ namespace libavpn {
 		if (!m_ready || plaintext.empty())
 			return out;
 
+		// 先看能不能压小; 压不小就发原始包.
+		std::string packed;
+		std::string_view payload = plaintext;
+		if (compress_payload(plaintext, packed))
+			payload = packed;
+
 		std::vector<fec_shard> shards;
-		if (!m_fec_tx.push(plaintext, now_ms, shards))
+		if (!m_fec_tx.push(payload, now_ms, shards))
 			return out;
 
 		for (auto& s : shards)
@@ -367,7 +438,18 @@ namespace libavpn {
 
 		out.reserve(delivered.size());
 		for (auto v : delivered)
+		{
+			// 压缩条目: 解出来再投递; 解不开就丢掉这一片.
+			if (m_compressor.enabled() && v.size() >= 1 &&
+				static_cast<uint8_t>(v[0]) == compressed_marker)
+			{
+				std::string real;
+				if (decompress_payload(v, real))
+					out.push_back(std::move(real));
+				continue;
+			}
 			out.emplace_back(v);
+		}
 		return out;
 	}
 

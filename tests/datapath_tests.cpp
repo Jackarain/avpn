@@ -7,6 +7,7 @@
 #include "../libavpn/src/avpn_keys.cpp"
 #include "../libavpn/src/avpn_crypto.cpp"
 #include "../libavpn/src/avpn_fec_v2.cpp"
+#include "../libavpn/src/avpn_compress.cpp"
 #include "../libavpn/src/avpn_datapath.cpp"
 
 #include <cstring>
@@ -24,6 +25,28 @@ namespace {
 		s[3] = static_cast<char>(total & 0xff);
 		for (std::size_t i = 4; i < s.size(); i++)
 			s[i] = static_cast<char>(seed + i);
+		return s;
+	}
+
+	// 一个随机内容 (压不动) 的 IPv4 包.
+	std::string random_ipv4_payload(std::size_t total)
+	{
+		std::string s = crypto::random_bytes(total);
+		s[0] = static_cast<char>(0x45);
+		s[2] = static_cast<char>((total >> 8) & 0xff);
+		s[3] = static_cast<char>(total & 0xff);
+		return s;
+	}
+
+	// 一个像文本 / 协议头那样有结构 (压得动) 的 IPv4 包.
+	std::string text_ipv4_payload(std::size_t total)
+	{
+		static constexpr char text[] =
+			"GET /index.html HTTP/1.1\r\nHost: example.com\r\n"
+			"Accept: text/html,application/xhtml+xml\r\n\r\n";
+		std::string s = ipv4_payload(total, 0);
+		for (std::size_t i = 20; i < s.size(); i++)
+			s[i] = text[(i - 20) % (sizeof(text) - 1)];
 		return s;
 	}
 
@@ -393,6 +416,174 @@ BOOST_AUTO_TEST_CASE(sender_tick_abandons_and_closes_group)
 	}
 	BOOST_REQUIRE_EQUAL(recovered.size(), 1);
 	BOOST_CHECK(recovered[0] == payload);
+}
+
+BOOST_AUTO_TEST_CASE(compression_shrinks_ip_packet)
+{
+	session_params params;
+	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	pipe_pair p;
+	p.start(params);
+
+	// 内容有结构: 压得动, 线上帧应该明显变小, 投递出来的还是原始包.
+	const std::string payload = text_ipv4_payload(1400);
+	auto frames = p.client.seal(payload, 0);
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_LT(frames[0].size(),
+		payload.size() + frame_header_size + params.tag_len);
+
+	auto got = p.gateway.on_frame(frames[0], 0);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == payload);
+
+	// 内容随机: 压不小, 直接发原始包, 帧开销还是 4 + tag_len.
+	const std::string noise = random_ipv4_payload(600);
+	auto noise_frames = p.client.seal(noise, 1);
+	BOOST_REQUIRE_EQUAL(noise_frames.size(), 1);
+	BOOST_CHECK_EQUAL(noise_frames[0].size(),
+		noise.size() + frame_header_size + params.tag_len);
+	auto noise_got = p.gateway.on_frame(noise_frames[0], 1);
+	BOOST_REQUIRE_EQUAL(noise_got.size(), 1);
+	BOOST_CHECK(noise_got[0] == noise);
+}
+
+BOOST_AUTO_TEST_CASE(compression_gate_skips_random_and_tiny_packets)
+{
+	// 预判: 随机数据不值得压, 有结构的数据值得压, 太短的也不值得.
+	BOOST_CHECK(!looks_compressible(random_ipv4_payload(1400)));
+	BOOST_CHECK(looks_compressible(text_ipv4_payload(1400)));
+	BOOST_CHECK(!looks_compressible(std::string(32, 'a')));
+
+	session_params params;
+	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	pipe_pair p;
+	p.start(params);
+
+	// 随机的大包不压: 帧开销还是 4 + tag_len.
+	const std::string noise = random_ipv4_payload(1400);
+	auto frames = p.client.seal(noise, 0);
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_EQUAL(frames[0].size(),
+		noise.size() + frame_header_size + params.tag_len);
+	auto got = p.gateway.on_frame(frames[0], 0);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == noise);
+
+	// 有结构的大包会压: 线上帧明显比原包小, 解出来还原.
+	const std::string text = text_ipv4_payload(1400);
+	auto text_frames = p.client.seal(text, 1);
+	BOOST_REQUIRE_EQUAL(text_frames.size(), 1);
+	BOOST_CHECK_LT(text_frames[0].size(), text.size());
+	auto text_got = p.gateway.on_frame(text_frames[0], 1);
+	BOOST_REQUIRE_EQUAL(text_got.size(), 1);
+	BOOST_CHECK(text_got[0] == text);
+}
+
+BOOST_AUTO_TEST_CASE(compression_keeps_control_messages_raw)
+{
+	session_params params;
+	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	pipe_pair p;
+	p.start(params);
+
+	std::string msg;
+	append_control_message(msg, control_keepalive, std::string(8, '\0'));
+	auto got = pass(p, msg);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == msg);
+
+	// 开着压缩也不动漫游帧里的保活消息.
+	pipe_pair r;
+	r.start(params);
+	r.client.set_roam_cookie({ 1, 2, 3, 4, 5, 6, 7, 8 });
+	r.gateway.set_roam_cookie({ 1, 2, 3, 4, 5, 6, 7, 8 });
+	auto roam = pass(r, msg, 0, true);
+	BOOST_REQUIRE_EQUAL(roam.size(), 1);
+	BOOST_CHECK(roam[0] == msg);
+}
+
+BOOST_AUTO_TEST_CASE(compression_in_fec_mode_recovers_loss)
+{
+	session_params params;
+	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	params.fec_total = 16;
+	params.fec_data = 12;
+	pipe_pair p;
+	p.start(params);
+
+	std::vector<std::string> sent;
+	std::vector<std::string> frames;
+	for (int i = 0; i < 12; i++)
+	{
+		std::string payload = ipv4_payload(40 + i * 40, static_cast<uint8_t>(i));
+		sent.push_back(payload);
+		auto fs = p.client.seal(payload, static_cast<uint64_t>(i));
+		BOOST_REQUIRE(!fs.empty());
+		for (auto& f : fs)
+			frames.push_back(std::move(f));
+	}
+	BOOST_REQUIRE_EQUAL(frames.size(), 16);
+
+	// 丢 4 片数据, 冗余片上的内容也是压过的, 解出来要还原成原始包.
+	const std::set<std::size_t> drop{ 1, 4, 9, 14 };
+	std::multiset<std::string> got;
+	for (std::size_t i = 0; i < frames.size(); i++)
+	{
+		if (drop.count(i) != 0)
+			continue;
+		for (auto& d : p.gateway.on_frame(frames[i], i))
+			got.insert(std::move(d));
+	}
+
+	BOOST_REQUIRE_EQUAL(got.size(), sent.size());
+	for (const auto& payload : sent)
+		BOOST_CHECK_EQUAL(got.count(payload), 1);
+}
+
+BOOST_AUTO_TEST_CASE(decompression_bomb_is_dropped)
+{
+	session_params params;
+	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	pipe_pair p;
+	p.start(params);
+
+	// 造一个"解压炸弹": 压后很小, 解出来远超一个满长包.
+	compressor comp(compress_type::deflate);
+	std::vector<uint8_t> bomb;
+	BOOST_REQUIRE(comp.compress(std::string(200000, 'a'), bomb));
+	std::string entry;
+	entry.push_back(static_cast<char>(compressed_marker));
+	entry.push_back(static_cast<char>(bomb.size() & 0xff));
+	entry.push_back(static_cast<char>((bomb.size() >> 8) & 0xff));
+	entry.append(reinterpret_cast<const char*>(bomb.data()), bomb.size());
+
+	// 首字节是压缩标记, 所以封包时按原样发出去; 网关解不开, 必须丢.
+	auto frames = p.client.seal(entry, 0);
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK(p.gateway.on_frame(frames[0], 0).empty());
+
+	// 长度字段被改坏 (超过实际数据) 也要丢.
+	std::string broken = entry;
+	broken[1] = static_cast<char>(0xff);
+	broken[2] = static_cast<char>(0x7f);
+	auto broken_frames = p.client.seal(broken, 1);
+	BOOST_REQUIRE_EQUAL(broken_frames.size(), 1);
+	BOOST_CHECK(p.gateway.on_frame(broken_frames[0], 1).empty());
+}
+
+BOOST_AUTO_TEST_CASE(compression_off_delivers_compressed_entry_as_is)
+{
+	// 对端没谈压缩时, 压缩条目当作不认识的控制消息忽略, 不会被当成 IP 包.
+	session_params params;
+	pipe_pair p;
+	p.start(params);
+
+	std::string entry;
+	append_control_message(entry, compressed_marker, std::string(4, '\0'));
+	auto got = pass(p, entry);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == entry);
+	BOOST_CHECK(classify_payload(got[0]) == frame_kind::control);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

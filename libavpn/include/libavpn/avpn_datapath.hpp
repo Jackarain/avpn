@@ -20,6 +20,7 @@
 #include "libavpn/avpn_keys.hpp"
 #include "libavpn/avpn_replay.hpp"
 #include "libavpn/avpn_fec_v2.hpp"
+#include "libavpn/avpn_compress.hpp"
 #include "libavpn/avpn_crypto.hpp"
 
 #include <array>
@@ -87,6 +88,12 @@ namespace libavpn {
 		std::string encrypt_with(std::string_view plaintext,
 			uint32_t counter, std::string_view aad);
 
+		// 压缩: 只压 IP 包, 压不小或没开压缩时返回 false (还是发原始的).
+		bool compress_payload(std::string_view plaintext, std::string& out);
+
+		// 解一个压缩条目 (调用方判定过首字节是压缩标记); 解不开返回 false.
+		bool decompress_payload(std::string_view plaintext, std::string& out);
+
 		// 本端发 / 收方向的密钥标签.
 		bool send_c2s() const { return m_local_is_client; }
 		bool recv_c2s() const { return !m_local_is_client; }
@@ -122,6 +129,10 @@ namespace libavpn {
 		seq_window m_replay;
 		fec_sender m_fec_tx;
 		fec_receiver m_fec_rx;
+
+		// 压缩 (握手谈定) 与它的复用缓冲.
+		compressor m_compressor;
+		std::vector<uint8_t> m_cmp_buf;
 
 		// 复用缓冲, 免得每包都开一块.
 		std::string m_tx_scratch;

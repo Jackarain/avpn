@@ -97,6 +97,17 @@ namespace libavpn {
 		return true;
 	}
 
+	compress_type negotiate_compress(compress_type wish, compress_type have)
+	{
+		if (wish != have)
+			return compress_type::none;
+
+		// 只有 deflate 有实现, 其余算法谈成了也压不了.
+		if (wish == compress_type::deflate)
+			return compress_type::deflate;
+		return compress_type::none;
+	}
+
 	frame_kind classify_payload(std::string_view plaintext)
 	{
 		if (plaintext.empty())

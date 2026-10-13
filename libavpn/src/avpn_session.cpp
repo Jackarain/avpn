@@ -287,7 +287,9 @@ namespace libavpn {
 		std::memcpy(req.client_id.data(), m_client_id.data(),
 			std::min(m_client_id.size(), req.client_id.size()));
 		req.requested_vaddr = m_config.vaddr_;
-		// 客户端只表达"想要什么", 最终取值由网关在回复里定; 这里先不带参数.
+		// 客户端只表达"想要什么", 最终取值由网关在回复里定.
+		req.params.compress = static_cast<uint8_t>(
+			compress_type_from_string(m_config.compress_));
 
 		const std::string plaintext = req.serialize();
 		if (plaintext.empty())
@@ -373,7 +375,9 @@ namespace libavpn {
 			<< net::ip::address_v4(m_vaddr).to_string()
 			<< ", mtu: " << m_params.mtu
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
-			<< static_cast<int>(m_params.fec_total);
+			<< static_cast<int>(m_params.fec_total)
+			<< ", compress: " << compress_type_to_string(
+				static_cast<compress_type>(m_params.compress));
 		return true;
 	}
 
@@ -496,7 +500,11 @@ namespace libavpn {
 		}
 
 		p.routes = m_config.pushroutes_;
-		p.compress = 0;
+
+		// 压缩: 客户端要的和网关配的是同一个算法才启用.
+		p.compress = static_cast<uint8_t>(negotiate_compress(
+			static_cast<compress_type>(wish.compress),
+			compress_type_from_string(m_config.compress_)));
 		p.obfuscate = false;
 		p.transport = m_transport == transport_type::udp ? 0 : 1;
 		p.pushdns = m_config.pushdns_;
@@ -603,7 +611,9 @@ namespace libavpn {
 			<< net::ip::address_v4(m_vaddr).to_string()
 			<< ", mtu: " << m_params.mtu
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
-			<< static_cast<int>(m_params.fec_total);
+			<< static_cast<int>(m_params.fec_total)
+			<< ", compress: " << compress_type_to_string(
+				static_cast<compress_type>(m_params.compress));
 	}
 
 	void avpn_session::on_established()

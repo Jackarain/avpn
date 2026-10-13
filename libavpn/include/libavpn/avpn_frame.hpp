@@ -26,6 +26,8 @@
 
 #include <boost/asio/ip/address_v6.hpp>
 
+#include "libavpn/avpn_protocol.hpp"
+
 namespace libavpn {
 
 	namespace net = boost::asio;
@@ -60,6 +62,14 @@ namespace libavpn {
 	inline constexpr uint8_t control_keepalive = 0x02;
 	inline constexpr uint8_t control_keepalive_reply = 0x03;
 	inline constexpr uint8_t control_disconnect = 0x04;
+
+	// 压缩载荷标记: 明文 = [ 标记(1) , 压后长度(2, 小端) , 压后数据 ].
+	// 压后数据解压出来是一个 IP 包; 长度字段用来在纠错模式里剥掉补零.
+	inline constexpr uint8_t compressed_marker = 0x01;
+
+	// 压缩协商: 客户端想要的和网关配置的是同一个算法才启用. 当前只实现了
+	// deflate, 别的算法一律谈成不压缩.
+	compress_type negotiate_compress(compress_type wish, compress_type have);
 
 	// 控制消息头部: 消息码(1) + 长度(2, 小端).
 	inline constexpr std::size_t control_header_size = 3;

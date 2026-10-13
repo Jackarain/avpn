@@ -258,6 +258,26 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	BOOST_CHECK_EQUAL(int(dd.fec_total), 1);
 }
 
+BOOST_AUTO_TEST_CASE(compression_negotiation)
+{
+	using ct = compress_type;
+
+	// 两端要的是同一个算法才启用.
+	BOOST_CHECK(negotiate_compress(ct::deflate, ct::deflate) == ct::deflate);
+	BOOST_CHECK(negotiate_compress(ct::none, ct::deflate) == ct::none);
+	BOOST_CHECK(negotiate_compress(ct::deflate, ct::none) == ct::none);
+	BOOST_CHECK(negotiate_compress(ct::deflate, ct::zstd) == ct::none);
+
+	// 还没实现的算法不能谈成启用.
+	BOOST_CHECK(negotiate_compress(ct::lz4, ct::lz4) == ct::none);
+	BOOST_CHECK(negotiate_compress(ct::zstd, ct::zstd) == ct::none);
+
+	// 压缩条目的首字节不能和 IP 包 / 容器撞车.
+	BOOST_CHECK(compressed_marker != container_marker);
+	BOOST_CHECK(classify_payload(std::string(1,
+		static_cast<char>(compressed_marker))) == frame_kind::control);
+}
+
 BOOST_AUTO_TEST_CASE(params_reject_bad_values)
 {
 	// 不支持 tag_len.
