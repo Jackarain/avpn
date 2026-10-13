@@ -261,6 +261,7 @@ namespace libavpn {
 
 		// 客户端 TCP 连接.
 		net::awaitable<void> client_tcp_connect();
+		net::awaitable<void> client_udp_handshake_loop();
 
 		// 一次从 tun 里接连收下来的包数上限: 只把已经排在 tun 里的包一起
 		// 收走, 不为攒包等待 (见 doc/protocol_v2.md 2.4).

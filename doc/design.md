@@ -342,6 +342,9 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 - 收到任何有效数据（含 keepalive/reply）均刷新 `m_last_seen`。
 - 超时判定：`now - m_last_seen > 120` 秒（`peer_idle_timeout`）→ 判定对端失联，
   关闭会话并释放资源。
+- 客户端侧断了会自己回来：会话结束或握手失败后，由监督循环（TCP 走
+  `client_tcp_connect`，UDP 走 `client_udp_handshake_loop`）等 3 秒重建会话、
+  重新握手，直到进程退出。
 
 ### 9.3 主动断开
 

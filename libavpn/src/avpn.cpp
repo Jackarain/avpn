@@ -1719,6 +1719,63 @@ namespace libavpn {
 		co_return;
 	}
 
+	net::awaitable<void> avpn_service::client_udp_handshake_loop()
+	{
+		auto self = shared_from_this();
+
+		while (!m_abort)
+		{
+			// 会话已经结束、或者还没建起来: 先建一条新的 (旧会话可能已被
+			// close handler 释放), 再重新握手.
+			if (!m_tunnel || m_tunnel->aborted())
+			{
+				if (!create_client_tunnel())
+					break;
+			}
+
+			if (!m_client_udp)
+				break;
+
+			// 保护对外 socket (Android VpnService, 避免回环进 tun).
+			if (!(co_await protect_socket_async(
+					m_client_udp->native_handle())))
+				XLOG_WARN << "protect nexthop udp socket failed";
+
+			auto session = m_tunnel;
+			co_await session->run_initiator_udp(m_nexthop_udp);
+
+			if (m_abort)
+				break;
+
+			if (!session->established())
+			{
+				XLOG_WARN << "UDP handshake failed, retrying in 3s";
+			}
+			else
+			{
+				// 会话跑着: 等它结束 (close handler 会释放 m_tunnel).
+				while (!m_abort && session == m_tunnel)
+				{
+					net::steady_timer wait_timer(m_main_context);
+					wait_timer.expires_after(std::chrono::seconds(1));
+					boost::system::error_code wec;
+					co_await wait_timer.async_wait(net_awaitable[wec]);
+				}
+				if (m_abort)
+					break;
+
+				XLOG_WARN << "UDP session ended, reconnecting in 3s";
+			}
+
+			net::steady_timer retry(m_main_context);
+			retry.expires_after(std::chrono::seconds(3));
+			boost::system::error_code ec;
+			co_await retry.async_wait(net_awaitable[ec]);
+		}
+
+		co_return;
+	}
+
 	net::awaitable<void> avpn_service::client_tcp_connect()
 	{
 		auto self = shared_from_this();
@@ -2360,15 +2417,11 @@ namespace libavpn {
 				return false;
 			}
 			apply_udp_socket_buffers(m_client_udp, m_config.udp_pacing_mbps_ * 125000);
-			// 启动握手: 先 protect 对外 socket (Android VpnService,
-			// 避免回环进 tun), 再发起握手.
+			// 握手与重连都由这条监督循环负责 (会话结束后重建隧道再握手).
 			net::co_spawn(m_main_context,
 				[this, self]() -> net::awaitable<void>
 				{
-					if (!(co_await protect_socket_async(
-							m_client_udp->native_handle())))
-						XLOG_WARN << "protect nexthop udp socket failed";
-					co_await m_tunnel->run_initiator_udp(m_nexthop_udp);
+					co_await client_udp_handshake_loop();
 					co_return;
 				}, net::detached);
 
