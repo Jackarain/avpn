@@ -603,35 +603,123 @@ BOOST_AUTO_TEST_CASE(compression_in_fec_mode_recovers_loss)
 		BOOST_CHECK_EQUAL(got.count(payload), 1);
 }
 
-BOOST_AUTO_TEST_CASE(decompression_bomb_is_dropped)
+BOOST_AUTO_TEST_CASE(lz4_codec_roundtrip_and_limits)
+{
+	compressor comp(compress_type::lz4);
+	BOOST_CHECK(comp.enabled());
+	BOOST_CHECK(comp.type() == compress_type::lz4);
+
+	// 有结构的载荷压得动, 解出来和原样一字不差.
+	const std::string text = text_ipv4_payload(1400);
+	std::vector<uint8_t> packed;
+	BOOST_REQUIRE(comp.compress(text, packed));
+	BOOST_CHECK_LT(packed.size(), text.size());
+
+	const auto view = [](const std::vector<uint8_t>& v)
+	{
+		return std::string_view(reinterpret_cast<const char*>(v.data()),
+			v.size());
+	};
+
+	std::vector<uint8_t> restored;
+	BOOST_REQUIRE(comp.decompress(view(packed), restored, 2048));
+	BOOST_CHECK(std::string(restored.begin(), restored.end()) == text);
+
+	// 输出上限比真实结果小: 当成解压炸弹丢掉.
+	BOOST_CHECK(!comp.decompress(view(packed), restored, text.size() - 1));
+
+	// 截断的数据解不开.
+	BOOST_CHECK(!comp.decompress(view(packed).substr(0, packed.size() / 2),
+		restored, 2048));
+
+	// 压不动的数据照样能压能解 (发不发由调用方比大小决定).
+	const std::string noise = random_ipv4_payload(600);
+	std::vector<uint8_t> noise_packed;
+	BOOST_REQUIRE(comp.compress(noise, noise_packed));
+	BOOST_REQUIRE(comp.decompress(view(noise_packed), restored, 2048));
+	BOOST_CHECK(std::string(restored.begin(), restored.end()) == noise);
+
+	// 换了算法要把 lz4 的结果当坏数据丢掉, 不能投递乱码.
+	comp.set_type(compress_type::deflate);
+	std::vector<uint8_t> cross;
+	BOOST_CHECK(!comp.decompress(view(packed), cross, 2048));
+}
+
+BOOST_AUTO_TEST_CASE(lz4_negotiated_ip_packet_shrinks)
 {
 	session_params params;
-	params.compress = static_cast<uint8_t>(compress_type::deflate);
+	params.compress = static_cast<uint8_t>(compress_type::lz4);
 	pipe_pair p;
 	p.start(params);
 
-	// 造一个"解压炸弹": 压后很小, 解出来远超一个满长包.
-	compressor comp(compress_type::deflate);
-	std::vector<uint8_t> bomb;
-	BOOST_REQUIRE(comp.compress(std::string(200000, 'a'), bomb));
+	// 压得动的包: 线上帧明显比原包小, 投递出来还是原包.
+	const std::string payload = text_ipv4_payload(1400);
+	auto frames = p.client.seal(payload, 0);
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_LT(frames[0].size(),
+		payload.size() + frame_header_size + params.tag_len);
+	auto got = p.gateway.on_frame(frames[0], 0);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == payload);
+
+	// 压不动的照旧发原始包, 帧开销还是 4 + tag_len.
+	const std::string noise = random_ipv4_payload(600);
+	auto noise_frames = p.client.seal(noise, 1);
+	BOOST_REQUIRE_EQUAL(noise_frames.size(), 1);
+	BOOST_CHECK_EQUAL(noise_frames[0].size(),
+		noise.size() + frame_header_size + params.tag_len);
+	BOOST_CHECK(p.gateway.on_frame(noise_frames[0], 1)[0] == noise);
+
+	// 两端谈的算法不一致 (对端按 deflate 解): 解不开就丢, 不会投递乱码.
+	session_params other;
+	other.compress = static_cast<uint8_t>(compress_type::deflate);
+	pipe_pair q;
+	q.start(other);
+
+	compressor comp(compress_type::lz4);
+	std::vector<uint8_t> packed;
+	BOOST_REQUIRE(comp.compress(payload, packed));
 	std::string entry;
 	entry.push_back(static_cast<char>(compressed_marker));
-	entry.push_back(static_cast<char>(bomb.size() & 0xff));
-	entry.push_back(static_cast<char>((bomb.size() >> 8) & 0xff));
-	entry.append(reinterpret_cast<const char*>(bomb.data()), bomb.size());
+	entry.push_back(static_cast<char>(packed.size() & 0xff));
+	entry.push_back(static_cast<char>((packed.size() >> 8) & 0xff));
+	entry.append(reinterpret_cast<const char*>(packed.data()), packed.size());
+	BOOST_CHECK(pass(q, entry).empty());
+}
 
-	// 首字节是压缩标记, 所以封包时按原样发出去; 网关解不开, 必须丢.
-	auto frames = p.client.seal(entry, 0);
-	BOOST_REQUIRE_EQUAL(frames.size(), 1);
-	BOOST_CHECK(p.gateway.on_frame(frames[0], 0).empty());
+BOOST_AUTO_TEST_CASE(decompression_bomb_is_dropped)
+{
+	// deflate / lz4 都要挡住解压炸弹.
+	for (compress_type algo : { compress_type::deflate, compress_type::lz4 })
+	{
+		session_params params;
+		params.compress = static_cast<uint8_t>(algo);
+		pipe_pair p;
+		p.start(params);
 
-	// 长度字段被改坏 (超过实际数据) 也要丢.
-	std::string broken = entry;
-	broken[1] = static_cast<char>(0xff);
-	broken[2] = static_cast<char>(0x7f);
-	auto broken_frames = p.client.seal(broken, 1);
-	BOOST_REQUIRE_EQUAL(broken_frames.size(), 1);
-	BOOST_CHECK(p.gateway.on_frame(broken_frames[0], 1).empty());
+		// 造一个"解压炸弹": 压后很小, 解出来远超一个满长包.
+		compressor comp(algo);
+		std::vector<uint8_t> bomb;
+		BOOST_REQUIRE(comp.compress(std::string(200000, 'a'), bomb));
+		std::string entry;
+		entry.push_back(static_cast<char>(compressed_marker));
+		entry.push_back(static_cast<char>(bomb.size() & 0xff));
+		entry.push_back(static_cast<char>((bomb.size() >> 8) & 0xff));
+		entry.append(reinterpret_cast<const char*>(bomb.data()), bomb.size());
+
+		// 首字节是压缩标记, 所以封包时按原样发出去; 网关解不开, 必须丢.
+		auto frames = p.client.seal(entry, 0);
+		BOOST_REQUIRE_EQUAL(frames.size(), 1);
+		BOOST_CHECK(p.gateway.on_frame(frames[0], 0).empty());
+
+		// 长度字段被改坏 (超过实际数据) 也要丢.
+		std::string broken = entry;
+		broken[1] = static_cast<char>(0xff);
+		broken[2] = static_cast<char>(0x7f);
+		auto broken_frames = p.client.seal(broken, 1);
+		BOOST_REQUIRE_EQUAL(broken_frames.size(), 1);
+		BOOST_CHECK(p.gateway.on_frame(broken_frames[0], 1).empty());
+	}
 }
 
 BOOST_AUTO_TEST_CASE(compression_off_delivers_compressed_entry_as_is)

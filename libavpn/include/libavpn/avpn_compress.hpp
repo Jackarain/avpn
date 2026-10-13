@@ -32,8 +32,9 @@ namespace libavpn {
 	// 压缩在握手时协商, 且压缩后仍由对称加密算法加密, 即: 先压缩, 后加密;
 	// 接收方需要先解密, 再解压.
 	//
-	// 每包是一个独立的 deflate 流; 两条流 (压 / 解) 常驻, 每包只做一次
+	// deflate: 每包是一个独立的 deflate 流; 两条流 (压 / 解) 常驻, 每包只做一次
 	// reset, 免得每包重建 zlib 流 (那要几十微秒, 直接吃光包速率的预算).
+	// lz4: 用块接口, 一次调用进出, 不需要常驻状态, 速度比 deflate 快得多.
 	class compressor
 	{
 	public:
@@ -65,6 +66,11 @@ namespace libavpn {
 		// 按需建流; 算法不支持或建不起来返回 false.
 		bool ensure_streams();
 		void close_streams();
+
+		// lz4 走块接口, 没有常驻状态.
+		bool lz4_compress(std::string_view input, std::vector<uint8_t>& output);
+		bool lz4_decompress(std::string_view input, std::vector<uint8_t>& output,
+			std::size_t max_out);
 
 		compress_type m_type;
 

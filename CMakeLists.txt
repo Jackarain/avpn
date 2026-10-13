@@ -64,6 +64,7 @@ endif()
 option(ENABLE_USE_WINTUN				"Build with wintun support" ${ENABLE_USE_WINTUN_DEFAULT})
 
 option(ENABLE_SYSTEM_ZLIB			"Build with system zlib support" OFF)
+option(ENABLE_SYSTEM_LZ4				"Build with system lz4 support" OFF)
 option(ENABLE_SYSTEM_OPENSSL		"Build with system openssl support" OFF)
 option(ENABLE_USE_SYSTEMD_LOG		"Build with systemd log support" OFF)
 
@@ -508,6 +509,29 @@ else()
 endif()
 
 ################################################################################
+# 使用 lz4
+
+if (WIN32 OR NOT ENABLE_SYSTEM_LZ4)
+	add_subdirectory(third_party/lz4 EXCLUDE_FROM_ALL)
+
+	set(LZ4_LIBRARIES lz4)
+	set(LZ4_INCLUDE_DIRS
+		${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
+	)
+else()
+	# 系统 lz4: 有 cmake 包配置就用它, 否则退回 pkg-config (发行版常常不装配置).
+	find_package(lz4 QUIET CONFIG)
+	if (TARGET lz4::lz4)
+		set(LZ4_LIBRARIES lz4::lz4)
+	else()
+		find_package(PkgConfig REQUIRED)
+		pkg_check_modules(LZ4 REQUIRED liblz4)
+		set(LZ4_LIBRARIES ${LZ4_LINK_LIBRARIES})
+		set(LZ4_INCLUDE_DIRS ${LZ4_INCLUDE_DIRS})
+	endif()
+endif()
+
+################################################################################
 # 使用 wintun (仅 Windows)
 # wintun 驱动文件 (sys/inf/cat) 通过 avpn.rc 嵌入 exe, wintun.dll 在
 # apps/avpn/avpn/CMakeLists.txt 中拷贝到输出目录, 运行时动态加载.
@@ -544,6 +568,7 @@ add_subdirectory(libavpn)
 
 include_directories(third_party
 	${ZLIB_INCLUDE_DIRS}
+	${LZ4_INCLUDE_DIRS}
 	${AVPN_INCLUDE_DIRS}
 	${FMT_INCLUDE_DIRS}
 	${WINTUN_INCLUDE_DIRS}
@@ -555,6 +580,7 @@ include_directories(third_party
 link_libraries(
 	${FMT_LIBRARIES}
 	${ZLIB_LIBRARIES}
+	${LZ4_LIBRARIES}
 	${AVPN_LIBRARIES}
 )
 

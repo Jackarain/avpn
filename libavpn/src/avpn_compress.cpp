@@ -11,7 +11,10 @@
 #include "libavpn/avpn_compress.hpp"
 #include "libavpn/logging.hpp"
 
+#include <lz4.h>
 #include <zlib.h>
+
+#include <limits>
 
 namespace libavpn {
 
@@ -79,6 +82,58 @@ namespace libavpn {
 		return m_type != compress_type::none;
 	}
 
+	bool compressor::lz4_compress(std::string_view input,
+		std::vector<uint8_t>& output)
+	{
+		// lz4 块接口的尺寸是 int, 一个 IP 包远到不了这个上限, 超了直接不压.
+		if (input.size() > static_cast<std::size_t>(
+			std::numeric_limits<int>::max()) ||
+			input.size() > static_cast<std::size_t>(LZ4_MAX_INPUT_SIZE))
+		{
+			return false;
+		}
+
+		const int src_size = static_cast<int>(input.size());
+		const int bound = ::LZ4_compressBound(src_size);
+		if (bound <= 0)
+			return false;
+
+		output.resize(static_cast<std::size_t>(bound));
+		const int written = ::LZ4_compress_default(input.data(),
+			reinterpret_cast<char*>(output.data()), src_size, bound);
+		if (written <= 0)
+		{
+			XLOG_ERR << "lz4 compress failed";
+			return false;
+		}
+
+		output.resize(static_cast<std::size_t>(written));
+		return true;
+	}
+
+	bool compressor::lz4_decompress(std::string_view input,
+		std::vector<uint8_t>& output, std::size_t max_out)
+	{
+		if (input.size() > static_cast<std::size_t>(
+			std::numeric_limits<int>::max()) ||
+			max_out > static_cast<std::size_t>(
+				std::numeric_limits<int>::max()))
+		{
+			return false;
+		}
+
+		// 输出缓冲就是上限: 解到这里还没完, 说明不是坏数据就是解压炸弹.
+		output.resize(max_out);
+		const int written = ::LZ4_decompress_safe(input.data(),
+			reinterpret_cast<char*>(output.data()),
+			static_cast<int>(input.size()), static_cast<int>(max_out));
+		if (written < 0)
+			return false;
+
+		output.resize(static_cast<std::size_t>(written));
+		return true;
+	}
+
 	void compressor::close_streams()
 	{
 		if (m_deflate != nullptr)
@@ -97,6 +152,9 @@ namespace libavpn {
 
 	bool compressor::ensure_streams()
 	{
+		// lz4 的块接口一次性进出, 没有常驻状态, 直接算可用.
+		if (m_type == compress_type::lz4)
+			return true;
 		if (m_type != compress_type::deflate)
 			return false;
 		if (m_deflate != nullptr && m_inflate != nullptr)
@@ -135,6 +193,9 @@ namespace libavpn {
 		if (input.empty() || !ensure_streams())
 			return false;
 
+		if (m_type == compress_type::lz4)
+			return lz4_compress(input, output);
+
 		auto* zs = static_cast<z_stream*>(m_deflate);
 		if (::deflateReset(zs) != Z_OK)
 		{
@@ -168,6 +229,9 @@ namespace libavpn {
 	{
 		if (input.empty() || max_out == 0 || !ensure_streams())
 			return false;
+
+		if (m_type == compress_type::lz4)
+			return lz4_decompress(input, output, max_out);
 
 		auto* zs = static_cast<z_stream*>(m_inflate);
 		if (::inflateReset(zs) != Z_OK)

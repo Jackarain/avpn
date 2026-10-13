@@ -202,7 +202,7 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 
 ### 7.1 压缩
 
-- 两端握手时用参数 `0x0C` 谈定算法，当前只实现了 `deflate`，`lz4`/`zstd` 预留；
+- 两端握手时用参数 `0x0C` 谈定算法，实现了 `deflate` 与 `lz4`，`zstd` 预留；
   两端配成同一个算法才生效，默认不压缩。
 - 压缩放在 `avpn_datapath` 里做，只压 IP 包：压后数据加 3 字节条目头仍比原包小，才发压缩
   载荷 `[标记(1) = 0x01, 压后长度(2), 压后数据]`；否则原样发 IP 包，一个字节都不多花。
@@ -212,11 +212,19 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
   的每包预算才十几微秒）。判错的代价只是错过一次压缩机会。
 - 收包方向先看明文首字节，是 `0x01` 就按长度字段取出压后数据（顺带剥掉纠错补零）再解压；
   长度越界、数据解不开、解压结果超过一个满长包（防解压炸弹）都整片丢弃。
-- `compressor` 抽象封装 `set_type / compress / decompress`：压用原始 deflate
-  （`Z_BEST_SPEED`，不带 zlib 头，报文已由 AEAD 认证，省下的 10 个字节在小包上很值），
-  解压的最大输出由调用方按 `mtu` 给（防解压炸弹）。
-- 每包是一个独立的 deflate 流，压 / 解两条 `z_stream` 常驻，每包只 `deflateReset` /
-  `inflateReset` 一次；每包重建 zlib 流要几十微秒，会直接吃光包速率的预算。
+- `compressor` 抽象封装 `set_type / compress / decompress`，解压的最大输出由调用方按
+  `mtu` 给（防解压炸弹），两种算法各走各的路：
+  - `deflate`：压用原始 deflate（`Z_BEST_SPEED`，不带 zlib 头，报文已由 AEAD 认证，
+    省下的 10 个字节在小包上很值）；每包是一个独立的流，压 / 解两条 `z_stream` 常驻，
+    每包只 `deflateReset` / `inflateReset` 一次，每包重建 zlib 流要几十微秒，会直接
+    吃光包速率的预算。
+  - `lz4`：用 `third_party/lz4` 里的库本体，压 / 解都走块接口
+    （`LZ4_compress_default` / `LZ4_decompress_safe`），一次调用进出，没有常驻状态；
+    输出上限直接交给解压接口，越界解不开就丢。
+- 两种算法的实测差距（跨机，纠错 12/16、MTU 1450、可压的重复载荷，同一链路，各跑一次
+  6 秒 iperf3，多次运行有百分之几的波动）：lz4 上行 826 / 下行 928 Mbit/s，deflate
+  上行 541 / 下行 672 Mbit/s，不压缩 669 / 680 Mbit/s。lz4 把省下来的线上字节换成了
+  吞吐，deflate 则先撞上 CPU 上限；压不动的流量两种算法都跳过，吞吐和不压缩一样。
 
 ### 7.2 混淆层（可选）
 
@@ -463,7 +471,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `c2c_` | 是否允许客户端间通信 |
 | `subnet_` | VPN 子网（如 `10.0.0.0/16`） |
 | `data_shards_` / `parity_shards_` | 纠错参数：`T = data_shards_ + parity_shards_` 须为 2 的幂，`ds = data_shards_`；`ds < 2` 时不开纠错 |
-| `compress_` | 压缩算法（当前只实现 `deflate`，空为不压缩；客户端在握手请求里带上，网关据此确认） |
+| `compress_` | 压缩算法（`deflate` 或 `lz4`，空为不压缩；客户端在握手请求里带上，网关据此确认） |
 | `hint_` | 握手是否附带静态公钥哈希前缀（O(1) 查白名单，代价是公钥可被关联） |
 
 ---
@@ -485,7 +493,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 2. **推送 DNS 的应用**：`pushroutes_` 与 `passbyvpn` 由客户端经 netlink 写入系统路由表
    （`setup_system_routes()`）；网关推送的 DNS 地址只在 `session_params.pushdns` 里存着，
    尚未交给客户端使用。
-3. **压缩算法**：仅 `deflate` 已实现，`lz4`/`zstd` 为预留接口。
+3. **压缩算法**：`deflate` 与 `lz4` 已实现，`zstd` 为预留接口。
 4. **多线程**：`io_context_pool` 已提供，当前服务逻辑运行在主 context，可扩展至多 context 提升吞吐。
 5. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
    `async_read_some`（当前 `tun_read_loop` 单协程满足）；多协程并发读取会对

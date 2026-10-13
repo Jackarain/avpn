@@ -103,9 +103,9 @@ namespace libavpn {
 		if (wish != have)
 			return compress_type::none;
 
-		// 只有 deflate 有实现, 其余算法谈成了也压不了.
-		if (wish == compress_type::deflate)
-			return compress_type::deflate;
+		// 有实现的算法才谈得成, 其余算法谈成了也压不了.
+		if (wish == compress_type::deflate || wish == compress_type::lz4)
+			return wish;
 		return compress_type::none;
 	}
 

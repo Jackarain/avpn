@@ -63,6 +63,7 @@ target_include_directories(libavpn
 	PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/include/
 	${ZLIB_INCLUDE_DIRS}
+	${LZ4_INCLUDE_DIRS}
 	${WINTUN_INCLUDE_DIRS}
 )
 
@@ -101,6 +102,7 @@ target_link_libraries(libavpn
 	httpc::httpc
 	fmt
 	${ZLIB_LIBRARIES}
+	${LZ4_LIBRARIES}
 	${OPENSSL_LIBRARIES}
 )
 

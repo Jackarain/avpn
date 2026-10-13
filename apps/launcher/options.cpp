@@ -81,7 +81,7 @@ const option k_options[] = {
 	{ "parity_shards", option_kind::integer, "FEC 冗余分片数。", true, false, 0, "", {}, false, false, false,
 	  "纠错冗余片数，即一组里最多能补回的丢包片数，至少为 1 才启用纠错。", "FEC" },
 	{ "compress", option_kind::string, "压缩算法。", false, false, 0, "", {}, false, false, false,
-	  "数据压缩算法，当前支持 deflate；两端配置成同一算法才生效，留空不压缩。", "压缩" },
+	  "数据压缩算法，支持 deflate、lz4；两端配置成同一算法才生效，留空不压缩。", "压缩" },
 	{ "logs_path", option_kind::string, "日志文件输出目录。", false, false, 0, "", {}, false, false, false,
 	  "指定日志文件输出目录；留空仅控制台输出。", "日志" },
 	{ "disable_logs", option_kind::boolean, "禁用日志输出。", true, false, 0, "", {}, false, false, false,

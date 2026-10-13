@@ -344,8 +344,9 @@ BOOST_AUTO_TEST_CASE(compression_negotiation)
 	BOOST_CHECK(negotiate_compress(ct::deflate, ct::none) == ct::none);
 	BOOST_CHECK(negotiate_compress(ct::deflate, ct::zstd) == ct::none);
 
-	// 还没实现的算法不能谈成启用.
-	BOOST_CHECK(negotiate_compress(ct::lz4, ct::lz4) == ct::none);
+	// deflate / lz4 都谈得成, 还没实现的算法不能谈成启用.
+	BOOST_CHECK(negotiate_compress(ct::lz4, ct::lz4) == ct::lz4);
+	BOOST_CHECK(negotiate_compress(ct::lz4, ct::deflate) == ct::none);
 	BOOST_CHECK(negotiate_compress(ct::zstd, ct::zstd) == ct::none);
 
 	// 压缩条目的首字节不能和 IP 包 / 容器撞车.

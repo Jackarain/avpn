@@ -20,7 +20,7 @@
 #   LOSS       netem 丢包率, 如 0.5% (默认不注入)
 #   DELAY      netem 单向延迟, 如 20ms (默认不注入)
 #   RATE       netem 限速, 如 100mbit (默认不限速); 用来验证压缩省带宽的效果
-#   COMPRESS   压缩算法 (当前只实现 deflate, 两端需一致)
+#   COMPRESS   压缩算法 (deflate 或 lz4, 两端需一致)
 #   OBF        混淆密钥 (预留, 当前版本不生效)
 #   IPERF_ARGS iperf3 客户端附加参数, 如 --repeating-payload (默认空)
 #
