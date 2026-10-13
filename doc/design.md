@@ -261,9 +261,15 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 
 ### 8.2 TCP 传输
 
-- 每帧为 `[len(2, BE) | 帧头(4) | AEAD]` 的 TCP 流式帧。
-- 使用 `m_tcp_oqe` 写队列 + `start_tcp_write` 协程泵串行写出，保证帧边界完整。
+- 每帧为 `[len(2, BE) | 帧头(4) | AEAD]` 的 TCP 流式帧，线格式与长度上限见
+  `doc/protocol_v2.md` §2.8。
+- 使用 `m_tcp_oqe` 写队列 + `start_tcp_write` 协程泵串行写出（合并最多 128KB 或
+  等待 2ms），保证帧边界完整。
 - 接收端 `tcp_read_loop` 读取长度前缀后按帧分发（握手/数据）。
+- 一个 TCP 连接对应一条隧道：网关接受连接后建会话，会话身份即连接本身，因此 TCP
+  下没有漫游帧，换网只能重连重握手。
+- 跨机实测（192.168.1.130 网关 ↔ 192.168.1.143 客户端，千兆局域网）：ping 0% 丢包，
+  iperf3 双向约 890 Mbit/s，两端无错误日志。
 - 数据面优化（设计目标，当前为后续增强，见 §15）：
   - IP 包为 TCP 且为 SYN 时，为该 TCP 流创建**专用 TCP socket** 传输，避免 TCP-in-TCP。
   - IP 包为 UDP 时，按目标 Address 建立**独立 TCP socket** 传输。
