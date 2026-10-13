@@ -254,6 +254,8 @@ namespace libavpn {
 	{
 		m_vaddr = m_params.vaddr;
 		m_roam_cookie = m_params.roam_cookie;
+		// 混淆层的随机数发生器: 每个会话用一次加密随机数播种就够了.
+		m_obfuscate_rand.seed(crypto::random_bytes(16));
 		m_datapath.configure(m_master, m_params,
 			m_role == session_role::initiator);
 		m_datapath.set_roam_cookie(m_roam_cookie);
@@ -290,6 +292,9 @@ namespace libavpn {
 		// 客户端只表达"想要什么", 最终取值由网关在回复里定.
 		req.params.compress = static_cast<uint8_t>(
 			compress_type_from_string(m_config.compress_));
+		req.params.obfuscate = !m_config.obfuscate_key_.empty();
+		req.params.obfuscate_key_hash =
+			obfuscate_key_hash(m_config.obfuscate_key_);
 
 		const std::string plaintext = req.serialize();
 		if (plaintext.empty())
@@ -439,6 +444,17 @@ namespace libavpn {
 		if (!check_anti_replay(matched, req.timestamp))
 			return false;
 
+		// 客户端想要混淆, 但两边配的密钥串不一样: 数据面会把帧算错位,
+		// 干脆不回复, 让这次握手失败 (日志里能看出原因).
+		if (req.params.obfuscate &&
+			req.params.obfuscate_key_hash !=
+				obfuscate_key_hash(m_config.obfuscate_key_))
+		{
+			XLOG_ERR << "Obfuscate key mismatch, client: "
+				<< req.params.obfuscate_key_hash;
+			return false;
+		}
+
 		m_peer_static_pub = matched;
 		m_peer_eph_pub.assign(
 			reinterpret_cast<const char*>(req.ephemeral_pub.data()),
@@ -484,10 +500,6 @@ namespace libavpn {
 		p.vaddr = vaddr;
 		p.prefix_len = prefix;
 
-		p.mtu = static_cast<uint16_t>(std::max<int>(min_mtu,
-			std::min<int>(m_config.mtu_size_,
-				static_cast<int>(p.shard_limit()))));
-
 		if (!m_config.v6_subnet_.empty())
 		{
 			net::ip::address_v6 net;
@@ -505,7 +517,19 @@ namespace libavpn {
 		p.compress = static_cast<uint8_t>(negotiate_compress(
 			static_cast<compress_type>(wish.compress),
 			compress_type_from_string(m_config.compress_)));
-		p.obfuscate = false;
+
+		// 混淆: 两边都配了密钥串才启用; 指纹一致才可能配对 (不一致的请求
+		// 在握手入口就被拒了).
+		p.obfuscate = wish.obfuscate && !m_config.obfuscate_key_.empty();
+		p.obfuscate_key_hash = p.obfuscate
+			? obfuscate_key_hash(m_config.obfuscate_key_) : 0;
+
+		// 内层 MTU 得放在混淆之后定: 开混淆时片长上限要小一截, 内层 MTU
+		// 必须跟着收, 否则满长包放不进一片.
+		p.mtu = static_cast<uint16_t>(std::max<int>(min_mtu,
+			std::min<int>(m_config.mtu_size_,
+				static_cast<int>(p.shard_limit()))));
+
 		p.transport = m_transport == transport_type::udp ? 0 : 1;
 		p.pushdns = m_config.pushdns_;
 		p.passbyvpn = m_config.passbyvpn_;
@@ -637,11 +661,40 @@ namespace libavpn {
 
 	void avpn_session::queue_frame(std::string_view frame)
 	{
+		// 混淆层套在加密帧外面; 带漫游凭证的帧不套, 网关要靠最前面的
+		// 凭证先认出会话.
+		std::string wrapped;
+		if (obfuscate_enabled() && !frame_has_cookie(frame))
+		{
+			wrapped = obfuscate_frame(m_obfuscate_rand,
+				m_config.obfuscate_key_, frame);
+			if (wrapped.empty())
+				return;
+			frame = wrapped;
+		}
+
 		std::vector<uint8_t> wire(frame.begin(), frame.end());
 		if (m_transport == transport_type::udp)
 			m_udp_pending.push_back(std::move(wire));
 		else
 			queue_tcp_wire(std::move(wire));
+	}
+
+	bool avpn_session::obfuscate_enabled() const
+	{
+		return m_established && m_params.obfuscate &&
+			!m_config.obfuscate_key_.empty();
+	}
+
+	bool avpn_session::frame_has_cookie(std::string_view frame) const
+	{
+		if (cookie_empty(m_roam_cookie) ||
+			frame.size() < m_roam_cookie.size())
+		{
+			return false;
+		}
+		return std::memcmp(frame.data(), m_roam_cookie.data(),
+			m_roam_cookie.size()) == 0;
 	}
 
 	void avpn_session::flush_udp_batch()
@@ -762,7 +815,15 @@ namespace libavpn {
 
 	bool avpn_session::handle_wire(std::string_view wire)
 	{
-		auto payloads = m_datapath.on_frame(wire, now_ms());
+		// 谈成混淆后, 数据帧都套了一层; 带凭证的漫游帧不套.
+		std::string_view data = wire;
+		if (obfuscate_enabled() && !frame_has_cookie(wire))
+		{
+			if (!deobfuscate_frame(m_config.obfuscate_key_, wire, data))
+				return false;
+		}
+
+		auto payloads = m_datapath.on_frame(data, now_ms());
 		if (payloads.empty())
 			return false;
 

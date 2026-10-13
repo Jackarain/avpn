@@ -16,6 +16,7 @@
 #include "libavpn/avpn_frame.hpp"
 #include "libavpn/avpn_keys.hpp"
 #include "libavpn/avpn_datapath.hpp"
+#include "libavpn/avpn_obfuscate.hpp"
 
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -214,6 +215,12 @@ namespace libavpn {
 
 		// 按传输类型把线上帧排队发送.
 		void queue_frame(std::string_view frame);
+
+		// 混淆层: 谈成了并且两端都配了密钥串才套.
+		bool obfuscate_enabled() const;
+
+		// 这一帧最前面是不是本会话的漫游凭证 (带凭证的帧不套混淆层).
+		bool frame_has_cookie(std::string_view frame) const;
 		void flush_udp_batch();
 		void queue_tcp_wire(std::vector<uint8_t> wire);
 		void start_tcp_write();
@@ -297,6 +304,9 @@ namespace libavpn {
 
 		// 漫游凭证.
 		std::array<uint8_t, handshake_hint_size> m_roam_cookie{};
+
+		// 混淆层用的随机数发生器 (会话开始时播种).
+		obfuscate_rand m_obfuscate_rand;
 
 		// 分配的虚拟地址.
 		uint32_t m_vaddr{ 0 };

@@ -27,6 +27,7 @@
 #include <boost/asio/ip/address_v6.hpp>
 
 #include "libavpn/avpn_protocol.hpp"
+#include "libavpn/avpn_obfuscate.hpp"
 
 namespace libavpn {
 
@@ -41,11 +42,29 @@ namespace libavpn {
 	// 帧 AEAD nonce 大小 (计数器 4 字节 + 8 字节 0).
 	inline constexpr std::size_t frame_nonce_size = 12;
 
+	// 默认的认证标签长度 (字节); 也可协商成 12.
+	inline constexpr std::size_t frame_default_tag_len = 16;
+
 	// 一个次代的帧数.
 	inline constexpr uint64_t frame_counter_space = uint64_t{ 1 } << 32;
 
 	// 线缆 MTU 上限 (含帧头与认证标签).
 	inline constexpr std::size_t max_wire_mtu = 1500;
+
+	// 一个帧装进 UDP 报文后, 还要加上 IP 头 (20 字节) 和 UDP 头 (8 字节).
+	inline constexpr std::size_t wire_outer_overhead = 28;
+
+	// 一片 (一个数据帧的载荷) 的长度上限: 线缆 MTU 减去外层 IP/UDP 头、帧头
+	// 和认证标签; 开混淆再减去混淆层的开销, 保证套上混淆后外层报文仍不超过
+	// 线缆 MTU, 不会被 IP 分片.
+	inline std::size_t wire_payload_limit(std::size_t tag_len, bool obfuscate)
+	{
+		std::size_t limit = max_wire_mtu - wire_outer_overhead -
+			frame_header_size - tag_len;
+		if (obfuscate)
+			limit -= obfuscate_max_overhead;
+		return limit;
+	}
 
 	// 明文里装的东西.
 	enum class frame_kind : uint8_t
@@ -130,7 +149,7 @@ namespace libavpn {
 		uint16_t version{ avpn_protocol_v2 };
 
 		// 认证标签长度.
-		uint8_t tag_len{ 16 };
+		uint8_t tag_len{ static_cast<uint8_t>(frame_default_tag_len) };
 
 		// 纠错: 一组的总片数 / 数据片数; 1 表示不开纠错.
 		uint8_t fec_total{ 1 };
@@ -166,6 +185,9 @@ namespace libavpn {
 		uint8_t compress{ 0 };
 		bool obfuscate{ false };
 
+		// 混淆密钥串的指纹 (4 字节, 0 表示没配); 两端不一致就没法谈成混淆.
+		uint32_t obfuscate_key_hash{ 0 };
+
 		// 漫游凭证.
 		std::array<uint8_t, 8> roam_cookie{};
 
@@ -184,10 +206,10 @@ namespace libavpn {
 		// 取值是否自洽.
 		bool valid() const;
 
-		// 数据片长度上限 (= 线缆 MTU - 帧头 - 认证标签).
+		// 数据片长度上限 (= 线缆 MTU - 帧头 - 认证标签, 开混淆时更小).
 		std::size_t shard_limit() const
 		{
-			return max_wire_mtu - frame_header_size - tag_len;
+			return wire_payload_limit(tag_len, obfuscate);
 		}
 	};
 

@@ -59,6 +59,7 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 | `avpn_datapath` | `avpn_datapath.cpp/.hpp` | 数据面：封包/收包、次代推断、重放过滤、漫游帧 |
 | `avpn_protocol` | `avpn_protocol.cpp/.hpp` | 常量（mtu、包大小、压缩类型）与 endpoint 解析 |
 | `avpn_compress` | `avpn_compress.cpp/.hpp` | 压缩抽象（zlib deflate） |
+| `avpn_obfuscate` | `avpn_obfuscate.cpp/.hpp` | 混淆层：在数据帧外面套一层随机垃圾（可选） |
 | `avpn_tun` | `avpn_tun.cpp/.hpp` | tun 设备抽象（Linux `/dev/net/tun`、macOS utun、Windows wintun、fd 透传） |
 | 基础设施 | `io_context_pool.hpp` / `logging.hpp` | 线程池与日志（xlogger） |
 
@@ -194,7 +195,9 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 
 ---
 
-## 7. 压缩
+## 7. 压缩与混淆
+
+### 7.1 压缩
 
 - 两端握手时用参数 `0x0C` 谈定算法，当前只实现了 `deflate`，`lz4`/`zstd` 预留；
   两端配成同一个算法才生效，默认不压缩。
@@ -211,6 +214,25 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
   解压的最大输出由调用方按 `mtu` 给（防解压炸弹）。
 - 每包是一个独立的 deflate 流，压 / 解两条 `z_stream` 常驻，每包只 `deflateReset` /
   `inflateReset` 一次；每包重建 zlib 流要几十微秒，会直接吃光包速率的预算。
+
+### 7.2 混淆层（可选）
+
+线格式与协商见 `doc/protocol_v2.md` §2.6；实现要点：
+
+- `avpn_obfuscate` 只有两个动作：`obfuscate_frame` 在加密帧外面套
+  `[salt(4), len_enc(2), 垃圾(16~64)]`，`deobfuscate_frame` 把它剥掉。垃圾长度按
+  `XXH64(密钥串, salt)` 的低 16 位掩码异或后写在线上，没有密钥串就算不出真实长度。
+- 垃圾的长短**只跟帧长挂钩**，不随机：等长帧套出来还是等长，内核收方向的合并
+  （GRO）与发方向的 GSO 才认得出来。长度一随机，实测吞吐掉三成，而帧长本来就在
+  报文长度里（§6 的开销表），换不来什么。
+- 会话在 `queue_frame` 里套层、在 `handle_wire` 里剥层，条件是握手谈成了混淆、且本端
+  配了密钥串；**带漫游凭证的帧不套**，网关靠最前面 8 字节凭证做 O(1) 会话分流。
+- 只在会话建立之后的数据帧上套，握手报文不套——“开不开混淆”本身就是握手谈出来的。
+- 混淆层的开销（最坏 70 字节）从片长上限里扣：`wire_payload_limit()` 按 `tag_len`
+  和混淆开关算出一片能装多长，握手时下发的内层 MTU 也跟着收（默认 1450 → 1382），
+  保证套上垃圾后外层报文仍不超过线缆 MTU，不会被 IP 分片。
+- 两端密钥串不一致时握手直接失败（客户端在参数 `0x13` 里带上密钥指纹，网关比对），
+  免得数据面把帧算错位，变成“能握手但一个包也过不去”。
 
 ---
 
@@ -445,5 +467,4 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 5. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
    `async_read_some`（当前 `tun_read_loop` 单协程满足）；多协程并发读取会对
    `head` 竞争。
-6. **混淆层**：协议定义了可选的混淆层，当前数据面未接线。
-7. **容器聚合**：容器的编解码已实现并有单测，但发送路径仍是一包一帧，未启用聚合。
+6. **容器聚合**：容器的编解码已实现并有单测，但发送路径仍是一包一帧，未启用聚合。

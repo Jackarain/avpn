@@ -1288,6 +1288,13 @@ namespace libavpn {
 			// 配置 gateway 自身地址 (网络地址 + 1).
 			if (m_config.mtu_size_ <= 0)
 				m_config.mtu_size_ = 1450;
+			// 内层 MTU 不能超过一片装得下的长度, 否则大包封不进一片会被丢;
+			// 配了混淆密钥时片长更小, 这里按最坏情况 (tag 16) 收.
+			const int max_mtu = static_cast<int>(wire_payload_limit(
+				frame_default_tag_len,
+				!m_config.obfuscate_key_.empty()));
+			if (m_config.mtu_size_ > max_mtu)
+				m_config.mtu_size_ = max_mtu;
 			m_tundev->configure(m_subnet.address().to_uint() + 1,
 				static_cast<uint8_t>(m_subnet.prefix_length()),
 				m_config.mtu_size_);

@@ -75,6 +75,7 @@ namespace libavpn {
 			constexpr uint8_t transport = 0x10;
 			constexpr uint8_t pushdns = 0x11;
 			constexpr uint8_t passbyvpn = 0x12;
+			constexpr uint8_t obfuscate_key_hash = 0x13;
 		} // namespace param_id
 
 		void append_param(std::string& out, uint8_t id,
@@ -286,8 +287,10 @@ namespace libavpn {
 		if (prefix_len > 32 || v6_prefix > 128)
 			return false;
 
-		// 内层 MTU 必须保证一个满长包放得进一片.
-		if (mtu < 576 || mtu > shard_limit())
+		// 内层 MTU 得保证一个满长包放得进一片. 这里只按不含混淆开销的上限
+		// 粗校验取值范围: 客户端报的是"想要多大的 MTU", 开不开混淆要等应答
+		// 方按协商结果定, 最终值由应答方收到片长上限里 (见 shard_limit).
+		if (mtu < 576 || mtu > wire_payload_limit(tag_len, false))
 			return false;
 
 		return true;
@@ -373,6 +376,10 @@ namespace libavpn {
 
 		body.assign(1, static_cast<char>(p.passbyvpn ? 1 : 0));
 		append_param(out, param_id::passbyvpn, body);
+
+		body.clear();
+		put_u32(body, p.obfuscate_key_hash);
+		append_param(out, param_id::obfuscate_key_hash, body);
 	}
 
 	bool parse_params(std::string_view data, session_params& p)
@@ -520,6 +527,11 @@ namespace libavpn {
 				if (len != 1)
 					return false;
 				out.passbyvpn = bp[0] != 0;
+				break;
+			case param_id::obfuscate_key_hash:
+				if (len != 4)
+					return false;
+				out.obfuscate_key_hash = get_u32(bp);
 				break;
 			default:
 				break;

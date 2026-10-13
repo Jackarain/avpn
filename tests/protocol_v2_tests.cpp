@@ -7,6 +7,7 @@
 #include "../libavpn/src/avpn_crypto.cpp"
 #include "../libavpn/src/avpn_rs.cpp"
 #include "../libavpn/src/avpn_fec_v2.cpp"
+#include "../libavpn/src/avpn_obfuscate.cpp"
 #include "libavpn/avpn_replay.hpp"
 
 #include <boost/asio/ip/address.hpp>
@@ -216,6 +217,7 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	p.routes = { "10.0.0.0/8", "192.168.0.0/16" };
 	p.compress = 1;
 	p.obfuscate = true;
+	p.obfuscate_key_hash = 0x1234abcd;
 	p.roam_cookie = { { 1, 2, 3, 4, 5, 6, 7, 8 } };
 	p.cookie_beacon_k = 32;
 	p.transport = 1;
@@ -244,6 +246,7 @@ BOOST_AUTO_TEST_CASE(params_roundtrip)
 	BOOST_CHECK_EQUAL(q.routes[1], p.routes[1]);
 	BOOST_CHECK_EQUAL(int(q.compress), int(p.compress));
 	BOOST_CHECK_EQUAL(q.obfuscate, p.obfuscate);
+	BOOST_CHECK_EQUAL(q.obfuscate_key_hash, p.obfuscate_key_hash);
 	BOOST_CHECK(q.roam_cookie == p.roam_cookie);
 	BOOST_CHECK_EQUAL(q.cookie_beacon_k, p.cookie_beacon_k);
 	BOOST_CHECK_EQUAL(int(q.transport), int(p.transport));
@@ -898,6 +901,129 @@ BOOST_AUTO_TEST_CASE(receiver_whole_frame_mode_passes_through)
 	BOOST_REQUIRE_EQUAL(out.size(), 1);
 	BOOST_CHECK(out[0] == "hello");
 	BOOST_CHECK(!rx.on_shard(1, std::string_view(), 1, out));
+}
+
+BOOST_AUTO_TEST_CASE(obfuscate_roundtrip)
+{
+	const std::string key = "a-shared-obfuscate-key";
+	const std::string frame = "0123456789abcdef(this is one frame)";
+	obfuscate_rand rand;
+	rand.seed("seed-for-tests");
+
+	const std::size_t padding = obfuscate_padding_for(frame.size());
+	BOOST_CHECK_GE(padding, obfuscate_min_padding);
+	BOOST_CHECK_LE(padding, obfuscate_max_padding);
+
+	std::string wire = obfuscate_frame(rand, key, frame);
+	BOOST_REQUIRE(!wire.empty());
+
+	// 外面多出来的就是 salt + 长度字段 + 16~64 字节垃圾.
+	const std::size_t extra = wire.size() - frame.size();
+	BOOST_CHECK(extra >= obfuscate_fixed_overhead + obfuscate_min_padding);
+	BOOST_CHECK(extra <= obfuscate_max_overhead);
+
+	std::string_view got;
+	BOOST_REQUIRE(deobfuscate_frame(key, wire, got));
+	BOOST_CHECK(got == frame);
+
+	// 换个密钥串就剥不出原来的帧 (垃圾长度算不对).
+	std::string_view wrong;
+	if (deobfuscate_frame("another-key", wire, wrong))
+		BOOST_CHECK(wrong != frame && !wrong.empty());
+
+	// 帧长不同的包, 套出来的长度也不同 (垃圾长度跟着帧长走).
+	std::set<std::size_t> sizes;
+	for (int i = 0; i < 64; i++)
+	{
+		std::string w = obfuscate_frame(rand, key,
+			frame + std::string(static_cast<std::size_t>(i), 'x'));
+		BOOST_REQUIRE(!w.empty());
+		std::string_view inner;
+		BOOST_REQUIRE(deobfuscate_frame(key, w, inner));
+		BOOST_CHECK(inner == frame + std::string(
+			static_cast<std::size_t>(i), 'x'));
+		sizes.insert(w.size());
+	}
+	BOOST_CHECK_GT(sizes.size(), 8);
+
+	// 等长帧套出来一定等长: 内核的合并优化 (GRO / GSO) 靠这个.
+	BOOST_CHECK_EQUAL(obfuscate_frame(rand, key, frame).size(),
+		obfuscate_frame(rand, key, frame).size());
+	BOOST_CHECK_EQUAL(obfuscate_padding_for(1430),
+		obfuscate_padding_for(1430));
+
+	// 空密钥串 / 空帧不套.
+	BOOST_CHECK(obfuscate_frame(rand, "", frame).empty());
+	BOOST_CHECK(obfuscate_frame(rand, key, "").empty());
+	BOOST_CHECK(!deobfuscate_frame("", wire, wrong));
+	BOOST_CHECK(!deobfuscate_frame(key, frame, wrong));  // 太短, 剥不了
+}
+
+BOOST_AUTO_TEST_CASE(obfuscate_shrinks_shard_limit)
+{
+	// 一片的长度上限 = 线缆 MTU 减去外层 IP/UDP 头、帧头和认证标签.
+	session_params plain;
+	BOOST_CHECK_EQUAL(plain.shard_limit(),
+		wire_payload_limit(plain.tag_len, false));
+	BOOST_CHECK(plain.shard_limit() + frame_header_size + plain.tag_len +
+		wire_outer_overhead <= max_wire_mtu);
+
+	// 开混淆: 片长上限要让出最坏情况下的混淆开销, 套完垃圾再装进 UDP
+	// 报文, 仍然不超过线缆 MTU (不会被 IP 分片).
+	session_params obf;
+	obf.obfuscate = true;
+	BOOST_CHECK_EQUAL(obf.shard_limit(),
+		plain.shard_limit() - obfuscate_max_overhead);
+	BOOST_CHECK(obf.shard_limit() + frame_header_size + obf.tag_len +
+		obfuscate_max_overhead + wire_outer_overhead <= max_wire_mtu);
+	BOOST_CHECK(obf.valid());
+
+	// 内层 MTU 的粗校验按不含混淆开销的上限来 (开不开混淆由应答方定).
+	obf.mtu = static_cast<uint16_t>(obf.shard_limit());
+	BOOST_CHECK(obf.valid());
+	obf.mtu = static_cast<uint16_t>(plain.shard_limit() + 1);
+	BOOST_CHECK(!obf.valid());
+}
+
+BOOST_AUTO_TEST_CASE(obfuscate_rejects_broken_length)
+{
+	const std::string key = "a-shared-obfuscate-key";
+	const std::string frame = "0123456789abcdef";
+	obfuscate_rand rand;
+	rand.seed("seed-for-tests");
+	const std::string wire = obfuscate_frame(rand, key, frame);
+	BOOST_REQUIRE(!wire.empty());
+
+	// 垃圾还没读全就剥不了 (帧本身的完整性由 AEAD 兜底, 不在这里管).
+	std::string_view got;
+	BOOST_CHECK(!deobfuscate_frame(key,
+		std::string_view(wire).substr(0,
+			obfuscate_fixed_overhead + obfuscate_min_padding - 1), got));
+
+	// 长度字段被改: 算出来的垃圾长度要么越界, 要么对不上, 反正不能
+	// 得到原来的帧.
+	for (std::size_t i = obfuscate_salt_size;
+		i < obfuscate_salt_size + obfuscate_len_field_size; i++)
+	{
+		std::string bad = wire;
+		bad[i] = static_cast<char>(bad[i] ^ 0xff);
+		std::string_view inner;
+		if (deobfuscate_frame(key, bad, inner))
+			BOOST_CHECK(inner != frame);
+	}
+
+	// 掩码: 同一个 salt 结果稳定, 换个 salt 基本都会变.
+	const std::string salt = "abcd";
+	BOOST_CHECK_EQUAL(obfuscate_mask(key, salt),
+		obfuscate_mask(key, salt));
+	BOOST_CHECK_EQUAL(obfuscate_mask("", salt), obfuscate_mask("", salt));
+
+	// 密钥指纹: 配了才有值, 两端一致才谈得成.
+	BOOST_CHECK_EQUAL(obfuscate_key_hash(""), 0u);
+	BOOST_CHECK_NE(obfuscate_key_hash(key), 0u);
+	BOOST_CHECK_EQUAL(obfuscate_key_hash(key), obfuscate_key_hash(key));
+	BOOST_CHECK_NE(obfuscate_key_hash(key),
+		obfuscate_key_hash("another-key"));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

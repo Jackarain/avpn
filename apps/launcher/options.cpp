@@ -75,7 +75,7 @@ const option k_options[] = {
 	{ "pkl", option_kind::string_list, "对端公钥白名单（base64，可重复添加）。", false, false, 0, "", {}, false, false, false,
 	  "对端静态公钥白名单（可添加多条），base64 编码。", "密钥" },
 	{ "obfuscate_key", option_kind::string, "数据特征混淆密钥串。", false, false, 0, "", {}, false, false, false,
-	  "预留字段：协议定义了可选的混淆层，当前版本尚未实现，配置后不生效。", "密钥" },
+	  "非空时启用流量混淆：给数据帧外层填随机垃圾，打开后每包多 22~70 字节、内层 MTU 相应减小。两端必须配置相同密钥串，留空关闭。", "密钥" },
 	{ "data_shards", option_kind::integer, "FEC 数据分片数。", true, false, 0, "", {}, false, false, false,
 	  "纠错数据片数。与 parity_shards 之和须为 2/4/8/16，且本项不小于 2，才启用纠错，否则退化为整帧模式。", "FEC" },
 	{ "parity_shards", option_kind::integer, "FEC 冗余分片数。", true, false, 0, "", {}, false, false, false,
