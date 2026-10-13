@@ -461,7 +461,9 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 ## 15. 已知限制与后续工作
 
 1. **TCP 按流拆分**：`ip_proto()` / `is_tcp_syn()` 已实现，但 TCP 按 SYN 流建立专用连接、按 Address 建立独立 UDP 传输连接的优化尚未接线，当前 TCP 使用单一加密控制流。
-2. **客户端路由应用**：`pushroutes_` / `pushdns_` 已协商并存储在 `session_params`，尚未写入操作系统路由表。
+2. **推送 DNS 的应用**：`pushroutes_` 与 `passbyvpn` 由客户端经 netlink 写入系统路由表
+   （`setup_system_routes()`）；网关推送的 DNS 地址只在 `session_params.pushdns` 里存着，
+   尚未交给客户端使用。
 3. **压缩算法**：仅 `deflate` 已实现，`lz4`/`zstd` 为预留接口。
 4. **多线程**：`io_context_pool` 已提供，当前服务逻辑运行在主 context，可扩展至多 context 提升吞吐。
 5. **wintun 单读者**：ring 的 `head` 推进无锁，需保证单个 io_context 上串行调用
