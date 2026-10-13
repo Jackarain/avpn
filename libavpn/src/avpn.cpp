@@ -901,14 +901,14 @@ namespace libavpn {
 				m_sessions_by_pubkey.erase(it);
 		}
 
-		// 从漫游凭证索引移除.
-		uint64_t cookie = roam_cookie_key(session);
-		if (cookie != 0)
+		// 从漫游凭证索引移除 (轮换过的会话可能占着不止一项).
+		for (auto it = m_sessions_by_cookie.begin();
+			it != m_sessions_by_cookie.end();)
 		{
-			auto it = m_sessions_by_cookie.find(cookie);
-			if (it != m_sessions_by_cookie.end() &&
-				it->second.lock() == session)
-				m_sessions_by_cookie.erase(it);
+			if (it->second.lock() == session)
+				it = m_sessions_by_cookie.erase(it);
+			else
+				++it;
 		}
 
 		free_vaddr(session->vaddr());
@@ -1185,6 +1185,16 @@ namespace libavpn {
 					m_last_session = session;
 					XLOG_INFO << "Session endpoint migrated: " << old_key
 						<< " -> " << key;
+					// 重新绑定之后换一把漫游凭证: 被顶出去的那把从索引里
+					// 删掉, 刚降级的那把在重叠期内继续认 (窗口自己判过期).
+					const auto dropped = session->rotate_roam_cookie();
+					const uint64_t fresh = roam_cookie_key(
+						session->roam_cookie().data());
+					if (fresh != 0)
+						m_sessions_by_cookie[fresh] = session;
+					if (roam_cookie_key(dropped.data()) != 0)
+						m_sessions_by_cookie.erase(
+							roam_cookie_key(dropped.data()));
 					session->on_udp_packet(remote, data);
 					return;
 				}

@@ -165,12 +165,16 @@ namespace libavpn {
 		int64_t download_rate() const { return m_down_stat.rate_; }
 
 		// 漫游凭证; 全 0 表示这次会话不用漫游帧.
-		const std::array<uint8_t, handshake_hint_size>& roam_cookie() const
-		{ return m_roam_cookie; }
+		const std::array<uint8_t, roam_cookie_size>& roam_cookie() const
+		{ return m_datapath.roam_cookie(); }
 
 		// 报文最前面是不是本会话的漫游凭证.
 		// 网关对陌生端点的分流靠它: 解密之前就能认出是哪个会话.
 		bool matches_roam_cookie(std::string_view data) const;
+
+		// 换网重新绑定之后轮换漫游凭证, 并把新凭证告诉对端; 返回被顶出
+		// 窗口的那把 (服务侧用它清理凭证索引). 没有漫游凭证时返回全 0.
+		std::array<uint8_t, roam_cookie_size> rotate_roam_cookie();
 
 		// 更新对端 UDP endpoint (网络切换后回包地址跟随).
 		void update_remote_udp(const net::ip::udp::endpoint& remote);
@@ -317,9 +321,6 @@ namespace libavpn {
 
 		// 一批待聚合的 IP 包 (复用缓冲, 免得每批分配).
 		std::vector<std::string_view> m_batch_packets;
-
-		// 漫游凭证.
-		std::array<uint8_t, handshake_hint_size> m_roam_cookie{};
 
 		// 混淆层用的随机数发生器 (会话开始时播种).
 		obfuscate_rand m_obfuscate_rand;

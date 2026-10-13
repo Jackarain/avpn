@@ -429,6 +429,118 @@ BOOST_AUTO_TEST_CASE(roaming_frames_are_bound_to_cookie)
 	BOOST_CHECK(q.gateway.on_frame(frames[0], 2).empty());
 }
 
+BOOST_AUTO_TEST_CASE(roam_cookie_window_rotation)
+{
+	const std::array<uint8_t, roam_cookie_size> c1{ { 1, 1, 1, 1, 1, 1, 1, 1 } };
+	const std::array<uint8_t, roam_cookie_size> c2{ { 2, 2, 2, 2, 2, 2, 2, 2 } };
+	const std::array<uint8_t, roam_cookie_size> c3{ { 3, 3, 3, 3, 3, 3, 3, 3 } };
+
+	// 帧: 凭证 + 若干字节.
+	const auto frame_with = [](const std::array<uint8_t, roam_cookie_size>& c,
+		char tail)
+	{
+		std::string s(reinterpret_cast<const char*>(c.data()), c.size());
+		s.push_back(tail);
+		return s;
+	};
+
+	roam_cookie_window w;
+	BOOST_CHECK(w.empty());
+	// 没有凭证时什么都不认.
+	BOOST_CHECK(!w.accepts(frame_with(c1, 'x'), 0));
+	// 短于凭证长度的帧也认不了.
+	BOOST_CHECK(!w.accepts(std::string_view("abc"), 0));
+
+	w.set(c1);
+	BOOST_CHECK(!w.empty());
+	BOOST_CHECK(w.accepts(frame_with(c1, 'x'), 0));
+	// 全 0 视为没有凭证.
+	w.set(std::array<uint8_t, roam_cookie_size>{});
+	BOOST_CHECK(w.empty());
+
+	w.set(c1);
+	// 轮换: 被顶出去的是上一把 (第一次轮换时还没有上一把, 返回全 0).
+	auto dropped = w.rotate(c2, 100);
+	BOOST_CHECK(!w.accepts(frame_with(dropped, 'x'), 100));
+	BOOST_CHECK(w.accepts(frame_with(c2, 'x'), 100));
+	// 重叠期内旧凭证还认.
+	BOOST_CHECK(w.accepts(frame_with(c1, 'x'),
+		100 + roam_cookie_grace_ms - 1));
+	// 过了重叠期就不认了.
+	BOOST_CHECK(!w.accepts(frame_with(c1, 'x'),
+		100 + roam_cookie_grace_ms));
+
+	// 再轮换一次: 顶出去的是更早那把, 上一把 (c1) 仍在重叠期内.
+	dropped = w.rotate(c3, 200);
+	BOOST_CHECK(dropped == c1);
+	BOOST_CHECK(w.accepts(frame_with(c2, 'x'),
+		200 + roam_cookie_grace_ms - 1));
+	BOOST_CHECK(w.accepts(frame_with(c3, 'x'), 200));
+	// c1 已经被顶出窗口.
+	BOOST_CHECK(!w.accepts(frame_with(c1, 'x'), 200));
+
+	// 握手重谈: set 会把上一把一起丢掉.
+	w.set(c2);
+	BOOST_CHECK(!w.accepts(frame_with(c3, 'x'), 300));
+	BOOST_CHECK(w.accepts(frame_with(c2, 'x'), 300));
+
+	// clear 之后什么都不认.
+	w.clear();
+	BOOST_CHECK(w.empty());
+	BOOST_CHECK(!w.accepts(frame_with(c2, 'x'), 300));
+}
+
+BOOST_AUTO_TEST_CASE(roaming_survives_cookie_rotation)
+{
+	session_params params;
+	pipe_pair p;
+	p.start(params);
+
+	const std::array<uint8_t, roam_cookie_size> c1{ { 1, 2, 3, 4, 5, 6, 7, 8 } };
+	const std::array<uint8_t, roam_cookie_size> c2{ { 9, 10, 11, 12, 13, 14, 15, 16 } };
+	p.client.set_roam_cookie(c1);
+	p.gateway.set_roam_cookie(c1);
+
+	// 轮换前客户端发出的漫游帧 (两帧: 第二帧留着验证重叠期之后).
+	const std::string payload = ipv4_payload(140, 40);
+	auto before = p.client.seal(payload, 0, true);
+	BOOST_REQUIRE_EQUAL(before.size(), 1);
+	BOOST_CHECK(std::memcmp(before[0].data(), c1.data(), c1.size()) == 0);
+	auto before2 = p.client.seal(ipv4_payload(140, 42), 0, true);
+	BOOST_REQUIRE_EQUAL(before2.size(), 1);
+
+	// 网关轮换到新凭证, 客户端跟着换.
+	const auto dropped = p.gateway.rotate_roam_cookie(c2, 100);
+	BOOST_CHECK(!p.gateway.frame_has_roam_cookie(
+		std::string_view(reinterpret_cast<const char*>(dropped.data()),
+			dropped.size()), 100));
+	p.client.rotate_roam_cookie(c2, 100);
+	BOOST_CHECK(p.gateway.roam_cookie() == c2);
+	BOOST_CHECK(p.client.roam_cookie() == c2);
+
+	// 轮换之后发的漫游帧带新凭证.
+	auto after = p.client.seal(ipv4_payload(140, 41), 100, true);
+	BOOST_REQUIRE_EQUAL(after.size(), 1);
+	BOOST_CHECK(std::memcmp(after[0].data(), c2.data(), c2.size()) == 0);
+	BOOST_REQUIRE_EQUAL(p.gateway.on_frame(after[0], 100).size(), 1);
+
+	// 重叠期内, 轮换之前发出的旧凭证帧仍然收得下.
+	BOOST_CHECK(p.gateway.frame_has_roam_cookie(before[0], 100));
+	auto got = p.gateway.on_frame(before[0], 100);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == payload);
+
+	// 重叠期过后, 旧凭证帧不再认 (客户端这时早已换成新的).
+	const uint64_t late = 100 + roam_cookie_grace_ms;
+	BOOST_CHECK(!p.gateway.frame_has_roam_cookie(before2[0], late));
+	BOOST_CHECK(p.gateway.on_frame(before2[0], late).empty());
+	// 新凭证的帧一直认.
+	auto late_frame = p.client.seal(ipv4_payload(140, 43), late, true);
+	BOOST_REQUIRE_EQUAL(late_frame.size(), 1);
+	BOOST_CHECK(p.gateway.frame_has_roam_cookie(late_frame[0], late));
+	BOOST_REQUIRE_EQUAL(p.gateway.on_frame(late_frame[0], late).size(), 1);
+}
+
 BOOST_AUTO_TEST_CASE(sender_tick_abandons_and_closes_group)
 {
 	session_params params;

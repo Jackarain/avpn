@@ -94,6 +94,8 @@ namespace libavpn {
 	inline constexpr uint8_t control_keepalive = 0x02;
 	inline constexpr uint8_t control_keepalive_reply = 0x03;
 	inline constexpr uint8_t control_disconnect = 0x04;
+	// 换网重新绑定之后换发新的漫游凭证, 内容就是 8 字节新凭证.
+	inline constexpr uint8_t control_cookie_update = 0x05;
 
 	// 压缩载荷标记: 明文 = [ 标记(1) , 压后长度(2, 小端) , 压后数据 ].
 	// 压后数据解压出来是一个 IP 包; 长度字段用来在纠错模式里剥掉补零.

@@ -82,23 +82,15 @@ namespace libavpn {
 			params.early_close_ms != 0, params.group_cache_ms);
 
 		m_roam = false;
-		m_cookie.fill(0);
+		m_cookie_window.clear();
 		if (m_ready)
 			ensure_send_key(m_tx_epoch);
 	}
 
 	void datapath::set_roam_cookie(const std::array<uint8_t, 8>& cookie)
 	{
-		m_cookie = cookie;
-		m_roam = false;
-		for (auto b : cookie)
-		{
-			if (b != 0)
-			{
-				m_roam = true;
-				break;
-			}
-		}
+		m_cookie_window.set(cookie);
+		m_roam = !m_cookie_window.empty();
 	}
 
 	uint32_t datapath::send_counter() const
@@ -268,8 +260,9 @@ namespace libavpn {
 			m_tx_has_last = true;
 
 			const std::string_view aad = (roam && m_roam)
-				? std::string_view(reinterpret_cast<const char*>(m_cookie.data()),
-					m_cookie.size())
+				? std::string_view(
+					reinterpret_cast<const char*>(m_cookie_window.current().data()),
+					m_cookie_window.current().size())
 				: std::string_view();
 			auto frame = encrypt_with(s.payload, s.counter, aad);
 			if (frame.empty())
@@ -351,13 +344,14 @@ namespace libavpn {
 			return out;
 
 		// 漫游帧: 最前面 8 字节 cookie, 并且它是 AEAD 的附加校验数据.
+		// 轮换后的重叠期内, 旧凭证也认 (memcmp 由窗口负责).
 		std::string_view body = frame;
 		std::string_view aad;
-		if (m_roam && frame.size() >= m_cookie.size() + least &&
-			std::memcmp(frame.data(), m_cookie.data(), m_cookie.size()) == 0)
+		if (m_roam && frame_has_roam_cookie(frame, now_ms) &&
+			frame.size() >= roam_cookie_size + least)
 		{
-			aad = frame.substr(0, m_cookie.size());
-			body = frame.substr(m_cookie.size());
+			aad = frame.substr(0, roam_cookie_size);
+			body = frame.substr(roam_cookie_size);
 		}
 
 		uint32_t counter = 0;

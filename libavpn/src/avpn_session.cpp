@@ -115,17 +115,6 @@ namespace libavpn {
 			return true;
 		}
 
-		// 八字节漫游凭证是否为空.
-		bool cookie_empty(const std::array<uint8_t, 8>& cookie)
-		{
-			for (auto c : cookie)
-			{
-				if (c != 0)
-					return false;
-			}
-			return true;
-		}
-
 	} // namespace
 
 	avpn_session::avpn_session(net::io_context& ioc,
@@ -228,12 +217,38 @@ namespace libavpn {
 
 	bool avpn_session::matches_roam_cookie(std::string_view data) const
 	{
-		if (!m_established || cookie_empty(m_roam_cookie))
+		if (!m_established ||
+			data.size() < roam_cookie_size + frame_header_size)
 			return false;
-		if (data.size() < m_roam_cookie.size() + frame_header_size)
-			return false;
-		return std::memcmp(data.data(), m_roam_cookie.data(),
-			m_roam_cookie.size()) == 0;
+		return m_datapath.frame_has_roam_cookie(data, now_ms());
+	}
+
+	std::array<uint8_t, roam_cookie_size> avpn_session::rotate_roam_cookie()
+	{
+		std::array<uint8_t, roam_cookie_size> none{};
+		if (!m_established || m_abort || !m_datapath.has_roam_cookie())
+			return none;
+
+		const std::string fresh = crypto::random_bytes(roam_cookie_size);
+		std::array<uint8_t, roam_cookie_size> next{};
+		std::memcpy(next.data(), fresh.data(), next.size());
+
+		const auto dropped = m_datapath.rotate_roam_cookie(next, now_ms());
+
+		// 通知必须走不带 cookie 的普通帧: 对端这时还没换上新的凭证, 带上
+		// cookie 反而会落进"认不出来"那一路被丢掉.
+		std::string message;
+		append_control_message(message, control_cookie_update,
+			std::string_view(reinterpret_cast<const char*>(next.data()),
+				next.size()));
+		auto frames = m_datapath.seal(as_view(message), now_ms(), false);
+		for (auto& frame : frames)
+			queue_frame(frame);
+		if (m_transport == transport_type::udp)
+			flush_udp_batch();
+
+		XLOG_INFO << "Roam cookie rotated";
+		return dropped;
 	}
 
 	// ------------------------------------------------------------------
@@ -253,12 +268,11 @@ namespace libavpn {
 	void avpn_session::apply_params()
 	{
 		m_vaddr = m_params.vaddr;
-		m_roam_cookie = m_params.roam_cookie;
 		// 混淆层的随机数发生器: 每个会话用一次加密随机数播种就够了.
 		m_obfuscate_rand.seed(crypto::random_bytes(16));
 		m_datapath.configure(m_master, m_params,
 			m_role == session_role::initiator);
-		m_datapath.set_roam_cookie(m_roam_cookie);
+		m_datapath.set_roam_cookie(m_params.roam_cookie);
 	}
 
 	void avpn_session::send_handshake_msg1()
@@ -692,13 +706,7 @@ namespace libavpn {
 
 	bool avpn_session::frame_has_cookie(std::string_view frame) const
 	{
-		if (cookie_empty(m_roam_cookie) ||
-			frame.size() < m_roam_cookie.size())
-		{
-			return false;
-		}
-		return std::memcmp(frame.data(), m_roam_cookie.data(),
-			m_roam_cookie.size()) == 0;
+		return m_datapath.frame_has_roam_cookie(frame, now_ms());
 	}
 
 	void avpn_session::flush_udp_batch()
@@ -907,6 +915,19 @@ namespace libavpn {
 		}
 		case control_keepalive_reply:
 			break;
+		case control_cookie_update:
+		{
+			// 对端 (网关) 换网重新绑定后换发的凭证: 立刻换上, 旧的那把
+			// 由窗口留出重叠期, 免得在途的旧帧认不出来.
+			if (body.size() != roam_cookie_size)
+				break;
+
+			std::array<uint8_t, roam_cookie_size> next{};
+			std::memcpy(next.data(), body.data(), next.size());
+			m_datapath.rotate_roam_cookie(next, now_ms());
+			XLOG_INFO << "Roam cookie updated by peer";
+			break;
+		}
 		case control_disconnect:
 			XLOG_INFO << "Peer requested disconnect";
 			close();

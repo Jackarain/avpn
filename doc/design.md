@@ -366,6 +366,10 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 - 客户端由 `client_network_monitor` 定期探测出口地址变化，变化后 `renew_client_udp` 重建
   UDP socket 并调用 `notify_network_changed` 立即补发一个漫游保活；此外每 `cookie_beacon_K`
   帧数据帧顺带一次 cookie，一直收不到下行时也会自动补发。
+- 每次重新绑定（迁移成功）后网关都轮换一次漫游凭证（`rotate_roam_cookie`）：新凭证用
+  控制消息 `0x05` 通知客户端，旧凭证在 10 秒重叠期内仍然有效（`roam_cookie_window`），
+  免得轮换前发出的在途帧被丢掉；被顶出窗口的那把从 `m_sessions_by_cookie` 索引里删除，
+  索引里因此最多同时挂两把。
 - 会话密钥与 vaddr 都不依赖 IP，迁移后虚拟地址不变、tun 配置无需变更。
 - 客户端重启（同公钥重新握手）时，网关关闭同公钥旧会话并替换（`Replacing old session`）。
 

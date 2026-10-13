@@ -29,6 +29,8 @@
 #include <string_view>
 #include <vector>
 
+#include "libavpn/avpn_roam_cookie.hpp"
+
 namespace libavpn {
 
 	// 一个会话的数据面: 本端往外发的方向加上收进来的那个方向.
@@ -49,6 +51,27 @@ namespace libavpn {
 		// 会话建立时下发的漫游凭证; 全 0 表示不带漫游帧.
 		void set_roam_cookie(const std::array<uint8_t, 8>& cookie);
 		bool has_roam_cookie() const { return m_roam; }
+
+		// 换网重新绑定之后轮换漫游凭证: 当前那把降为限时有效的旧凭证,
+		// 返回被顶出窗口的那把 (调用方用它清理凭证索引).
+		std::array<uint8_t, roam_cookie_size> rotate_roam_cookie(
+			const std::array<uint8_t, roam_cookie_size>& next, uint64_t now_ms)
+		{
+			return m_cookie_window.rotate(next, now_ms);
+		}
+
+		// 正在用的漫游凭证.
+		const std::array<uint8_t, roam_cookie_size>& roam_cookie() const
+		{
+			return m_cookie_window.current();
+		}
+
+		// frame 开头是不是本会话的凭证 (含重叠期内的旧凭证).
+		bool frame_has_roam_cookie(std::string_view frame,
+			uint64_t now_ms) const
+		{
+			return m_roam && m_cookie_window.accepts(frame, now_ms);
+		}
 
 		// 封一个明文: 整帧模式返回一帧, 纠错模式返回它自己那片, 凑够时再跟
 		// 上冗余片. 攒不下 (超过单片上限) 返回空.
@@ -104,7 +127,7 @@ namespace libavpn {
 
 		// 漫游凭证.
 		bool m_roam{ false };
-		std::array<uint8_t, 8> m_cookie{};
+		roam_cookie_window m_cookie_window{};
 
 		// 密钥.
 		epoch_key_cache m_keys;

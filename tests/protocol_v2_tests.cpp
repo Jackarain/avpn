@@ -9,6 +9,7 @@
 #include "../libavpn/src/avpn_fec_v2.cpp"
 #include "../libavpn/src/avpn_obfuscate.cpp"
 #include "libavpn/avpn_replay.hpp"
+#include "libavpn/avpn_roam_cookie.hpp"
 
 #include <boost/asio/ip/address.hpp>
 
@@ -122,6 +123,16 @@ BOOST_AUTO_TEST_CASE(control_message_roundtrip)
 	std::string ipcode = wire;
 	ipcode[0] = static_cast<char>(0x45);
 	BOOST_CHECK(!parse_control_message(ipcode, code, parsed));
+
+	// 漫游凭证更新: 内容就是 8 字节新凭证.
+	std::string cookie(roam_cookie_size, '\0');
+	for (std::size_t i = 0; i < cookie.size(); i++)
+		cookie[i] = static_cast<char>(i + 1);
+	std::string update;
+	append_control_message(update, control_cookie_update, cookie);
+	BOOST_REQUIRE(parse_control_message(update, code, parsed));
+	BOOST_CHECK_EQUAL(code, control_cookie_update);
+	BOOST_CHECK(parsed == cookie);
 }
 
 BOOST_AUTO_TEST_CASE(container_roundtrip_and_strictness)
