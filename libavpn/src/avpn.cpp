@@ -101,6 +101,23 @@ namespace libavpn {
 		return def;
 	}
 
+	// 漫游凭证的查表键: 把 8 字节凭证按小端拼成一个整数.
+	static uint64_t roam_cookie_key(const uint8_t* p)
+	{
+		uint64_t key = 0;
+		for (int i = 0; i < 8; i++)
+			key |= static_cast<uint64_t>(p[i]) << (i * 8);
+		return key;
+	}
+
+	// 会话的漫游凭证查表键; 非 UDP 或没有凭证时返回 0 (不登记).
+	static uint64_t roam_cookie_key(const std::shared_ptr<avpn_session>& session)
+	{
+		if (!session || session->transport() != transport_type::udp)
+			return 0;
+		return roam_cookie_key(session->roam_cookie().data());
+	}
+
 	// JSON 配置转 service_config.
 	service_config config_from_json(const std::string& config)
 	{
@@ -125,6 +142,7 @@ namespace libavpn {
 		cfg.udp_pacing_mbps_ = config_int(obj, "udp_pacing_mbps", 0);
 		cfg.keepalive_ = config_int(obj, "keepalive", 60);
 		cfg.pushroutes_ = config_list(obj, "pushroutes");
+		cfg.hint_ = config_bool(obj, "hint", false);
 		cfg.pushdns_ = static_cast<uint32_t>(config_int(obj, "pushdns", 0));
 		cfg.passbyvpn_ = config_bool(obj, "passbyvpn", false);
 		cfg.bypassroutes_ = config_list(obj, "bypassroutes");
@@ -855,6 +873,16 @@ namespace libavpn {
 				m_sessions_by_pubkey.erase(it);
 		}
 
+		// 从漫游凭证索引移除.
+		uint64_t cookie = roam_cookie_key(session);
+		if (cookie != 0)
+		{
+			auto it = m_sessions_by_cookie.find(cookie);
+			if (it != m_sessions_by_cookie.end() &&
+				it->second.lock() == session)
+				m_sessions_by_cookie.erase(it);
+		}
+
 		free_vaddr(session->vaddr());
 	}
 
@@ -1033,31 +1061,36 @@ namespace libavpn {
 			return;
 		}
 
-		// 网络迁移: 对端物理网络变化 (如 wifi -> 移动网络) 导致源 endpoint
-		// 变化, 用已建立会话的接收密钥尝试解密识别, 命中后更新对端地址.
-		for (auto& [pub, session] : m_sessions_by_pubkey)
+		// 网络迁移: 对端换网后源 endpoint 变了, 报文最前面带着这次会话的
+		// 漫游凭证, 靠它一步就认出是哪个会话, 不用逐个会话试解密.
+		if (data.size() >= 8)
 		{
-			if (!session || !session->established() || session->aborted())
-				continue;
-			if (session->transport() != transport_type::udp)
-				continue;
-			if (!session->try_decrypt_udp(data))
-				continue;
+			uint64_t cookie = roam_cookie_key(
+				reinterpret_cast<const uint8_t*>(data.data()));
 
-			// 命中: 迁移会话对端 endpoint.
-			auto old_key = endpoint_to_string(session->remote_udp());
-			session->update_remote_udp(remote);
-			if (old_key != key)
+			auto cit = cookie != 0 ? m_sessions_by_cookie.find(cookie)
+				: m_sessions_by_cookie.end();
+			if (cit != m_sessions_by_cookie.end())
 			{
-				m_sessions.erase(old_key);
-				m_sessions[key] = session;
+				auto session = cit->second.lock();
+				if (session && session->established() && !session->aborted() &&
+					session->matches_roam_cookie(data))
+				{
+					auto old_key = endpoint_to_string(session->remote_udp());
+					session->update_remote_udp(remote);
+					if (old_key != key)
+					{
+						m_sessions.erase(old_key);
+						m_sessions[key] = session;
+					}
+					m_last_remote = remote;
+					m_last_session = session;
+					XLOG_INFO << "Session endpoint migrated: " << old_key
+						<< " -> " << key;
+					session->on_udp_packet(remote, data);
+					return;
+				}
 			}
-			m_last_remote = remote;
-			m_last_session = session;
-			XLOG_INFO << "Session endpoint migrated: " << old_key
-				<< " -> " << key;
-			session->on_udp_packet(remote, data);
-			return;
 		}
 
 		// 新来源: 可能是握手包. 先做 DDoS 检查.
@@ -1117,6 +1150,9 @@ namespace libavpn {
 				}
 				m_sessions_by_pubkey[peer_pub] = session;
 			}
+			uint64_t cookie = roam_cookie_key(session);
+			if (cookie != 0)
+				m_sessions_by_cookie[cookie] = session;
 			m_ddos->report_success(remote.address());
 			XLOG_INFO << "New session from: " << key
 				<< ", vaddr: " << net::ip::address_v4(session->vaddr()).to_string();

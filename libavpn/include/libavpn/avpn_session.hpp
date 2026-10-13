@@ -8,15 +8,14 @@
 // Email:  jack.wgm at gmail dot com
 //
 
-#ifndef INCLUDE__2025_11_20__AVPN_SESSION_HPP
-#define INCLUDE__2025_11_20__AVPN_SESSION_HPP
+#ifndef INCLUDE__2026_10_14__AVPN_SESSION_HPP
+#define INCLUDE__2026_10_14__AVPN_SESSION_HPP
 
 #include "libavpn/avpn.hpp"
 #include "libavpn/avpn_crypto.hpp"
-#include "libavpn/avpn_protocol.hpp"
-#include "libavpn/avpn_fec.hpp"
-#include "libavpn/avpn_compress.hpp"
-#include "libavpn/replay_window.hpp"
+#include "libavpn/avpn_frame.hpp"
+#include "libavpn/avpn_keys.hpp"
+#include "libavpn/avpn_datapath.hpp"
 
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -44,7 +43,7 @@ namespace libavpn {
 		responder = 1,   // 网关端 (响应握手).
 	};
 
-	// 传输类型.
+	// 传输类型 (对应会话参数 0x10).
 	enum class transport_type : uint8_t
 	{
 		udp = 0,
@@ -54,12 +53,11 @@ namespace libavpn {
 	// 一个对端会话 (tunnel).
 	//
 	// 负责:
-	//   1. 1-RTT 完全加密握手 (initiator 发起, responder 响应).
-	//   2. 会话密钥派生 (四次 DH + HKDF).
-	//   3. 加密数据通道: 先压缩, 后加密; 接收方先解密, 再解压.
-	//   4. UDP 传输 (可选 FEC 纠删码) 与 TCP 传输.
-	//   5. keepalive 保活与超时释放.
-	//   6. 主动断开 (disconnect 协议).
+	//   1. 1-RTT 握手 (hint + 两把握手密钥 + 四次 DH 派生会话主密钥).
+	//   2. 加密数据通道: 帧头计数器 + AEAD; 开纠错时按组补冗余片.
+	//   3. 次代回绕换钥, 全局序号防重放.
+	//   4. 漫游: 换网后带 cookie 重新绑定, 不用重新握手.
+	//   5. 保活与超时释放, 主动断开.
 	class avpn_session : public std::enable_shared_from_this<avpn_session>
 	{
 	public:
@@ -67,18 +65,17 @@ namespace libavpn {
 		using ip_packet_handler = std::function<void(std::vector<uint8_t>)>;
 
 		// 会话关闭回调.
-		using close_handler = std::function<void(const std::shared_ptr<avpn_session>&)>;
+		using close_handler = std::function<void(
+			const std::shared_ptr<avpn_session>&)>;
 
 		// 会话建立完成回调 (responder 握手成功后调用, 用于网关登记会话).
 		using established_handler = std::function<void()>;
 
 		// UDP 数据报批量发送回调 (由 service 提供共享的 udp socket).
-		// 同一批帧发往同一对端, service 可合并为一次系统调用提交.
 		using udp_send_handler = std::function<void(
 			const net::ip::udp::endpoint&, std::vector<std::vector<uint8_t>>)>;
 
 		// 虚拟地址分配回调 (responder 使用).
-		// 参数 requested 为客户端请求的地址 (0 表示不请求), 返回 {vaddr, prefix_length}.
 		using vaddr_allocator = std::function<std::pair<uint32_t, uint8_t>(
 			uint32_t requested)>;
 
@@ -94,6 +91,15 @@ namespace libavpn {
 		avpn_session& operator=(const avpn_session&) = delete;
 
 	public:
+		// 速率统计 (字节/秒).
+		struct speed_stat
+		{
+			int64_t rate_{ 0 };
+			int64_t bytes_{ 0 };
+			std::chrono::steady_clock::time_point start_{
+				std::chrono::steady_clock::now() };
+		};
+
 		// 设置回调.
 		void set_ip_packet_handler(ip_packet_handler h);
 		void set_close_handler(close_handler h);
@@ -102,29 +108,26 @@ namespace libavpn {
 		void set_vaddr_allocator(vaddr_allocator h);
 
 		// 启动 initiator 会话: 通过 UDP 连接 server 并发起握手.
-		net::awaitable<void> run_initiator_udp(
-			net::ip::udp::endpoint server);
+		net::awaitable<void> run_initiator_udp(net::ip::udp::endpoint server);
 
-		// 启动 initiator 会话: 使用已建立的 TCP 连接 (控制连接) 发起握手.
-		net::awaitable<void> run_initiator_tcp(
-			net::ip::tcp::socket stream);
+		// 启动 initiator 会话: 使用已建立的 TCP 连接发起握手.
+		net::awaitable<void> run_initiator_tcp(net::ip::tcp::socket stream);
 
 		// 作为 responder: 收到一个 UDP 数据报.
-		// 返回 true 表示数据报已被消费 (握手包或有效数据包), false 表示丢弃.
+		// 返回 true 表示数据报已被消费 (握手包或有效数据包).
 		bool on_udp_packet(const net::ip::udp::endpoint& remote,
 			std::string_view data);
 
-		// 作为 responder: 处理一个已接受的 TCP 连接 (控制连接).
-		net::awaitable<void> run_responder_tcp(
-			net::ip::tcp::socket stream);
+		// 作为 responder: 处理一个已接受的 TCP 连接.
+		net::awaitable<void> run_responder_tcp(net::ip::tcp::socket stream);
 
 		// 从 tun 提交一个 IP 数据包, 发送到对端.
 		void tun_submit(std::vector<uint8_t> ip_packet);
 
-		// 主动断开并发送 disconnect 协议.
+		// 主动断开并发送 disconnect 控制消息.
 		void disconnect();
 
-		// 立即关闭会话 (不发送 disconnect).
+		// 立即关闭会话.
 		void close();
 
 		// 状态查询.
@@ -132,15 +135,15 @@ namespace libavpn {
 		bool aborted() const { return m_abort; }
 		session_role role() const { return m_role; }
 		transport_type transport() const { return m_transport; }
-		// TCP 控制连接 (TCP 隧道时有效, 用于 Android VPN 建立后重新 protect).
+		// TCP 控制连接 (TCP 隧道时有效).
 		std::shared_ptr<net::ip::tcp::socket> tcp_stream() const
 		{ return m_tcp_stream; }
 		uint32_t vaddr() const { return m_vaddr; }
-		uint8_t prefix_length() const { return m_session_config.prefix_length; }
-		int mtu() const { return m_session_config.mtu; }
-		int keepalive() const { return m_session_config.keepalive; }
+		uint8_t prefix_length() const { return m_params.prefix_len; }
+		int mtu() const { return m_params.mtu; }
+		int keepalive() const { return m_params.keepalive_sec; }
 		void set_keepalive(int seconds);
-		const session_config& negotiated_config() const { return m_session_config; }
+		const session_params& negotiated_config() const { return m_params; }
 		const std::string& client_id() const { return m_client_id; }
 		const std::string& peer_public_key() const { return m_peer_static_pub; }
 		const net::ip::udp::endpoint& remote_udp() const { return m_remote_udp; }
@@ -153,14 +156,18 @@ namespace libavpn {
 		int64_t upload_rate() const { return m_upload_stat.rate_; }
 		int64_t download_rate() const { return m_down_stat.rate_; }
 
-		// 尝试用本会话接收密钥解密一个 UDP 数据报 (用于对端网络切换后的
-		// 会话识别). 成功返回 true, 不修改会话状态.
-		bool try_decrypt_udp(std::string_view data) const;
+		// 漫游凭证; 全 0 表示这次会话不用漫游帧.
+		const std::array<uint8_t, handshake_hint_size>& roam_cookie() const
+		{ return m_roam_cookie; }
 
-		// 更新对端 UDP endpoint (网络切换后服务端回包地址跟随).
+		// 报文最前面是不是本会话的漫游凭证.
+		// 网关对陌生端点的分流靠它: 解密之前就能认出是哪个会话.
+		bool matches_roam_cookie(std::string_view data) const;
+
+		// 更新对端 UDP endpoint (网络切换后回包地址跟随).
 		void update_remote_udp(const net::ip::udp::endpoint& remote);
 
-		// 网络变化后立即发送保活, 使对端尽快感知新 endpoint.
+		// 网络变化后立即发送漫游保活, 使对端尽快感知新 endpoint.
 		void notify_network_changed();
 
 		// 获取执行器.
@@ -173,174 +180,68 @@ namespace libavpn {
 
 		// ---- 握手 ----
 
-		// initiator 发送握手 Message 1.
+		// initiator 发送握手请求 (hint + 随机数 + 密文).
 		void send_handshake_msg1();
 
-		// 处理握手 Message 2 (由 initiator 收到后调用).
-		bool handle_handshake_msg2(std::string_view plaintext);
+		// initiator 处理握手回复; 成功返回 true.
+		bool handle_handshake_msg2(std::string_view wire);
 
-		// 尝试用白名单公钥解密握手 Message 1 (responder).
-		// 成功返回 true, 并通过 msg1 输出解析结果, matched_pub 输出匹配的公钥.
-		bool try_decrypt_handshake_msg1(std::string_view nonce,
-			std::string_view ciphertext, handshake_msg1& msg1,
-			std::string& matched_pub);
-
-		// 尝试处理一个握手 Message 1 (responder, 完整流程).
+		// responder 尝试把一条报文当作握手请求处理, 成功返回 true.
 		bool try_handshake(const net::ip::udp::endpoint& remote,
-			std::string_view data);
+			std::string_view wire);
 
-		// responder 回复握手 Message 2.
+		// responder 回复握手应答.
 		void send_handshake_msg2(const std::string& peer_static_pub,
-			const handshake_msg1& msg1);
+			const handshake_req& req);
 
-		// 防重放检查.
+		// 握手时间戳防重放.
 		bool check_anti_replay(const std::string& peer_pub, uint64_t ts);
 
-		// 派生临时握手密钥 K_temp.
-		std::string derive_temp_key(const std::string& peer_static_pub) const;
+		// 会话建立后的收尾: 配好数据面, 起定时器, 回调通知.
+		void on_established();
 
-		// 派生 Message 2 响应密钥.
-		std::string derive_resp_key(const std::string& peer_static_pub,
-			const std::string& peer_eph_pub);
+		// 按协商的参数装配数据面与漫游凭证.
+		void apply_params();
 
-		// 派生会话密钥.
-		// init_eph_priv: 本端临时私钥; init_static_priv: 本端静态私钥;
-		// resp_static_pub: 对端静态公钥; resp_eph_pub: 对端临时公钥.
-		bool derive_session_keys(const std::string& init_eph_priv,
-			const std::string& init_static_priv,
-			const std::string& resp_static_pub,
-			const std::string& resp_eph_pub);
+		// 网关端把客户端"想要的取值"变成这一会话最终要用的取值.
+		session_params make_responder_params(const session_params& wish,
+			uint32_t vaddr, uint8_t prefix);
 
 		// ---- 数据路径 ----
 
-		// 发送方向密钥.
-		const std::string& send_key() const
-		{
-			return m_role == session_role::initiator ? m_key_c2s : m_key_s2c;
-		}
-		// 接收方向密钥.
-		const std::string& recv_key() const
-		{
-			return m_role == session_role::initiator ? m_key_s2c : m_key_c2s;
-		}
+		// 写一个明文 (IP 包或控制消息); roam 为 true 时做成漫游帧.
+		void send_plaintext(std::string_view plaintext, bool roam = false);
 
-		// 发送/接收方向 nonce 会话盐.
-		const std::string& send_nonce_salt() const
-		{
-			return m_role == session_role::initiator ?
-				m_nonce_salt_c2s : m_nonce_salt_s2c;
-		}
-		const std::string& recv_nonce_salt() const
-		{
-			return m_role == session_role::initiator ?
-				m_nonce_salt_s2c : m_nonce_salt_c2s;
-		}
-
-		// 由会话盐与计数器构造 12 字节 AEAD nonce.
-		std::array<char, crypto::aead_nonce_size> make_nonce(
-			const std::string& salt, uint32_t counter) const;
-
-		// 加密明文帧为线上格式, 按协商配置附加混淆封装.
-		// 返回 [salt][len_enc][garbage][counter][ciphertext] 或
-		// [counter][ciphertext], 失败返回空.
-		std::vector<uint8_t> encrypt_frame(const std::string& key,
-			uint32_t counter, std::string_view plaintext);
-
-		// 加密并发送明文帧 (按传输类型分发).
-		void send_plaintext(const std::string& key, std::string_view plaintext);
-
-		// 加密明文帧并入批, 不立即提交 (由调用方统一 flush).
-		void send_plaintext_batched(const std::string& key,
-			std::string_view plaintext);
-
-		// 加密明文帧并暂存到当前 UDP 发送批 (不立即提交).
-		void queue_udp_frame(const std::string& key,
-			std::string_view plaintext);
-
-		// 提交当前 UDP 发送批 (同一次逻辑发送的多个分片合并为一批).
+		// 按传输类型把线上帧排队发送.
+		void queue_frame(std::string_view frame);
 		void flush_udp_batch();
-
-		// 发送单个已封装好的 UDP 帧 (握手等控制消息).
-		void send_udp_wire(std::vector<uint8_t> wire);
-
-		// 将明文帧推入 TCP 写队列.
-		void queue_tcp_frame(const std::string& key,
-			std::string_view plaintext);
-
-		// 启动 TCP 写队列泵.
+		void queue_tcp_wire(std::vector<uint8_t> wire);
 		void start_tcp_write();
 
-		// 处理收到的加密 UDP 数据报.
-		bool process_udp_packet(std::string_view wire);
+		// 处理一条线上帧 (握手或数据).
+		bool handle_wire(std::string_view wire);
 
-		// 处理解密后的明文消息体.
-		void process_plaintext(std::string_view plaintext);
-
-		// 处理 data 消息.
-		void process_data_msg(std::string_view body);
-
-		// 处理自适应分组的 data 消息.
-		void process_afec_msg(std::string_view body);
-
-		// 将恢复/解压后的 IP 包交付给 tun.
+		// 处理解出来的明文.
+		void handle_plaintext(std::string_view plaintext);
+		void handle_control_message(std::string_view plaintext);
+		void handle_container(std::string_view plaintext);
 		void deliver_ip_packet(std::vector<uint8_t> data);
 
-		// 交付 FEC 恢复出的载荷 (可能仍为批量聚合体).
-		void deliver_recovered_payload(std::vector<uint8_t> payload);
+		// 发送保活 / 保活回复 / 断开.
+		void send_keepalive(bool roam);
+		void send_keepalive_reply(uint64_t timestamp);
+		void send_disconnect();
 
-		// 按协商配置创建/重建 FEC 编解码器.
-		void setup_fec();
-
-		// 发送数据消息 (由 tun_submit 调用).
-		void send_data_message(const std::vector<uint8_t>& ip_packet);
-
-		// 将单个载荷 FEC 编码后逐片发送.
-		void encode_and_send_fec(std::string_view payload);
-
-		// 将单个载荷按指定分片数做自适应 FEC 编码后逐片发送.
-		void encode_and_send_afec(std::string_view payload,
-			int data_shards, int parity_shards);
-
-		// FEC 批量聚合: 多个小载荷合并为一个分组, 使分片接近 MTU.
-		void append_fec_batch(std::string_view payload);
-		void flush_fec_batch();
-		bool fec_batch_idle() const;
-		void arm_fec_flush_timer();
-		void parse_fec_batch(std::string_view payload);
-		std::size_t fec_batch_shard_target() const;
-		std::size_t fec_batch_max_payload() const;
-
-		// 无冗余分片时把批量分组切成尽量填满 MTU 的数据报直发.
-		std::size_t raw_frame_body_max() const;
-		bool try_send_batch_raw(std::string_view payload);
-		void send_batch_raw_frame(std::string_view chunk, bool bare);
-
-		// 发送/处理能力协商消息 (FEC 批量聚合).
-		void send_capability();
-
-		// 发送/处理 FEC 探测消息: 探测序号用于估算链路丢包,
-		// 回带的丢包标记用于本端发送方向自适应关闭冗余.
-		void send_fec_probe();
-		void handle_fec_probe(std::string_view body);
-
-		// 探测发送协程 (仅在链路活跃时发送).
-		net::awaitable<void> probe_loop();
-		void start_probe_loop();
-
-		// keepalive/超时 tick.
+		// 定时器: 保活、超时、纠错收尾.
 		net::awaitable<void> tick();
 		void start_tick();
-
-		// 发送 keepalive.
-		void send_keepalive();
-		void send_keepalive_reply(uint64_t timestamp);
 
 		// TCP 控制连接读取循环.
 		net::awaitable<void> tcp_read_loop(tcp::socket& stream);
 
-		// 解析 IP 包协议类型 (用于 TCP 传输).
-		uint8_t ip_proto(const uint8_t* data, std::size_t size) const;
-		bool is_tcp_syn(const uint8_t* data, std::size_t size) const;
+		// 带宽统计.
+		void update_speed(speed_stat& stat, int64_t bytes,
+			std::chrono::steady_clock::time_point now);
 
 	private:
 		// io_context 引用.
@@ -349,10 +250,8 @@ namespace libavpn {
 		// 服务配置.
 		service_config m_config;
 
-		// 会话角色.
+		// 会话角色与传输类型.
 		session_role m_role;
-
-		// 传输类型.
 		transport_type m_transport{ transport_type::udp };
 
 		// 会话状态.
@@ -364,6 +263,7 @@ namespace libavpn {
 		close_handler m_close_handler;
 		established_handler m_established_handler;
 		udp_send_handler m_udp_send_handler;
+		vaddr_allocator m_vaddr_allocator;
 
 		// 密钥材料.
 		std::string m_static_priv;       // 本端静态私钥 (原始字节).
@@ -371,149 +271,69 @@ namespace libavpn {
 		std::vector<std::string> m_peer_pubs;   // 对端静态公钥白名单.
 
 		// 握手临时密钥.
-		std::string m_eph_priv;          // 本端临时私钥.
-		std::string m_eph_pub;           // 本端临时公钥.
+		std::string m_eph_priv;
+		std::string m_eph_pub;
+
+		// 握手密钥 (由双方静态密钥派生).
+		std::string m_hs_shared;         // 共享秘密.
+		std::string m_key_temp;          // 请求方向.
+		std::string m_key_resp;          // 回复方向.
 
 		// 对端信息.
 		std::string m_peer_static_pub;   // 已认证的对端静态公钥.
 		std::string m_peer_eph_pub;      // 对端临时公钥.
 		net::ip::udp::endpoint m_remote_udp;
-		std::string m_client_id;         // 客户端身份 (32 字节).
+		std::string m_client_id;         // 客户端标识 (16 字节).
 
-		// 会话密钥.
-		std::string m_key_c2s;           // client -> server 加密密钥.
-		std::string m_key_s2c;           // server -> client 加密密钥.
+		// 会话参数与数据面.
+		session_params m_params;
+		datapath m_datapath;
 
-		// 可复用的 AEAD 上下文 (密钥派生后初始化, 每包仅更新 nonce).
-		crypto::aead_cipher m_send_aead;
-		crypto::aead_cipher m_recv_aead;
+		// 会话主密钥 (四次 DH 派生).
+		std::string m_master;
 
-		// AEAD nonce 会话盐 (每方向独立, 握手时派生).
-		std::string m_nonce_salt_c2s;
-		std::string m_nonce_salt_s2c;
+		// 排队等发送的 UDP 帧.
+		std::vector<std::vector<uint8_t>> m_udp_pending;
 
-		// 发送计数器 (每包递增).
-		uint32_t m_send_counter{ 0 };
-
-		// 接收重放窗口.
-		replay_window m_recv_replay;
-
-		// 协商的会话配置.
-		session_config m_session_config;
+		// 漫游凭证.
+		std::array<uint8_t, handshake_hint_size> m_roam_cookie{};
 
 		// 分配的虚拟地址.
 		uint32_t m_vaddr{ 0 };
 
-		// 客户端在握手 Message 1 中请求的虚拟地址 (responder 记录用).
-		uint32_t m_requested_vaddr{ 0 };
+		// 发出去的帧数 (决定什么时候顺带 cookie) 与上次收到下行的时间.
+		uint64_t m_tx_frames{ 0 };
+		std::chrono::steady_clock::time_point m_last_rx{
+			std::chrono::steady_clock::now() };
+		uint64_t m_last_keepalive_ms{ 0 };
+		bool m_tx_since_rx{ false };
 
-		// 压缩器.
-		compressor m_compressor;
-
-		// FEC 编码/解码.
-		std::unique_ptr<fec_encode_group> m_fec_encoder;
-		std::unique_ptr<fec_decode_group> m_fec_decoder;
-
-		// FEC 分组 id 生成.
-		uint32_t m_fec_id{ 0 };
-
-		// 保活/超时状态.
+		// 保活 / 超时状态.
 		std::chrono::steady_clock::time_point m_last_seen{
 			std::chrono::steady_clock::now() };
-		std::chrono::steady_clock::time_point m_last_keepalive{
-			std::chrono::steady_clock::now() };
 		net::steady_timer m_tick_timer;
-		// tick 协程启动标记 (避免同一会话重复启动, 共享定时器导致互相取消).
 		bool m_tick_started{ false };
 
-		// 带宽统计.
-		struct speed_stat
-		{
-			// 环形采样: 记录最近几次的累计字节数及采样时刻, 用于计算速率.
-			int64_t rate_{ 0 };
-			std::array<int64_t, 3> samples_{ 0, 0, 0 };
-			std::array<std::chrono::steady_clock::time_point, 3> sample_time_{};
-			std::size_t idx_{ 0 };
-		};
-		void update_speed(speed_stat& stat, int64_t bytes,
-			std::chrono::steady_clock::time_point now);
-
-		int64_t m_upload_bytes{ 0 };
-		int64_t m_download_bytes{ 0 };
-		speed_stat m_upload_stat;
-		speed_stat m_down_stat;
-
-		// 握手重发定时器.
+		// 握手重试定时器.
 		net::steady_timer m_hs_timer;
-
-		// TCP 控制连接 (属于本会话).
-		std::shared_ptr<tcp::socket> m_tcp_stream;
-
-		// TCP 写队列.
-		std::deque<std::vector<uint8_t>> m_tcp_oqe;
-		bool m_tcp_writing{ false };
-
-		// TCP 写合并定时器 (把短时间内的多个帧合并为一次写入,
-		// 使内核能聚合为更大的 TCP 段并利用 TSO/GSO, 降低每包开销).
-		net::steady_timer m_tcp_cork_timer;
-
-		// 握手重发次数.
 		int m_hs_retry{ 0 };
 
-		// 对端已声明支持 FEC 批量聚合 (收到能力协商消息).
-		bool m_peer_fec_batch{ false };
+		// TCP 发送队列与写合并状态.
+		std::deque<std::vector<uint8_t>> m_tcp_oqe;
+		std::shared_ptr<tcp::socket> m_tcp_stream;
+		net::steady_timer m_tcp_cork_timer;
+		bool m_tcp_writing{ false };
 
-		// 对端已声明支持自适应 FEC 分组.
-		bool m_peer_fec_adaptive{ false };
+		// 握手防重放 (对端公钥 -> 最近一次时间戳).
+		std::map<std::string, uint64_t> m_hs_replay;
 
-		// FEC 探测: 本端发送序号 (下一个).
-		uint32_t m_probe_seq{ 0 };
-
-		// 本端对"对端探测"的丢包统计, 结论通过探测回带.
-		fec_probe_tracker m_probe_tracker;
-
-		// 对端探测显示链路持续无丢包时关闭本端发送方向的冗余分片.
-		bool m_fec_parity_off{ false };
-
-		// 对端最近回带的丢包标记, 用于记录状态变化.
-		uint8_t m_peer_loss_report{ 1 };
-
-		// 最近一次收发数据的时间 (探测仅在链路活跃时发送, 单向流量
-		// 时接收端也必须继续探测, 否则发送端收不到丢包反馈).
-		std::chrono::steady_clock::time_point m_last_data_activity{
-			std::chrono::steady_clock::now() };
-
-		// 探测定时器与启动标记.
-		net::steady_timer m_probe_timer;
-		bool m_probe_started{ false };
-
-		// 能力协商消息剩余发送次数 (对端为旧版本时不会回应).
-		int m_cap_announce_left{ 4 };
-
-		// 构造发送明文的复用缓冲区 (避免每包分配).
-		std::vector<uint8_t> m_send_scratch;
-
-		// 待提交的 UDP 发送批.
-		std::vector<std::vector<uint8_t>> m_udp_pending;
-
-		// 待聚合的批量数据载荷 (不含批量标记字节, 每项为 [len(2)][payload]).
-		std::vector<uint8_t> m_fec_pending;
-		std::size_t m_fec_pending_count{ 0 };
-
-		// 批量聚合延迟刷新定时器.
-		net::steady_timer m_fec_flush_timer;
-		bool m_fec_flush_armed{ false };
-
-		// 最近一次刷新批量分组的时间 (判断链路是否空闲).
-		std::chrono::steady_clock::time_point m_fec_last_flush;
-
-		// 虚拟地址分配回调.
-		vaddr_allocator m_vaddr_allocator;
-
-		// 防重放: 每个对端公钥最近接受的时间戳.
-		std::map<std::string, uint64_t> m_msg1_ts;
+	private:
+		speed_stat m_upload_stat;
+		speed_stat m_down_stat;
+		std::int64_t m_upload_bytes{ 0 };
+		std::int64_t m_download_bytes{ 0 };
 	};
 
 } // namespace libavpn
 
-#endif // INCLUDE__2025_11_20__AVPN_SESSION_HPP
+#endif // INCLUDE__2026_10_14__AVPN_SESSION_HPP

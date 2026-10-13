@@ -103,6 +103,10 @@ namespace libavpn {
 		// 格式如: "10.0.0.0/16".
 		std::string subnet_;
 
+		// 握手时是否附带静态公钥哈希前缀 (hint).
+		// 开启后网关一步就能查到白名单项; 代价是静态公钥可被关联.
+		bool hint_{ false };
+
 		// 客户端请求的虚拟地址 (initiator 使用, 0 表示由网关分配).
 		// Android 等场景下应与本端 tun 地址一致, 网关优先分配该地址.
 		uint32_t vaddr_{ 0 };
@@ -349,8 +353,12 @@ namespace libavpn {
 		// gateway: 会话表 (远端 udp endpoint 字符串 -> 会话).
 		std::map<std::string, std::shared_ptr<avpn_session>> m_sessions;
 
-		// gateway: 按对端静态公钥索引的会话表 (网络切换后识别用).
+		// gateway: 按对端静态公钥索引的会话表 (同一客户端重新握手时替换旧会话).
 		std::map<std::string, std::shared_ptr<avpn_session>> m_sessions_by_pubkey;
+
+		// gateway: 按漫游凭证索引的会话表.
+		// 陌生端点来的报文解密前就能靠 cookie 认出属于哪个会话 (O(1)).
+		std::map<uint64_t, std::weak_ptr<avpn_session>> m_sessions_by_cookie;
 
 		// gateway: 最近一个活跃会话的缓存 (数据路径上避免每包构造 endpoint
 		// 字符串并查表).

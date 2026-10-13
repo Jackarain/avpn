@@ -165,6 +165,12 @@ namespace libavpn {
 		// 传输类型: 0 = UDP, 1 = TCP.
 		uint8_t transport{ 0 };
 
+		// 网关推给客户端的 dns (虚拟网络内可用).
+		uint32_t pushdns{ 0 };
+
+		// 是否默认把全部流量都走这条隧道.
+		bool passbyvpn{ false };
+
 		// 取值是否自洽.
 		bool valid() const;
 

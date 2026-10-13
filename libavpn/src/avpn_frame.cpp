@@ -73,6 +73,8 @@ namespace libavpn {
 			constexpr uint8_t roam_cookie = 0x0e;
 			constexpr uint8_t cookie_beacon = 0x0f;
 			constexpr uint8_t transport = 0x10;
+			constexpr uint8_t pushdns = 0x11;
+			constexpr uint8_t passbyvpn = 0x12;
 		} // namespace param_id
 
 		void append_param(std::string& out, uint8_t id,
@@ -353,12 +355,19 @@ namespace libavpn {
 
 		body.assign(1, static_cast<char>(p.transport));
 		append_param(out, param_id::transport, body);
+
+		body.clear();
+		put_u32(body, p.pushdns);
+		append_param(out, param_id::pushdns, body);
+
+		body.assign(1, static_cast<char>(p.passbyvpn ? 1 : 0));
+		append_param(out, param_id::passbyvpn, body);
 	}
 
 	bool parse_params(std::string_view data, session_params& p)
 	{
 		session_params out;
-		std::array<bool, 0x11> seen{};
+		std::array<bool, 0x13> seen{};
 
 		std::size_t pos = 0;
 		while (pos < data.size())
@@ -490,6 +499,16 @@ namespace libavpn {
 				if (len != 1)
 					return false;
 				out.transport = bp[0];
+				break;
+			case param_id::pushdns:
+				if (len != 4)
+					return false;
+				out.pushdns = get_u32(bp);
+				break;
+			case param_id::passbyvpn:
+				if (len != 1)
+					return false;
+				out.passbyvpn = bp[0] != 0;
 				break;
 			default:
 				break;
