@@ -244,10 +244,24 @@ namespace libavpn {
 		if (it != m_groups.end())
 			return &it->second;
 
-		// 留的组数封顶, 免得异常流量把内存吃光; 组号小的就是旧的.
-		constexpr std::size_t max_groups = 256;
-		while (m_groups.size() >= max_groups)
+		// 组数封顶, 免得异常流量把内存吃光. 封顶只算还在攒片的组; 已经收尾的
+		// 组只剩下一个空壳 (留着是为了把晚到的片直接丢掉, 免得又拼出一个新组),
+		// 只多留 max_groups 个. 组号随时间递增, 所以最旧的最不可能再收到片.
+		constexpr std::size_t max_open_groups = 256;
+		constexpr std::size_t max_groups = 4096;
+		std::size_t open = 0;
+		for (const auto& kv : m_groups)
+		{
+			if (!kv.second.done)
+				open++;
+		}
+		while (!m_groups.empty() &&
+			(m_groups.size() >= max_groups || open >= max_open_groups))
+		{
+			if (!m_groups.begin()->second.done)
+				open--;
 			m_groups.erase(m_groups.begin());
+		}
 
 		group g;
 		g.shards.resize(m_total);

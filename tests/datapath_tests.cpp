@@ -849,4 +849,84 @@ BOOST_AUTO_TEST_CASE(compression_off_delivers_compressed_entry_as_is)
 	BOOST_CHECK(classify_payload(got[0]) == frame_kind::control);
 }
 
+// 随机丢包下按线损比例统计纠错的实际效果: 一组 16 片丢 4 片以内都能还原,
+// 残留丢包只剩"整组补不回来"的那部分.
+static double fec_loss_experiment(uint32_t ds, uint32_t ps, double drop)
+{
+	session_params params;
+	params.fec_total = static_cast<uint8_t>(ds + ps);
+	params.fec_data = static_cast<uint8_t>(ds);
+
+	pipe_pair p;
+	p.start(params);
+
+	// 固定种子的 LCG: 测试结果可重复.
+	uint32_t rng = 0x12345678u;
+	auto next_random = [&rng]()
+	{
+		rng = rng * 1664525u + 1013904223u;
+		return (rng >> 8) & 0xffffffu;
+	};
+
+	const std::size_t total = 12000;
+	const std::size_t threshold = static_cast<std::size_t>(
+		drop * 16777216.0);
+	std::size_t sent = 0;
+	std::size_t delivered = 0;
+
+	for (std::size_t i = 0; i < total; i++)
+	{
+		std::string payload = ipv4_payload(1228, static_cast<uint8_t>(i));
+		payload[20] = static_cast<char>(i & 0xff);
+		payload[21] = static_cast<char>((i >> 8) & 0xff);
+
+		for (auto& frame : p.client.seal(payload, i))
+		{
+			if (next_random() < threshold)
+				continue;  // 线路上丢了这一帧.
+			for (auto& d : p.gateway.on_frame(frame, i))
+			{
+				(void)d;
+				delivered++;
+			}
+		}
+		sent++;
+	}
+
+	return 1.0 - static_cast<double>(delivered) /
+		static_cast<double>(sent);
+}
+
+BOOST_AUTO_TEST_CASE(fec_recovers_random_wire_loss)
+{
+	// 线损固定 10%: 12/4 要一组里丢超过 4 片才补不回来 (残留约 0.8%),
+	// 8/8 要丢超过 8 片 (残留近乎为零), 都该比不开纠错时低一个数量级.
+	const double plain = fec_loss_experiment(0, 0, 0.10);
+	const double loss_12_4 = fec_loss_experiment(12, 4, 0.10);
+	const double loss_8_8 = fec_loss_experiment(8, 8, 0.10);
+
+	BOOST_TEST_MESSAGE("loss plain = " << plain);
+	BOOST_TEST_MESSAGE("loss 12/4 = " << loss_12_4);
+	BOOST_TEST_MESSAGE("loss 8/8  = " << loss_8_8);
+
+	BOOST_CHECK_GT(plain, 0.09);  // 不开纠错时丢多少就是多少.
+	BOOST_CHECK_LT(loss_12_4, plain / 5);
+	BOOST_CHECK_LT(loss_8_8, plain / 20);
+}
+
+// 一直收到凑不满的组时, 留在手里的组数要有上限, 不能随包数一路涨.
+BOOST_AUTO_TEST_CASE(fec_open_group_backlog_is_bounded)
+{
+	fec_receiver rx;
+	rx.configure(16, 8, false, 2000);
+
+	// 每组只喂一个冗余片: 组永远凑不满, 也不会自己消失.
+	const std::string shard(1200, '\0');
+	std::vector<std::string_view> out;
+	for (uint64_t g = 0; g < 1000; g++)
+		rx.on_shard(g * 16 + 8, shard, 0, out);
+
+	BOOST_CHECK_LE(rx.group_count(), 300);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
