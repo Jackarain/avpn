@@ -18,6 +18,11 @@ add_executable(resolv_conf_tests
 	resolv_conf_tests.cpp
 )
 
+add_executable(launcher_options_tests
+	launcher_options_tests.cpp
+	${CMAKE_SOURCE_DIR}/apps/launcher/options.cpp
+)
+
 target_include_directories(dns_packet_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
@@ -37,6 +42,21 @@ target_include_directories(datapath_tests PRIVATE
 target_include_directories(resolv_conf_tests PRIVATE
 	${CMAKE_SOURCE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_include_directories(launcher_options_tests PRIVATE
+	${CMAKE_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_SOURCE_DIR}/apps/launcher
+)
+
+target_compile_definitions(launcher_options_tests PRIVATE
+	AVPN_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_link_libraries(launcher_options_tests PRIVATE
+	Boost::unit_test_framework
+	Boost::json
 )
 
 target_link_libraries(resolv_conf_tests PRIVATE
@@ -111,8 +131,10 @@ endif()
 set_property(TARGET protocol_v2_tests PROPERTY CXX_STANDARD 20)
 set_property(TARGET datapath_tests PROPERTY CXX_STANDARD 20)
 set_property(TARGET resolv_conf_tests PROPERTY CXX_STANDARD 20)
+set_property(TARGET launcher_options_tests PROPERTY CXX_STANDARD 20)
 
 add_test(NAME dns_packet_tests COMMAND dns_packet_tests)
 add_test(NAME protocol_v2_tests COMMAND protocol_v2_tests)
 add_test(NAME datapath_tests COMMAND datapath_tests)
 add_test(NAME resolv_conf_tests COMMAND resolv_conf_tests)
+add_test(NAME launcher_options_tests COMMAND launcher_options_tests)
