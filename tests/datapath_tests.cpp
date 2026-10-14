@@ -262,6 +262,130 @@ BOOST_AUTO_TEST_CASE(late_frame_from_previous_epoch_is_usable)
 	BOOST_CHECK_EQUAL(p.gateway.recv_epoch(), 1u);
 }
 
+// 开纠错时计数器回绕: 一组正好落在次代 0 的尾端, 下一组从次代 1 的 0 开始.
+// 组不跨次代, 两边的片都要能正常还原.
+BOOST_AUTO_TEST_CASE(fec_mode_group_wraps_epoch_cleanly)
+{
+	session_params params;
+	params.fec_total = 16;
+	params.fec_data = 12;
+	pipe_pair p;
+	p.start(params);
+
+	// 把客户端摆在次代 0 最后一组的第一片上.
+	BOOST_REQUIRE(p.client.set_send_position(0, 0xfffffff0u));
+	BOOST_CHECK_EQUAL(p.client.send_counter(), 0xfffffff0u);
+
+	std::vector<std::string> sent;
+	std::vector<std::string> frames;
+	for (int group = 0; group < 2; group++)
+	{
+		for (int i = 0; i < 12; i++)
+		{
+			std::string payload = ipv4_payload(
+				40 + i * 5, static_cast<uint8_t>(group * 20 + i));
+			sent.push_back(payload);
+			auto fs = p.client.seal(payload,
+				static_cast<uint64_t>(group * 12 + i));
+			BOOST_REQUIRE(!fs.empty());
+			for (auto& f : fs)
+				frames.push_back(std::move(f));
+		}
+	}
+	BOOST_REQUIRE_EQUAL(frames.size(), 32);  // 两组, 每组 12 数据 + 4 冗余.
+
+	// 第一组全在次代 0 (计数器 0xfffffff0 ~ 0xffffffff), 第二组全在次代 1.
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(frames[0][0]), 0xf0);
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(frames[15][0]), 0xff);
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(frames[16][0]), 0x00);
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(frames[31][0]), 0x0f);
+	BOOST_CHECK_EQUAL(p.client.send_epoch(), 1u);
+
+	// 两组各丢 4 片数据, 跨次代的两组都该靠冗余片还原出来.
+	const std::set<std::size_t> drop{ 0, 3, 7, 11, 16, 19, 23, 27 };
+	std::vector<std::string> got;
+	for (std::size_t i = 0; i < frames.size(); i++)
+	{
+		if (drop.count(i) != 0)
+			continue;
+		for (auto& d : p.gateway.on_frame(frames[i], i))
+			got.push_back(std::move(d));
+	}
+
+	BOOST_CHECK_EQUAL(p.gateway.recv_epoch(), 1u);
+	BOOST_REQUIRE_EQUAL(got.size(), sent.size());
+	std::multiset<std::string> got_set(got.begin(), got.end());
+	for (const auto& payload : sent)
+		BOOST_CHECK_EQUAL(got_set.count(payload), 1);
+
+	// 回绕前的旧帧再来一次: 全局序号已经用过, 挡掉.
+	BOOST_CHECK(p.gateway.on_frame(frames[1], 32).empty());
+	BOOST_CHECK(p.gateway.on_frame(frames[17], 32).empty());
+}
+
+// T 取 2 / 4 / 8 / 16 都整除 2^32, 所以最后一组正好停在次代边界上, 不会跨次代.
+BOOST_AUTO_TEST_CASE(fec_group_never_spans_epoch_for_every_t)
+{
+	for (uint32_t total : { 2u, 4u, 8u, 16u })
+	{
+		const uint32_t data = total - 1;
+		session_params params;
+		params.fec_total = static_cast<uint8_t>(total);
+		params.fec_data = static_cast<uint8_t>(data);
+		pipe_pair p;
+		p.start(params);
+
+		// 把客户端摆在次代 0 最后一组的第一片上.
+		BOOST_REQUIRE(p.client.set_send_position(0, 0x100000000ull - total));
+
+		std::vector<std::string> sent;
+		std::vector<std::string> frames;
+		for (uint32_t i = 0; i < data; i++)
+		{
+			std::string payload = ipv4_payload(
+				40 + i * 5, static_cast<uint8_t>(i));
+			sent.push_back(payload);
+			for (auto& f : p.client.seal(payload, i))
+				frames.push_back(std::move(f));
+		}
+		BOOST_REQUIRE_EQUAL(frames.size(), total);
+		BOOST_CHECK_EQUAL(p.client.send_epoch(), 0u);
+
+		// 丢最后一片数据: 靠那一片冗余还原, 组号不跨次代也拼得回来.
+		std::vector<std::string> got;
+		for (std::size_t i = 0; i < frames.size(); i++)
+		{
+			if (i == data - 1)
+				continue;
+			for (auto& d : p.gateway.on_frame(frames[i], i))
+				got.push_back(std::move(d));
+		}
+		BOOST_REQUIRE_EQUAL(got.size(), sent.size());
+		std::multiset<std::string> got_set(got.begin(), got.end());
+		for (const auto& payload : sent)
+			BOOST_CHECK_EQUAL(got_set.count(payload), 1);
+
+		// 下一片: 计数器回到 0, 次代换成 1.
+		const std::string tail = ipv4_payload(60, 0x7f);
+		auto next = p.client.seal(tail, static_cast<uint64_t>(total) + 1);
+		BOOST_REQUIRE(!next.empty());
+		BOOST_CHECK_EQUAL(p.client.send_epoch(), 1u);
+		BOOST_CHECK_EQUAL(static_cast<uint8_t>(next[0][0]), 0x00);
+
+		bool tail_delivered = false;
+		for (auto& f : next)
+		{
+			for (auto& d : p.gateway.on_frame(f,
+				static_cast<uint64_t>(total) + 1))
+			{
+				if (d == tail)
+					tail_delivered = true;
+			}
+		}
+		BOOST_CHECK(tail_delivered);
+	}
+}
+
 BOOST_AUTO_TEST_CASE(fec_mode_recovers_lost_shards)
 {
 	session_params params;
