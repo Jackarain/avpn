@@ -2681,6 +2681,7 @@ namespace libavpn {
 		restart = restart || m_config.public_key_ != old.public_key_;
 		restart = restart || m_config.pkl_ != old.pkl_;
 		restart = restart || m_config.mtu_size_ != old.mtu_size_;
+		restart = restart || m_config.udp_pacing_mbps_ != old.udp_pacing_mbps_;
 		restart = restart || m_config.pushroutes_ != old.pushroutes_;
 		restart = restart || m_config.pushdns_ != old.pushdns_;
 		restart = restart || m_config.passbyvpn_ != old.passbyvpn_;
@@ -2695,6 +2696,12 @@ namespace libavpn {
 		restart = restart || m_config.tag_len_ != old.tag_len_;
 		restart = restart || m_config.early_close_ms_ != old.early_close_ms_;
 		restart = restart || m_config.obfuscate_key_ != old.obfuscate_key_;
+		restart = restart || m_config.hint_ != old.hint_;
+		restart = restart || m_config.vaddr_ != old.vaddr_;
+		restart = restart || m_config.pre_up_ != old.pre_up_;
+		restart = restart || m_config.post_up_ != old.post_up_;
+		restart = restart || m_config.pre_down_ != old.pre_down_;
+		restart = restart || m_config.post_down_ != old.post_down_;
 
 		// keepalive 可热更新: 立即应用到活动会话.
 		if (m_config.keepalive_ != old.keepalive_)
