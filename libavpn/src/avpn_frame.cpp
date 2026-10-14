@@ -149,6 +149,36 @@ namespace libavpn {
 		return 0;
 	}
 
+	void tcp_frame_reader::push(const uint8_t* data, std::size_t size,
+		const std::function<void(std::string_view)>& on_frame)
+	{
+		if (data != nullptr && size > 0)
+			m_buf.insert(m_buf.end(), data, data + size);
+
+		std::size_t pos = 0;
+		while (m_buf.size() - pos >= 2)
+		{
+			const std::size_t len =
+				(static_cast<std::size_t>(m_buf[pos]) << 8) | m_buf[pos + 1];
+			if (len == 0 || len > max_frame)
+			{
+				// 长度对不上, 这一段字节流已经切不出帧了, 整段丢掉重找边界.
+				m_buf.clear();
+				return;
+			}
+			if (m_buf.size() - pos - 2 < len)
+				break;  // 这一帧还没收全, 等下一段字节.
+
+			if (on_frame)
+				on_frame(std::string_view(
+					reinterpret_cast<const char*>(m_buf.data() + pos + 2), len));
+			pos += 2 + len;
+		}
+
+		if (pos > 0)
+			m_buf.erase(m_buf.begin(), m_buf.begin() + pos);
+	}
+
 	void append_control_message(std::string& out, uint8_t code,
 		std::string_view body)
 	{

@@ -6,6 +6,7 @@
 //   * 4 字节帧头 (32 位计数器) 与次代/组号/片号的算术.
 //   * 明文内容判定 (IP 包 / 容器 / 控制消息).
 //   * 容器与控制消息的编解码 (严格校验).
+//   * TCP 传输的 2 字节长度前缀切帧.
 //   * 握手报文的明文编解码, 以及会话参数的 TLV 编解码.
 //
 // Copyright (C) 2025 Jack.
@@ -20,6 +21,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <array>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -119,6 +121,28 @@ namespace libavpn {
 
 	// 从 IP 头读出这个包的总长; 不合法返回 0.
 	std::size_t ip_packet_size(const uint8_t* data, std::size_t size);
+
+	// TCP 传输的切帧: 每帧前面是 2 字节大端长度前缀, 见 doc/protocol_v2.md 2.8.
+	// TCP 会把多次发送合并、也会把一次发送拆开投递, 所以读到多少字节先攒着,
+	// 能切出完整帧才回调; 长度非法 (0 或超过上限) 说明字节流已经对不上帧边界,
+	// 丢掉缓冲重新找.
+	class tcp_frame_reader
+	{
+	public:
+		// 一帧的长度上限, 与 2 字节长度前缀能表示的范围一致.
+		static constexpr std::size_t max_frame = 65535;
+
+		// 追加刚读到的一段字节; 每切出一个完整帧就回调一次, 视图只在回调
+		// 期间有效.
+		void push(const uint8_t* data, std::size_t size,
+			const std::function<void(std::string_view)>& on_frame);
+
+		// 缓冲里还没切出去的字节数.
+		std::size_t pending() const { return m_buf.size(); }
+
+	private:
+		std::vector<uint8_t> m_buf;
+	};
 
 	// 控制消息编解码.
 	void append_control_message(std::string& out, uint8_t code,

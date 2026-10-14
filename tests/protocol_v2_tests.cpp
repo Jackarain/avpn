@@ -708,6 +708,90 @@ BOOST_AUTO_TEST_CASE(seq_window_replay_and_wrap)
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_SUITE(tcp_framing)
+
+namespace {
+
+	// 按 TCP 线格式给一帧加上 2 字节大端长度前缀.
+	std::string tcp_pack(const std::string& frame)
+	{
+		const uint16_t len = static_cast<uint16_t>(frame.size());
+		std::string out;
+		out.push_back(static_cast<char>((len >> 8) & 0xff));
+		out.push_back(static_cast<char>(len & 0xff));
+		out.append(frame);
+		return out;
+	}
+
+	// 喂一段字节进去, 收走这次切出来的帧.
+	std::vector<std::string> tcp_take(tcp_frame_reader& reader,
+		const std::string& bytes)
+	{
+		std::vector<std::string> frames;
+		reader.push(reinterpret_cast<const uint8_t*>(bytes.data()),
+			bytes.size(),
+			[&frames](std::string_view frame)
+			{
+				frames.emplace_back(frame);
+			});
+		return frames;
+	}
+
+} // namespace
+
+BOOST_AUTO_TEST_CASE(tcp_frame_reader_merges_and_splits)
+{
+	tcp_frame_reader reader;
+
+	// 一次读到两帧 (TCP 会把多次发送合并到一起).
+	auto frames = tcp_take(reader, tcp_pack("hello") + tcp_pack("world!"));
+	BOOST_REQUIRE_EQUAL(frames.size(), 2);
+	BOOST_CHECK_EQUAL(frames[0], "hello");
+	BOOST_CHECK_EQUAL(frames[1], "world!");
+	BOOST_CHECK_EQUAL(reader.pending(), 0);
+
+	// 一次发送被拆开投递: 逐字节喂进去, 凑齐才出帧.
+	const std::string wire = tcp_pack("abcdef");
+	std::size_t got = 0;
+	for (char c : wire)
+		got += tcp_take(reader, std::string(1, c)).size();
+	BOOST_CHECK_EQUAL(got, 1);
+	BOOST_CHECK_EQUAL(reader.pending(), 0);
+
+	// 长度前缀到了、内容没到: 先留着等下一段.
+	const std::string full = tcp_pack("0123456789");
+	frames = tcp_take(reader, full.substr(0, 5));
+	BOOST_CHECK(frames.empty());
+	BOOST_CHECK_EQUAL(reader.pending(), 5);
+	frames = tcp_take(reader, full.substr(5));
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_EQUAL(frames[0], "0123456789");
+	BOOST_CHECK_EQUAL(reader.pending(), 0);
+
+	// 最长的一帧 (65535 字节) 也要能切出来.
+	frames = tcp_take(reader, tcp_pack(std::string(65535, 'z')));
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_EQUAL(frames[0].size(), 65535u);
+}
+
+BOOST_AUTO_TEST_CASE(tcp_frame_reader_resyncs_after_zero_length)
+{
+	tcp_frame_reader reader;
+
+	// 长度 0 表示这一路字节流已经对不上帧边界: 整段丢掉重新找.
+	const std::string bad = std::string(2, '\0');
+	auto frames = tcp_take(reader, bad + tcp_pack("x"));
+	BOOST_CHECK(frames.empty());
+	BOOST_CHECK_EQUAL(reader.pending(), 0);
+
+	// 丢掉之后, 重新对齐的帧照常切出来.
+	frames = tcp_take(reader, tcp_pack("ok"));
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	BOOST_CHECK_EQUAL(frames[0], "ok");
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
 BOOST_AUTO_TEST_SUITE(fec_v2)
 
 namespace {

@@ -47,9 +47,6 @@ namespace libavpn {
 		constexpr std::size_t tcp_cork_max_bytes = 128 * 1024;
 		constexpr std::size_t tcp_read_chunk = 128 * 1024;
 
-		// TCP 单帧长度前缀上限 (防御异常帧).
-		constexpr std::size_t tcp_max_frame = 65535;
-
 		// 当前毫秒时间戳.
 		inline uint64_t now_ms()
 		{
@@ -724,7 +721,7 @@ namespace libavpn {
 	{
 		if (!m_tcp_stream || m_abort)
 			return;
-		if (wire.empty() || wire.size() > tcp_max_frame)
+		if (wire.empty() || wire.size() > tcp_frame_reader::max_frame)
 			return;
 
 		const uint16_t len = static_cast<uint16_t>(wire.size());
@@ -1300,7 +1297,7 @@ namespace libavpn {
 
 	net::awaitable<void> avpn_session::tcp_read_loop(tcp::socket& stream)
 	{
-		std::vector<uint8_t> buf;
+		tcp_frame_reader reader;
 		std::vector<uint8_t> chunk(tcp_read_chunk);
 
 		while (!m_abort && stream.is_open())
@@ -1311,42 +1308,23 @@ namespace libavpn {
 			if (ec)
 				break;
 
-			buf.insert(buf.end(), chunk.begin(), chunk.begin() + n);
-
-			// 按 2 字节大端长度拆帧.
-			std::size_t pos = 0;
-			while (buf.size() - pos >= 2)
-			{
-				const std::size_t len =
-					(static_cast<std::size_t>(buf[pos]) << 8) | buf[pos + 1];
-				if (len == 0 || len > tcp_max_frame)
+			// 帧一帧一帧地处理: 握手成功后同一段字节里剩下的帧就按数据帧走了,
+			// 所以每帧都重新看一次是否已建立.
+			reader.push(chunk.data(), n,
+				[this](std::string_view frame)
 				{
-					pos = buf.size();
-					break;
-				}
-				if (buf.size() - pos - 2 < len)
-					break;
-
-				const std::string_view frame(
-					reinterpret_cast<const char*>(buf.data() + pos + 2),
-					len);
-				pos += 2 + len;
-
-				if (!m_established)
-				{
-					if (m_role == session_role::responder)
-						try_handshake(m_remote_udp, frame);
+					if (!m_established)
+					{
+						if (m_role == session_role::responder)
+							try_handshake(m_remote_udp, frame);
+						else
+							handle_handshake_msg2(frame);
+					}
 					else
-						handle_handshake_msg2(frame);
-				}
-				else
-				{
-					handle_wire(frame);
-				}
-			}
-
-			if (pos > 0)
-				buf.erase(buf.begin(), buf.begin() + pos);
+					{
+						handle_wire(frame);
+					}
+				});
 		}
 
 		if (!m_abort)
