@@ -267,6 +267,9 @@ namespace libavpn {
 
 	void avpn_session::apply_params()
 	{
+		// 内层 MTU 不能超过一片装得下的长度: 应答端按规定就是这个值,
+		// 这里再收一次, 免得对端给大了导致满长包放不进一片被丢.
+		clamp_mtu_to_shard_limit(m_params);
 		m_vaddr = m_params.vaddr;
 		// 混淆层的随机数发生器: 每个会话用一次加密随机数播种就够了.
 		m_obfuscate_rand.seed(crypto::random_bytes(16));

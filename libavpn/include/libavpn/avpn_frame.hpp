@@ -237,6 +237,16 @@ namespace libavpn {
 		}
 	};
 
+	// 内层 MTU 不能超过一片装得下的长度: 超过就按片长收. 定值的一方本来
+	// 就该这么算, 收到的一方再收一次, 免得对端给的值大了, 满长的内层包
+	// 放不进一片被丢掉. 开混淆时片长更小, 收得也更多.
+	inline void clamp_mtu_to_shard_limit(session_params& params)
+	{
+		const std::size_t limit = params.shard_limit();
+		if (params.mtu > limit)
+			params.mtu = static_cast<uint16_t>(limit);
+	}
+
 	// 会话参数的 TLV 编解码.
 	void append_params(std::string& out, const session_params& params);
 	bool parse_params(std::string_view data, session_params& params);

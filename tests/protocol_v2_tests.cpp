@@ -1131,6 +1131,30 @@ BOOST_AUTO_TEST_CASE(obfuscate_shrinks_shard_limit)
 	BOOST_CHECK(!obf.valid());
 }
 
+BOOST_AUTO_TEST_CASE(mtu_is_clamped_to_shard_limit)
+{
+	// 不含混淆: 上限是 1452, 恰好等于片长, 不用收.
+	session_params plain;
+	plain.mtu = static_cast<uint16_t>(plain.shard_limit());
+	clamp_mtu_to_shard_limit(plain);
+	BOOST_CHECK_EQUAL(plain.mtu, plain.shard_limit());
+
+	// 开混淆: 片长让出混淆开销, 收到的大 MTU 得跟着收到片长上.
+	session_params obf;
+	obf.obfuscate = true;
+	obf.mtu = static_cast<uint16_t>(wire_payload_limit(obf.tag_len, false));
+	clamp_mtu_to_shard_limit(obf);
+	BOOST_CHECK_EQUAL(obf.mtu, obf.shard_limit());
+	BOOST_CHECK_EQUAL(obf.mtu,
+		plain.shard_limit() - obfuscate_max_overhead);
+
+	// 比上限小的值不动.
+	session_params small;
+	small.mtu = 1300;
+	clamp_mtu_to_shard_limit(small);
+	BOOST_CHECK_EQUAL(small.mtu, 1300);
+}
+
 BOOST_AUTO_TEST_CASE(obfuscate_rejects_broken_length)
 {
 	const std::string key = "a-shared-obfuscate-key";
