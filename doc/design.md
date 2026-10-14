@@ -39,8 +39,8 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
     │          │           │           │           │         │
 ┌───▼───┐ ┌────▼────┐ ┌────▼────┐ ┌────▼────┐ ┌────▼────┐ ┌──▼─────┐
 │crypto │ │ frame   │ │compress │ │ fec_v2  │ │  tun    │ │ 日志   │
-│OpenSSL│ │ header  │ │zlib     │ │RS GF(2⁸)│ │Linux/mac│ │xlogger │
-│X25519 │ │ hs/param│ │deflate  │ │ group   │ │OS utun  │ │        │
+│OpenSSL│ │ header  │ │zlib/lz4 │ │RS GF(2⁸)│ │Linux/mac│ │xlogger │
+│X25519 │ │ hs/param│ │         │ │ group   │ │OS utun  │ │        │
 │AEAD   │ │ key/rep │ │         │ │         │ │         │ │        │
 │HKDF   │ │         │ │         │ │         │ │         │ │        │
 └───────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
@@ -58,7 +58,7 @@ aVPN 设计基于点对点通信，本身不区分 server/client，而是通过�
 | `avpn_fec_v2` | `avpn_fec_v2.cpp/.hpp` | 纠错分组：一包一片、凑够数据片出冗余片、按需还原 |
 | `avpn_datapath` | `avpn_datapath.cpp/.hpp` | 数据面：封包/收包、次代推断、重放过滤、漫游帧 |
 | `avpn_protocol` | `avpn_protocol.cpp/.hpp` | 常量（mtu、包大小、压缩类型）与 endpoint 解析 |
-| `avpn_compress` | `avpn_compress.cpp/.hpp` | 压缩抽象（zlib deflate） |
+| `avpn_compress` | `avpn_compress.cpp/.hpp` | 压缩抽象（zlib deflate、lz4 块接口） |
 | `avpn_obfuscate` | `avpn_obfuscate.cpp/.hpp` | 混淆层：在数据帧外面套一层随机垃圾（可选） |
 | `avpn_tun` | `avpn_tun.cpp/.hpp` | tun 设备抽象（Linux `/dev/net/tun`、macOS utun、Windows wintun、fd 透传） |
 | 基础设施 | `io_context_pool.hpp` / `logging.hpp` | 线程池与日志（xlogger） |
@@ -532,16 +532,23 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `private_key_` / `public_key_` | 本端静态密钥对（base64） |
 | `pkl_` | 远端公钥白名单（base64 列表） |
 | `mtu_size_` | tun MTU |
+| `udp_pacing_mbps_` | 外层 UDP 发送限速（Mbit/s，0 表示不限速）；发送端出口 qdisc 为 `fq` 时经 `SO_MAX_PACING_RATE` 生效，用于在无拥塞控制的外层避免打满瓶颈链路 |
 | `keepalive_` | 保活间隔（秒） |
 | `tag_len_` | 数据帧认证标签长度（16 或 12，默认 16）；客户端在握手请求里表达，网关按 §5 的规则定夺 |
+| `early_close_ms_` | 网关端提前关组时间（毫秒，0 表示关闭）；一组纠错凑不满时闲置这么久，就把手里已有的片补出冗余发出去 |
 | `pushroutes_` / `pushdns_` | 网关推送的路由 / DNS；`pushdns_` 是 IPv4 地址的数值（命令行与配置文件里写 `10.9.0.53` 或整数都认） |
+| `bypassroutes_` | 客户端绕过 VPN 走物理线路的目标列表（IP/CIDR 或域名；域名目标定期重新解析） |
 | `passbyvpn_` | 是否默认全局出口（网关需配置 NAT） |
 | `ignore_push_` | 是否忽略推送的 route/dns |
 | `c2c_` | 是否允许客户端间通信 |
-| `subnet_` | VPN 子网（如 `10.0.0.0/16`） |
-| `data_shards_` / `parity_shards_` | 纠错参数：`T = data_shards_ + parity_shards_` 须为 2 的幂，`ds = data_shards_`；`ds < 2` 时不开纠错 |
+| `subnet_` / `v6_subnet_` | VPN 虚拟子网（`10.0.0.0/16` / `fd00:8888::/64`） |
+| `data_shards_` / `parity_shards_` | 纠错参数：`ds = data_shards_`、`ps = parity_shards_`，且 `T = ds + ps` 只能是 2、4、8、16，`ds ≥ 2`、`ps ≥ 1` 才开纠错 |
 | `compress_` | 压缩算法（`deflate` 或 `lz4`，空为不压缩；客户端在握手请求里带上，网关据此确认） |
+| `obfuscate_key_` | 数据特征混淆密钥串（两端必须一致，非空时启用混淆层） |
+| `pre_up_` / `post_up_` / `pre_down_` / `post_down_` | tun 生命周期钩子命令，经 shell 执行，`%i` 替换为接口名 |
+| `vaddr_` | 客户端请求的虚拟地址（initiator 使用，0 表示由网关分配） |
 | `hint_` | 握手是否附带静态公钥哈希前缀（O(1) 查白名单，代价是公钥可被关联） |
+| `dns_intercept_` / `dns_doh_url_` / `dns_direct_` / `gfwlist_url_` / `gfwlist_cache_` | 客户端 DNS 拦截分流：命中 gfwlist 的域名走 DoH 解析，其余走直连 DNS；缓存路径用于复用 gfwlist |
 
 ---
 
