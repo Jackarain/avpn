@@ -101,8 +101,8 @@ namespace libavpn {
 	// 压后数据解压出来是一个 IP 包; 长度字段用来在纠错模式里剥掉补零.
 	inline constexpr uint8_t compressed_marker = 0x01;
 
-	// 压缩协商: 客户端想要的和网关配置的是同一个算法才启用. 当前只实现了
-	// deflate, 别的算法一律谈成不压缩.
+	// 压缩协商: 客户端想要的和网关配置的是同一个算法、而且这个算法真有实现
+	// (deflate / lz4) 才启用, 其余一律谈成不压缩.
 	compress_type negotiate_compress(compress_type wish, compress_type have);
 
 	// 控制消息头部: 消息码(1) + 长度(2, 小端).
