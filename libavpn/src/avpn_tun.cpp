@@ -340,6 +340,7 @@ namespace libavpn {
 #endif
 	}
 
+#if !defined(_WIN32)
 	bool tun_device::assign_fd(int fd, boost::system::error_code& ec)
 	{
 		m_stream.assign(fd, ec);
@@ -352,6 +353,7 @@ namespace libavpn {
 		m_stream.non_blocking(true, nec);
 		return !nec;
 	}
+#endif // !defined(_WIN32)
 
 	bool tun_device::configure(uint32_t vaddr, uint8_t prefix, int mtu)
 	{

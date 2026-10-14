@@ -49,6 +49,12 @@ namespace libavpn {
 		// 关闭 tun 设备.
 		void close();
 
+#if !defined(_WIN32)
+		// 把一个已经在非阻塞模式下的 fd 交给 asio 管. asio 自己的状态里
+		// 也得知道这一点: 不然同步读会一直 poll 等下去 (见 try_read_some).
+		bool assign_fd(int fd, boost::system::error_code& ec);
+#endif
+
 		// 配置 IP 地址/前缀/MTU (需要 root 权限).
 		bool configure(uint32_t vaddr, uint8_t prefix, int mtu);
 
@@ -104,10 +110,6 @@ namespace libavpn {
 		wintun_tun_device m_wintun;
 #else
 		net::posix::stream_descriptor m_stream;
-
-		// 把一个已经在非阻塞模式下的 fd 交给 asio 管. asio 自己的状态里
-		// 也得知道这一点: 不然同步读会一直 poll 等下去 (见 try_read_some).
-		bool assign_fd(int fd, boost::system::error_code& ec);
 #endif
 		std::string m_devname;
 		bool m_opened{ false };
