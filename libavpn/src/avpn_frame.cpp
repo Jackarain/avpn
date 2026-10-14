@@ -339,6 +339,10 @@ namespace libavpn {
 
 	bool session_params::valid() const
 	{
+		// 版本必须先谈成一致, 之后的数据面只按这个版本解析 (见协议文档 8.2).
+		if (version != avpn_protocol_v2)
+			return false;
+
 		if (tag_len != 12 && tag_len != 16)
 			return false;
 

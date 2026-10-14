@@ -475,6 +475,13 @@ BOOST_AUTO_TEST_CASE(params_reject_bad_values)
 	wire.clear();
 	append_params(wire, p);
 	BOOST_CHECK(!parse_params(wire, q));
+
+	// 版本对不上 (v1 或别的版本): 双方没谈成一致, 直接判失败.
+	p = session_params();
+	p.version = 1;
+	wire.clear();
+	append_params(wire, p);
+	BOOST_CHECK(!parse_params(wire, q));
 }
 
 BOOST_AUTO_TEST_CASE(params_tlv_edge_cases)
