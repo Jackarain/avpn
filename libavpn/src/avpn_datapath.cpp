@@ -345,14 +345,9 @@ namespace libavpn {
 
 		// 漫游帧: 最前面 8 字节 cookie, 并且它是 AEAD 的附加校验数据.
 		// 轮换后的重叠期内, 旧凭证也认 (memcmp 由窗口负责).
-		std::string_view body = frame;
-		std::string_view aad;
-		if (m_roam && frame_has_roam_cookie(frame, now_ms) &&
-			frame.size() >= roam_cookie_size + least)
-		{
-			aad = frame.substr(0, roam_cookie_size);
-			body = frame.substr(roam_cookie_size);
-		}
+		const bool has_cookie = m_roam &&
+			frame.size() >= roam_cookie_size + least &&
+			frame_has_roam_cookie(frame, now_ms);
 
 		uint32_t counter = 0;
 		uint32_t epoch = 0;
@@ -360,16 +355,16 @@ namespace libavpn {
 
 		for (int attempt = 0; attempt < 2 && !ok; attempt++)
 		{
-			// 第一次按 (cookie?) 的判法解; 第二次换个判法再试一次.
-			std::string_view try_body = body;
-			std::string_view try_aad = aad;
-			if (attempt == 1)
-			{
-				if (aad.empty() && !m_roam)
-					break;
-				try_body = frame;
-				try_aad = std::string_view();
-			}
+			// 第一遍按猜出来的判法解: 像漫游帧就剥掉 cookie 解, 否则整帧
+			// 当正文解; 不成再换另一种判法. 两种判法落到同一段字节上时
+			// (普通数据帧) 不必重复解一遍, 免得错帧白花两遍解密.
+			if (attempt == 1 && !has_cookie)
+				break;
+
+			const std::string_view try_body = has_cookie
+				? frame.substr(roam_cookie_size) : frame;
+			const std::string_view try_aad = has_cookie
+				? frame.substr(0, roam_cookie_size) : std::string_view();
 			if (try_body.size() < least)
 				continue;
 
@@ -403,8 +398,6 @@ namespace libavpn {
 
 			for (int i = 0; i < count && !ok; i++)
 			{
-				if (i > 0 && cand[i] == cand[0] && count == 1)
-					break;
 				if (decrypt_with(cand[i], counter, try_body, try_aad,
 					m_rx_plain))
 				{
