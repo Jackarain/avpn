@@ -16,6 +16,8 @@ class VpnConfig {
     List<String>? pkl,
     this.mtuSize = 1450,
     this.keepalive = 60,
+    this.tagLen = 16,
+    this.udpPacingMbps = 0,
     this.dataShards = 0,
     this.parityShards = 0,
     this.compress = '',
@@ -28,6 +30,7 @@ class VpnConfig {
     this.pushdns = 0,
     this.ignorePush = false,
     this.c2c = false,
+    this.earlyClose = 0,
     List<String>? bypassroutes,
     this.tunAddress = '',
     this.tunPrefix = 0,
@@ -63,6 +66,15 @@ class VpnConfig {
   // ---- 传输参数 ----
   int mtuSize;
   int keepalive;
+
+  /// 数据帧认证标签长度, 只支持 16 与 12; 12 每帧省 4 字节.
+  /// 作为客户端时在握手里表达这个愿望, 最终取值由网关定夺.
+  int tagLen;
+
+  /// 外层 UDP 发送限速 (Mbit/s, 0 表示不限速).
+  /// 隧道没有拥塞控制, 瓶颈链路上用它避免把链路打满.
+  int udpPacingMbps;
+
   int dataShards;
   int parityShards;
   String compress; // '' | deflate | lz4
@@ -77,6 +89,11 @@ class VpnConfig {
   int pushdns;
   bool ignorePush;
   bool c2c;
+
+  /// 网关端: 一组纠错凑不满时, 闲置这么多毫秒就提前关组, 把手里已有的
+  /// 几片补出冗余发出去; 0 表示关闭 (默认).
+  int earlyClose;
+
   List<String> bypassroutes;
 
   // ---- Android VpnService ----
@@ -177,6 +194,15 @@ class VpnConfig {
     if (keepalive <= 0) {
       errors.add('keepalive 必须大于 0');
     }
+    if (tagLen != 12 && tagLen != 16) {
+      errors.add('标签长度 tag_len 只能是 16 或 12');
+    }
+    if (udpPacingMbps < 0) {
+      errors.add('UDP 限速不能为负数');
+    }
+    if (earlyClose < 0 || earlyClose > 65535) {
+      errors.add('提前关组 early_close 需在 0~65535 毫秒之间');
+    }
     if (dataShards < 0 || parityShards < 0) {
       errors.add('FEC 份数不能为负数');
     }
@@ -217,6 +243,8 @@ class VpnConfig {
       if (pkl.isNotEmpty) 'pkl': pkl,
       'mtu_size': mtuSize,
       'keepalive': keepalive,
+      'tag_len': tagLen,
+      if (udpPacingMbps > 0) 'udp_pacing_mbps': udpPacingMbps,
       'data_shards': dataShards,
       'parity_shards': parityShards,
       if (compress.isNotEmpty) 'compress': compress,
@@ -229,6 +257,7 @@ class VpnConfig {
       if (pushdns > 0) 'pushdns': pushdns,
       'ignore_push': ignorePush,
       'c2c': c2c,
+      if (earlyClose > 0) 'early_close': earlyClose,
       if (bypassroutes.isNotEmpty) 'bypassroutes': bypassroutes,
       'dns_intercept': dnsIntercept,
       if (dnsIntercept) ...{
@@ -258,6 +287,8 @@ class VpnConfig {
     'pkl': pkl,
     'mtuSize': mtuSize,
     'keepalive': keepalive,
+    'tagLen': tagLen,
+    'udpPacingMbps': udpPacingMbps,
     'dataShards': dataShards,
     'parityShards': parityShards,
     'compress': compress,
@@ -270,6 +301,7 @@ class VpnConfig {
     'pushdns': pushdns,
     'ignorePush': ignorePush,
     'c2c': c2c,
+    'earlyClose': earlyClose,
     'bypassroutes': bypassroutes,
     'tunAddress': tunAddress,
     'tunPrefix': tunPrefix,
@@ -293,6 +325,8 @@ class VpnConfig {
     pkl: _strList(json['pkl']),
     mtuSize: json['mtuSize'] as int? ?? 1450,
     keepalive: json['keepalive'] as int? ?? 60,
+    tagLen: json['tagLen'] as int? ?? 16,
+    udpPacingMbps: json['udpPacingMbps'] as int? ?? 0,
     dataShards: json['dataShards'] as int? ?? 0,
     parityShards: json['parityShards'] as int? ?? 0,
     compress: json['compress'] as String? ?? '',
@@ -305,6 +339,7 @@ class VpnConfig {
     pushdns: json['pushdns'] as int? ?? 0,
     ignorePush: json['ignorePush'] as bool? ?? false,
     c2c: json['c2c'] as bool? ?? false,
+    earlyClose: json['earlyClose'] as int? ?? 0,
     bypassroutes: _strList(json['bypassroutes']),
     tunAddress: json['tunAddress'] as String? ?? '',
     tunPrefix: json['tunPrefix'] as int? ?? 0,

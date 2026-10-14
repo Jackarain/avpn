@@ -34,11 +34,17 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late final TextEditingController _keepalive = TextEditingController(
     text: c.keepalive.toString(),
   );
+  late final TextEditingController _udpPacing = TextEditingController(
+    text: c.udpPacingMbps.toString(),
+  );
   late final TextEditingController _dataShards = TextEditingController(
     text: c.dataShards.toString(),
   );
   late final TextEditingController _parityShards = TextEditingController(
     text: c.parityShards.toString(),
+  );
+  late final TextEditingController _earlyClose = TextEditingController(
+    text: c.earlyClose.toString(),
   );
   late final TextEditingController _obfuscate = TextEditingController(
     text: c.obfuscateKey,
@@ -90,8 +96,10 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
       _pkl,
       _mtu,
       _keepalive,
+      _udpPacing,
       _dataShards,
       _parityShards,
+      _earlyClose,
       _obfuscate,
       _udpListen,
       _tcpListen,
@@ -131,6 +139,8 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..pkl = _lines(_pkl.text)
           ..mtuSize = _toInt(_mtu.text, 1450)
           ..keepalive = _toInt(_keepalive.text, 60)
+          ..tagLen = _tagLen
+          ..udpPacingMbps = _toInt(_udpPacing.text, 0)
           ..dataShards = _toInt(_dataShards.text, 0)
           ..parityShards = _toInt(_parityShards.text, 0)
           ..compress = _compress
@@ -143,6 +153,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..pushdns = _toInt(_pushdns.text, 0)
           ..ignorePush = _ignorePush
           ..c2c = _c2c
+          ..earlyClose = _toInt(_earlyClose.text, 0)
           ..bypassroutes = _lines(_bypassroutes.text)
           ..bypassCn = _bypassCn
           ..routes = _lines(_routes.text)
@@ -169,6 +180,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
 
   late String _mode = c.mode;
   late String _compress = c.compress;
+  late int _tagLen = c.tagLen;
   late bool _passbyvpn = c.passbyvpn;
   late bool _ignorePush = c.ignorePush;
   late bool _c2c = c.c2c;
@@ -229,6 +241,18 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
               _numberField(_keepalive, label: 'Keepalive (s)'),
             ),
             _pair(
+              _dropdown<int>(
+                value: _tagLen,
+                label: '认证标签长度 tag_len',
+                items: const [
+                  DropdownMenuItem(value: 16, child: Text('16 字节 (默认)')),
+                  DropdownMenuItem(value: 12, child: Text('12 字节 (省 4 字节)')),
+                ],
+                onChanged: (v) => setState(() => _tagLen = v ?? 16),
+              ),
+              _numberField(_udpPacing, label: 'UDP 限速 Mbit/s (0 不限)'),
+            ),
+            _pair(
               _numberField(_dataShards, label: 'FEC 数据份数'),
               _numberField(_parityShards, label: 'FEC 冗余份数'),
             ),
@@ -276,6 +300,7 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
                 maxLines: 2,
               ),
               _numberField(_pushdns, label: '推送 DNS pushdns'),
+              _numberField(_earlyClose, label: '提前关组 early_close (ms, 0 关闭)'),
               _switch(
                 title: 'passbyvpn (默认全局出口)',
                 value: _passbyvpn,

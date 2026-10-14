@@ -248,4 +248,63 @@ void main() {
       expect(errors.any((e) => e.contains('直连 DNS')), true);
     });
   });
+
+  group('VpnConfig 帧头与传输调优', () {
+    test('json 往返保留标签长度与限速与提前关组', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        tagLen: 12,
+        udpPacingMbps: 20,
+        earlyClose: 100,
+      );
+      final restored = VpnConfig.fromJson(c.toJson());
+      expect(restored.tagLen, 12);
+      expect(restored.udpPacingMbps, 20);
+      expect(restored.earlyClose, 100);
+    });
+
+    test('旧配置缺失新字段时取安全默认值', () {
+      final restored = VpnConfig.fromJson({'id': 'a', 'name': 'b'});
+      expect(restored.tagLen, 16);
+      expect(restored.udpPacingMbps, 0);
+      expect(restored.earlyClose, 0);
+    });
+
+    test('toAvpnJson 始终带 tag_len, 限速与提前关组按需带', () {
+      final plain = VpnConfig(id: 'a', name: 'a');
+      final map = jsonDecode(plain.toAvpnJson()) as Map<String, dynamic>;
+      expect(map['tag_len'], 16);
+      expect(map.containsKey('udp_pacing_mbps'), false);
+      expect(map.containsKey('early_close'), false);
+
+      final tuned = VpnConfig(
+        id: 'b',
+        name: 'b',
+        mode: 'gateway',
+        tagLen: 12,
+        udpPacingMbps: 50,
+        earlyClose: 40,
+      );
+      final map2 = jsonDecode(tuned.toAvpnJson()) as Map<String, dynamic>;
+      expect(map2['tag_len'], 12);
+      expect(map2['udp_pacing_mbps'], 50);
+      expect(map2['early_close'], 40);
+    });
+
+    test('校验非法标签长度与提前关组', () {
+      final c = VpnConfig(
+        id: 'abc',
+        name: '测试',
+        mode: 'client',
+        nexthop: '1.2.3.4:19090',
+        publicKey: 'pk',
+        tagLen: 15,
+        earlyClose: 80000,
+      );
+      final errors = c.validate();
+      expect(errors.any((e) => e.contains('tag_len')), true);
+      expect(errors.any((e) => e.contains('early_close')), true);
+    });
+  });
 }
