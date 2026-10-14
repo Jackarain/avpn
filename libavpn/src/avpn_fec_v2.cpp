@@ -39,7 +39,10 @@ namespace libavpn {
 			}
 			if (first == container_marker)
 				return container_size(pad);
-			if (!valid_control_code(first) || pad.size() < control_header_size)
+			// 压缩载荷与控制消息同形: 标记(1) + 长度(2) + 内容.
+			if (first != compressed_marker && !valid_control_code(first))
+				return 0;
+			if (pad.size() < control_header_size)
 				return 0;
 
 			const std::size_t len = read_u16(

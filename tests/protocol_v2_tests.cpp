@@ -69,6 +69,7 @@ BOOST_AUTO_TEST_CASE(classify_payload_kinds)
 BOOST_AUTO_TEST_CASE(control_codes_reject_ip_and_container)
 {
 	BOOST_CHECK(!valid_control_code(0x00));
+	BOOST_CHECK(!valid_control_code(0x01));
 	BOOST_CHECK(!valid_control_code(0x45));
 	BOOST_CHECK(!valid_control_code(0x60));
 	BOOST_CHECK(valid_control_code(0x02));
@@ -123,6 +124,10 @@ BOOST_AUTO_TEST_CASE(control_message_roundtrip)
 	std::string ipcode = wire;
 	ipcode[0] = static_cast<char>(0x45);
 	BOOST_CHECK(!parse_control_message(ipcode, code, parsed));
+	// 消息码是压缩载荷标记: 拒绝 (这个位置只留给压缩载荷).
+	std::string cmpcode = wire;
+	cmpcode[0] = static_cast<char>(compressed_marker);
+	BOOST_CHECK(!parse_control_message(cmpcode, code, parsed));
 
 	// 漫游凭证更新: 内容就是 8 字节新凭证.
 	std::string cookie(roam_cookie_size, '\0');

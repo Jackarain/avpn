@@ -116,7 +116,7 @@ namespace libavpn {
 	// 明文首字节判定内容类型.
 	frame_kind classify_payload(std::string_view plaintext);
 
-	// 控制消息码是否合法 (0x00 留给容器, 0x4x/0x6x 会与 IP 包混淆).
+	// 控制消息码是否合法 (0x00 留给容器, 0x01 留给压缩载荷, 0x4x/0x6x 会与 IP 包混淆).
 	bool valid_control_code(uint8_t code);
 
 	// 从 IP 头读出这个包的总长; 不合法返回 0.

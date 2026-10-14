@@ -878,10 +878,14 @@ BOOST_AUTO_TEST_CASE(compression_in_fec_mode_recovers_loss)
 
 	std::vector<std::string> sent;
 	std::vector<std::string> frames;
+	std::size_t raw_bytes = 0;
 	for (int i = 0; i < 12; i++)
 	{
-		std::string payload = ipv4_payload(40 + i * 40, static_cast<uint8_t>(i));
+		// 有结构 (压得动) 的包: 纠错模式里每个片都换成了压缩载荷, 冗余片
+		// 算的是压过的字节.
+		std::string payload = text_ipv4_payload(1000 + i * 40);
 		sent.push_back(payload);
+		raw_bytes += payload.size();
 		auto fs = p.client.seal(payload, static_cast<uint64_t>(i));
 		BOOST_REQUIRE(!fs.empty());
 		for (auto& f : fs)
@@ -889,7 +893,13 @@ BOOST_AUTO_TEST_CASE(compression_in_fec_mode_recovers_loss)
 	}
 	BOOST_REQUIRE_EQUAL(frames.size(), 16);
 
-	// 丢 4 片数据, 冗余片上的内容也是压过的, 解出来要还原成原始包.
+	// 线上的量要比原包之和小得多, 说明压缩那一步确实发生了.
+	std::size_t wire_bytes = 0;
+	for (const auto& f : frames)
+		wire_bytes += f.size();
+	BOOST_CHECK_LT(wire_bytes, raw_bytes / 2);
+
+	// 丢 3 片数据 + 1 片冗余, 解出来的片要先剥掉补零再解压, 还原成原始包.
 	const std::set<std::size_t> drop{ 1, 4, 9, 14 };
 	std::multiset<std::string> got;
 	for (std::size_t i = 0; i < frames.size(); i++)

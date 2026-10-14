@@ -90,7 +90,8 @@ namespace libavpn {
 
 	bool valid_control_code(uint8_t code)
 	{
-		if (code == container_marker)
+		// 0x00 留给容器, 0x01 留给压缩载荷.
+		if (code == container_marker || code == compressed_marker)
 			return false;
 		// 与 IP 版本号冲突的取值不能作消息码.
 		if ((code >> 4) == 4 || (code >> 4) == 6)
