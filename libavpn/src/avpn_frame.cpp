@@ -592,13 +592,13 @@ namespace libavpn {
 
 	std::string handshake_req::serialize() const
 	{
-		std::string params;
-		append_params(params, this->params);
-		if (params.size() > 0xffff)
+		std::string tlv;
+		append_params(tlv, params);
+		if (tlv.size() > 0xffff)
 			return {};
 
 		std::string out;
-		out.reserve(handshake_req_fixed_size + 2 + params.size());
+		out.reserve(handshake_req_fixed_size + 2 + tlv.size());
 
 		put_u16(out, version);
 		out.append(reinterpret_cast<const char*>(ephemeral_pub.data()),
@@ -608,8 +608,8 @@ namespace libavpn {
 		out.append(reinterpret_cast<const char*>(client_id.data()),
 			client_id.size());
 		put_u32(out, requested_vaddr);
-		put_u16(out, static_cast<uint16_t>(params.size()));
-		out.append(params);
+		put_u16(out, static_cast<uint16_t>(tlv.size()));
+		out.append(tlv);
 
 		return out;
 	}
@@ -671,17 +671,17 @@ namespace libavpn {
 
 	std::string handshake_resp::serialize() const
 	{
-		std::string params;
-		append_params(params, this->params);
-		if (params.size() > 0xffff)
+		std::string tlv;
+		append_params(tlv, params);
+		if (tlv.size() > 0xffff)
 			return {};
 
 		std::string out;
-		out.reserve(handshake_resp_fixed_size + 2 + params.size());
+		out.reserve(handshake_resp_fixed_size + 2 + tlv.size());
 		out.append(reinterpret_cast<const char*>(ephemeral_pub.data()),
 			ephemeral_pub.size());
-		put_u16(out, static_cast<uint16_t>(params.size()));
-		out.append(params);
+		put_u16(out, static_cast<uint16_t>(tlv.size()));
+		out.append(tlv);
 		return out;
 	}
 
