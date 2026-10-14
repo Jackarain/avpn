@@ -401,6 +401,7 @@ namespace libavpn {
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
 			<< static_cast<int>(m_params.fec_total)
 			<< ", tag_len: " << static_cast<int>(m_params.tag_len)
+			<< ", early_close: " << m_params.early_close_ms
 			<< ", compress: " << compress_type_to_string(
 				static_cast<compress_type>(m_params.compress));
 		return true;
@@ -509,7 +510,8 @@ namespace libavpn {
 			std::max(1, std::min(m_config.keepalive_, 65535)));
 		p.group_abandon_ms = 1000;
 		p.group_cache_ms = 2000;
-		p.early_close_ms = 0;
+		p.early_close_ms = static_cast<uint16_t>(
+			std::max(0, std::min(m_config.early_close_ms_, 65535)));
 
 		p.vaddr = vaddr;
 		p.prefix_len = prefix;
@@ -651,6 +653,7 @@ namespace libavpn {
 			<< ", fec: " << static_cast<int>(m_params.fec_data) << "/"
 			<< static_cast<int>(m_params.fec_total)
 			<< ", tag_len: " << static_cast<int>(m_params.tag_len)
+			<< ", early_close: " << m_params.early_close_ms
 			<< ", compress: " << compress_type_to_string(
 				static_cast<compress_type>(m_params.compress));
 	}

@@ -84,6 +84,10 @@ namespace libavpn {
 		// 作为 client 时在握手里表达这个愿望, 最终取值由 gateway 决定.
 		int tag_len_{ 16 };
 
+		// 当 avpn 作为 gateway 时, 一组纠错凑不满多久就提前关组 (毫秒),
+		// 把已经收到的那几片补出冗余发出去; 0 表示关闭 (整组凑满才算).
+		int early_close_ms_{ 0 };
+
 		// 当 avpn 作为 gateway 时, 推送路由给 client 端.
 		std::vector<std::string> pushroutes_;
 
