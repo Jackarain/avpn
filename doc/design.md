@@ -358,6 +358,12 @@ K_e       = HKDF-SHA256(ikm = K_master, salt = 次代(8 字节小端),
 - 客户端侧断了会自己回来：会话结束或握手失败后，由监督循环（TCP 走
   `client_tcp_connect`，UDP 走 `client_udp_handshake_loop`）等 3 秒重建会话、
   重新握手，直到进程退出。
+- 这个超时决定了网关重启后客户端多久恢复：客户端要等满一个 `peer_idle_timeout`
+  才判定对端失联。千兆内网实测（客户端 → 网关，重启网关进程）：重启后约 124 秒
+  恢复（120 秒超时 + 3 秒重试 + 握手），日志依次是 `Peer idle timeout, closing
+  session` → `UDP session ended, reconnecting in 3s` → `Session established`。
+  这个超时是固定值，跟 `keepalive` 无关：要缩短维护窗口只能改
+  `peer_idle_timeout`（见 `avpn_session.cpp`）。
 
 ### 9.3 主动断开
 
