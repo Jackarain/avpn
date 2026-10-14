@@ -2521,6 +2521,22 @@ namespace libavpn {
 			return false;
 		}
 
+		// 纠错片数配不出合法的一组时数据面会退化成整帧模式, 提醒一句,
+		// 免得配错了还以为什么都没生效.
+		if (m_config.data_shards_ != 0 || m_config.parity_shards_ != 0)
+		{
+			session_params probe;
+			negotiate_fec(false, m_config.data_shards_,
+				m_config.parity_shards_, probe);
+			if (probe.fec_total == 1)
+			{
+				XLOG_WARN << "Fec shards " << m_config.data_shards_ << "/"
+					<< m_config.parity_shards_ << " cannot be used (need data >= 2,"
+					<< " parity >= 1, data + parity = 2/4/8/16), falling back to"
+					<< " whole frame mode";
+			}
+		}
+
 		// hook: tun 接口启用前执行 (此时接口尚未创建,
 		// %i 替换为配置的接口名, 未配置时原样保留).
 		run_hook_cmd(m_config.pre_up_, m_config.ifdev_);

@@ -239,8 +239,8 @@ sudo DS=12 PS=4 LOSS=0.5% DELAY=20ms ./tools/bench_tunnel.sh
 veth，分别启动 gateway 与 endpoint，跑 iperf3 上下行后自动清理；可用环境
 变量 `AVPN` 指定 avpn 可执行文件路径（默认 `build/bin/avpn`）。纠错总片数
 `T = DS + PS` 只能取 2、4、8、16，且 `DS ≥ 2`、`PS ≥ 1` 才会生效，其余取值
-下 avpn 会自动退化为整帧模式；外层走 TCP（`--nexthop tcp://...`）时也不开纠错，
-可靠传输自带重传，补冗余只是白占带宽。
+下 avpn 会自动退化为整帧模式（启动时日志里有一条 warn 提醒）；外层走 TCP
+（`--nexthop tcp://...`）时也不开纠错，可靠传输自带重传，补冗余只是白占带宽。
 
 本机 x86_64 参考数据（单流 iperf3，MTU 1400，上行 / 下行 Mbit/s）：
 
