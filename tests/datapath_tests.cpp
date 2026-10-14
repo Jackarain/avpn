@@ -108,6 +108,28 @@ BOOST_AUTO_TEST_CASE(whole_frame_roundtrip)
 	BOOST_CHECK(got2[0] == payload);
 }
 
+BOOST_AUTO_TEST_CASE(packet_at_shard_limit_is_the_last_one_that_fits)
+{
+	session_params params;
+	pipe_pair p;
+	p.start(params);
+
+	// 正好一片装得下的包照发, 多一个字节就装不进 (丢掉, 而不是发出去).
+	const std::size_t limit = params.shard_limit();
+	const std::string full = ipv4_payload(limit, 3);
+	BOOST_REQUIRE_EQUAL(p.client.seal(full, 0).size(), 1);
+
+	const std::string over = ipv4_payload(limit + 1, 4);
+	BOOST_CHECK(p.client.seal(over, 1).empty());
+
+	// 边界上的包解出来还是原样.
+	auto frames = p.client.seal(full, 2);
+	BOOST_REQUIRE_EQUAL(frames.size(), 1);
+	auto got = p.gateway.on_frame(frames[0], 2);
+	BOOST_REQUIRE_EQUAL(got.size(), 1);
+	BOOST_CHECK(got[0] == full);
+}
+
 BOOST_AUTO_TEST_CASE(wrong_key_delivers_nothing)
 {
 	session_params params;
@@ -384,6 +406,50 @@ BOOST_AUTO_TEST_CASE(fec_group_never_spans_epoch_for_every_t)
 		}
 		BOOST_CHECK(tail_delivered);
 	}
+}
+
+BOOST_AUTO_TEST_CASE(early_close_at_epoch_edge_keeps_counters_in_epoch)
+{
+	session_params params;
+	params.fec_total = 16;
+	params.fec_data = 12;
+	params.group_abandon_ms = 1000;
+	params.early_close_ms = 100;
+	pipe_pair p;
+	p.start(params);
+
+	// 摆在次代 0 最后一组的第一片上: 这一组正好用满 0xfffffff0 ~ 0xffffffff.
+	BOOST_REQUIRE(p.client.set_send_position(0, 0x100000000ull - 16));
+
+	std::vector<std::string> sent;
+	for (int i = 0; i < 3; i++)
+	{
+		std::string payload = ipv4_payload(60 + i, static_cast<uint8_t>(i));
+		sent.push_back(payload);
+		auto fs = p.client.seal(payload, 0);
+		BOOST_REQUIRE_EQUAL(fs.size(), 1);
+		auto got = p.gateway.on_frame(fs[0], 0);
+		BOOST_REQUIRE_EQUAL(got.size(), 1);
+		BOOST_CHECK(got[0] == payload);
+	}
+	BOOST_CHECK_EQUAL(p.client.send_epoch(), 0u);
+
+	// 提前关组补出的 4 片冗余还在次代 0 里, 不跨次代.
+	auto extra = p.client.tick(200);
+	BOOST_REQUIRE_EQUAL(extra.size(), 4);
+	for (const auto& frame : extra)
+		BOOST_CHECK_EQUAL(p.gateway.on_frame(frame, 200).size(), 0);
+	BOOST_CHECK_EQUAL(p.client.send_epoch(), 0u);
+
+	// 下一片: 计数器回到 0, 次代换成 1.
+	const std::string tail = ipv4_payload(70, 0x5a);
+	auto next = p.client.seal(tail, 300);
+	BOOST_REQUIRE_EQUAL(next.size(), 1);
+	BOOST_CHECK_EQUAL(p.client.send_epoch(), 1u);
+	BOOST_CHECK_EQUAL(static_cast<uint8_t>(next[0][0]), 0x00);
+	auto tail_got = p.gateway.on_frame(next[0], 300);
+	BOOST_REQUIRE_EQUAL(tail_got.size(), 1);
+	BOOST_CHECK(tail_got[0] == tail);
 }
 
 BOOST_AUTO_TEST_CASE(fec_mode_recovers_lost_shards)
