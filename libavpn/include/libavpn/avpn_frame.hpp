@@ -247,6 +247,24 @@ namespace libavpn {
 			params.mtu = static_cast<uint16_t>(limit);
 	}
 
+	// 纠错开关由网关定: 数据片 2 片以上、冗余片至少 1 片, 且总片数 T 取
+	// 2 / 4 / 8 / 16 (要能整除 2^32, 一组才不会跨次代) 才开, 其余取值按
+	// 整帧模式 (T = 1). 可靠传输上重传已经够用, 冗余片只是白占带宽、多
+	// 排队, 所以 TCP 一律不开.
+	inline void negotiate_fec(bool reliable_transport, int data_shards,
+		int parity_shards, session_params& params)
+	{
+		if (reliable_transport || data_shards < 2 || parity_shards < 1)
+			return;
+
+		const int total = data_shards + parity_shards;
+		if (total != 2 && total != 4 && total != 8 && total != 16)
+			return;
+
+		params.fec_total = static_cast<uint8_t>(total);
+		params.fec_data = static_cast<uint8_t>(data_shards);
+	}
+
 	// 会话参数的 TLV 编解码.
 	void append_params(std::string& out, const session_params& params);
 	bool parse_params(std::string_view data, session_params& params);

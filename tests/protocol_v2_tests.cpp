@@ -453,6 +453,14 @@ BOOST_AUTO_TEST_CASE(params_reject_bad_values)
 	append_params(wire, p);
 	BOOST_CHECK(!parse_params(wire, q));
 
+	// ds 至少 2 片: 只有一片数据时冗余片就是重复发包, v2 不这么做.
+	p = session_params();
+	p.fec_total = 4;
+	p.fec_data = 1;
+	wire.clear();
+	append_params(wire, p);
+	BOOST_CHECK(!parse_params(wire, q));
+
 	// 不开纠错时 ds 必须是 1.
 	p = session_params();
 	p.fec_data = 4;
@@ -1153,6 +1161,52 @@ BOOST_AUTO_TEST_CASE(mtu_is_clamped_to_shard_limit)
 	small.mtu = 1300;
 	clamp_mtu_to_shard_limit(small);
 	BOOST_CHECK_EQUAL(small.mtu, 1300);
+}
+
+BOOST_AUTO_TEST_CASE(fec_is_off_on_reliable_transport)
+{
+	// UDP 上按配置开纠错.
+	session_params udp;
+	negotiate_fec(false, 12, 4, udp);
+	BOOST_CHECK_EQUAL(int(udp.fec_total), 16);
+	BOOST_CHECK_EQUAL(int(udp.fec_data), 12);
+	BOOST_CHECK(udp.valid());
+
+	// TCP 自带重传, 补冗余片只是白占带宽.
+	session_params tcp;
+	negotiate_fec(true, 12, 4, tcp);
+	BOOST_CHECK_EQUAL(int(tcp.fec_total), 1);
+	BOOST_CHECK_EQUAL(int(tcp.fec_data), 1);
+	BOOST_CHECK(tcp.valid());
+
+	// 总片数只能取 2 / 4 / 8 / 16, 数据片至少 2 片, 冗余片至少 1 片.
+	struct
+	{
+		int ds;
+		int ps;
+		int total;
+		int data;
+	} cases[] = {
+		{ 12, 4, 16, 12 },
+		{ 2, 0, 1, 1 },     // 没有冗余片, 不开.
+		{ 1, 1, 1, 1 },     // 只有一片数据, 不开.
+		{ 1, 3, 1, 1 },     // 退化成一比多的放大发包, v2 不支持.
+		{ 12, 3, 1, 1 },    // 总片数 15 不是 2 的幂, 不开.
+		{ 3, 1, 4, 3 },
+		{ 6, 2, 8, 6 },
+		{ 8, 8, 16, 8 },
+		{ 7, 1, 8, 7 },
+		{ 15, 1, 16, 15 },
+	};
+
+	for (const auto& c : cases)
+	{
+		session_params p;
+		negotiate_fec(false, c.ds, c.ps, p);
+		BOOST_CHECK_EQUAL(int(p.fec_total), c.total);
+		BOOST_CHECK_EQUAL(int(p.fec_data), c.data);
+		BOOST_CHECK(p.valid());
+	}
 }
 
 BOOST_AUTO_TEST_CASE(obfuscate_rejects_broken_length)

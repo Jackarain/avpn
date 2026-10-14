@@ -118,17 +118,12 @@ namespace libavpn {
 		// IPv6 内网子网配置, 格式如 "fd00:8888::/64", 默认为 fd00:8888::/64.
 		std::string v6_subnet_;
 
-		// fec 数据设置, 指定多少份 fec 数据.
-		// 当 data_shards_ 为 1 时, 不再使用 fec 恢复算法, 转变成 parity_shards_ 指定的
-		// 倍数发包.
+		// 纠错一组里的数据片数 ds.
 		int data_shards_{ 0 };
 
-		// fec冗余设置.
-		// 当 data_shards_ 大于 1 时, parity_shards_ 指定为多少份恢复数据包, 即最大可丢
-		// 失多少个数据包还能恢复.
-		// 如果 data_shards_ 设置为 1 时, 则 parity_shards_ 为具体发包倍数.
-		// 例如: data_shards_ 为 1, 而 parity_shards_ 为0, 则为原样发包, parity_shards_
-		// 为 1 则为 2 倍发包, 最大 5 倍.
+		// 纠错一组里的冗余片数 ps, 也就是一组最多能补回几个丢包.
+		// 总片数 T = ds + ps 取 2 / 4 / 8 / 16, 且 ds >= 2、ps >= 1 才开纠错;
+		// 其余取值退化为整帧模式; 走 TCP 时也不开 (可靠传输自带重传).
 		int parity_shards_{ 0 };
 
 		// 压缩选项, 指定压缩算法, 当前实现了 deflate 与 lz4 (zstd 是协议里的保留值,

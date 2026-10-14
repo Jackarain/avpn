@@ -500,16 +500,10 @@ namespace libavpn {
 		// 认证标签: 客户端要 12 就给 12, 其余情况用 16.
 		p.tag_len = negotiate_tag_len(wish.tag_len);
 
-		// 纠错: 数据片 2 片以上才开; T 必须是 2 的幂且能整除数 2^32.
-		const int ds = m_config.data_shards_;
-		const int ps = m_config.parity_shards_;
-		const int total = ds + ps;
-		if (ds >= 2 && ps >= 1 &&
-			(total == 2 || total == 4 || total == 8 || total == 16))
-		{
-			p.fec_total = static_cast<uint8_t>(total);
-			p.fec_data = static_cast<uint8_t>(ds);
-		}
+		// 纠错: 数据片 2 片以上才开; T 必须是 2 的幂且能整除数 2^32;
+		// TCP 自带重传, 不开.
+		negotiate_fec(m_transport != transport_type::udp,
+			m_config.data_shards_, m_config.parity_shards_, p);
 
 		p.keepalive_sec = static_cast<uint16_t>(
 			std::max(1, std::min(m_config.keepalive_, 65535)));

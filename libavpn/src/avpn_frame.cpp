@@ -320,7 +320,7 @@ namespace libavpn {
 			if (fec_data != 1)
 				return false;
 		}
-		else if (fec_data < 1 || fec_data >= fec_total)
+		else if (fec_data < 2 || fec_data >= fec_total)
 			return false;
 
 		if (keepalive_sec == 0)
