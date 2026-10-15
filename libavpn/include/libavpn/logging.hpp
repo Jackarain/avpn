@@ -210,6 +210,9 @@ namespace xlogger {
 #include <atomic>
 #include <deque>
 #include <csignal>
+#if !defined(_WIN32) && !defined(WIN32)
+# include <time.h>
+#endif // !(_WIN32 || WIN32)
 #include <condition_variable>
 #include <optional>
 #include <string_view>
@@ -1003,9 +1006,9 @@ private:
 			return;
 
 #ifdef WIN32
-		::_write(m_fd, str, static_cast<unsigned int>(size));
+		(void)::_write(m_fd, str, static_cast<unsigned int>(size));
 #else
-		::write(m_fd, str, static_cast<size_t>(size));
+		(void)::write(m_fd, str, static_cast<size_t>(size));
 #endif
 	}
 
@@ -1309,7 +1312,7 @@ inline void logger_writer__(int64_t time, const logger_level__& level,
 #if defined(_WIN32) || defined(WIN32)
 static LONG WINAPI unexpectedExceptionHandling(EXCEPTION_POINTERS* info);
 #endif
-void signal_handler(int);
+void fatal_signal_handler(int);
 
 namespace logger_aux__ {
 	using namespace std::chrono_literals;
@@ -1338,11 +1341,15 @@ namespace logger_aux__ {
 			m_unexpected_exception_handler =
 				SetUnhandledExceptionFilter(unexpectedExceptionHandling);
 #endif
-			signal(SIGTERM, signal_handler);
-			signal(SIGABRT, signal_handler);
-			signal(SIGFPE, signal_handler);
-			signal(SIGSEGV, signal_handler);
-			signal(SIGILL, signal_handler);
+			// 不在此注册 SIGTERM: 交由应用(asio signal_set)统一处理优雅
+			// 退出并落盘日志; 若在此用 signal() 注册会与 signal_set 相互
+			// 覆盖, 且注册一个会返回的处理函数将使进程无法被 SIGTERM 终止.
+			//
+			// SIGABRT/SIGFPE/SIGSEGV/SIGILL 属于致命信号, 处理函数绝不能返回.
+			signal(SIGABRT, fatal_signal_handler);
+			signal(SIGFPE, fatal_signal_handler);
+			signal(SIGSEGV, fatal_signal_handler);
+			signal(SIGILL, fatal_signal_handler);
 		}
 		~async_logger___()
 		{
@@ -1449,9 +1456,30 @@ static LONG WINAPI unexpectedExceptionHandling(EXCEPTION_POINTERS* e)
 }
 #endif
 
-inline void signal_handler(int)
+// 致命信号处理: 尽量刷新日志后恢复默认处理并重新触发该信号, 使进程立即终止.
+//
+// SIGSEGV/SIGILL/SIGFPE 由故障指令同步触发, 若处理函数返回, 处理器会重新执行
+// 引发信号的那条指令, 从而再次触发同一信号并陷入无限循环(表现为进程持续 100%
+// CPU 且无法恢复); SIGABRT 同理. 因此这里绝不从处理函数中返回.
+//
+// 处理函数运行在信号上下文, 只能调用 async-signal-safe 的函数. 因此这里不再
+// 销毁 logger(其析构会 join 日志后台线程并加锁, 若信号恰好打断了日志线程自身
+// 会造成自我 join 死锁), 仅原子地置位终止标志提示后台线程尽快落盘, 并给出一个
+// 有限的等待窗口; 无论落盘是否完成, 随后都恢复默认处理并重新触发信号终止进程.
+inline void fatal_signal_handler(int sig)
 {
-	global_logger_obj___.reset();
+	if (global_logger_obj___)
+		global_logger_obj___->stop();
+
+#if defined(_WIN32) || defined(WIN32)
+	::Sleep(100);
+#else
+	timespec delay{ 0, 100 * 1000 * 1000 };
+	nanosleep(&delay, nullptr);
+#endif
+
+	signal(sig, SIG_DFL);
+	raise(sig);
 }
 
 inline void init_logging(const std::string& path = "")
