@@ -19,7 +19,6 @@
 #   include <sys/mman.h>
 #   undef MADV_FREE
 #  endif
-#  define SNMALLOC_STATIC_LIBRARY_PREFIX sn_
 #  include "src/snmalloc/override/malloc.cc"
 #  include "src/snmalloc/override/new.cc"
 # endif
