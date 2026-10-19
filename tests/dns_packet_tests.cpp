@@ -229,3 +229,121 @@ BOOST_AUTO_TEST_CASE(build_reply_ipv6)
 	BOOST_CHECK_EQUAL(
 		dns_packet::internet_checksum(out.data() + 40, udp_len, sum), 0);
 }
+
+BOOST_AUTO_TEST_CASE(internet_checksum_known_vectors)
+{
+	// RFC 1071 示例: 00 01 f2 03 f4 f5 f6 f7 -> 0x220d.
+	const uint8_t even[] = { 0x00, 0x01, 0xf2, 0x03, 0xf4, 0xf5, 0xf6, 0xf7 };
+	BOOST_CHECK_EQUAL(dns_packet::internet_checksum(even, sizeof(even)),
+		0x220d);
+
+	// 奇数长度尾部补 0.
+	const uint8_t odd[] = { 0x00, 0x01, 0xf2 };
+	BOOST_CHECK_EQUAL(dns_packet::internet_checksum(odd, sizeof(odd)), 0x0dfe);
+
+	// 空数据: 全 1.
+	const uint8_t dummy[] = { 0x00 };
+	BOOST_CHECK_EQUAL(dns_packet::internet_checksum(dummy, 0), 0xffff);
+}
+
+BOOST_AUTO_TEST_CASE(parse_qname_handles_compression_and_malformed)
+{
+	std::string qname;
+
+	// 12 字节头 + "3www" + 压缩指针: 遇到指针即认为域名结束.
+	std::vector<uint8_t> compressed(18, 0);
+	compressed[12] = 3;
+	compressed[13] = 'w';
+	compressed[14] = 'w';
+	compressed[15] = 'w';
+	compressed[16] = 0xc0;
+	compressed[17] = 0x0c;
+	BOOST_REQUIRE(dns_packet::parse_qname(compressed.data(),
+		compressed.size(), qname));
+	BOOST_CHECK_EQUAL(qname, "www");
+
+	// 标签长度越过报文末尾.
+	std::vector<uint8_t> truncated(14, 0);
+	truncated[12] = 5;
+	truncated[13] = 'a';
+	BOOST_CHECK(!dns_packet::parse_qname(truncated.data(),
+		truncated.size(), qname));
+
+	// 保留的标签类型 (高两位 01).
+	std::vector<uint8_t> reserved(14, 0);
+	reserved[12] = 0x40;
+	BOOST_CHECK(!dns_packet::parse_qname(reserved.data(),
+		reserved.size(), qname));
+
+	// 不足以容纳头部与问题区.
+	BOOST_CHECK(!dns_packet::parse_qname(compressed.data(), 10, qname));
+
+	// 根域名 (直接以 0 结束) 视为无效查询.
+	std::vector<uint8_t> root(16, 0);
+	BOOST_CHECK(!dns_packet::parse_qname(root.data(), root.size(), qname));
+}
+
+BOOST_AUTO_TEST_CASE(locate_udp53_rejects_more_malformed)
+{
+	const uint8_t* dns = nullptr;
+	std::size_t dns_len = 0;
+
+	// IPv4 MF 标志 (后续还有分片) 不处理.
+	auto pkt = make_dns_query_packet();
+	pkt[6] = 0x20;
+	BOOST_CHECK(!dns_packet::locate_udp53(pkt, dns, dns_len));
+
+	// 非 4/6 版本.
+	pkt = make_dns_query_packet();
+	pkt[0] = 0x55;
+	BOOST_CHECK(!dns_packet::locate_udp53(pkt, dns, dns_len));
+
+	// 长度不足以容纳 UDP 头与最小 DNS 消息.
+	std::vector<uint8_t> tiny(28, 0);
+	tiny[0] = 0x45;
+	tiny[9] = 17;
+	BOOST_CHECK(!dns_packet::locate_udp53(tiny, dns, dns_len));
+
+	// IPv6 带扩展头 (next header 非 UDP).
+	std::vector<uint8_t> v6(40 + 8 + 12, 0);
+	v6[0] = 0x60;
+	v6[6] = 6;
+	v6[40 + 2] = 0x00;
+	v6[40 + 3] = 0x35;
+	BOOST_CHECK(!dns_packet::locate_udp53(v6, dns, dns_len));
+
+	// IPv6 最小 DNS 长度不足.
+	std::vector<uint8_t> v6_short(40 + 8 + 11, 0);
+	v6_short[0] = 0x60;
+	v6_short[6] = 17;
+	v6_short[40 + 2] = 0x00;
+	v6_short[40 + 3] = 0x35;
+	BOOST_CHECK(!dns_packet::locate_udp53(v6_short, dns, dns_len));
+}
+
+BOOST_AUTO_TEST_CASE(build_reply_rejects_malformed_request)
+{
+	auto reply = make_dns_reply();
+	std::vector<uint8_t> out;
+
+	// 太短.
+	std::vector<uint8_t> tiny(10, 0);
+	BOOST_CHECK(!dns_packet::build_reply(tiny, reply.data(), reply.size(), out));
+
+	// 未知 IP 版本.
+	auto bad_version = make_dns_query_packet();
+	bad_version[0] = 0x55;
+	BOOST_CHECK(!dns_packet::build_reply(bad_version, reply.data(),
+		reply.size(), out));
+
+	// IPv4 IHL 小于最小头长.
+	auto bad_ihl = make_dns_query_packet();
+	bad_ihl[0] = 0x44;
+	BOOST_CHECK(!dns_packet::build_reply(bad_ihl, reply.data(),
+		reply.size(), out));
+
+	// 回复后总长超过 65535.
+	auto req = make_dns_query_packet();
+	std::vector<uint8_t> huge(65535, 0);
+	BOOST_CHECK(!dns_packet::build_reply(req, huge.data(), huge.size(), out));
+}
