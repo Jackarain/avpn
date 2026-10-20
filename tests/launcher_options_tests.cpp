@@ -1,7 +1,7 @@
 ﻿#define BOOST_TEST_MODULE avpn_launcher_options_tests
 #include <boost/test/unit_test.hpp>
 
-#include "../apps/launcher/options.hpp"
+#include "apps/launcher/options.hpp"
 
 #include <fstream>
 #include <regex>

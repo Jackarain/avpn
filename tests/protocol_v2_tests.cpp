@@ -2,12 +2,12 @@
 #include <boost/test/unit_test.hpp>
 
 // 直接包含实现, 便于在一个翻译单元里测试内部细节.
-#include "../libavpn/src/avpn_frame.cpp"
-#include "../libavpn/src/avpn_keys.cpp"
-#include "../libavpn/src/avpn_crypto.cpp"
-#include "../libavpn/src/avpn_rs.cpp"
-#include "../libavpn/src/avpn_fec_v2.cpp"
-#include "../libavpn/src/avpn_obfuscate.cpp"
+#include "libavpn/src/avpn_frame.cpp"
+#include "libavpn/src/avpn_keys.cpp"
+#include "libavpn/src/avpn_crypto.cpp"
+#include "libavpn/src/avpn_rs.cpp"
+#include "libavpn/src/avpn_fec_v2.cpp"
+#include "libavpn/src/avpn_obfuscate.cpp"
 #include "libavpn/avpn_replay.hpp"
 #include "libavpn/avpn_roam_cookie.hpp"
 

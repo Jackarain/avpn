@@ -3,8 +3,8 @@
 #include <boost/test/unit_test.hpp>
 
 // 直接包含实现, 便于在一个翻译单元里测试.
-#include "../libavpn/src/avpn_protocol.cpp"
-#include "../libavpn/src/io_context_pool.cpp"
+#include "libavpn/src/avpn_protocol.cpp"
+#include "libavpn/src/io_context_pool.cpp"
 #include "libavpn/avpn_replay.hpp"
 
 #include <boost/asio/post.hpp>
