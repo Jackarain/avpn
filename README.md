@@ -114,6 +114,24 @@ ninja
 
 当前仓库暂未提供 Dockerfile；如需要容器化构建，可自行编写 Dockerfile，仓库已包含 `.dockerignore`（忽略 build/ 目录）。
 
+## 更新 third_party
+
+三方库源码已随仓库提交，日常构建不需要联网。需要同步上游版本时，使用
+`scripts/vendor.sh` 显式指定要更新的库：
+
+```sh
+scripts/vendor.sh --help
+scripts/vendor.sh boost          # 更新 Boost 并按依赖闭包裁剪
+scripts/vendor.sh openssl        # 重新生成精简的 OpenSSL 工程
+scripts/vendor.sh boost zlib     # 一次更新多个库
+scripts/vendor.sh all            # 更新全部三方库
+```
+
+脚本会保留 `fmt`、`httpc`、`lz4` 的仓库内定制 CMakeLists.txt，自动套用
+`scripts/patch/<库名>/` 下的补丁，并输出本次拉取到的提交。更新后应检查
+`git diff` 并重新配置、编译和运行测试；补丁维护说明见
+[scripts/patch/README.md](scripts/patch/README.md)。
+
 ## 运行
 
 网关 (Windows):
