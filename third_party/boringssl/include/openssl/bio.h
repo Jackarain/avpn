@@ -15,7 +15,7 @@
 #ifndef OPENSSL_HEADER_BIO_H
 #define OPENSSL_HEADER_BIO_H
 
-#include <openssl/base.h>   // IWYU pragma: export
+#include <openssl/base.h>  // IWYU pragma: export
 
 #include <stdio.h>  // For FILE
 
@@ -65,11 +65,17 @@ OPENSSL_EXPORT void BIO_vfree(BIO *bio);
 // BIO_up_ref increments the reference count of `bio` and returns one.
 OPENSSL_EXPORT int BIO_up_ref(BIO *bio);
 
+// BIO_dup_ref increments the reference count of `bio` and returns the same
+// handle.
+OPENSSL_EXPORT BIO *BIO_dup_ref(const BIO *bio);
+
 
 // Basic I/O.
 
 // BIO_read attempts to read `len` bytes into `data`. It returns the number of
-// bytes read, zero on EOF, or a negative number on error.
+// bytes read, zero on EOF, or a negative number on error. Callers that support
+// non-blocking I/O should call `BIO_should_read` on error to check if the error
+// is fatal or retryable.
 OPENSSL_EXPORT int BIO_read(BIO *bio, void *data, int len);
 
 // BIO_gets reads a line from `bio` and writes at most `size` bytes into `buf`.
@@ -84,12 +90,16 @@ OPENSSL_EXPORT int BIO_gets(BIO *bio, char *buf, int size);
 
 // BIO_write_ex writes `len` bytes from `data` to `bio`. On success, it returns
 // one and sets `*out_written` to the number of bytes written. Otherwise, it
-// returns zero. `out_written` may be NULL to ignore the value.
+// returns zero. `out_written` may be NULL to ignore the value. Callers that
+// support non-blocking I/O should call `BIO_should_write` on error to check if
+// the error is fatal or retryable.
 OPENSSL_EXPORT int BIO_write_ex(BIO *bio, const void *data, size_t len,
                                 size_t *out_written);
 
 // BIO_write writes `len` bytes from `data` to `bio`. It returns the number of
-// bytes written or a negative number on error.
+// bytes written or a negative number on error. Callers that support
+// non-blocking I/O should call `BIO_should_write` on error to check if the
+// error is fatal or retryable.
 OPENSSL_EXPORT int BIO_write(BIO *bio, const void *data, int len);
 
 // BIO_write_all writes `len` bytes from `data` to `bio`, looping as necessary.
@@ -100,8 +110,9 @@ OPENSSL_EXPORT int BIO_write_all(BIO *bio, const void *data, size_t len);
 // number of bytes written or a negative number on error.
 OPENSSL_EXPORT int BIO_puts(BIO *bio, const char *buf);
 
-// BIO_flush flushes any buffered output. It returns one on success and zero
-// otherwise.
+// BIO_flush flushes any buffered output. It returns one on success and <= 0 on
+// error. Callers that support non-blocking I/O should call `BIO_should_write`
+// on error to check if the error is fatal or retryable.
 OPENSSL_EXPORT int BIO_flush(BIO *bio);
 
 
@@ -606,18 +617,20 @@ OPENSSL_EXPORT int BIO_do_connect(BIO *bio);
 
 #define BIO_CTRL_DGRAM_QUERY_MTU 40  // as kernel for current MTU
 
-#define BIO_CTRL_DGRAM_SET_MTU 42 /* set cached value for  MTU. want to use
-                                     this if asking the kernel fails */
+#define BIO_CTRL_DGRAM_SET_MTU                 \
+  42 /* set cached value for  MTU. want to use \
+        this if asking the kernel fails */
 
-#define BIO_CTRL_DGRAM_MTU_EXCEEDED 43 /* check whether the MTU was exceed in
-                                          the previous write operation. */
+#define BIO_CTRL_DGRAM_MTU_EXCEEDED         \
+  43 /* check whether the MTU was exceed in \
+        the previous write operation. */
 
 // BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT is unsupported as it is unused by consumers
 // and depends on `timeval`, which is not 2038-clean on all platforms.
 
-#define BIO_CTRL_DGRAM_GET_PEER           46
+#define BIO_CTRL_DGRAM_GET_PEER 46
 
-#define BIO_CTRL_DGRAM_GET_FALLBACK_MTU   47
+#define BIO_CTRL_DGRAM_GET_FALLBACK_MTU 47
 
 
 // BIO Pairs.
@@ -657,9 +670,17 @@ OPENSSL_EXPORT int BIO_shutdown_wr(BIO *bio);
 OPENSSL_EXPORT int BIO_get_new_index(void);
 
 // BIO_meth_new returns a newly-allocated `BIO_METHOD` or NULL on allocation
-// error. The `type` specifies the type that will be returned by
-// `BIO_method_type`. If this is unnecessary, this value may be zero. The `name`
-// parameter is vestigial and may be NULL.
+// error. `type` and `name` optionally identify the `BIO_METHOD`. Most callers
+// will not need to inspect the type of their own `BIO`s and can pass zero and
+// NULL, respectively, to skip this mechanism.
+//
+// `type` specifies the type that will be returned by `BIO_method_type` and
+// matched by `BIO_find_type`. If used, it should be a combination of an index,
+// allocated by `BIO_get_new_index`, and optionally the `BIO_TYPE_DESCRIPTOR`,
+// `BIO_TYPE_FILTER`, and `BIO_TYPE_SOURCE_SINK` flags. If `BIO_TYPE_DESCRIPTOR`
+// is set, the `BIO_METHOD` must implement `BIO_C_GET_FD`.
+//
+// `name` is unused. BoringSSL does not currently implement `BIO_method_name`.
 //
 // Use the `BIO_meth_set_*` functions below to initialize the `BIO_METHOD`. The
 // function implementations may use `BIO_set_data` and `BIO_get_data` to add
@@ -1016,7 +1037,7 @@ extern "C++" {
 BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(BIO, BIO_free)
-BORINGSSL_MAKE_UP_REF(BIO, BIO_up_ref)
+BORINGSSL_MAKE_UP_REF(BIO, BIO_dup_ref)
 BORINGSSL_MAKE_DELETER(BIO_METHOD, BIO_meth_free)
 
 BSSL_NAMESPACE_END

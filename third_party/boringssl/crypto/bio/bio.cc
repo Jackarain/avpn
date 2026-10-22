@@ -74,6 +74,13 @@ int BIO_up_ref(BIO *bio) {
   return 1;
 }
 
+BIO *BIO_dup_ref(const BIO *bio) {
+  if (bio == nullptr) {
+    return nullptr;
+  }
+  return FromOpaque(bio)->DupRefInternal();
+}
+
 void BIO_vfree(BIO *bio) { BIO_free(bio); }
 
 void BIO_free_all(BIO *bio) { BIO_free(bio); }
@@ -291,9 +298,7 @@ void BIO_clear_retry_flags(BIO *bio) {
   impl->retry_reason = 0;
 }
 
-int BIO_method_type(const BIO *bio) {
-  return FromOpaque(bio)->method->type;
-}
+int BIO_method_type(const BIO *bio) { return FromOpaque(bio)->method->type; }
 
 void BIO_copy_next_retry(BIO *bio) {
   auto *impl = FromOpaque(bio);
@@ -627,7 +632,6 @@ BIO_METHOD *BIO_meth_new(int type, const char *name) {
     return nullptr;
   }
   method->type = type;
-  method->name = name;
   return method;
 }
 

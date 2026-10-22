@@ -60,10 +60,10 @@ int EVP_PKEY_up_ref(EVP_PKEY *pkey) {
 }
 
 EVP_PKEY *EVP_PKEY_dup_ref(const EVP_PKEY *pkey) {
-  auto pkey_ref = const_cast<EVP_PKEY *>(pkey);
-  // We know that this call always returns one.
-  EVP_PKEY_up_ref(pkey_ref);
-  return pkey_ref;
+  if (pkey == nullptr) {
+    return nullptr;
+  }
+  return FromOpaque(pkey)->DupRefInternal();
 }
 
 int EVP_PKEY_is_opaque(const EVP_PKEY *pkey) {

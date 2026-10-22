@@ -348,7 +348,7 @@ bool tls12_add_verify_sigalgs(const SSL_HANDSHAKE *hs, CBB *out) {
 }
 
 bool tls12_check_peer_sigalg(const SSL_HANDSHAKE *hs, uint8_t *out_alert,
-                             uint16_t sigalg, EVP_PKEY *pkey) {
+                             uint16_t sigalg, const EVP_PKEY *pkey) {
   // The peer must have selected an algorithm that is consistent with its public
   // key, the TLS version, and what we advertised.
   Span<const uint16_t> sigalgs = tls12_get_verify_sigalgs(hs);
@@ -1029,7 +1029,7 @@ static bool ext_sigalgs_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
     return false;
   }
   // Add a fake signature algorithm. See RFC 8701.
-  if (hs->ssl->ctx->grease_sigalgs_enabled &&
+  if (hs->ssl->ctx->grease_enabled &&
       !CBB_add_u16(&sigalgs_cbb,
                    ssl_get_grease_value(hs, ssl_grease_signature_algorithm))) {
     return false;
@@ -1938,7 +1938,7 @@ bool ssl_setup_pre_shared_keys(SSL_HANDSHAKE *hs) {
     return true;
   }
 
-  if (SSL_SESSION *session = ssl->session.get();
+  if (SSLSession *session = ssl->session.get();
       session != nullptr &&
       ssl_session_get_type(session) == SSLSessionType::kPreSharedKey &&
       !hs->pre_shared_keys.Push(UpRef(session))) {
@@ -2018,7 +2018,7 @@ static bool ext_pre_shared_key_add_clienthello(const SSL_HANDSHAKE *hs,
         return false;
       }
     } else {
-      const SSL_SESSION *session = std::get<UniquePtr<SSL_SESSION>>(psk).get();
+      const SSLSession *session = std::get<UniquePtr<SSLSession>>(psk).get();
       // At most one PSK will be a session.
       assert(session == ssl->session.get());
       OPENSSL_timeval now = ssl_ctx_get_current_time(ssl->ctx.get());
@@ -2953,12 +2953,17 @@ static bool ext_server_padding_parse_serverhello(SSL_HANDSHAKE *hs,
 //
 // https://datatracker.ietf.org/doc/draft-ietf-tls-trust-anchor-ids/
 
+bool ssl_is_valid_trust_anchor_id(Span<const uint8_t> id) {
+  CBS cbs = id;
+  return id.size() <= 32 && CBS_is_valid_asn1_relative_oid(&cbs);
+}
+
 bool ssl_is_valid_trust_anchor_list(Span<const uint8_t> in) {
   CBS ids = in;
   while (CBS_len(&ids) > 0) {
     CBS id;
-    if (!CBS_get_u8_length_prefixed(&ids, &id) ||  //
-        CBS_len(&id) == 0) {
+    if (!CBS_get_u8_length_prefixed(&ids, &id) ||
+        !ssl_is_valid_trust_anchor_id(id)) {
       return false;
     }
   }
@@ -4964,7 +4969,7 @@ static enum ssl_ticket_aead_result_t ssl_decrypt_ticket_with_method(
 }
 
 enum ssl_ticket_aead_result_t ssl_process_ticket(
-    SSL_HANDSHAKE *hs, UniquePtr<SSL_SESSION> *out_session,
+    SSL_HANDSHAKE *hs, UniquePtr<SSLSession> *out_session,
     bool *out_renew_ticket, Span<const uint8_t> ticket,
     Span<const uint8_t> session_id, bool save_ticket) {
   SSLImpl *const ssl = hs->ssl;
@@ -5046,8 +5051,8 @@ enum ssl_ticket_aead_result_t ssl_process_ticket(
   }
 
   // Decode the session.
-  UniquePtr<SSL_SESSION> session(SSL_SESSION_from_bytes(
-      plaintext.data(), plaintext.size(), ssl->ctx.get()));
+  UniquePtr<SSLSession> session(FromOpaque(SSL_SESSION_from_bytes(
+      plaintext.data(), plaintext.size(), ssl->ctx.get())));
   if (!session) {
     ERR_clear_error();  // Don't leave an error on the queue.
     return ssl_ticket_aead_ignore_ticket;

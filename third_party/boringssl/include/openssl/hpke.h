@@ -55,6 +55,10 @@ OPENSSL_EXPORT const EVP_HPKE_KEM *EVP_hpke_xwing(void);
 OPENSSL_EXPORT const EVP_HPKE_KEM *EVP_hpke_mlkem768(void);
 OPENSSL_EXPORT const EVP_HPKE_KEM *EVP_hpke_mlkem1024(void);
 
+// EVP_kem_dhkem_* implement DHKEM variants defined in RFC 9180.
+OPENSSL_EXPORT const EVP_KEM *EVP_kem_dhkem_p256_hkdf_sha256(void);
+OPENSSL_EXPORT const EVP_KEM *EVP_kem_dhkem_x25519_hkdf_sha256(void);
+
 // EVP_HPKE_KEM_id returns the HPKE KEM identifier for `kem`, which
 // will be one of the `EVP_HPKE_KEM_*` constants.
 OPENSSL_EXPORT uint16_t EVP_HPKE_KEM_id(const EVP_HPKE_KEM *kem);
@@ -82,6 +86,10 @@ OPENSSL_EXPORT size_t EVP_HPKE_KEM_private_key_len(const EVP_HPKE_KEM *kem);
 // EVP_HPKE_KEM_enc_len returns the length of the "enc", the encapsulated shared
 // secret, for `kem`. This value will be at most `EVP_HPKE_MAX_ENC_LENGTH`.
 OPENSSL_EXPORT size_t EVP_HPKE_KEM_enc_len(const EVP_HPKE_KEM *kem);
+
+// EVP_HPKE_KEM_shared_secret_len returns the length of the shared secret
+// produced by `kem`.
+OPENSSL_EXPORT size_t EVP_HPKE_KEM_shared_secret_len(const EVP_HPKE_KEM *kem);
 
 // The following constants are KDF identifiers.
 #define EVP_HPKE_HKDF_SHA256 0x0001
@@ -233,7 +241,7 @@ OPENSSL_EXPORT void EVP_HPKE_CTX_free(EVP_HPKE_CTX *ctx);
 // sets `*out_enc_len` to the number of bytes written. It writes at most
 // `max_enc` bytes and fails if the buffer is too small. Setting `max_enc` to at
 // least `EVP_HPKE_MAX_ENC_LENGTH` will ensure the buffer is large enough. An
-// exact size may also be determined by `EVP_PKEY_KEM_enc_len`.
+// exact size may also be determined by `EVP_HPKE_KEM_enc_len`.
 //
 // This function returns one on success and zero on error. Note that
 // `peer_public_key` may be invalid, in which case this function will return an
@@ -270,6 +278,25 @@ OPENSSL_EXPORT int EVP_HPKE_CTX_setup_recipient(
     EVP_HPKE_CTX *ctx, const EVP_HPKE_KEY *key, const EVP_HPKE_KDF *kdf,
     const EVP_HPKE_AEAD *aead, const uint8_t *enc, size_t enc_len,
     const uint8_t *info, size_t info_len);
+
+// EVP_HPKE_CTX_setup_recipient_with_shared_secret behaves like
+// `EVP_HPKE_CTX_setup_recipient`, but takes the shared secret explicitly.
+//
+// WARNING: `shared_secret` must be the result of decapsulating the sender's
+// `enc` value with the recipient's private key. Using the wrong shared secret
+// will result in an `EVP_HPKE_CTX` that cannot decrypt the sender's messages.
+// Additionally, an attacker with knowledge of `shared_secret` will be able to
+// decrypt and forge encrypted messages.
+//
+// It returns one on success and zero on error.
+//
+// On success, callers may call `EVP_HPKE_CTX_open` to decrypt messages from the
+// sender. Callers must then call `EVP_HPKE_CTX_cleanup` when done. On failure,
+// calling `EVP_HPKE_CTX_cleanup` is safe, but not required.
+OPENSSL_EXPORT int EVP_HPKE_CTX_setup_recipient_with_shared_secret(
+    EVP_HPKE_CTX *ctx, const EVP_HPKE_KEM *kem, const EVP_HPKE_KDF *kdf,
+    const EVP_HPKE_AEAD *aead, const uint8_t *shared_secret,
+    size_t shared_secret_len, const uint8_t *info, size_t info_len);
 
 // EVP_HPKE_CTX_setup_auth_sender implements the SetupAuthS HPKE operation. It
 // behaves like `EVP_HPKE_CTX_setup_sender` but authenticates the resulting
@@ -395,6 +422,13 @@ struct evp_hpke_key_st {
   const EVP_HPKE_KEM *kem;
   uint8_t private_key[EVP_HPKE_MAX_PRIVATE_KEY_LENGTH];
   uint8_t public_key[EVP_HPKE_MAX_PUBLIC_KEY_LENGTH];
+
+  // `pkey`, if non-null, takes precedence over `private_key` and `public_key`,
+  // which are left unused. Otherwise `private_key` and `public_key` are used
+  // instead.
+  // TODO(crbug.com/535883377): Unify EVP_HPKE_KEM and EVP_KEM for all supported
+  // HPKE KEMs.
+  EVP_PKEY *pkey;
 };
 
 
@@ -407,12 +441,13 @@ extern "C++" {
 
 BSSL_NAMESPACE_BEGIN
 
-using ScopedEVP_HPKE_CTX =
-    internal::StackAllocated<EVP_HPKE_CTX, void, EVP_HPKE_CTX_zero,
-                             EVP_HPKE_CTX_cleanup>;
-using ScopedEVP_HPKE_KEY =
-    internal::StackAllocatedMovable<EVP_HPKE_KEY, void, EVP_HPKE_KEY_zero,
-                                    EVP_HPKE_KEY_cleanup, EVP_HPKE_KEY_move>;
+BORINGSSL_MAKE_STACK_TRAITS(EVP_HPKE_CTX, EVP_HPKE_CTX_zero,
+                            EVP_HPKE_CTX_cleanup)
+using ScopedEVP_HPKE_CTX = internal::StackAllocated<EVP_HPKE_CTX>;
+
+BORINGSSL_MAKE_STACK_TRAITS_MOVABLE(EVP_HPKE_KEY, EVP_HPKE_KEY_zero,
+                                    EVP_HPKE_KEY_cleanup, EVP_HPKE_KEY_move)
+using ScopedEVP_HPKE_KEY = internal::StackAllocatedMovable<EVP_HPKE_KEY>;
 
 BORINGSSL_MAKE_DELETER(EVP_HPKE_CTX, EVP_HPKE_CTX_free)
 BORINGSSL_MAKE_DELETER(EVP_HPKE_KEY, EVP_HPKE_KEY_free)

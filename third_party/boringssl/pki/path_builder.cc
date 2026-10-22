@@ -741,9 +741,6 @@ bool CertPathIter::GetNextPath(ParsedCertificateList *out_certs,
   }
 }
 
-CertPathBuilderResultPath::CertPathBuilderResultPath() = default;
-CertPathBuilderResultPath::~CertPathBuilderResultPath() = default;
-
 bool CertPathBuilderResultPath::IsValid() const {
   return GetTrustedCert() && !errors.ContainsHighSeverityErrors();
 }
@@ -820,7 +817,10 @@ VerifyError CertPathBuilderResultPath::GetVerifyError() const {
     return VerifyError(VerifyError::StatusCode::PATH_NOT_FOUND, depth,
                        std::move(diagnostic));
   }
-  if (single_error.value() == cert_errors::kVerifySignedDataFailed) {
+  if (single_error.value() == cert_errors::kVerifySignedDataFailed ||
+      single_error.value() == cert_errors::kMtcLandmarkNotRecognized ||
+      single_error.value() ==
+          cert_errors::kMtcUnacceptableCosignatureVerificationResult) {
     return VerifyError(VerifyError::StatusCode::CERTIFICATE_INVALID_SIGNATURE,
                        depth, std::move(diagnostic));
   }
@@ -862,13 +862,6 @@ VerifyError CertPathBuilderResultPath::GetVerifyError() const {
                                  : VerifyError::StatusCode::CERTIFICATE_INVALID,
                      depth, std::move(diagnostic));
 }
-
-
-CertPathBuilder::Result::Result() = default;
-CertPathBuilder::Result::Result(Result &&) = default;
-CertPathBuilder::Result::~Result() = default;
-CertPathBuilder::Result &CertPathBuilder::Result::operator=(Result &&) =
-    default;
 
 bool CertPathBuilder::Result::HasValidPath() const {
   return GetBestValidPath() != nullptr;
