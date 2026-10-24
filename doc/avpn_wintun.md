@@ -218,7 +218,8 @@ if (!m_wintun_handle)
     m_wintun_handle = m_api->open_adapter(wifname->c_str());
 ```
 
-优先 `WintunCreateAdapter` 创建（固定 GUID，保证 NLA 确定性），失败则
+优先 `WintunCreateAdapter` 创建（默认名 `AVPN` 保留历史固定 GUID；
+其它设备名按名称派生稳定 GUID，避免多实例共用 GUID 冲突），失败则
 `WintunOpenAdapter` 打开已存在的同名适配器，最多重试 5 次。
 
 ### 3.5 设备路径枚举与打开

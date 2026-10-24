@@ -57,6 +57,50 @@ namespace libavpn {
 			return wide;
 		}
 
+		// 按设备名派生稳定的适配器 GUID. Windows 不允许两个适配器使用同一个
+		// GUID, 因此可配置设备名之后不能继续共用固定 GUID. 默认名 AVPN 保留
+		// 历史 GUID, 避免升级后 NLA 记录发生变化.
+		GUID adapter_guid_for(const std::wstring& name)
+		{
+			static const GUID default_guid = {
+				0xdeadbab1, 0xcafe, 0xbeef,
+				{ 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff }
+			};
+			if (name == L"AVPN")
+				return default_guid;
+
+			auto fnv1a = [](const std::wstring& value, uint64_t seed)
+			{
+				uint64_t hash = seed;
+				const auto* bytes = reinterpret_cast<const unsigned char*>(
+					value.data());
+				for (std::size_t i = 0;
+					i < value.size() * sizeof(wchar_t); ++i)
+				{
+					hash ^= bytes[i];
+					hash *= 1099511628211ull;
+				}
+				return hash;
+			};
+
+			const uint64_t high = fnv1a(name, 14695981039346656037ull);
+			const uint64_t low = fnv1a(name,
+				0x9e3779b97f4a7c15ull ^ 1099511628211ull);
+
+			GUID guid{};
+			guid.Data1 = static_cast<unsigned long>((high >> 32) & 0xffffffffu);
+			guid.Data2 = static_cast<unsigned short>((high >> 16) & 0xffffu);
+			guid.Data3 = static_cast<unsigned short>(high & 0xffffu);
+			for (std::size_t i = 0; i < 8; ++i)
+				guid.Data4[i] = static_cast<unsigned char>(
+					(low >> (i * 8)) & 0xffu);
+			guid.Data3 = static_cast<unsigned short>(
+				(guid.Data3 & 0x0fffu) | 0x5000u);
+			guid.Data4[0] = static_cast<unsigned char>(
+				(guid.Data4[0] & 0x3fu) | 0x80u);
+			return guid;
+		}
+
 		struct windows_driver
 		{
 			std::string component_id_;	// 小写.
@@ -442,10 +486,7 @@ namespace libavpn {
 			return false;
 		}
 
-		static const GUID adapter_guid = {
-			0xdeadbab1, 0xcafe, 0xbeef,
-			{ 0x01, 0x23, 0x45, 0x67, 0x00, 0x00, 0x00, 0xff }
-		};
+		const GUID adapter_guid = adapter_guid_for(*wifname);
 
 		// 提前标记可关闭, 使 open() 中途失败时 close() 能正确清理已创建资源.
 		m_abort = false;
