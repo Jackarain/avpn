@@ -61,7 +61,7 @@ namespace libavpn {
 		{
 			std::string component_id_;	// 小写.
 			std::string guid_;
-			std::string name_;
+			std::wstring name_;
 		};
 
 		// 枚举已安装网卡驱动 (registry), 参考 avpn utils::enum_windows_devices.
@@ -143,9 +143,9 @@ namespace libavpn {
 						KEY_READ, &conn_key) != ERROR_SUCCESS)
 					continue;
 
-				char name[256] = { 0 };
-				len = 256;
-				if (RegQueryValueExA(conn_key, "Name", nullptr, nullptr,
+				wchar_t name[256] = { 0 };
+				len = sizeof(name);
+				if (RegQueryValueExW(conn_key, L"Name", nullptr, nullptr,
 						reinterpret_cast<LPBYTE>(name), &len) != ERROR_SUCCESS)
 				{
 					RegCloseKey(conn_key);
@@ -325,12 +325,15 @@ namespace libavpn {
 		{
 			auto devs = enum_windows_devices();
 			auto ifs = enum_device_interfaces();
+			auto wname = utf8_to_wide(name);
+			if (!wname)
+				return INVALID_HANDLE_VALUE;
 
 			windows_driver wintun;
 			for (auto& dev : devs)
 			{
 				if (dev.component_id_.find("wintun") != std::string::npos &&
-					dev.name_ == name)
+					dev.name_ == *wname)
 				{
 					wintun = dev;
 					break;
