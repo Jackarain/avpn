@@ -104,10 +104,10 @@ namespace libavpn {
 		return def;
 	}
 
-	// 是否需要打开 tun 设备; 启用 wintun 时 ifdev_ 为空使用默认设备名.
+	// 是否需要打开 tun 设备; Windows 下 ifdev_ 为空时使用默认 wintun 设备名.
 	bool need_tun_device(const service_config& config)
 	{
-#if defined(_WIN32) && defined(ENABLE_USE_WINTUN)
+#if defined(_WIN32)
 		(void)config;
 		return true;
 #else

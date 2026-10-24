@@ -75,10 +75,6 @@ if (WIN32)
 		${CMAKE_SOURCE_DIR}/third_party/wintun/include)
 endif()
 
-if (ENABLE_USE_WINTUN)
-	target_compile_definitions(libavpn PUBLIC -DENABLE_USE_WINTUN)
-endif()
-
 target_compile_definitions(libavpn
 	PUBLIC
 	-DXXH_INLINE_ALL
