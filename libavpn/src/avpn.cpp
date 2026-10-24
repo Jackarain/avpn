@@ -1419,7 +1419,11 @@ namespace libavpn {
 			{
 				m_tundev = std::make_unique<tun_device>(m_main_context);
 				if (!m_tundev->open(m_config))
+				{
 					XLOG_ERR << "open tun device failed";
+					m_tundev.reset();
+					return false;
+				}
 			}
 
 			// 配置 gateway 自身地址 (网络地址 + 1).
@@ -2413,7 +2417,11 @@ namespace libavpn {
 			{
 				m_tundev = std::make_unique<tun_device>(m_main_context);
 				if (!m_tundev->open(m_config))
+				{
 					XLOG_ERR << "open tun device failed";
+					m_tundev.reset();
+					return false;
+				}
 			}
 			start_tun_io_task();
 		}
