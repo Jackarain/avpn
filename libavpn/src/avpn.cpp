@@ -68,6 +68,19 @@ namespace libavpn {
 		return std::string(it->value().as_string());
 	}
 
+	// 兼容旧配置: public_key 曾仅用于客户端填写服务器公钥, 现在统一并入 pkl.
+	void append_legacy_peer_key(const boost::json::object& cfg,
+		std::vector<std::string>& pkl)
+	{
+		auto it = cfg.find("public_key");
+		if (it == cfg.end() || !it->value().is_string())
+			return;
+		const std::string key(it->value().as_string());
+		if (key.empty() || std::find(pkl.begin(), pkl.end(), key) != pkl.end())
+			return;
+		pkl.insert(pkl.begin(), key);
+	}
+
 	// 取配置中的整数.
 	int config_int(const boost::json::object& cfg, const char* key, int def)
 	{
@@ -151,8 +164,8 @@ namespace libavpn {
 		cfg.tcp_listens_ = config_list(obj, "tcp_listen");
 		cfg.udp_listens_ = config_list(obj, "udp_listen");
 		cfg.private_key_ = config_string(obj, "private_key");
-		cfg.public_key_ = config_string(obj, "public_key");
 		cfg.pkl_ = config_list(obj, "pkl");
+		append_legacy_peer_key(obj, cfg.pkl_);
 		cfg.mtu_size_ = config_int(obj, "mtu_size", 1450);
 		cfg.udp_pacing_mbps_ = config_int(obj, "udp_pacing_mbps", 0);
 		cfg.keepalive_ = config_int(obj, "keepalive", 60);
@@ -295,8 +308,11 @@ namespace libavpn {
 		assign_list("tcp_listen", dst.tcp_listens_);
 		assign_list("udp_listen", dst.udp_listens_);
 		assign_str("private_key", dst.private_key_);
-		assign_str("public_key", dst.public_key_);
-		assign_list("pkl", dst.pkl_);
+		if (cfg.find("pkl") != cfg.end())
+			assign_list("pkl", dst.pkl_);
+		else if (cfg.find("public_key") != cfg.end())
+			dst.pkl_.clear();
+		append_legacy_peer_key(cfg, dst.pkl_);
 		assign_int("mtu_size", dst.mtu_size_);
 		assign_int("udp_pacing_mbps", dst.udp_pacing_mbps_);
 		assign_int("keepalive", dst.keepalive_);
@@ -2688,7 +2704,6 @@ namespace libavpn {
 		restart = restart || m_config.tcp_listens_ != old.tcp_listens_;
 		restart = restart || m_config.udp_listens_ != old.udp_listens_;
 		restart = restart || m_config.private_key_ != old.private_key_;
-		restart = restart || m_config.public_key_ != old.public_key_;
 		restart = restart || m_config.pkl_ != old.pkl_;
 		restart = restart || m_config.mtu_size_ != old.mtu_size_;
 		restart = restart || m_config.udp_pacing_mbps_ != old.udp_pacing_mbps_;

@@ -116,14 +116,14 @@ OBF_OPT=""
 
 # gateway: 监听 veth 地址, 分配虚拟子网; endpoint: 连接 gateway.
 ip netns exec "$NS_GW" "$AVPN" --ifdev tun0 \
-	--private_key "$K_GW" --public_key "$P_GW" --pkl "$P_EP" \
+	--private_key "$K_GW" --pkl "$P_EP" \
 	--subnet 10.10.0.0/16 --udp_listen "$VETH_GW:28888" \
 	--data_shards "$DS" --parity_shards "$PS" --mtu_size "$MTU" \
 	$COMP_OPT $OBF_OPT --disable_logs true >/dev/null 2>&1 &
 GW_PID=$!
 
 ip netns exec "$NS_EP" "$AVPN" --ifdev tun0 \
-	--private_key "$K_EP" --public_key "$P_GW" \
+	--private_key "$K_EP" --pkl "$P_GW" \
 	--nexthop "udp://$VETH_GW:28888" --mtu_size "$MTU" \
 	$COMP_OPT $OBF_OPT --disable_logs true >/dev/null 2>&1 &
 EP_PID=$!

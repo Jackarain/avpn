@@ -143,28 +143,20 @@ namespace libavpn {
 			m_static_pub = crypto::x25519_public_key(m_static_priv);
 		}
 
-		// 对端公钥.
-		if (role == session_role::initiator)
+		// 对端公钥统一来自 pkl: 客户端填写服务器公钥, 网关注册客户端白名单.
+		for (auto& pk : config.pkl_)
 		{
-			// 对端是网关, 公钥来自 public_key_.
-			if (!config.public_key_.empty())
-			{
-				auto pub = crypto::base64_decode(config.public_key_);
-				if (pub.size() == crypto::x25519_key_size)
-				{
-					m_peer_pubs.push_back(pub);
-					m_peer_static_pub = pub;
-				}
-			}
+			auto pub = crypto::base64_decode(pk);
+			if (pub.size() == crypto::x25519_key_size)
+				m_peer_pubs.push_back(std::move(pub));
 		}
-		else
+
+		if (role == session_role::initiator && !m_peer_pubs.empty())
 		{
-			// 对端是客户端, 公钥来自白名单.
-			for (auto& pk : config.pkl_)
+			m_peer_static_pub = m_peer_pubs.front();
+			if (m_peer_pubs.size() > 1)
 			{
-				auto pub = crypto::base64_decode(pk);
-				if (pub.size() == crypto::x25519_key_size)
-					m_peer_pubs.push_back(std::move(pub));
+				XLOG_WARN << "Initiator uses the first pkl entry as peer public key";
 			}
 		}
 
@@ -1168,7 +1160,7 @@ namespace libavpn {
 
 		if (m_peer_static_pub.empty())
 		{
-			XLOG_ERR << "Initiator requires peer public key (public_key_)";
+			XLOG_ERR << "Initiator requires peer public key (pkl)";
 			close();
 			co_return;
 		}
@@ -1225,7 +1217,7 @@ namespace libavpn {
 
 		if (m_peer_static_pub.empty())
 		{
-			XLOG_ERR << "Initiator requires peer public key (public_key_)";
+			XLOG_ERR << "Initiator requires peer public key (pkl)";
 			close();
 			co_return;
 		}

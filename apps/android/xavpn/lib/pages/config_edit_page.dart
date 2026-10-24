@@ -22,9 +22,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
   late final TextEditingController _privateKey = TextEditingController(
     text: c.privateKey,
   );
-  late final TextEditingController _publicKey = TextEditingController(
-    text: c.publicKey,
-  );
   late final TextEditingController _pkl = TextEditingController(
     text: c.pkl.join('\n'),
   );
@@ -92,7 +89,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
       _name,
       _nexthop,
       _privateKey,
-      _publicKey,
       _pkl,
       _mtu,
       _keepalive,
@@ -135,7 +131,6 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           ..mode = _mode
           ..nexthop = _nexthop.text.trim()
           ..privateKey = _privateKey.text.trim()
-          ..publicKey = _publicKey.text.trim()
           ..pkl = _lines(_pkl.text)
           ..mtuSize = _toInt(_mtu.text, 1450)
           ..keepalive = _toInt(_keepalive.text, 60)
@@ -229,12 +224,12 @@ class _ConfigEditPageState extends State<ConfigEditPage> {
           _section('密钥', [
             _textField(_privateKey, label: '本端私钥 private_key'),
             _textField(
-              _publicKey,
-              label: '对端公钥 public_key',
-              hint: '服务器/网关的公钥 (base64), 客户端必填',
+              _pkl,
+              label: '对端公钥 pkl (每行一个)',
+              hint: '客户端填服务器公钥；网关填允许的客户端公钥',
+              maxLines: 3,
             ),
-            _textField(_pkl, label: '对端公钥列表 pkl (每行一个)', maxLines: 3),
-          ], subtitle: '本端私钥与对端公钥'),
+          ], subtitle: '本端私钥与对端公钥；客户端只需填写服务器公钥'),
           _section('传输参数', [
             _pair(
               _numberField(_mtu, label: 'MTU'),

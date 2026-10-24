@@ -90,4 +90,22 @@ BOOST_AUTO_TEST_CASE(every_visible_option_exists_on_the_cli)
 	}
 }
 
+// 旧配置里的 public_key 迁移为 pkl, 不再作为独立参数下发.
+BOOST_AUTO_TEST_CASE(legacy_public_key_migrates_to_pkl)
+{
+	boost::json::object cfg;
+	cfg["public_key"] = "legacy-server-key";
+	cfg["pkl"] = boost::json::array{ "extra-key" };
+
+	BOOST_CHECK(launcher::validate_config(cfg).empty());
+	BOOST_CHECK(cfg.find("public_key") == cfg.end());
+	BOOST_REQUIRE(cfg.find("pkl") != cfg.end());
+	BOOST_CHECK_EQUAL(cfg["pkl"].as_array().size(), 2);
+	BOOST_CHECK_EQUAL(cfg["pkl"].as_array()[0].as_string(), "legacy-server-key");
+
+	const auto args = launcher::args_for(cfg);
+	BOOST_CHECK(std::find(args.begin(), args.end(), "--pkl") != args.end());
+	BOOST_CHECK(std::find(args.begin(), args.end(), "--public_key") == args.end());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

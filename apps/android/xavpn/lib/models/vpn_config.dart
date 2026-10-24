@@ -12,7 +12,6 @@ class VpnConfig {
     this.mode = 'client',
     this.nexthop = '',
     this.privateKey = '',
-    this.publicKey = '',
     List<String>? pkl,
     this.mtuSize = 1450,
     this.keepalive = 60,
@@ -60,7 +59,7 @@ class VpnConfig {
 
   // ---- 密钥 ----
   String privateKey;
-  String publicKey;
+  /// 对端公钥: 客户端填服务器公钥, 网关填允许的客户端公钥白名单.
   List<String> pkl;
 
   // ---- 传输参数 ----
@@ -185,8 +184,9 @@ class VpnConfig {
     if (mode == 'client' && nexthop.trim().isEmpty) {
       errors.add('客户端模式必须填写 nexthop');
     }
-    if (mode == 'client' && publicKey.trim().isEmpty) {
-      errors.add('客户端模式必须填写对端公钥 public_key');
+    if (mode == 'client' &&
+        !pkl.any((key) => key.trim().isNotEmpty)) {
+      errors.add('客户端模式必须填写对端公钥 pkl');
     }
     if (mtuSize < 576 || mtuSize > 65535) {
       errors.add('MTU 需在 576~65535 之间');
@@ -239,7 +239,6 @@ class VpnConfig {
       'ifdev': '',
       'nexthop': _effectiveNexthop(),
       if (privateKey.isNotEmpty) 'private_key': privateKey,
-      if (publicKey.isNotEmpty) 'public_key': publicKey,
       if (pkl.isNotEmpty) 'pkl': pkl,
       'mtu_size': mtuSize,
       'keepalive': keepalive,
@@ -283,7 +282,6 @@ class VpnConfig {
     'mode': mode,
     'nexthop': nexthop,
     'privateKey': privateKey,
-    'publicKey': publicKey,
     'pkl': pkl,
     'mtuSize': mtuSize,
     'keepalive': keepalive,
@@ -321,8 +319,7 @@ class VpnConfig {
     mode: json['mode'] as String? ?? 'client',
     nexthop: json['nexthop'] as String? ?? '',
     privateKey: json['privateKey'] as String? ?? '',
-    publicKey: json['publicKey'] as String? ?? '',
-    pkl: _strList(json['pkl']),
+    pkl: _peerKeys(json),
     mtuSize: json['mtuSize'] as int? ?? 1450,
     keepalive: json['keepalive'] as int? ?? 60,
     tagLen: json['tagLen'] as int? ?? 16,
@@ -361,5 +358,13 @@ class VpnConfig {
       return v.trim().split(RegExp(r'[\s,;]+'));
     }
     return [];
+  }
+
+  // 兼容旧配置: publicKey 曾仅用于客户端填写服务器公钥, 现统一并入 pkl.
+  static List<String> _peerKeys(Map<String, dynamic> json) {
+    final keys = _strList(json['pkl']).toList();
+    final legacy = (json['publicKey'] as String? ?? '').trim();
+    if (legacy.isNotEmpty && !keys.contains(legacy)) keys.insert(0, legacy);
+    return keys;
   }
 }

@@ -72,10 +72,8 @@ const option k_options[] = {
 	  "钩子：接口拆除后通过 shell 执行，支持 %i 替换为接口名。", "钩子" },
 	{ "private_key", option_kind::string, "本端私钥（base64）。", false, false, 0, "", {}, false, false, false,
 	  "本端静态私钥，base64 编码；可运行 avpn --genkey 生成。", "密钥" },
-	{ "public_key", option_kind::string, "本端公钥（base64）。", false, false, 0, "", {}, false, false, false,
-	  "本端静态公钥，base64 编码。", "密钥" },
-	{ "pkl", option_kind::string_list, "对端公钥白名单（base64，可重复添加）。", false, false, 0, "", {}, false, false, false,
-	  "对端静态公钥白名单（可添加多条），base64 编码。", "密钥" },
+	{ "pkl", option_kind::string_list, "对端公钥（base64，可重复添加）。", false, false, 0, "", {}, false, false, true,
+	  "客户端：填写服务器公钥；网关：填写允许接入的客户端公钥白名单。", "密钥" },
 	{ "obfuscate_key", option_kind::string, "数据特征混淆密钥串。", false, false, 0, "", {}, false, false, false,
 	  "非空时启用流量混淆：给数据帧外层填随机垃圾，打开后每包多 22~70 字节、内层 MTU 相应减小。两端必须配置相同密钥串，留空关闭。", "密钥" },
 	{ "tag_len", option_kind::integer, "数据帧认证标签长度。", true, false, 16, "", {}, false, false, false,
@@ -318,6 +316,28 @@ std::vector<std::string> args_for(const json::object& cfg)
 
 std::string validate_config(json::object& cfg)
 {
+	// 兼容旧配置: public_key 曾用于客户端填写服务器公钥, 现统一并入 pkl.
+	if (auto it = cfg.find("public_key"); it != cfg.end())
+	{
+		const auto legacy = to_string_value(it->value());
+		if (!legacy.empty())
+		{
+			json::array keys;
+			if (auto pkl = cfg.find("pkl"); pkl != cfg.end())
+				for (auto& key : to_string_list(pkl->value()))
+					keys.emplace_back(std::move(key));
+			const bool exists = std::any_of(keys.begin(), keys.end(),
+				[&legacy](const json::value& v) {
+					return v.is_string() && v.as_string() == legacy;
+				});
+			if (!exists)
+				keys.emplace(keys.begin(), legacy);
+			cfg["pkl"] = std::move(keys);
+		}
+		// 写入 pkl 可能使对象重新分配, 之前的迭代器已失效, 按 key 删除.
+		cfg.erase("public_key");
+	}
+
 	for (const auto& kv : cfg) {
 		const option* o = find_option(std::string(kv.key()));
 		if (o == nullptr)

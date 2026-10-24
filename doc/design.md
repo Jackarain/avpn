@@ -499,7 +499,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 `avpn_service::start()` 根据配置自动选择模式：
 
 - **客户端模式**：配置了 `nexthop_`（支持 `udp://` 或 `tcp://` 前缀）。
-  - 打开 tun，创建 initiator 会话（配置对端 `public_key_`）。
+  - 打开 tun，创建 initiator 会话（对端公钥来自 `pkl_`，客户端通常只配置服务器公钥）。
   - UDP：创建 socket + `run_initiator_udp(server_ep)` + `client_udp_receive_loop`。
   - TCP：`client_tcp_connect` 连接对端 + `run_initiator_tcp`。
   - `route_tun_packet`：从 tun 读到的 IP 包一律交给 `m_tunnel` 加密发送。
@@ -529,8 +529,8 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 | `launcher_` | 控制服务地址（如 `ws://ip:port`），用于动态下发配置 |
 | `nexthop_` | 目标 VPN 服务器（客户端模式），支持 `udp://` / `tcp://` |
 | `tcp_listens_` / `udp_listens_` | 监听地址（网关模式） |
-| `private_key_` / `public_key_` | 本端静态密钥对（base64） |
-| `pkl_` | 远端公钥白名单（base64 列表） |
+| `private_key_` | 本端静态私钥（base64；本端公钥可由私钥推导） |
+| `pkl_` | 对端公钥（base64 列表）：客户端填服务器公钥，网关填客户端白名单 |
 | `mtu_size_` | tun MTU |
 | `udp_pacing_mbps_` | 外层 UDP 发送限速（Mbit/s，0 表示不限速）；发送端出口 qdisc 为 `fq` 时经 `SO_MAX_PACING_RATE` 生效，用于在无拥塞控制的外层避免打满瓶颈链路 |
 | `keepalive_` | 保活间隔（秒） |

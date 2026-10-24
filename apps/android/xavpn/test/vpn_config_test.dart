@@ -42,6 +42,18 @@ void main() {
       expect(restored.passbyvpn, true);
     });
 
+    test('旧配置的 publicKey 迁移到 pkl', () {
+      final restored = VpnConfig.fromJson({
+        'id': 'old',
+        'name': '旧配置',
+        'mode': 'client',
+        'publicKey': 'legacy-server-key',
+        'pkl': ['extra-key'],
+      });
+      expect(restored.pkl, ['legacy-server-key', 'extra-key']);
+      expect(restored.toJson().containsKey('publicKey'), false);
+    });
+
     test('toAvpnJson 仅含 avpn 原生键, 网关模式 nexthop 为空', () {
       final c = VpnConfig(
         id: 'abc',
@@ -126,7 +138,7 @@ void main() {
       );
       final errors = bad.validate();
       expect(errors, contains('客户端模式必须填写 nexthop'));
-      expect(errors, contains('客户端模式必须填写对端公钥 public_key'));
+      expect(errors, contains('客户端模式必须填写对端公钥 pkl'));
       expect(errors, contains('MTU 需在 576~65535 之间'));
       expect(errors, contains('keepalive 必须大于 0'));
       expect(errors, contains('请填写虚拟子网 subnet (用于自动推导 TUN 地址)'));
@@ -136,7 +148,7 @@ void main() {
         name: '好配置',
         mode: 'client',
         nexthop: '1.2.3.4:19090',
-        publicKey: 'aGVsbG8=',
+        pkl: ['aGVsbG8='],
         subnet: '10.10.0.0/16',
       );
       expect(ok.validate(), isEmpty);
@@ -187,7 +199,7 @@ void main() {
         name: '测试',
         mode: 'client',
         nexthop: '1.2.3.4:19090',
-        publicKey: 'pk',
+        pkl: ['pk'],
         dnsIntercept: true,
         dohUrl: 'https://cloudflare-dns.com/dns-query',
         directDns: '223.5.5.5',
@@ -207,7 +219,7 @@ void main() {
         name: '测试',
         mode: 'client',
         nexthop: '1.2.3.4:19090',
-        publicKey: 'pk',
+        pkl: ['pk'],
       );
       final map = jsonDecode(c.toAvpnJson()) as Map<String, dynamic>;
       expect(map['dns_intercept'], false);
@@ -238,7 +250,7 @@ void main() {
         name: '测试',
         mode: 'client',
         nexthop: '1.2.3.4:19090',
-        publicKey: 'pk',
+        pkl: ['pk'],
         dnsIntercept: true,
         dohUrl: 'not-a-url',
         directDns: '',
@@ -298,7 +310,7 @@ void main() {
         name: '测试',
         mode: 'client',
         nexthop: '1.2.3.4:19090',
-        publicKey: 'pk',
+        pkl: ['pk'],
         tagLen: 15,
         earlyClose: 80000,
       );

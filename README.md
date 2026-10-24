@@ -217,8 +217,7 @@ launcher 会自动为每个实例生成控制通道 URL（`--launcher ws://.../r
 | `--udp_listen <ip:port>` | server 端 UDP 监听地址，可多次指定。 |
 | `--genkey` | 生成一个新的密钥对，将私钥和公钥输出到 stdout。 |
 | `--private_key <key>` | 本机私钥（base64 编码）。 |
-| `--public_key <key>` | 本机公钥（base64 编码）。 |
-| `--pkl <key>` | 远端公钥列表（base64 编码），可多次指定。 |
+| `--pkl <key>` | 对端公钥（base64 编码），可多次指定：客户端填服务器公钥，网关填允许接入的客户端公钥白名单。 |
 | `--mtu_size <mtu>` | Tun MTU 大小，默认为 1450。 |
 | `--udp_pacing_mbps <n>` | 外层 UDP 发送限速，单位 Mbit/s，0 表示不限速。发送端内核出口 qdisc 为 `fq` 时通过 `SO_MAX_PACING_RATE` 生效，用于在无拥塞控制的外层避免把瓶颈链路打满。 |
 | `--keepalive <seconds>` | 心跳间隔，单位秒，默认为 60。 |

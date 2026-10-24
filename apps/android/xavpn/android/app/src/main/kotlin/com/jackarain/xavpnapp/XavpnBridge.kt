@@ -29,7 +29,6 @@ object XavpnBridge {
         val cfg = JSONObject(config)
         // camelCase (Flutter) -> snake_case (libxavpn).
         rename(cfg, "privateKey", "private_key")
-        rename(cfg, "publicKey", "public_key")
         rename(cfg, "mtuSize", "mtu_size")
         rename(cfg, "dataShards", "data_shards")
         rename(cfg, "parityShards", "parity_shards")

@@ -41,8 +41,8 @@ flutter build apk --debug
 
 ## 配置字段
 
-- avpn 参数: `nexthop` (支持 `udp://`/`tcp://` 前缀), `private_key`, `public_key`
-  (客户端填对端/服务器公钥), `pkl` (网关侧客户端公钥白名单), `mtu_size`, `keepalive`,
+- avpn 参数: `nexthop` (支持 `udp://`/`tcp://` 前缀), `private_key`, `pkl`
+  (对端公钥: 客户端填服务器公钥, 网关填客户端公钥白名单), `mtu_size`, `keepalive`,
   `tag_len` (认证标签长度, 16 或 12; 客户端表达愿望, 网关定夺),
   `udp_pacing_mbps` (外层 UDP 发送限速, 0 不限速),
   `data_shards`, `parity_shards`, `early_close` (网关端纠错提前关组毫秒数, 0 关闭),

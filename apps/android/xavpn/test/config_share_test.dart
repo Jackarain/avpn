@@ -26,8 +26,7 @@ void main() {
       mode: 'client',
       nexthop: 'example.com:19090',
       privateKey: 'priv',
-      publicKey: 'pub',
-      pkl: ['a', 'b'],
+      pkl: ['pub', 'a', 'b'],
       mtuSize: 1400,
       keepalive: 30,
       compress: 'lz4',
@@ -62,7 +61,7 @@ void main() {
       mode: 'client',
       nexthop: 'node-42.vpn.example.org:19090',
       privateKey: 'kR8mQ2xVn0pZ7cT4wL9bY6dH1sA3fG5jU2oI8eN4rM=',
-      publicKey: 'Zq1wE5rT9yU3iO7pA2sD6fG0hJ4kL8xV1bN5mQ9zC3v=',
+      pkl: ['Zq1wE5rT9yU3iO7pA2sD6fG0hJ4kL8xV1bN5mQ9zC3v='],
       bypassCn: true,
       dnsIntercept: true,
     );

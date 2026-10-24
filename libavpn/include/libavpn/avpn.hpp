@@ -63,11 +63,11 @@ namespace libavpn {
 		// UDP 服务监听, 用于接受来自远程 vpn 服务器发来的 IP 数据包.
 		std::vector<std::string> udp_listens_;
 
-		// 本端的公私钥对.
+		// 本端私钥 (base64). 本端公钥可由私钥推导, 无需单独配置.
 		std::string private_key_;
-		std::string public_key_;
 
-		// public key list, 存储远端的公钥列表.
+		// 对端公钥列表 (base64). 客户端通常只配置服务器公钥;
+		// 网关配置允许接入的客户端公钥白名单.
 		std::vector<std::string> pkl_;
 
 		// Tun mtu 大小, 必须让 tun 网卡的 mtu 大小保证能通过物理网络的 mtu 大小.
