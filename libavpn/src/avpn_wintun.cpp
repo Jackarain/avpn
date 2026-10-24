@@ -409,12 +409,18 @@ namespace libavpn {
 
 	bool wintun_tun_device::open(const service_config& config)
 	{
-		(void)config;
-
 		// 释放上次打开可能残留的资源, 避免句柄/映射泄漏.
 		close();
 
-		m_devname = "wintun";
+		// 设备名优先使用配置中的 ifdev_, 未配置时使用默认 AVPN.
+		const std::string ifname = config.ifdev_.empty() ? "AVPN" : config.ifdev_;
+		m_devname = ifname;
+		auto wifname = xlogger::logger_aux__::utf8_utf16(ifname);
+		if (!wifname)
+		{
+			XLOG_ERR << "invalid wintun adapter name: " << ifname;
+			return false;
+		}
 
 		static const GUID adapter_guid = {
 			0xdeadbab1, 0xcafe, 0xbeef,
@@ -443,12 +449,12 @@ namespace libavpn {
 		for (int n = 0; n < 5; n++)
 		{
 			m_wintun_handle = m_api->create_adapter(
-				L"AVPN", L"AVPN", &adapter_guid);
+				wifname->c_str(), L"AVPN", &adapter_guid);
 			if (!m_wintun_handle)
 				XLOG_WARN << "WintunCreateAdapter fail: "
 					<< win_error(GetLastError());
 			if (!m_wintun_handle)
-				m_wintun_handle = m_api->open_adapter(L"AVPN");
+				m_wintun_handle = m_api->open_adapter(wifname->c_str());
 			if (m_wintun_handle)
 				break;
 		}
@@ -459,7 +465,7 @@ namespace libavpn {
 			return false;
 		}
 
-		m_wintun_file = wintun_detail::open_wintun("AVPN");
+		m_wintun_file = wintun_detail::open_wintun(ifname);
 		if (m_wintun_file == INVALID_HANDLE_VALUE)
 		{
 			XLOG_ERR << "open wintun device failed: "
