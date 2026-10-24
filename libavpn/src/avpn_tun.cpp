@@ -243,9 +243,9 @@ namespace libavpn {
 				::fcntl(config.ptun_fd_, F_SETFL, flags | O_NONBLOCK);
 
 			if (!assign_fd(config.ptun_fd_, ec))
-			if (ec)
 			{
-				XLOG_ERR << "assign ptun_fd failed: " << ec.message();
+				XLOG_ERR << "assign ptun_fd failed: "
+					<< (ec ? ec.message() : "non-blocking setup failed");
 				return false;
 			}
 			m_devname = "ptun";
@@ -274,9 +274,9 @@ namespace libavpn {
 				::fcntl(config.utun_fd_, F_SETFL, flags | O_NONBLOCK);
 
 			if (!assign_fd(config.utun_fd_, ec))
-			if (ec)
 			{
-				XLOG_ERR << "assign utun_fd failed: " << ec.message();
+				XLOG_ERR << "assign utun_fd failed: "
+					<< (ec ? ec.message() : "non-blocking setup failed");
 				return false;
 			}
 			m_devname = "utun-ipc";
@@ -292,10 +292,13 @@ namespace libavpn {
 			return false;
 
 		if (!assign_fd(fd, ec))
-		if (ec)
 		{
-			::close(fd);
-			XLOG_ERR << "assign tun fd failed: " << ec.message();
+			XLOG_ERR << "assign tun fd failed: "
+				<< (ec ? ec.message() : "non-blocking setup failed");
+			// assign 失败时 fd 尚未交给 asio; 交给 asio 后的失败由
+			// m_stream 析构关闭, 避免重复 close.
+			if (ec)
+				::close(fd);
 			return false;
 		}
 
