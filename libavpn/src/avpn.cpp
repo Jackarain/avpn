@@ -2692,6 +2692,8 @@ namespace libavpn {
 
 		if (keep)
 			m_tundev = std::move(keep);
+		else
+			m_tundev.reset();
 	}
 
 	int avpn_service::update_config(const boost::json::object& cfg)
@@ -2765,12 +2767,17 @@ namespace libavpn {
 		if (!restart)
 			return 0;
 
-		// 延迟重启: 先让当前 RPC 响应写出, 再停止并重新启动服务,
-		// 保留已打开的 tun 设备.
+		// 设备标识变化时必须关闭并重新打开 tun, 不能沿用旧设备.
+		const bool reopen_tun = m_config.ifdev_ != old.ifdev_ ||
+			m_config.ptun_fd_ != old.ptun_fd_ ||
+			m_config.utun_fd_ != old.utun_fd_;
+
+		// 延迟重启: 先让当前 RPC 响应写出, 再停止并重新启动服务.
+		// 设备标识未变时保留已打开的 tun, 否则关闭后按新配置重建.
 		XLOG_INFO << "update_config requires restart, restarting service";
 		auto self = shared_from_this();
 		net::co_spawn(m_main_context.get_executor(),
-			[self]() -> net::awaitable<void>
+			[self, reopen_tun]() -> net::awaitable<void>
 			{
 				auto ex = co_await net::this_coro::executor;
 				net::steady_timer timer(ex);
@@ -2778,7 +2785,7 @@ namespace libavpn {
 				boost::system::error_code sec;
 				co_await timer.async_wait(net_awaitable[sec]);
 
-				self->stop(true);
+				self->stop(!reopen_tun);
 				if (!self->start())
 					XLOG_ERR << "restart with new config failed";
 			}, net::detached);
