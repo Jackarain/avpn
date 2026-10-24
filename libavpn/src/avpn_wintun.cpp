@@ -447,15 +447,15 @@ namespace libavpn {
 		// 提前标记可关闭, 使 open() 中途失败时 close() 能正确清理已创建资源.
 		m_abort = false;
 
-		// 安装驱动并加载 wintun.dll.
-		static bool wintun_inited = false;
-		if (!wintun_inited)
+		// 安装驱动并加载 wintun.dll. m_api 跟随设备对象生命周期:
+		// 对象析构后 FreeLibrary, 新建的对象必须重新加载, 不能用进程级
+		// 布尔量把加载状态永久缓存下来.
+		if (!m_api)
 		{
 			wintun_detail::install_wintun();
 			m_api = wintun_detail::wintun_api::load();
 			if (!m_api)
 				XLOG_ERR << "load wintun.dll failed";
-			wintun_inited = true;
 		}
 		if (!m_api)
 		{
