@@ -212,9 +212,10 @@ wintun.sys RCDATA "@AVPN_RESOURCE_DIR@/driver/wintun.sys"
 ### 3.4 适配器创建 / 打开
 
 ```cpp
-m_wintun_handle = m_api->create_adapter(L"AVPN", L"AVPN", &adapter_guid);
+// ifname 取 config.ifdev_, 空串时使用 "AVPN".
+m_wintun_handle = m_api->create_adapter(wifname->c_str(), L"AVPN", &adapter_guid);
 if (!m_wintun_handle)
-    m_wintun_handle = m_api->open_adapter(L"AVPN");
+    m_wintun_handle = m_api->open_adapter(wifname->c_str());
 ```
 
 优先 `WintunCreateAdapter` 创建（固定 GUID，保证 NLA 确定性），失败则

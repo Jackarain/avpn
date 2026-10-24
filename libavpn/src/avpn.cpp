@@ -104,6 +104,18 @@ namespace libavpn {
 		return def;
 	}
 
+	// 是否需要打开 tun 设备; Windows 下 ifdev_ 为空时使用默认 wintun 设备名.
+	bool need_tun_device(const service_config& config)
+	{
+#if defined(_WIN32)
+		(void)config;
+		return true;
+#else
+		return !config.ifdev_.empty() || config.ptun_fd_ >= 0 ||
+			config.utun_fd_ >= 0;
+#endif
+	}
+
 	// 漫游凭证的查表键: 把 8 字节凭证按小端拼成一个整数.
 	static uint64_t roam_cookie_key(const uint8_t* p)
 	{
@@ -1385,8 +1397,7 @@ namespace libavpn {
 	bool avpn_service::run_as_gateway()
 	{
 		// 打开 tun 设备 (重启时复用已打开的设备, 避免关闭外部传入的 fd).
-		if (m_config.ifdev_.size() || m_config.ptun_fd_ >= 0 ||
-			m_config.utun_fd_ >= 0)
+		if (need_tun_device(m_config))
 		{
 			if (!m_tundev)
 			{
@@ -2380,8 +2391,7 @@ namespace libavpn {
 		}
 
 		// 打开 tun 设备 (重启时复用已打开的设备, 避免关闭外部传入的 fd).
-		if (m_config.ifdev_.size() || m_config.ptun_fd_ >= 0 ||
-			m_config.utun_fd_ >= 0)
+		if (need_tun_device(m_config))
 		{
 			if (!m_tundev)
 			{

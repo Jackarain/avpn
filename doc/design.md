@@ -524,7 +524,7 @@ Windows 平台由 `avpn_wintun`（`avpn_wintun.cpp/.hpp`）实现 tun 后端，`
 
 | 字段 | 说明 |
 |---|---|
-| `ifdev_` | tun 设备名称（Linux/macOS 接口名；Windows 为 `wintun`） |
+| `ifdev_` | tun 设备名称（Linux/macOS 接口名；Windows 为 wintun 适配器名，空则使用默认 `AVPN`） |
 | `ptun_fd_` / `utun_fd_` | 外部 tun fd / IPC fd（-1 表示不使用） |
 | `launcher_` | 控制服务地址（如 `ws://ip:port`），用于动态下发配置 |
 | `nexthop_` | 目标 VPN 服务器（客户端模式），支持 `udp://` / `tcp://` |
