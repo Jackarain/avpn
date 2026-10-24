@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <optional>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -38,6 +39,22 @@ namespace libavpn {
 				buf[n - 1] == ' '))
 				buf[--n] = 0;
 			return std::string(buf, n);
+		}
+
+		// UTF-8 转 UTF-16, 失败返回空.
+		std::optional<std::wstring> utf8_to_wide(std::string_view utf8)
+		{
+			const int len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+				utf8.data(), static_cast<int>(utf8.size()), nullptr, 0);
+			if (len <= 0)
+				return std::nullopt;
+
+			std::wstring wide(static_cast<size_t>(len), L'\0');
+			if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+					utf8.data(), static_cast<int>(utf8.size()),
+					wide.data(), len) != len)
+				return std::nullopt;
+			return wide;
 		}
 
 		struct windows_driver
@@ -415,7 +432,7 @@ namespace libavpn {
 		// 设备名优先使用配置中的 ifdev_, 未配置时使用默认 AVPN.
 		const std::string ifname = config.ifdev_.empty() ? "AVPN" : config.ifdev_;
 		m_devname = ifname;
-		auto wifname = xlogger::logger_aux__::utf8_utf16(ifname);
+		auto wifname = utf8_to_wide(ifname);
 		if (!wifname)
 		{
 			XLOG_ERR << "invalid wintun adapter name: " << ifname;
